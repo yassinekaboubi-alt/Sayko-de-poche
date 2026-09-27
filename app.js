@@ -1,4 +1,4 @@
-/* Sayko de poche — v2.1
+/* Sayko de poche — v2.5
    App 100 % locale : aucune donnée ne quitte le téléphone. */
 'use strict';
 
@@ -305,7 +305,7 @@ function defaults() {
     checks: {}, notes: {}, words: {}, hideFatiha: false, tajwid: { done: 0, total: 0 }, sourates: {},
     days: {},
     shifts: [], payslips: {},
-    blocks: {}, seen: {},
+    blocks: {}, seen: {}, money: defaultMoney(), faith: defaultFaith(), unlocks: {}, biz: { projects: [] },
     settings: defaultSettings(),
     ideas: [], lastExport: null, createdAt: Date.now(), updatedAt: 0
   };
@@ -322,6 +322,20 @@ function normalize(s) {
   out.tajwid = Object.assign({ done: 0, total: 0 }, out.tajwid || {});
   ['checks', 'notes', 'words', 'sourates', 'days', 'payslips', 'blocks', 'seen'].forEach(k => { if (typeof out[k] !== 'object' || !out[k] || Array.isArray(out[k])) out[k] = {}; });
   ['shifts', 'ideas'].forEach(k => { if (!Array.isArray(out[k])) out[k] = []; });
+  const dm = defaultMoney(), sm = (s && s.money) || {};
+  out.money = Object.assign(dm, sm);
+  ['incomes', 'fixed', 'envelopes', 'pots', 'tx'].forEach(k => { if (!Array.isArray(out.money[k])) out.money[k] = dm[k]; });
+  if (typeof out.money.months !== 'object' || !out.money.months) out.money.months = {};
+  if (!Array.isArray(out.money.investments)) out.money.investments = [];
+  out.money.debt = Object.assign({ total: '2000', start: '', monthly: '' }, sm.debt || {});
+  if (out.money.safetyGoal == null || out.money.safetyGoal === '') out.money.safetyGoal = '4000';
+  if (typeof out.money.auto !== 'boolean') out.money.auto = true;
+  if (out.money.life == null) out.money.life = '';
+  out.money.pots.forEach(p => { if (p.safety && String(p.target || '').trim() === '') p.target = String(out.money.safetyGoal); });
+  const df = defaultFaith(), sf = (s && s.faith) || {};
+  out.faith = { habits: Array.isArray(sf.habits) && sf.habits.length ? sf.habits : df.habits, log: sf.log && typeof sf.log === 'object' ? sf.log : {} };
+  out.unlocks = (s && s.unlocks && typeof s.unlocks === 'object') ? s.unlocks : {};
+  out.biz = { projects: s && s.biz && Array.isArray(s.biz.projects) ? s.biz.projects : [] };
   return out;
 }
 let dbp = null;
@@ -480,8 +494,10 @@ const ICON = {
 /* Mini-icônes des planètes (chemins 24×24) */
 const GLYPH = {
   parcours: '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 2.4"/><circle cx="12" cy="4" r="2.4" fill="currentColor"/>',
+  foi: '<path d="M15.5 4.5a8 8 0 1 0 4 12.5 6.5 6.5 0 1 1-4-12.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
   arabe: '<path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5v13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
   routine: '<path d="M12 3.5a8.5 8.5 0 1 1-8.5 8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  argent: '<rect x="3.5" y="6" width="17" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 12.25h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 6l8.5-2.5 1 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
   heures: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
 };
 /* Géométrie : 0° = en haut, sens des aiguilles d'une montre */
@@ -504,7 +520,11 @@ const COACH = {
   parcours: ['12 mois pour te former au business', 'Fais glisser l\'anneau ou touche une lune pour choisir un mois. Chaque mois se fait dans l\'ordre :', ['Écoute et lis les ressources', 'Coche les acquis quand tu les maîtrises', 'Fais l\'exercice pratique', 'Note ce que tu retiens']],
   arabe: ['Comprendre le sens de ce que tu récites', 'Quelques minutes de quiz par jour suffisent. Chaque étoile de la constellation est un mot : elle brille quand il est maîtrisé (3 bonnes réponses).'],
   routine: ['Ta 1 h 30 quotidienne', 'L\'anneau est découpé en 4 blocs. Touche un bloc quand il est fait : les 4 faits, la journée est validée et ta série continue.'],
-  heures: ['Vérifier ta paie', 'Fais glisser les deux poignées du cadran pour ton début et ta fin (la zone sombre, c\'est la nuit). L\'app calcule tes heures de nuit, du dimanche, au-delà de ta base, et ton net estimé.']
+  budget: ['Ta méthode', 'Elle tient en 3 temps :', ['Tu te paies d\'abord : ton épargne part en début de mois', 'Tes charges fixes sont mises de côté', 'Le reste est à toi, avec un budget par jour qui s\'ajuste à chaque dépense. Les enveloppes freinent les catégories où ça file vite.']],
+  foi: ['Ta régularité', 'Coche chaque prière faite à l\'heure sur le chemin du soleil, et tes autres habitudes en dessous. Atteindre 90 % sur 30 jours est une des deux clés de l\'onglet Business.'],
+  business: ['Pourquoi c\'est verrouillé', 'Pour que l\'app reflète honnêtement tes priorités : d\'abord les compétences et la constance, ensuite le business. Chaque volet affiche ce qu\'il te reste.'],
+  businessOn: ['Ton atelier', 'Un projet = un nom, une étape, et une prochaine action concrète. Rien de plus pour l\'instant.'],
+  heures: ['Vérifier ta paie', 'Fais glisser les deux poignées du cadran pour ton début et ta fin (la zone sombre, c\'est la nuit). L\'app cumule tes heures du mois, tes heures de nuit et du dimanche, et le compteur d\'heures stockées de la Gare.']
 };
 function coach(key) {
   if (S.seen[key]) return '';
@@ -549,16 +569,20 @@ const miniOrb = (p, key, mint) => `<svg class="mini-orb" viewBox="-20 -20 40 40"
    ===================================================================== */
 const PLANETS = [
   { key: 'routine', name: 'Routine', r: 66, speed: 9, phase: 210 },
-  { key: 'arabe', name: 'Arabe', r: 98, speed: 6, phase: 330, mint: true },
-  { key: 'heures', name: 'Heures', r: 130, speed: 4, phase: 70 },
+  { key: 'foi', name: 'Foi', r: 98, speed: 6, phase: 330, mint: true },
+  { key: 'argent', name: 'Argent', r: 130, speed: 4, phase: 70 },
   { key: 'parcours', name: 'Parcours', r: 160, speed: 2.4, phase: 150 }
 ];
 const todayBlocks = () => (S.blocks[todayISO()] || [0, 0, 0, 0]).filter(Boolean).length;
 const baseTotal = () => (numv(S.settings.base.gare) + numv(S.settings.base.pizza)) * 60 || 1;
 function planetValue(k) {
   const ym = todayISO().slice(0, 7);
+  if (k === 'argent') {
+    if (isSetUp()) { const b = budgetOf(ym); return [b.free > 0 ? Math.max(0, b.reste) / b.free : 0, eur0(b.reste)]; }
+    const w0 = sumShifts(shiftsIn(ym)).worked; return [w0 / baseTotal(), fmtH(w0)];
+  }
   if (k === 'parcours') return [globalPct() / 100, `${globalPct()} %`];
-  if (k === 'arabe') return [wordsKnown() / WORDS.length, `${wordsKnown()}/${WORDS.length} mots`];
+  if (k === 'foi') { const sc = faithScore(); return [sc.pct / FAITH_GOAL, `${Math.round(sc.pct * 100)} % / 30 j`]; }
   if (k === 'routine') { const d = S.days[todayISO()] ? 4 : todayBlocks(); return [d / 4, `${d}/4 blocs`]; }
   const w = sumShifts(shiftsIn(ym)).worked; return [w / baseTotal(), fmtH(w)];
 }
@@ -596,9 +620,11 @@ function vOrbite() {
   <section style="margin-top:18px">
     <h2>Aujourd'hui</h2>
     <div class="today-list">
+      ${isSetUp() ? (() => { const bb = budgetOf(todayISO().slice(0, 7)), dd = bb.daysLeft ? bb.reste / bb.daysLeft : 0; return `<button class="today-item" data-goto="budget">${miniOrb(bb.free > 0 ? Math.max(0, bb.reste) / bb.free : 0, 'argent')}<span><b>${bb.reste > 0 ? `${eur0(dd)} à dépenser aujourd'hui` : 'Budget du mois épuisé'}</b><span class="s">Reste ${eur0(bb.reste)} ce mois</span></span>${ICON.chev}</button>`; })() : ''}
       <button class="today-item" data-goto="heures">${miniOrb(planetValue('heures')[0], 'heures')}<span><b>${wk ? `${fmtH(wk)} cette semaine` : 'Aucun service cette semaine'}</b><span class="s">Noter un service</span></span>${ICON.chev}</button>
       <button class="today-item" data-goto="routine">${miniOrb(tb / 4, 'routine')}<span><b>${tb === 4 ? 'Routine faite' : `${tb} bloc${tb > 1 ? 's' : ''} sur 4`}</b><span class="s">${streak()} jour${streak() > 1 ? 's' : ''} d'affilée</span></span>${ICON.chev}</button>
       <button class="today-item" data-goto="parcours">${miniOrb(modPct(cur), 'parcours')}<span><b>Mois ${cm} · ${esc(cur.title)}</b><span class="s">${modDone(cur)} acquis sur ${cur.acq.length}</span></span>${ICON.chev}</button>
+      ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="arabe">${miniOrb(wordsKnown() / WORDS.length, 'arabe', true)}<span><b>Réviser 5 mots</b><span class="s">${wordsKnown()} mots maîtrisés sur ${WORDS.length}</span></span>${ICON.chev}</button>
     </div>
   </section>`;
@@ -679,7 +705,7 @@ function vParcours() {
   <div id="mcard"></div>
   <section><h2>Par compétence</h2>
     <div class="stats-line" style="margin-bottom:18px"><div><b class="num" id="gpct">${globalPct()} %</b><span>des acquis</span></div><div><b class="num" id="mdone">${MONTHS.filter(m => modPct(m) === 1).length}</b><span>mois bouclés</span></div></div>
-    <div class="skills">${Object.keys(DOMAINS).map(k => `<div class="skill" data-skill="${k}"><span>${DOMAINS[k]}</span><span class="small muted num" data-skill-n></span><div class="bar"><i style="width:0"></i></div></div>`).join('')}</div>
+    <div class="skills">${Object.keys(DOMAINS).map(k => `<div class="skill" data-skill="${k}"><span>${DOMAINS[k]}${BIZ_DOMAINS.includes(k) ? ' <span class="pill gold" style="margin-left:4px">clé Business</span>' : ''}</span><span class="small muted num" data-skill-n></span><div class="bar"><i style="width:0"></i></div></div>`).join('')}</div>
   </section>`;
 }
 function counterRotate() {
@@ -759,7 +785,7 @@ function vArabe() {
   const t = S.tajwid, cq = currentQuarter(), nS = SOURATES.filter(s => S.sourates[s[1]]).length;
   const fat = FATIHA.map((v, vi) => `<div class="verse"><span class="vn">Verset ${vi + 1}</span><div class="words">${v.map(w => `<button class="w" data-fw><span class="a" lang="ar">${w[0]}</span><span class="f">${esc(w[1])}</span></button>`).join('')}</div></div>`).join('');
   const steps = AR_STEPS.map((s, si) => `<div class="qtr ${si === cq ? 'cur' : ''}" style="margin-top:${si ? 18 : 0}px"><p class="eyebrow" ${si === cq ? 'style="color:var(--gold)"' : ''}>${si === cq ? 'Maintenant · ' : ''}${s.t}</p><div class="checks">${s.items.map((it, i) => checkbox(`ar${si}-${i}`, esc(it))).join('')}</div></div>`).join('');
-  return `${pageHead('Arabe <em>&</em> Coran', 'Le sens de ce que tu lis. Tajwid Institut s\'occupe de la lecture.', 'arabe')}
+  return `${foiTop('arabe')}
   <div class="constel">
     <svg viewBox="-112 -104 224 208" id="constel" aria-label="${wordsKnown()} mots maîtrisés sur ${WORDS.length}">${constellation()}</svg>
     <p class="constel-tip" id="ctip"></p>
@@ -959,21 +985,19 @@ function bindDial() {
 function pocketBlock() {
   const ym = todayISO().slice(0, 7);
   const t = { gare: sumShifts(shiftsIn(ym, 'gare')), pizza: sumShifts(shiftsIn(ym, 'pizza')) };
-  const mo = { gare: money('gare', t.gare), pizza: money('pizza', t.pizza) };
-  const anyRate = mo.gare || mo.pizza, poche = (mo.gare ? mo.gare.poche : 0) + (mo.pizza ? mo.pizza.poche : 0);
-  const bg = numv(S.settings.base.gare) * 60 || 1, bp = Math.max(numv(S.settings.base.pizza) * 60 || 4800, t.pizza.worked);
+  const baseG = numv(S.settings.base.gare) * 60, bg = baseG || 1, bp = Math.max(numv(S.settings.base.pizza) * 60 || 4800, t.pizza.worked);
+  const diff = t.gare.worked - baseG;
   return `<div class="pocket">
-    <svg viewBox="-68 -68 136 136" aria-label="Heures du mois par rapport à tes bases">
+    <svg viewBox="-68 -68 136 136" aria-label="Heures du mois">
       <circle r="58" fill="none" stroke="var(--raise)" stroke-width="9"/><circle r="58" fill="none" stroke="var(--gold)" stroke-width="9" stroke-linecap="round" transform="rotate(-90)" ${ringDash(58, t.gare.worked / bg)}/>
       <circle r="44" fill="none" stroke="var(--raise)" stroke-width="9"/><circle r="44" fill="none" stroke="var(--mint)" stroke-width="9" stroke-linecap="round" transform="rotate(-90)" ${ringDash(44, t.pizza.worked / bp)}/>
-      <text y="2" text-anchor="middle" dominant-baseline="central" style="font:400 22px var(--serif);fill:var(--ink)">${Math.floor((t.gare.worked + t.pizza.worked) / 60)} h</text>
     </svg>
     <div>
-      <p class="eyebrow">${anyRate ? `Dans ta poche · ${monthLabel(ym).split(' ')[0]}` : 'Ton mois'}</p>
-      ${anyRate ? `<p class="big num">${eur0(poche)}</p>` : `<button class="btn sm ghost" data-open="settings" style="margin-top:8px">Ajouter mes taux horaires</button>`}
+      <p class="eyebrow">Heures · ${monthLabel(ym).split(' ')[0]}</p>
+      <p class="big num" style="color:var(--ink)">${fmtH(t.gare.worked + t.pizza.worked)}</p>
       <div class="lines">
-        <span><i class="legend" style="background:var(--gold)"></i>Gare <b>${fmtH(t.gare.worked)}</b> / ${numv(S.settings.base.gare)} h</span>
-        <span><i class="legend" style="background:var(--mint)"></i>Mister Pizza <b>${fmtH(t.pizza.worked)}</b> ce mois</span>
+        <span><i class="legend" style="background:var(--gold)"></i>Gare <b>${fmtH(t.gare.worked)}</b>${baseG ? ` / ${String(numv(S.settings.base.gare)).replace('.', ',')} h` : ''}</span>
+        <span><i class="legend" style="background:var(--mint)"></i>Mister Pizza <b>${fmtH(t.pizza.worked)}</b></span>
       </div>
     </div>
   </div>`;
@@ -1005,7 +1029,7 @@ function vHeures() {
   const backupDays = S.lastExport ? Math.floor((Date.now() - S.lastExport) / 864e5) : null;
   const needBackup = S.shifts.length >= 3 && (backupDays === null || backupDays >= 14);
   const hol = holidayName(f.date);
-  return `${pageHead('Heures', 'Chaque service noté, chaque euro vérifié.', 'heures')}
+  return `${argentTop('heures')}
   ${pocketBlock()}
   ${counterBlock()}
   <section id="entry" style="margin-top:36px">
@@ -1034,7 +1058,21 @@ function vHeures() {
     ${overs.length ? `<div class="alert">${ICON.warn}<span>Seuil hebdo dépassé chez ${overs.map(k => EMP[k]).join(' et ')}. Vérifie que ces heures sup apparaissent sur ta fiche de paie.</span></div>` : ''}
   </section>
   <section id="month">${vMonth()}</section>
+  ${vArchive()}
   ${needBackup ? `<div class="nudge"><span>${backupDays === null ? "Tu n'as encore jamais sauvegardé tes données." : `Dernière sauvegarde il y a ${backupDays} jours.`}</span><button class="btn sm quiet" data-export>Sauvegarder</button></div>` : ''}`;
+}
+function vArchive() {
+  const months = [...new Set(S.shifts.map(x => x.date.slice(0, 7)))].sort().reverse();
+  if (months.length < 1) return '';
+  const c = gareCounter(), bal = {}; if (c) c.months.forEach(m => { bal[m.ym] = m.bal; });
+  const base = numv(S.settings.base.gare) * 60;
+  return `<section><h2>Archive des compteurs</h2>
+    <div class="archive">${months.map(ym => { const g = sumShifts(shiftsIn(ym, 'gare')), pz = sumShifts(shiftsIn(ym, 'pizza'));
+      return `<button class="arow" data-arch="${ym}"><span class="am">${monthLabel(ym)}</span>
+        <span class="ac"><small>Gare</small><b class="num">${fmtH(g.worked)}</b>${base && g.n ? `<small class="num" style="color:var(--${g.worked >= base ? 'gold' : 'muted'})">${fmtSigned(g.worked - base)}</small>` : ''}</span>
+        <span class="ac"><small>Compteur</small><b class="num">${bal[ym] != null ? fmtSigned(bal[ym]) : ym === todayISO().slice(0, 7) ? '<span class="muted" style="font-weight:500">en cours</span>' : '—'}</b></span>
+        <span class="ac"><small>Pizza</small><b class="num">${fmtH(pz.worked)}</b></span></button>`; }).join('')}</div>
+    <p class="hint">Compteur = solde de tes heures stockées à la Gare à la fin du mois. Touche un mois pour voir son détail.</p></section>`;
 }
 function vMonth() {
   const ym = H.month, st = S.settings;
@@ -1051,7 +1089,6 @@ function vMonth() {
       <div class="head"><h3 class="row" style="gap:8px"><span class="edot ${k}"></span>${EMP[k]}</h3><b class="num">${fmtH(t.worked)}</b></div>
       <div class="row between" style="margin-top:6px;flex-wrap:wrap">${baseLine}<span class="small muted num">${fmtDec(t.worked)} h · ${t.n} service${t.n > 1 ? 's' : ''}</span></div>
       <div class="kv"><div>Nuit<b>${fmtH(t.night)}</b></div><div>Dimanche<b>${fmtH(t.sunday)}</b></div><div>Férié<b>${fmtH(t.holiday)}</b></div></div>
-      ${mo ? `<div class="money"><div>Brut<b>${eur0(mo.brut)}</b></div><div ${numv(st.pas) ? '' : 'class="hi"'}>Net<b>${eur0(mo.net)}</b></div>${numv(st.pas) ? `<div class="hi">Après impôt<b>${eur0(mo.poche)}</b></div>` : `<div>Cotisations<b>${numv(st.cotis[k])} %</b></div>`}</div>` : ''}
       <div class="payslip"><label for="slip-${k}">Heures sur ta fiche de paie</label><input id="slip-${k}" data-slip="${k}" inputmode="decimal" placeholder="ex. ${numv(st.base[k]) || '151,67'}" value="${esc(slip ?? '')}"><span>${gap}</span></div>
     </div>`;
   }).join('');
@@ -1077,7 +1114,7 @@ function vMonth() {
       <button class="icon-btn" data-mnav="1" aria-label="Mois suivant" ${ym >= todayISO().slice(0, 7) ? 'disabled style="opacity:.3"' : ''}>${ICON.next}</button></div></div>
     <p class="small muted num" style="margin:-4px 0 6px">Total ${fmtH(tot.worked)} (${fmtDec(tot.worked)} h) · ${tot.n} service${tot.n > 1 ? 's' : ''}</p>
     ${blocks}
-    <p class="hint">Estimations. Gare : salaire de base (tes heures en plus vont au compteur). Mister Pizza : toutes tes heures × ton taux. Puis cotisations. Pour plus de justesse, calibre tes cotisations avec une vraie fiche de paie dans les réglages.</p>
+    <p class="hint">Compare ces totaux avec ta fiche de paie. Nuit, dimanche et férié t'aident à vérifier les majorations.</p>
     ${weeks ? `<h3 style="margin:30px 0 8px">Semaines</h3><div class="weeks">${weeks}</div>` : ''}
     <div class="row between" style="margin:30px 0 10px"><h3>Historique</h3><button class="btn sm ghost" id="csv" ${tot.n ? '' : 'disabled'}>Exporter en CSV</button></div>
     <div class="filters" role="group" aria-label="Filtrer par employeur">
@@ -1153,6 +1190,596 @@ function deleteShift() {
   toast('Service supprimé', 'Annuler', () => { S.shifts.push(removed); save(); render(); }, 6000);
 }
 
+
+/* =====================================================================
+   12 bis. ARGENT — budget « reste à vivre » + enveloppes + cagnottes
+   Méthode : 1) on se paie d'abord (épargne), 2) on met de côté les
+   charges fixes, 3) le reste se dépense librement, avec un budget par
+   jour qui s'ajuste à chaque dépense. Les enveloppes limitent les
+   catégories où l'argent file vite.
+   ===================================================================== */
+const CATS = [
+  ['courses', 'Courses'], ['resto', 'Restos & snacks'], ['transport', 'Essence & transport'], ['sorties', 'Sorties & loisirs'],
+  ['shopping', 'Shopping'], ['maison', 'Maison'], ['sante', 'Santé'], ['abos', 'Abonnements'], ['cadeaux', 'Cadeaux & dons'],
+  ['formation', 'Livres & formation'], ['divers', 'Divers']
+];
+const catName = id => (CATS.find(c => c[0] === id) || [id, 'Divers'])[1];
+const INC_CATS = [['salaire', 'Salaire'], ['virement', 'Virement reçu'], ['vente', 'Vente'], ['rembours', 'Remboursement'], ['autre', 'Autre rentrée']];
+const incName = id => (INC_CATS.find(c => c[0] === id) || [id, 'Rentrée'])[1];
+function defaultMoney() {
+  return {
+    incomes: [
+      { id: 'inc-gare', label: 'Salaire Gare', amount: '', day: 31, src: 'gare' },
+      { id: 'inc-pizza', label: 'Salaire Mister Pizza', amount: '', day: 5, src: 'pizza' },
+      { id: 'inc-femme', label: 'Virement de ma femme', amount: '', day: 1, src: '' }
+    ],
+    fixed: [
+      { id: 'fx-loyer', label: 'Loyer', amount: '', day: 5 },
+      { id: 'fx-energie', label: 'Électricité & gaz', amount: '', day: 10 },
+      { id: 'fx-internet', label: 'Internet & téléphone', amount: '', day: 12 },
+      { id: 'fx-assurance', label: 'Assurances', amount: '', day: 15 }
+    ],
+    envelopes: [{ id: 'env-courses', cat: 'courses', limit: '' }, { id: 'env-resto', cat: 'resto', limit: '' }, { id: 'env-transport', cat: 'transport', limit: '' }],
+    pots: [{ id: 'pot-secu', name: 'Épargne de sécurité', target: '4000', start: '', monthly: '', deadline: '', safety: true }],
+    debt: { total: '2000', start: '', monthly: '' }, safetyGoal: '4000', investments: [], auto: true, life: '',
+    tx: [], months: {}
+  };
+}
+const eur2 = v => v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+const A = { open: new Set(), view: 'heures', month: todayISO().slice(0, 7), kind: 'exp', cat: 'courses', catFilter: 'all' };
+try { const v = localStorage.getItem('sdp-argent-view'); if (v === 'budget' || v === 'heures') A.view = v; } catch (e) {}
+const prevMonth = ym => { const d = parseDate(ym + '-01'); d.setMonth(d.getMonth() - 1); return iso(d).slice(0, 7); };
+const daysIn = ym => { const d = parseDate(ym + '-01'); return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); };
+
+function expectedIncome(inc) {
+  // Plus aucune prévision depuis les heures : seul un montant fixe saisi sert d'« attendu ».
+  return { v: String(inc.amount).trim() !== '' ? numv(inc.amount) : 0, est: false };
+}
+const txIn = (ym, kind) => S.money.tx.filter(t => t.date.startsWith(ym) && (!kind || t.kind === kind));
+function potBalance(p, upTo) {
+  let b = numv(p.start);
+  S.money.tx.forEach(t => { if (t.pot === p.id && (!upTo || t.date.slice(0, 7) <= upTo)) b += t.kind === 'save' ? numv(t.amount) : t.kind === 'withdraw' ? -numv(t.amount) : 0; });
+  return b;
+}
+/* ----- Plan automatique : combien pour la dette et l'épargne ce mois-ci ----- */
+const STARTER_CUSHION = 1000, PLAN_MARGIN = 0.10;
+function lifeBudget(ym) {
+  if (String(S.money.life).trim() !== '') return { v: numv(S.money.life), src: 'manuel' };
+  const env = S.money.envelopes.reduce((a, e) => a + numv(e.limit), 0), hist = avgSpend(ym);
+  if (!env && !hist) return { v: 0, src: 'inconnu' };
+  return hist > env ? { v: Math.round(hist), src: 'historique' } : { v: env, src: 'enveloppes' };
+}
+function autoPlan(ym, incTotal, fixTotal) {
+  const M = S.money, L = lifeBudget(ym);
+  if (!(incTotal > 0)) return { ok: false, why: 'revenus', life: L };
+  if (!(L.v > 0)) return { ok: false, why: 'vie', life: L };
+  const others = M.pots.filter(p => !p.safety).reduce((a, p) => a + numv(p.monthly), 0);
+  const remDebt = Math.max(0, numv(M.debt.total) - debtRepaid(prevMonth(ym)));
+  const sp = M.pots.find(p => p.safety), safeBal = sp ? potBalance(sp, prevMonth(ym)) : 0;
+  const safeNeed = Math.max(0, (numv(M.safetyGoal) || 4000) - safeBal);
+  const avail = incTotal - fixTotal - L.v - others;
+  const surplus = Math.max(0, Math.floor(avail * (1 - PLAN_MARGIN) / 10) * 10);
+  let phase, ratio;
+  if (remDebt > 0 && safeBal < STARTER_CUSHION) { phase = 1; ratio = 0.5; }
+  else if (remDebt > 0) { phase = 2; ratio = 0.8; }
+  else if (safeNeed > 0) { phase = 3; ratio = 0; }
+  else { phase = 4; ratio = 0; }
+  let debt = Math.min(remDebt, Math.floor(surplus * ratio / 10) * 10), safety = Math.min(safeNeed, surplus - debt);
+  let left = surplus - debt - safety;
+  if (left > 0 && debt < remDebt) { const add = Math.min(left, remDebt - debt); debt += add; left -= add; }
+  if (left > 0 && safety < safeNeed) { const add = Math.min(left, safeNeed - safety); safety += add; left -= add; }
+  return { ok: true, auto: true, avail, surplus, debt, safety, extra: left, phase: surplus <= 0 ? 0 : phase, life: L, others, remDebt, safeBal };
+}
+function planFor(ym, incTotal, fixTotal) {
+  const a = autoPlan(ym, incTotal, fixTotal), o = (S.money.months[ym] || {}).plan;
+  if (o && (o.debt !== '' || o.safety !== '')) return { ...a, ok: true, auto: false, debt: o.debt !== '' ? numv(o.debt) : (a.debt || 0), safety: o.safety !== '' ? numv(o.safety) : (a.safety || 0) };
+  return a;
+}
+const PHASE_TXT = [
+  'Ce mois-ci, tes revenus couvrent tout juste tes charges et ton budget de vie. Rien n\'est réservé : chaque euro remboursé ou épargné est un bonus.',
+  'Tant que ton épargne de sécurité est sous 1 000 €, le surplus est partagé moitié-moitié : tu rembourses tout en te construisant un premier coussin.',
+  'Premier coussin atteint : 80 % du surplus va à la dette pour t\'en libérer vite, 20 % continue vers ton objectif de sécurité.',
+  'Dette soldée : tout le surplus part vers ton épargne de sécurité.',
+  'Fondations posées : ce qui reste peut aller à l\'investissement.'
+];
+function vPlanCard(b) {
+  if (!S.money.auto) return '';
+  const P = b.plan, ym = A.month;
+  if (!P.ok) return `<div class="plan-card"><p class="eyebrow">Plan du mois</p><p style="margin-top:8px">${P.why === 'revenus' ? 'Le plan se calcule dès que tu saisis un revenu reçu pour ce mois (dans « Revenus reçus », juste en dessous). Il se réajuste à chaque nouvelle rentrée.' : 'Indique ton <b>budget de vie</b> (courses, essence, sorties…) ou des plafonds d\'enveloppes : l\'app doit savoir ce qu\'il te faut pour vivre avant de répartir le reste.'}</p><button class="btn sm ghost" ${P.why === 'revenus' ? 'data-openinc' : 'data-bsetup'} style="margin-top:12px">${P.why === 'revenus' ? 'Saisir un revenu reçu' : 'Compléter mon mois type'}</button></div>`;
+  const o = (S.money.months[ym] || {}).plan, edited = !P.auto;
+  return `<div class="plan-card">
+    <div class="row between"><p class="eyebrow">Plan du mois · ${edited ? 'modifié par toi' : 'calculé par l\'app'}</p></div>
+    <div class="plan-split">
+      <div><span>Dette</span><b class="num">${eur0(P.debt)}</b></div>
+      <div><span>Épargne de sécurité</span><b class="num">${eur0(P.safety)}</b></div>
+    </div>
+    <p class="small muted">Disponible après charges fixes et budget de vie (${eur0(P.life.v)}${P.life.src === 'historique' ? ', ta moyenne des 3 derniers mois' : P.life.src === 'enveloppes' ? ', tes enveloppes' : ''}) : ${eur0(Math.max(0, P.avail))}. L'app en répartit 90 % et te laisse 10 % de marge${P.extra ? `, plus ${eur0(P.extra)} non affectés` : ''}.</p>
+    <p class="small" style="margin-top:8px">${PHASE_TXT[P.phase]} Le plan se réajuste à chaque revenu reçu.</p>
+    ${edited && P.debt + P.safety > Math.max(0, P.avail) ? `<div class="alert" style="margin-top:10px">${ICON.warn}<span>Ton plan dépasse ton disponible de ${eur0(P.debt + P.safety - Math.max(0, P.avail))} : ce sera pris sur ton budget de vie.</span></div>` : ''}
+    <div id="planEdit"></div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">${edited ? '<button class="btn sm quiet" data-planreset>Revenir au calcul auto</button>' : ''}<button class="btn sm ghost" data-planedit>Modifier ce mois</button></div>
+  </div>`;
+}
+function budgetOf(ym) {
+  const M = S.money, st = M.months[ym] || {};
+  const incomes = M.incomes.map(i => { const e = expectedIncome(i), rec = st.inc && st.inc[i.id] != null ? numv(st.inc[i.id]) : null; return { ...i, exp: e.v, rec, val: rec != null ? rec : 0 }; });
+  const extraInc = txIn(ym, 'inc').reduce((a, t) => a + numv(t.amount), 0), fromPots = txIn(ym, 'withdraw').reduce((a, t) => a + numv(t.amount), 0);
+  const incTotal = incomes.reduce((a, i) => a + i.val, 0) + extraInc + fromPots;
+  const fixed = M.fixed.map(f => ({ ...f, val: numv(f.amount), paid: !!(st.paid && st.paid[f.id]) }));
+  const fixTotal = fixed.reduce((a, f) => a + f.val, 0);
+  const P = M.auto ? planFor(ym, incTotal, fixTotal) : null;
+  const pots = M.pots.map(p => { const done = txIn(ym, 'save').filter(t => t.pot === p.id).reduce((a, t) => a + numv(t.amount), 0), plan = P && p.safety ? (P.ok ? P.safety : 0) : numv(p.monthly); return { ...p, done, plan, val: Math.max(plan, done), bal: potBalance(p) }; });
+  const invested = txIn(ym, 'invest').reduce((a, t) => a + numv(t.amount), 0);
+  const saveTotal = pots.reduce((a, p) => a + p.val, 0) + invested;
+  const dTot = numv(M.debt.total), remStart = Math.max(0, dTot - debtRepaid(prevMonth(ym)));
+  const dDone = txIn(ym, 'debt').reduce((a, t) => a + numv(t.amount), 0), dPlan = Math.min(P ? (P.ok ? P.debt : 0) : numv(M.debt.monthly), remStart);
+  const debt = { plan: dPlan, done: dDone, val: Math.max(dPlan, dDone), remStart };
+  const free = incTotal - fixTotal - saveTotal - debt.val;
+  const exps = txIn(ym, 'exp'), spent = exps.reduce((a, t) => a + numv(t.amount), 0);
+  const byCat = {}; exps.forEach(t => { byCat[t.cat] = (byCat[t.cat] || 0) + numv(t.amount); });
+  const cur = todayISO().slice(0, 7), dim = daysIn(ym), today = new Date().getDate();
+  const daysLeft = ym === cur ? dim - today + 1 : ym > cur ? dim : 0;
+  const elapsed = ym === cur ? (today - 1) / dim : ym < cur ? 1 : 0;
+  const reste = free - spent;
+  return { plan: P, incomes, extraInc, fromPots, incTotal, fixed, fixTotal, pots, saveTotal, invested, debt, free, spent, byCat, reste, daysLeft, elapsed, dim, exps, envelopes: M.envelopes.map(e => ({ ...e, lim: numv(e.limit), sp: byCat[e.cat] || 0 })) };
+}
+const isSetUp = () => S.money.incomes.some(i => String(i.amount).trim() !== '') || S.money.fixed.some(f => numv(f.amount) > 0) || Object.values(S.money.months).some(m => m.inc && Object.keys(m.inc).length);
+
+function argentTop(view) {
+  const sub = view === 'budget' ? 'Tu te paies d\'abord, le reste est à toi.' : 'Chaque heure notée, chaque compteur à jour.';
+  return `${pageHead('Argent', sub, view === 'budget' ? 'budget' : 'heures')}
+  <div class="seg" role="group" aria-label="Section" style="margin-top:20px">
+    <button data-aview="budget" aria-pressed="${view === 'budget'}"><span class="dot"></span>Budget</button>
+    <button data-aview="heures" aria-pressed="${view === 'heures'}"><span class="dot"></span>Heures</button>
+  </div>`;
+}
+function budgetRing(b) {
+  const spentP = b.free > 0 ? b.spent / b.free : (b.spent > 0 ? 1 : 0), over = spentP > b.elapsed + 0.08;
+  return `<svg viewBox="-68 -68 136 136" aria-label="Temps écoulé et budget dépensé">
+    <circle r="58" fill="none" stroke="var(--raise)" stroke-width="6"/><circle r="58" fill="none" stroke="var(--muted)" stroke-width="6" stroke-linecap="round" transform="rotate(-90)" ${ringDash(58, b.elapsed)} opacity=".6"/>
+    <circle r="45" fill="none" stroke="var(--raise)" stroke-width="11"/><circle r="45" fill="none" stroke="var(--${spentP > 1 ? 'danger' : over ? 'warn' : 'gold'})" stroke-width="11" stroke-linecap="round" transform="rotate(-90)" ${ringDash(45, spentP)}/>
+    <text y="-4" text-anchor="middle" style="font:400 22px var(--serif);fill:var(--ink)">${Math.round(Math.min(spentP, 9.99) * 100)} %</text>
+    <text y="14" text-anchor="middle" style="font-size:8.5px;font-weight:700;letter-spacing:.1em;fill:var(--muted)">DÉPENSÉ</text>
+  </svg>`;
+}
+function vBudget() {
+  const ym = A.month, b = budgetOf(ym), cur = todayISO().slice(0, 7), isCur = ym === cur;
+  const daily = b.daysLeft ? b.reste / b.daysLeft : 0;
+  const spentP = b.free > 0 ? b.spent / b.free : 0;
+  const pace = b.elapsed > 0.05 ? b.spent / Math.max(1, Math.round(b.elapsed * b.dim)) : 0;
+  const projEnd = isCur && pace ? b.free - (b.spent + pace * b.daysLeft) : null;
+  let status = '';
+  if (b.reste < 0) status = `<span class="pill danger">Budget dépassé de ${eur0(-b.reste)}</span>`;
+  else if (isCur && spentP > b.elapsed + 0.08) status = '<span class="pill warn">Tu dépenses plus vite que le temps passe</span>';
+  else if (isCur && b.spent) status = '<span class="pill mint">Dans les clous</span>';
+
+  const setup = isSetUp() ? '' : `<div class="coach" style="background:var(--surface)"><b>Commence par ton mois type.</b> Indique tes revenus, tes charges fixes et ce que tu veux épargner : l'app calcule ensuite ce que tu peux dépenser chaque jour.<br><button data-bsetup>Configurer mon mois type</button></div>`;
+
+  const kinds = [['exp', 'Dépense'], ['inc', 'Rentrée']];
+  const chips = (A.kind === 'exp' ? CATS : INC_CATS).map(([id, n]) => `<button class="chip" data-bcat="${id}" aria-pressed="${A.cat === id}">${n}</button>`).join('');
+
+  const envs = b.envelopes.filter(e => e.lim > 0);
+  const unalloc = b.free - envs.reduce((a, e) => a + e.lim, 0);
+  const envRows = envs.map(e => {
+    const p = e.sp / e.lim, st = p > 1 ? 'danger' : p > 0.8 ? 'warn' : 'gold';
+    return `<div class="env"><div class="row between"><span>${catName(e.cat)}</span><span class="num small"><b>${eur0(Math.max(0, e.lim - e.sp))}</b> <span class="muted">restants sur ${eur0(e.lim)}</span></span></div>
+      <div class="bar"><i style="width:${Math.min(100, p * 100)}%;background:var(--${st})"></i></div>${p > 1 ? `<p class="small" style="color:var(--danger);margin-top:4px">Dépassée de ${eur0(e.sp - e.lim)}</p>` : ''}</div>`;
+  }).join('');
+
+  const pots = b.pots.filter(p => p.name);
+  const potRows = pots.map(p => {
+    const tgt = numv(p.target) || (p.safety ? 3 * (b.fixTotal + (avgSpend() || 0)) : 0);
+    const prog = tgt ? p.bal / tgt : 0;
+    let eta = '';
+    if (tgt && p.bal < tgt && p.plan > 0) { const n = Math.ceil((tgt - p.bal) / p.plan), d = parseDate(ym + '-01'); d.setMonth(d.getMonth() + n); eta = `atteint vers ${monthLabel(iso(d).slice(0, 7))}`; }
+    if (tgt && p.bal >= tgt) eta = 'objectif atteint';
+    let need = '';
+    if (tgt && p.deadline && p.bal < tgt) { const m = Math.max(1, (parseDate(p.deadline + '-01').getFullYear() - parseDate(ym + '-01').getFullYear()) * 12 + parseDate(p.deadline + '-01').getMonth() - parseDate(ym + '-01').getMonth()); need = ` · il faut ${eur0((tgt - p.bal) / m)}/mois pour ${monthLabel(p.deadline)}`; }
+    const done = p.plan > 0 && p.done >= p.plan;
+    return `<div class="pot">
+      <svg viewBox="-24 -24 48 48" class="pot-ring" aria-hidden="true"><circle r="19" fill="none" stroke="var(--raise)" stroke-width="5"/><circle r="19" fill="none" stroke="var(--mint)" stroke-width="5" stroke-linecap="round" transform="rotate(-90)" ${ringDash(19, prog)}/></svg>
+      <div class="grow"><b>${esc(p.name)}</b><p class="small muted num">${eur0(p.bal)}${tgt ? ` sur ${eur0(tgt)}${p.safety && !numv(p.target) ? ' (3 mois de dépenses)' : ''}` : ''}</p>${eta || need ? `<p class="small muted">${eta}${need}</p>` : ''}</div>
+      <div style="display:grid;gap:6px;justify-items:end">${p.plan > 0 ? (done ? '<span class="pill mint">Versé</span>' : `<button class="btn sm" data-psave="${p.id}">Verser ${eur0(p.plan - p.done)}</button>`) : ''}<button class="btn sm quiet" data-psave="${p.id}" data-custom="1">${p.plan > 0 ? 'Autre montant' : 'Verser'}</button></div>
+    </div>`;
+  }).join('');
+
+  const list = b.exps.concat(txIn(ym, 'inc'), txIn(ym, 'save'), txIn(ym, 'withdraw'), txIn(ym, 'debt'), txIn(ym, 'invest')).filter(t => A.catFilter === 'all' || t.cat === A.catFilter).sort((x, y) => (y.date + (y.created || 0)).localeCompare(x.date + (x.created || 0)));
+  const txRows = list.map(t => {
+    const d = parseDate(t.date), neg = ['exp', 'save', 'debt', 'invest'].includes(t.kind);
+    const lbl = t.kind === 'exp' ? catName(t.cat) : t.kind === 'inc' ? incName(t.cat) : t.kind === 'debt' ? 'Remboursement de la dette' : t.kind === 'invest' ? `Investissement · ${esc((S.money.investments.find(i => i.id === t.inv) || {}).name || '')}` : t.kind === 'save' ? `Épargne · ${esc((S.money.pots.find(p => p.id === t.pot) || {}).name || '')}` : `Retrait · ${esc((S.money.pots.find(p => p.id === t.pot) || {}).name || '')}`;
+    return `<button class="shift" data-tx="${t.id}"><span class="d"><b>${d.getDate()}</b><span>${DAY_SHORT.format(d).replace('.', '')}</span></span>
+      <span><span class="who">${lbl}</span>${t.note ? `<span class="when">${esc(t.note)}</span>` : ''}</span>
+      <span class="dur" style="color:${neg ? 'var(--ink)' : 'var(--mint)'}">${neg ? '−' : '+'}${eur2(numv(t.amount))}</span></button>`;
+  }).join('');
+  const usedCats = [...new Set(b.exps.map(t => t.cat))];
+
+  return `${argentTop('budget')}
+  ${setup}
+  <div class="month-nav" style="margin-top:26px"><p class="eyebrow" style="text-transform:uppercase">${monthLabel(ym)}</p><div class="row" style="gap:0">
+    <button class="icon-btn" data-bnav="-1" aria-label="Mois précédent">${ICON.prev}</button>
+    <button class="icon-btn" data-bnav="1" aria-label="Mois suivant" ${ym >= cur ? 'disabled style="opacity:.3"' : ''}>${ICON.next}</button></div></div>
+  <div class="pocket" style="margin-top:0">
+    ${budgetRing(b)}
+    <div>
+      <p class="eyebrow">${isCur ? 'Reste à dépenser' : b.reste >= 0 ? 'Reste en fin de mois' : 'Dépassement'}</p>
+      <p class="big num" style="${b.reste < 0 ? 'color:var(--danger)' : ''}">${eur0(b.reste)}</p>
+      ${isCur && b.reste > 0 ? `<p class="small" style="margin-top:6px">soit <b class="num">${eur0(daily)}</b> par jour pendant ${b.daysLeft} jour${b.daysLeft > 1 ? 's' : ''}</p>` : ''}
+      <div style="margin-top:8px">${status}</div>
+    </div>
+  </div>
+  ${projEnd != null && b.spent > 0 ? `<p class="hint">À ce rythme (${eur0(pace)} par jour), tu finiras le mois à <b style="color:var(--${projEnd < 0 ? 'danger' : 'mint'})">${projEnd < 0 ? '−' : '+'}${eur0(Math.abs(projEnd))}</b>.</p>` : ''}
+
+  ${isCur ? `<section style="margin-top:30px" id="quick">
+    <div class="seg" role="group" aria-label="Type">${kinds.map(([k, n]) => `<button data-bkind="${k}" aria-pressed="${A.kind === k}"><span class="dot"></span>${n}</button>`).join('')}</div>
+    <label class="amount"><input id="bAmount" type="text" inputmode="decimal" placeholder="0" autocomplete="off" aria-label="Montant en euros"><span>€</span></label>
+    <div class="chips">${chips}</div>
+    <div class="group" style="margin-top:12px">
+      <div class="cell"><input type="text" class="full" id="bNote" placeholder="Note (facultatif)" aria-label="Note" autocomplete="off"></div>
+      <div class="cell"><label for="bDate">Date</label><input type="date" id="bDate" value="${todayISO()}"></div>
+    </div>
+    <button class="btn block" id="bAdd" style="margin-top:12px">Ajouter</button>
+  </section>` : ''}
+
+  <section>
+    <h2>Ton mois en une ligne</h2>
+    <div class="flow">
+      <details id="incDetails" data-flow="inc" ${A.open.has('inc') ? 'open' : ''}><summary><span>Revenus reçus</span><b class="num" style="color:var(--mint)">+${eur0(b.incTotal)}</b></summary>
+        <div class="flow-in">${b.incomes.map(i => `<div class="frow"><label class="check" style="padding:6px 0;min-height:44px"><input type="checkbox" data-increc="${i.id}" ${i.rec != null ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(i.label)}<span class="small muted" style="display:block">${i.rec != null ? 'reçu' : i.exp ? `attendu : ${eur0(i.exp)}, vers le ${i.day}` : `à saisir quand il arrive (vers le ${i.day})`}</span></span></label><input class="famt num" id="inc-${i.id}" data-incval="${i.id}" inputmode="decimal" value="${i.rec != null ? String(Math.round(i.rec * 100) / 100).replace('.', ',') : ''}" placeholder="${i.exp ? String(i.exp).replace('.', ',') : 'reçu'}" aria-label="Montant reçu ${esc(i.label)}"></div>`).join('')}
+        ${b.extraInc ? `<div class="frow"><span class="small">Rentrées ponctuelles</span><b class="num small">+${eur0(b.extraInc)}</b></div>` : ''}${b.fromPots ? `<div class="frow"><span class="small">Retiré de l'épargne</span><b class="num small">+${eur0(b.fromPots)}</b></div>` : ''}
+        <p class="hint">Seul l'argent vraiment reçu compte. Saisis chaque salaire dans le mois où tu vas le dépenser : le salaire de septembre, reçu fin septembre ou début octobre, va dans le budget d'octobre.</p></div></details>
+      ${b.debt.val || numv(S.money.debt.total) > debtRepaid() ? `<details data-flow="debt" ${A.open.has('debt') ? 'open' : ''}><summary><span>Dette (d'abord)</span><b class="num">−${eur0(b.debt.val)}</b></summary><div class="flow-in"><div class="frow"><span>Remboursé ce mois</span><span class="num small">${eur0(b.debt.done)}${b.debt.plan ? ` / ${eur0(b.debt.plan)}` : ''}</span></div>${b.debt.plan ? '' : '<p class="hint">Fixe une mensualité dans ton mois type pour la réserver chaque mois.</p>'}</div></details>` : ''}
+      <details data-flow="save" ${A.open.has('save') ? 'open' : ''}><summary><span>Épargne (tu te paies d'abord)</span><b class="num">−${eur0(b.saveTotal)}</b></summary>
+        <div class="flow-in">${b.pots.filter(p => p.name).map(p => `<div class="frow"><span>${esc(p.name)}</span><span class="num small">${p.plan ? `${eur0(p.done)} / ${eur0(p.plan)}` : eur0(p.done)}</span></div>`).join('') || '<p class="hint">Aucune cagnotte pour l\'instant.</p>'}${b.invested ? `<div class="frow"><span>Investissements</span><span class="num small">${eur0(b.invested)}</span></div>` : ''}</div></details>
+      <details data-flow="fix" ${A.open.has('fix') ? 'open' : ''}><summary><span>Charges fixes</span><b class="num">−${eur0(b.fixTotal)}</b></summary>
+        <div class="flow-in">${b.fixed.map(f => `<div class="frow"><label class="check" style="padding:6px 0;min-height:44px"><input type="checkbox" data-fpaid="${f.id}" ${f.paid ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(f.label)}<span class="small muted" style="display:block">${f.paid ? 'payé' : `le ${f.day}`}</span></span></label><b class="num small">${f.val ? eur0(f.val) : '<span class="muted">à renseigner</span>'}</b></div>`).join('')}</div></details>
+      <div class="frow total"><span>Budget libre</span><b class="num">${eur0(b.free)}</b></div>
+      <div class="frow"><span>Dépensé</span><b class="num">−${eur0(b.spent)}</b></div>
+      <div class="frow total"><span>Reste</span><b class="num" style="color:var(--${b.reste < 0 ? 'danger' : 'gold'})">${eur0(b.reste)}</b></div>
+    </div>
+    <button class="btn sm ghost" data-bsetup style="margin-top:14px">Modifier mon mois type</button>
+  </section>
+
+  ${envRows ? `<section><h2>Enveloppes</h2><div class="envs">${envRows}</div>
+    ${unalloc < 0 ? `<div class="alert">${ICON.warn}<span>Tes enveloppes (${eur0(b.free - unalloc)}) dépassent ton budget libre (${eur0(b.free)}). Baisse un plafond dans ton mois type.</span></div>` : `<p class="hint">Hors enveloppes, il te reste ${eur0(Math.max(0, unalloc - Object.keys(b.byCat).filter(c => !envs.some(e => e.cat === c)).reduce((a, c) => a + b.byCat[c], 0)))} pour tout le reste.</p>`}</section>` : ''}
+
+  ${potRows ? `<section><h2>Épargne</h2><div class="pots">${potRows}</div><div id="potCustom"></div></section>` : ''}
+
+  ${vFoundations(b)}
+
+  ${insights(b, ym)}
+
+  <section>
+    <div class="row between" style="margin-bottom:10px"><h2 style="margin:0">Mouvements</h2><button class="btn sm ghost" id="bCsv" ${list.length ? '' : 'disabled'}>CSV</button></div>
+    ${usedCats.length > 1 ? `<div class="filters"><button class="chip" data-bfilter="all" aria-pressed="${A.catFilter === 'all'}">Tout</button>${usedCats.map(c => `<button class="chip" data-bfilter="${c}" aria-pressed="${A.catFilter === c}">${catName(c)}</button>`).join('')}</div>` : ''}
+    <div>${txRows || `<p class="empty">Aucun mouvement en ${monthLabel(ym)}.</p>`}</div>
+  </section>`;
+}
+function avgSpend(from) {
+  const ms = [1, 2, 3].map(k => { let ym = from || A.month; for (let i = 0; i < k; i++) ym = prevMonth(ym); return txIn(ym, 'exp').reduce((a, t) => a + numv(t.amount), 0); }).filter(Boolean);
+  return ms.length ? ms.reduce((a, b) => a + b, 0) / ms.length : 0;
+}
+function insights(b, ym) {
+  const out = [];
+  if (b.incTotal > 0) {
+    const rate = b.saveTotal / b.incTotal;
+    out.push(`<b>${Math.round(rate * 100)} %</b> de tes revenus vont à l'épargne ce mois-ci.${rate < 0.1 ? ' Vise au moins 10 %, même en commençant petit.' : rate >= 0.2 ? ' Excellent rythme.' : ''}`);
+  }
+  const small = b.exps.filter(t => numv(t.amount) < 10);
+  if (small.length >= 5) out.push(`<b>${small.length} petites dépenses</b> de moins de 10 € font <b>${eur0(small.reduce((a, t) => a + numv(t.amount), 0))}</b> au total. C'est souvent là que le budget fuit.`);
+  const prev = budgetOf(prevMonth(ym));
+  if (prev.spent > 0 && b.spent > 0) {
+    let best = null;
+    Object.keys(b.byCat).forEach(c => { const d = b.byCat[c] - (prev.byCat[c] || 0); if (!best || d > best.d) best = { c, d }; });
+    if (best && best.d > 20) out.push(`<b>${catName(best.c)}</b> : ${eur0(best.d)} de plus que le mois dernier.`);
+  }
+  const top = Object.entries(b.byCat).sort((x, y) => y[1] - x[1])[0];
+  if (top && b.spent > 0) out.push(`Ton premier poste de dépense : <b>${catName(top[0])}</b>, ${Math.round(top[1] / b.spent * 100)} % de tes dépenses.`);
+  const upcoming = b.fixed.filter(f => !f.paid && f.val && Number(f.day) >= new Date().getDate()).sort((x, y) => x.day - y.day)[0];
+  if (ym === todayISO().slice(0, 7) && upcoming) out.push(`Prochaine charge : <b>${esc(upcoming.label)}</b>, ${eur0(upcoming.val)} le ${upcoming.day}.`);
+  if (!out.length) return '';
+  return `<section><h2>À retenir</h2><ul class="insights">${out.map(x => `<li>${x}</li>`).join('')}</ul></section>`;
+}
+function addTx() {
+  const amt = numv($('#bAmount').value.replace(/\s/g, ''));
+  if (!(amt > 0)) { toast('Entre un montant.'); $('#bAmount').focus(); return; }
+  const t = { id: uid(), kind: A.kind, amount: Math.round(amt * 100) / 100, cat: A.cat, date: $('#bDate').value || todayISO(), note: $('#bNote').value.trim(), created: Date.now() };
+  S.money.tx.push(t); save(); askPersist(); haptic();
+  render();
+  toast(`${t.kind === 'exp' ? '−' : '+'}${eur2(t.amount)} · ${t.kind === 'exp' ? catName(t.cat) : incName(t.cat)}`, 'Annuler', () => { S.money.tx = S.money.tx.filter(x => x.id !== t.id); save(); render(); });
+}
+function potSave(id, custom) {
+  const p = S.money.pots.find(x => x.id === id); if (!p) return;
+  const b = budgetOf(A.month), pp = b.pots.find(x => x.id === id);
+  if (custom || !(pp.plan - pp.done > 0)) {
+    $('#potCustom').innerHTML = `<div class="confirm"><p class="small">Combien verser sur « ${esc(p.name)} » ?</p><div class="row" style="margin-top:10px"><input id="potAmt" inputmode="decimal" class="famt num" style="flex:1;text-align:left" placeholder="Montant"><button class="btn sm" data-potok="${id}">Verser</button><button class="btn sm quiet" data-potwd="${id}">Retirer</button></div></div>`;
+    $('#potAmt').focus(); return;
+  }
+  commitPot(id, pp.plan - pp.done, 'save');
+}
+function commitPot(id, amount, kind) {
+  if (!(amount > 0)) { toast('Entre un montant.'); return; }
+  const t = { id: uid(), kind, amount: Math.round(amount * 100) / 100, pot: id, cat: kind, date: A.month === todayISO().slice(0, 7) ? todayISO() : A.month + '-01', note: '', created: Date.now() };
+  S.money.tx.push(t); save(); haptic(); render();
+  toast(`${kind === 'save' ? 'Versé' : 'Retiré'} ${eur2(t.amount)}`, 'Annuler', () => { S.money.tx = S.money.tx.filter(x => x.id !== t.id); save(); render(); });
+}
+function commitKind(kind, amount, inv) {
+  if (!(amount > 0)) { toast('Entre un montant.'); return; }
+  const t = { id: uid(), kind, amount: Math.round(amount * 100) / 100, cat: kind, inv, date: A.month === todayISO().slice(0, 7) ? todayISO() : A.month + '-01', note: '', created: Date.now() };
+  S.money.tx.push(t); save(); haptic(); render();
+  toast(`${kind === 'debt' ? 'Remboursé' : 'Investi'} ${eur2(t.amount)}`, 'Annuler', () => { S.money.tx = S.money.tx.filter(x => x.id !== t.id); save(); render(); });
+}
+function openTx(id) {
+  const t = S.money.tx.find(x => x.id === id); if (!t) return;
+  const cats = t.kind === 'exp' ? CATS : t.kind === 'inc' ? INC_CATS : null;
+  const body = $('#shiftSheetBody');
+  body.innerHTML = `<div class="grab"></div>
+    <div class="sheet-top"><button class="link-btn" data-close style="text-align:left">Annuler</button><h2 id="shiftSheetTitle">Modifier</h2><button class="link-btn" id="txSave" style="text-align:right">OK</button></div>
+    <label class="amount"><input id="txAmt" type="text" inputmode="decimal" value="${String(t.amount).replace('.', ',')}" aria-label="Montant"><span>€</span></label>
+    ${cats ? `<div class="chips">${cats.map(([k, n]) => `<button class="chip" data-txcat="${k}" aria-pressed="${t.cat === k}">${n}</button>`).join('')}</div>` : ''}
+    <div class="group" style="margin-top:12px">
+      <div class="cell"><input type="text" class="full" id="txNote" value="${esc(t.note || '')}" placeholder="Note (facultatif)" aria-label="Note"></div>
+      <div class="cell"><label for="txDate">Date</label><input type="date" id="txDate" value="${t.date}"></div>
+    </div>
+    <button class="btn danger block" style="margin-top:22px" id="txDel">Supprimer</button>`;
+  body.dataset.tx = id;
+  $('#shiftSheet').showModal();
+}
+function exportBudgetCSV() {
+  const ym = A.month, rows = S.money.tx.filter(t => t.date.startsWith(ym)).sort((a, b) => a.date.localeCompare(b.date));
+  const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
+  const kindLbl = { exp: 'Dépense', inc: 'Rentrée', save: 'Épargne', withdraw: 'Retrait épargne', debt: 'Remboursement dette', invest: 'Investissement' };
+  const lines = [['Date', 'Type', 'Catégorie', 'Montant', 'Note'].join(';')];
+  rows.forEach(t => lines.push([t.date.split('-').reverse().join('/'), kindLbl[t.kind], t.kind === 'exp' ? catName(t.cat) : t.kind === 'inc' ? incName(t.cat) : ((S.money.pots.find(p => p.id === t.pot) || {}).name || ''), String((['exp', 'save', 'debt', 'invest'].includes(t.kind) ? -1 : 1) * numv(t.amount)).replace('.', ','), q(t.note)].join(';')));
+  deliverFile(`budget-${ym}.csv`, '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
+}
+
+/* Feuille « Mon mois type » */
+function openBudgetSetup() {
+  const M = S.money;
+  const row = (list, it, fields) => `<div class="srow">${fields.map(([k, ph, mode, w]) => mode === 'cat'
+    ? `<select data-mset="${list}.${it.id}.${k}" aria-label="Catégorie" style="flex:${w}">${CATS.map(([id, n]) => `<option value="${id}" ${it[k] === id ? 'selected' : ''}>${n}</option>`).join('')}</select>`
+    : mode === 'month' ? `<input type="month" data-mset="${list}.${it.id}.${k}" value="${esc(it[k] || '')}" aria-label="${ph}" style="flex:${w}">`
+      : `<input data-mset="${list}.${it.id}.${k}" value="${esc(String(it[k] ?? '').replace('.', ','))}" placeholder="${ph}" aria-label="${ph}" ${mode === 'num' ? 'inputmode="decimal"' : ''} style="flex:${w}">`).join('')}
+    <button class="icon-btn" data-mdel="${list}.${it.id}" aria-label="Supprimer"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`;
+  const hintInc = i => i.src ? '<p class="hint" style="margin:-4px 0 8px">Salaire variable : laisse le montant vide, tu saisiras chaque mois ce que tu as vraiment reçu.</p>' : '';
+  $('#ideasBody').innerHTML = `<div class="grab"></div>
+    <div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Mon mois type</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
+    <p class="small muted">Ce qui revient chaque mois. L'app s'en sert pour calculer ton reste à dépenser.</p>
+    <p class="gt">Revenus · montant fixe attendu (facultatif) et jour d'arrivée</p>
+    ${M.incomes.map(i => row('incomes', i, [['label', 'Nom', 'text', 3], ['amount', '€', 'num', 1.3], ['day', 'Jour', 'num', .8]]) + hintInc(i)).join('')}
+    <button class="btn sm quiet" data-madd="incomes">+ Ajouter un revenu</button>
+    <p class="gt">Charges fixes · montant et jour de prélèvement</p>
+    ${M.fixed.map(f => row('fixed', f, [['label', 'Nom', 'text', 3], ['amount', '€', 'num', 1.3], ['day', 'Jour', 'num', .8]])).join('')}
+    <button class="btn sm quiet" data-madd="fixed">+ Ajouter une charge</button>
+    <p class="gt">Plan automatique</p>
+    <div class="group"><div class="cell"><label for="mAuto">Laisser l'app calculer la dette et l'épargne de sécurité chaque mois</label><span class="switch"><input type="checkbox" id="mAuto" ${M.auto ? 'checked' : ''}><span></span></span></div>
+      <div class="cell"><label for="mLife">Budget de vie mensuel<span class="small muted" style="display:block">courses, essence, sorties… ${(() => { const L = lifeBudget(A.month); return L.src === 'manuel' ? '' : L.v ? `(auto : ${eur0(L.v)})` : '(à renseigner)'; })()}</span></label><input class="r" id="mLife" inputmode="decimal" value="${esc(String(M.life || '').replace('.', ','))}" placeholder="auto"><span class="unit">€</span></div></div>
+    <p class="hint">Avec le plan automatique, l'app garde ton budget de vie, puis répartit 90 % du reste entre la dette et l'épargne selon tes priorités. Tu peux corriger chaque mois.</p>
+    <p class="gt">Dette · montant total, déjà remboursé${M.auto ? '' : ', mensualité'}</p>
+    <div class="srow"><input data-dset="total" inputmode="decimal" value="${esc(String(M.debt.total || '').replace('.', ','))}" placeholder="Total €" aria-label="Montant total de la dette" style="flex:1"><input data-dset="start" inputmode="decimal" value="${esc(String(M.debt.start || '').replace('.', ','))}" placeholder="Déjà remboursé €" aria-label="Déjà remboursé" style="flex:1">${M.auto ? '' : `<input data-dset="monthly" inputmode="decimal" value="${esc(String(M.debt.monthly || '').replace('.', ','))}" placeholder="€/mois" aria-label="Mensualité" style="flex:.8">`}</div>
+    <p class="hint" style="margin-top:0">${M.auto ? 'Le montant mensuel est calculé par le plan automatique.' : 'La mensualité est réservée en priorité chaque mois, avant l\'épargne.'}</p>
+    <p class="gt">Objectif d'épargne de sécurité</p>
+    <div class="srow"><input data-sgoal inputmode="decimal" value="${esc(String(M.safetyGoal || '').replace('.', ','))}" placeholder="4000" aria-label="Objectif de sécurité" style="flex:1"><span class="unit">€</span></div>
+    <p class="gt">Cagnottes · objectif, déjà épargné, versement mensuel</p>
+    ${M.pots.map(p => row('pots', p, [['name', 'Nom', 'text', 2.4], ['target', 'Objectif €', 'num', 1.3], ['start', 'Déjà €', 'num', 1.1], ['monthly', '€/mois', 'num', 1.1]])
+      + `<div class="srow" style="margin-top:-4px"><span class="small muted" style="flex:1">Date cible (facultatif)</span><input type="month" data-mset="pots.${p.id}.deadline" value="${esc(p.deadline || '')}" aria-label="Date cible" style="flex:1.4"></div>`).join('')}
+    <p class="hint">L'épargne de sécurité est ta protection en cas d'imprévu. Elle fait partie des conditions pour débloquer l'investissement.${M.auto ? ' Son versement mensuel est calculé par le plan automatique : le champ €/mois ne sert que pour tes autres cagnottes.' : ''}</p>
+    <button class="btn sm quiet" data-madd="pots">+ Nouvelle cagnotte</button>
+    <p class="gt">Enveloppes · plafond mensuel par catégorie</p>
+    ${M.envelopes.map(e => row('envelopes', e, [['cat', 'Catégorie', 'cat', 2.4], ['limit', 'Plafond €', 'num', 1.3]])).join('')}
+    <button class="btn sm quiet" data-madd="envelopes">+ Ajouter une enveloppe</button>
+    <p class="hint" style="margin-top:20px">Garde les enveloppes pour 2 à 4 catégories où l'argent file vite. Le reste se pilote avec ton budget par jour.</p>`;
+  const d = $('#ideasSheet'); if (!d.open) d.showModal();
+  d.dataset.mode = 'bsetup';
+}
+function mset(path, value) {
+  const [list, id, key] = path.split('.'), it = S.money[list].find(x => x.id === id); if (!it) return;
+  it[key] = ['amount', 'target', 'start', 'monthly', 'limit'].includes(key) ? value.trim().replace(/\s/g, '').replace(',', '.') : key === 'day' ? Math.min(31, Math.max(1, parseInt(value, 10) || 1)) : value;
+  save();
+}
+
+
+/* =====================================================================
+   12 ter. FONDATIONS & DÉBLOCAGES
+   - Investissement (onglet Argent) : dette 100 % remboursée + épargne de sécurité ≥ objectif.
+   - Business (onglet) : 6 compétences clés acquises + régularité de foi ≥ 90 % sur 30 jours.
+   Déblocage définitif : une fois atteint, la date est enregistrée dans S.unlocks.
+   ===================================================================== */
+const PRAYERS = [['fajr', 'Fajr', 'الفجر'], ['dhuhr', 'Dhuhr', 'الظهر'], ['asr', 'Asr', 'العصر'], ['maghrib', 'Maghrib', 'المغرب'], ['isha', 'Isha', 'العشاء']];
+function defaultFaith() {
+  return { habits: [['fajr', 'Fajr'], ['dhuhr', 'Dhuhr'], ['asr', 'Asr'], ['maghrib', 'Maghrib'], ['isha', 'Isha']].map(p => ({ id: p[0], name: `${p[1]} à l'heure`, prayer: true })).concat([{ id: 'coran', name: 'Lecture du Coran' }]), log: {} };
+}
+const FAITH_GOAL = 0.9, FAITH_DAYS = 30;
+const F = { view: 'habitudes', day: todayISO() };
+try { const v = localStorage.getItem('sdp-foi-view'); if (v === 'habitudes' || v === 'arabe') F.view = v; } catch (e) {}
+const dayDone = k => { const d = S.faith.log[k] || {}; return S.faith.habits.filter(h => d[h.id]).length; };
+/* Régularité sur 30 jours : la journée en cours ne compte que lorsqu'elle est complète. */
+function faithScore() {
+  const hs = S.faith.habits, n = hs.length; if (!n) return { pct: 0, tracked: 0, done: 0, need: 0, total: 0 };
+  const todayFull = dayDone(todayISO()) === n, off = todayFull ? 0 : 1;
+  let done = 0, tracked = 0;
+  for (let i = off; i < off + FAITH_DAYS; i++) { const k = iso(addDays(new Date(), -i)), c = dayDone(k); done += c; if (c) tracked++; }
+  const total = n * FAITH_DAYS;
+  return { pct: done / total, tracked, done, total, need: Math.max(0, Math.ceil(FAITH_GOAL * total) - done) };
+}
+
+const BIZ_DOMAINS = ['rel', 'psy', 'vente', 'nego', 'mkt', 'jur'];
+const BIZ_LABEL = { rel: 'Relationnel & leadership', psy: 'Psychologie & neuromarketing', vente: 'Vente', nego: 'Négociation', mkt: 'Marketing & acquisition client', jur: 'Juridique & fiscal' };
+function bizStatus() {
+  const skills = BIZ_DOMAINS.map(k => { let t = 0, d = 0; MONTHS.filter(m => m.dom === k).forEach(m => { t += m.acq.length; d += modDone(m); }); return { k, t, d, months: MONTHS.filter(m => m.dom === k).map(m => m.n) }; });
+  const f = faithScore(), skillsOk = skills.every(s => s.d === s.t);
+  return { skills, skillsOk, faith: f, faithOk: f.pct >= FAITH_GOAL, ok: skillsOk && f.pct >= FAITH_GOAL, left: skills.reduce((a, s) => a + s.t - s.d, 0) };
+}
+function debtRepaid(upTo) { let r = numv(S.money.debt.start); S.money.tx.forEach(t => { if (t.kind === 'debt' && (!upTo || t.date.slice(0, 7) <= upTo)) r += numv(t.amount); }); return r; }
+function investStatus() {
+  const total = numv(S.money.debt.total), repaid = Math.min(total, debtRepaid());
+  const pot = S.money.pots.find(p => p.safety), goal = numv(S.money.safetyGoal) || 4000, safety = pot ? potBalance(pot) : 0;
+  const debtOk = total <= 0 || repaid >= total, safeOk = safety >= goal;
+  return { total, repaid, debtOk, debtP: total ? repaid / total : 1, goal, safety, safeOk, safeP: Math.min(1, safety / goal), ok: debtOk && safeOk };
+}
+function checkUnlocks() {
+  if (!S.unlocks.invest && investStatus().ok) { S.unlocks.invest = todayISO(); save(); setTimeout(() => toast('Investissement débloqué. Tes fondations sont posées.'), 400); }
+  if (!S.unlocks.business && bizStatus().ok) { S.unlocks.business = todayISO(); save(); setTimeout(() => toast('Onglet Business débloqué. Bravo.'), S.unlocks.invest === todayISO() ? 4600 : 400); }
+  const bt = $('.tabbar [data-tab="business"]'); if (bt) bt.classList.toggle('locked', !S.unlocks.business);
+}
+const lockIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>';
+const condRow = (ok, title, p, detail) => `<div class="cond ${ok ? 'ok' : ''}">
+  <div class="row between"><h3>${ok ? '<span class="cond-ok">' + ICON.tick + '</span>' : ''}${title}</h3><span class="num small ${ok ? '' : 'muted'}">${Math.round(Math.min(1, p) * 100)} %</span></div>
+  <div class="bar"><i style="width:${Math.min(100, p * 100)}%;${ok ? 'background:var(--mint)' : ''}"></i></div>
+  <p class="small muted" style="margin-top:6px">${detail}</p></div>`;
+
+/* ----- Onglet Argent : fondations + investissement ----- */
+function vFoundations(b) {
+  const s = investStatus(), d = S.money.debt;
+  const remain = Math.max(0, s.total - s.repaid);
+  const debtDetail = s.debtOk ? 'Remboursée. Une chose de moins sur les épaules.' : `${eur0(s.repaid)} remboursés sur ${eur0(s.total)} · reste ${eur0(remain)}${b.debt.plan > 0 ? ` · fin prévue vers ${monthLabel((() => { const x = new Date(); x.setMonth(x.getMonth() + Math.ceil(remain / b.debt.plan) - 1); return iso(x).slice(0, 7); })())}` : ''}`;
+  const safeDetail = s.safeOk ? 'Objectif atteint.' : `${eur0(s.safety)} sur ${eur0(s.goal)} · reste ${eur0(s.goal - s.safety)}`;
+  const thisMonthDebt = b.debt;
+  const debtBtn = !s.debtOk ? (thisMonthDebt.plan > 0 && thisMonthDebt.done >= thisMonthDebt.plan ? '<span class="pill mint">Remboursé ce mois</span>' : `<button class="btn sm" data-debtpay>${thisMonthDebt.plan > thisMonthDebt.done ? `Rembourser ${eur0(thisMonthDebt.plan - thisMonthDebt.done)}` : 'Rembourser'}</button>`) : '';
+  const unlocked = !!S.unlocks.invest;
+  return `<section>
+    <h2>Fondations</h2>
+    ${vPlanCard(b)}
+    ${condRow(s.debtOk, 'Dette remboursée', s.debtP, debtDetail)}
+    ${debtBtn ? `<div class="row" style="margin:-4px 0 18px;flex-wrap:wrap">${debtBtn}<button class="btn sm quiet" data-debtcustom>Autre montant</button></div>` : ''}
+    ${condRow(s.safeOk, 'Épargne de sécurité', s.safeP, safeDetail)}
+    <div id="debtCustom"></div>
+  </section>
+  <section>
+    <div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Investissement</h2>${unlocked ? '' : `<span class="pill">${lockIcon.replace('width="18" height="18"', 'width="13" height="13"')} Verrouillé</span>`}</div>
+    ${unlocked ? vInvest() : `<div class="locked-card">
+      <p>Débloqué une fois la dette remboursée et l'épargne de sécurité atteinte.</p>
+      <div class="row" style="gap:18px;margin-top:12px">
+        <div><b class="num">${Math.round((1 - s.debtP) * 100)} %</b><span>de dette restante</span></div>
+        <div><b class="num">${Math.round((1 - s.safeP) * 100)} %</b><span>d'épargne à constituer</span></div>
+      </div>
+      <p class="hint">Investir avec une dette ou sans matelas, c'est risquer de devoir revendre au pire moment.</p>
+    </div>`}
+  </section>`;
+}
+function invBalance(i) { let v = numv(i.start); S.money.tx.forEach(t => { if (t.kind === 'invest' && t.inv === i.id) v += numv(t.amount); }); return v; }
+function vInvest() {
+  const inv = S.money.investments;
+  const rows = inv.map(i => { const put = invBalance(i), val = String(i.value).trim() !== '' ? numv(i.value) : put, g = val - put;
+    return `<div class="pot"><span class="inv-type">${i.type === 'or' ? 'Or' : i.type === 'etf' ? 'ETF' : '•'}</span>
+      <div class="grow"><b>${esc(i.name || 'Sans nom')}</b><p class="small muted num">${eur0(put)} investis · valeur ${eur0(val)} <span style="color:var(--${g >= 0 ? 'mint' : 'danger'})">${g >= 0 ? '+' : '−'}${eur0(Math.abs(g))}</span></p></div>
+      <button class="btn sm quiet" data-invest="${i.id}">Investir</button></div>`; }).join('');
+  const tp = inv.reduce((a, i) => a + invBalance(i), 0), tv = inv.reduce((a, i) => a + (String(i.value).trim() !== '' ? numv(i.value) : invBalance(i)), 0);
+  return `<p class="small muted">Débloqué le ${new Date(S.unlocks.invest).toLocaleDateString('fr-FR')}. Tes fondations sont posées.</p>
+    ${inv.length ? `<div class="stats-line" style="margin:14px 0 6px"><div><b class="num">${eur0(tv)}</b><span>valeur actuelle</span></div><div><b class="num" style="color:var(--${tv - tp >= 0 ? 'mint' : 'danger'})">${tv - tp >= 0 ? '+' : '−'}${eur0(Math.abs(tv - tp))}</b><span>plus ou moins-value</span></div></div>` : ''}
+    <div class="pots">${rows || '<p class="empty">Aucune ligne pour l\'instant.</p>'}</div><div id="invCustom"></div>
+    <button class="btn sm ghost" data-invsetup style="margin-top:12px">Gérer mes lignes (ETF halal, or…)</button>
+    <p class="hint">Mets à jour la valeur actuelle de temps en temps depuis ton courtier. L'app ne se connecte à rien.</p>`;
+}
+function openInvestSetup() {
+  const row = i => `<div class="srow"><input data-iset="${i.id}.name" value="${esc(i.name)}" placeholder="Nom (ex. ETF MSCI World Islamic)" aria-label="Nom" style="flex:2.6">
+    <select data-iset="${i.id}.type" aria-label="Type" style="flex:1"><option value="etf" ${i.type === 'etf' ? 'selected' : ''}>ETF</option><option value="or" ${i.type === 'or' ? 'selected' : ''}>Or</option><option value="autre" ${i.type === 'autre' ? 'selected' : ''}>Autre</option></select>
+    <button class="icon-btn" data-invdel="${i.id}" aria-label="Supprimer"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="srow" style="margin-top:-2px"><input data-iset="${i.id}.start" inputmode="decimal" value="${esc(String(i.start || '').replace('.', ','))}" placeholder="Déjà investi €" aria-label="Déjà investi" style="flex:1"><input data-iset="${i.id}.value" inputmode="decimal" value="${esc(String(i.value || '').replace('.', ','))}" placeholder="Valeur actuelle €" aria-label="Valeur actuelle" style="flex:1"></div>`;
+  $('#ideasBody').innerHTML = `<div class="grab"></div><div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Investissements</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
+    ${S.money.investments.map(row).join('<div style="height:10px"></div>')}
+    <button class="btn sm quiet" data-invadd style="margin-top:12px">+ Ajouter une ligne</button>`;
+  const d = $('#ideasSheet'); if (!d.open) d.showModal(); d.dataset.mode = 'bsetup';
+}
+
+/* ----- Onglet Foi : habitudes ----- */
+function foiTop(view) {
+  return `${pageHead('Foi', view === 'arabe' ? 'Le sens de ce que tu lis. Tajwid Institut s\'occupe de la lecture.' : 'La régularité avant tout. Chaque prière à l\'heure compte.', view === 'arabe' ? 'arabe' : 'foi')}
+  <div class="seg" role="group" aria-label="Section" style="margin-top:20px">
+    <button data-fview="habitudes" aria-pressed="${view === 'habitudes'}"><span class="dot"></span>Habitudes</button>
+    <button data-fview="arabe" aria-pressed="${view === 'arabe'}"><span class="dot"></span>Arabe & Coran</button>
+  </div>`;
+}
+function vHabits() {
+  const k = F.day, d = S.faith.log[k] || {}, isToday = k === todayISO();
+  const sc = faithScore(), ok = sc.pct >= FAITH_GOAL;
+  // Chemin du soleil : Fajr à l'aube, Dhuhr au zénith, Asr, Maghrib au couchant, Isha dans la nuit.
+  const ANG = { fajr: 196, dhuhr: 94, asr: 46, maghrib: 6, isha: -34 }, R = 136;
+  const prayers = S.faith.habits.filter(h => h.prayer && ANG[h.id] != null);
+  const nodes = prayers.map(h => { const a = ANG[h.id] * Math.PI / 180, x = R * Math.cos(a), y = -R * Math.sin(a), p = PRAYERS.find(q => q[0] === h.id);
+    return `<button class="prayer ${d[h.id] ? 'on' : ''}" data-habit="${h.id}" aria-pressed="${!!d[h.id]}" aria-label="${esc(h.name)}" style="left:${((x + 180) / 360 * 100).toFixed(2)}%;top:${((y + 160) / 250 * 100).toFixed(2)}%"><span class="ar" lang="ar">${p[2]}</span><small>${p[1]}</small></button>`; }).join('');
+  const others = S.faith.habits.filter(h => !(h.prayer && ANG[h.id] != null));
+  const nDone = dayDone(k), n = S.faith.habits.length;
+  const start = addDays(new Date(), -(FAITH_DAYS - 1));
+  let cells = '';
+  for (let i = 0; i < FAITH_DAYS; i++) { const dd = addDays(start, i), kk = iso(dd), c = dayDone(kk); cells += `<button class="day ${c === n ? 'on' : ''} ${kk === k ? 'today' : ''}" data-fday="${kk}" style="--p:${n ? c / n * 100 : 0}" aria-label="${DAY_LONG.format(dd)} : ${c} sur ${n}"><i></i><span>${dd.getDate()}</span></button>`; }
+  const dayLbl = isToday ? "Aujourd'hui" : DAY_LONG.format(parseDate(k));
+  return `${foiTop('habitudes')}
+  <div class="month-nav" style="margin-top:24px"><p class="eyebrow" style="text-transform:uppercase">${dayLbl}</p><div class="row" style="gap:0">
+    <button class="icon-btn" data-fstep="-1" aria-label="Jour précédent" ${k <= iso(start) ? 'disabled style="opacity:.3"' : ''}>${ICON.prev}</button>
+    <button class="icon-btn" data-fstep="1" aria-label="Jour suivant" ${isToday ? 'disabled style="opacity:.3"' : ''}>${ICON.next}</button></div></div>
+  <div class="sunpath">
+    <svg viewBox="-180 -160 360 250" aria-hidden="true">
+      <path d="M-170 0 L170 0" stroke="var(--line)" stroke-width="1"/><text x="-170" y="-6" style="font-size:8px;font-weight:700;letter-spacing:.14em;fill:var(--muted)">HORIZON</text>
+      <path d="${`M${(-R).toFixed(1)} 0 A${R} ${R} 0 0 1 ${R} 0`}" fill="none" stroke="var(--orbit)" stroke-width="1.2" stroke-dasharray="3 5"/>
+      <text x="0" y="-40" text-anchor="middle" style="font:400 44px var(--serif);fill:var(--gold)">${nDone}<tspan style="font-size:20px;fill:var(--muted)">/${n}</tspan></text>
+      <text x="0" y="-18" text-anchor="middle" style="font-size:9px;font-weight:700;letter-spacing:.14em;fill:var(--muted)">HABITUDES</text>
+    </svg>
+    ${nodes}
+  </div>
+  ${others.length ? `<div class="checks" style="margin-top:6px">${others.map(h => checkbox(h.id, esc(h.name), 'data-habitc', !!d[h.id])).join('')}</div>` : ''}
+  <section>
+    <div class="row between" style="align-items:flex-end"><div><p class="eyebrow">Régularité · 30 derniers jours</p><p class="num" style="font:400 3.25rem/1.05 var(--serif);color:var(--${ok ? 'mint' : 'gold'});margin-top:4px">${Math.round(sc.pct * 100)} %</p></div>
+      <p class="small muted" style="text-align:right">objectif ${Math.round(FAITH_GOAL * 100)} %<br>${sc.tracked}/${FAITH_DAYS} jours suivis</p></div>
+    <div class="bar goal" style="margin-top:12px"><i style="width:${Math.min(100, sc.pct * 100)}%;${ok ? 'background:var(--mint)' : ''}"></i><span style="left:${FAITH_GOAL * 100}%"></span></div>
+    <p class="small ${ok ? '' : 'muted'}" style="margin-top:10px">${ok ? 'Quota atteint. Garde ce cap.' : `Il te manque ${sc.need} coche${sc.need > 1 ? 's' : ''} sur la période pour atteindre ${Math.round(FAITH_GOAL * 100)} %.`}</p>
+    <div class="cal cal10" style="margin-top:18px">${cells}</div>
+    <p class="hint">Touche un jour pour le corriger. La journée en cours compte dès que tout est coché.</p>
+    <button class="btn sm ghost" data-fsetup style="margin-top:12px">Modifier mes habitudes</button>
+  </section>`;
+}
+function openFaithSetup() {
+  $('#ideasBody').innerHTML = `<div class="grab"></div><div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Mes habitudes</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
+    <p class="small muted">Toutes ces habitudes comptent dans ta régularité. Les 5 prières restent sur le chemin du soleil.</p>
+    <div style="margin-top:14px">${S.faith.habits.map(h => `<div class="srow"><input data-hset="${h.id}" value="${esc(h.name)}" aria-label="Nom de l'habitude" style="flex:1" ${h.prayer ? 'readonly' : ''}>${h.prayer ? '<span class="pill" style="flex:none">Prière</span>' : `<button class="icon-btn" data-hdel="${h.id}" aria-label="Supprimer"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`}</div>`).join('')}</div>
+    <div class="srow" style="margin-top:14px"><input id="hNew" placeholder="Ex. Adhkar du matin" aria-label="Nouvelle habitude" style="flex:1"><button class="btn sm" data-hadd>Ajouter</button></div>`;
+  const d = $('#ideasSheet'); if (!d.open) d.showModal(); d.dataset.mode = 'bsetup';
+}
+function toggleHabit(id) {
+  const k = F.day, d = S.faith.log[k] = S.faith.log[k] || {};
+  if (d[id]) delete d[id]; else { d[id] = true; haptic(); }
+  if (!Object.keys(d).length) delete S.faith.log[k];
+  save(); askPersist(); render();
+  if (dayDone(k) === S.faith.habits.length && d[id]) toast(k === todayISO() ? 'Journée complète. Qu\'Allah l\'accepte.' : 'Journée complète.');
+}
+
+/* ----- Onglet Business ----- */
+const STAGES = ['Idée', 'Validation', 'Lancement', 'En activité'];
+function vBusiness() {
+  const st = bizStatus();
+  if (!S.unlocks.business) {
+    const skillRows = st.skills.map(s => condRow(s.d === s.t, BIZ_LABEL[s.k], s.t ? s.d / s.t : 0, s.d === s.t ? 'Acquis.' : `${s.t - s.d} acquis restant${s.t - s.d > 1 ? 's' : ''} · mois ${s.months.join(', ')} du parcours`)).join('');
+    const f = st.faith;
+    return `${pageHead('Business', 'S\'ouvre quand les fondations sont posées.', 'business')}
+    <div class="locked-hero">
+      <span class="lock-big">${lockIcon.replace('width="18" height="18"', 'width="34" height="34"')}</span>
+      <p>Cet onglet se déverrouille quand tes <b>6 compétences clés</b> sont acquises et que ta <b>régularité de foi</b> atteint ${Math.round(FAITH_GOAL * 100)} % sur 30 jours.</p>
+      <div class="row" style="gap:22px;margin-top:14px;justify-content:center">
+        <div><b class="num">${st.left}</b><span>acquis restants</span></div>
+        <div><b class="num">${Math.round(f.pct * 100)} %</b><span>régularité (objectif ${Math.round(FAITH_GOAL * 100)})</span></div>
+      </div>
+    </div>
+    <section><div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Compétences clés</h2>${st.skillsOk ? '<span class="pill mint">Validé</span>' : ''}</div>${skillRows}
+      <button class="btn sm ghost" data-goto="parcours">Ouvrir le parcours</button></section>
+    <section><div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Foi</h2>${st.faithOk ? '<span class="pill mint">Validé</span>' : ''}</div>
+      ${condRow(st.faithOk, 'Régularité sur 30 jours', f.pct / FAITH_GOAL, st.faithOk ? 'Quota atteint.' : `${Math.round(f.pct * 100)} % aujourd'hui · il manque ${f.need} coche${f.need > 1 ? 's' : ''} · ${f.tracked}/${FAITH_DAYS} jours suivis`)}
+      <button class="btn sm ghost" data-goto="foi">Ouvrir le tracker</button></section>`;
+  }
+  const P2 = S.biz.projects;
+  const warn = [];
+  if (!st.faithOk) warn.push(`ta régularité de foi est à ${Math.round(st.faith.pct * 100)} %`);
+  return `${pageHead('Business', `Débloqué le ${new Date(S.unlocks.business).toLocaleDateString('fr-FR')}. À toi de construire.`, 'businessOn')}
+    ${warn.length ? `<div class="alert">${ICON.warn}<span>Garde tes fondations : ${warn.join(', ')}.</span></div>` : ''}
+    <section><h2>Mes projets</h2>
+      ${P2.map(p => `<div class="proj">
+        <input class="proj-name" data-pset="${p.id}.name" value="${esc(p.name)}" placeholder="Nom du projet" aria-label="Nom du projet">
+        <div class="chips" style="margin-top:8px">${STAGES.map((s, i) => `<button class="chip" data-pstage="${p.id}.${i}" aria-pressed="${p.stage === i}">${s}</button>`).join('')}</div>
+        <input class="proj-next" data-pset="${p.id}.next" value="${esc(p.next || '')}" placeholder="Prochaine action concrète" aria-label="Prochaine action">
+        <button class="link-btn small" data-pdel="${p.id}" style="color:var(--muted);min-width:0;padding:0">Supprimer</button></div>`).join('') || '<p class="empty">Aucun projet pour l\'instant.</p>'}
+      <button class="btn block" data-padd style="margin-top:14px">+ Nouveau projet</button>
+      <p class="hint">Un projet avance d'une étape quand il a une prochaine action claire. Valide avant d'investir (mois 9 du parcours).</p></section>`;
+}
+
 /* =====================================================================
    13. RÉGLAGES, SAUVEGARDE, IMPORT
    ===================================================================== */
@@ -1165,18 +1792,8 @@ function openSettings() {
   const empGroup = k => `<p class="gt"><span class="edot ${k}" style="margin-right:6px"></span>${EMP[k]}</p>
     <div class="group">
       ${k === 'gare' ? numCell('base.gare', 'Base mensuelle', 'h') : ''}
-      ${numCell(`rate.${k}`, 'Taux horaire brut', '€/h', 'ex. 12,20')}
-      ${numCell(`cotis.${k}`, 'Cotisations salariales', '%')}
-      ${numCell(`maj.${k}.night`, 'Majoration nuit', '%', '0')}
-      ${numCell(`maj.${k}.sunday`, 'Majoration dimanche', '%', '0')}
-      ${numCell(`maj.${k}.holiday`, 'Majoration férié', '%', '0')}
       ${numCell(`threshold.${k}`, 'Alerte hebdo au-delà de', 'h', 'aucune')}
     </div>
-    <details style="margin-top:10px"><summary class="small" style="color:var(--gold);font-weight:650;min-height:44px;display:flex;align-items:center;cursor:pointer">Calibrer avec une fiche de paie</summary>
-      <div class="group"><div class="cell"><label for="cb-${k}">Salaire brut</label><input class="r" type="text" inputmode="decimal" id="cb-${k}" placeholder="ex. 1 830"><span class="unit">€</span></div>
-      <div class="cell"><label for="cn-${k}">Net avant impôt</label><input class="r" type="text" inputmode="decimal" id="cn-${k}" placeholder="ex. 1 425"><span class="unit">€</span></div></div>
-      <button class="btn sm quiet" data-calib="${k}" style="margin-top:10px">Calculer mes cotisations</button>
-    </details>
     ${k === 'gare' ? `<p class="gt">Compteur d'heures · Gare</p>
     <div class="group">
       <div class="cell"><label for="set-counterInit">Solde de départ</label><input class="r" type="text" id="set-counterInit" data-set="counterInit" value="${esc(S.settings.counterInit || '')}" placeholder="ex. 12h30 ou -4"><span class="unit">h</span></div>
@@ -1194,24 +1811,23 @@ function openSettings() {
     <div id="importConfirm"></div>
     ${empGroup('gare')}
     ${empGroup('pizza')}
-    <p class="gt">Impôt et nuit</p>
+    <p class="gt">Heures de nuit</p>
     <div class="group">
-      ${numCell('pas', 'Prélèvement à la source', '%', '0')}
       <div class="cell"><label for="sNs">Début de la nuit</label><input type="time" id="sNs" value="${st.nightStart}"></div>
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
-    <p class="hint">Ton taux de prélèvement est sur ta fiche de paie ou sur impots.gouv.fr. Les majorations dépendent de ta convention collective et de ton contrat : laisse 0 si tu ne sais pas.</p>
+    <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.1 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.5 · fonctionne hors ligne</p>`;
   $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
 async function exportData() {
   const payload = { app: 'sayko-de-poche', version: 2, exportedAt: new Date().toISOString(), data: S };
   const ok = await deliverFile(`sayko-de-poche-${todayISO()}.json`, JSON.stringify(payload, null, 2), 'application/json');
-  if (ok) { S.lastExport = Date.now(); save(true); toast('Sauvegarde exportée'); if (tab === 'heures') render(); if ($('#settingsSheet').open) openSettings(); }
+  if (ok) { S.lastExport = Date.now(); save(true); toast('Sauvegarde exportée'); if (tab === 'argent') render(); if ($('#settingsSheet').open) openSettings(); }
 }
 let pendingImport = null;
 function handleImport(text) {
@@ -1265,7 +1881,7 @@ function openIdeas() {
 /* =====================================================================
    15. RENDU & NAVIGATION
    ===================================================================== */
-const TABS = ['orbite', 'parcours', 'arabe', 'routine', 'heures'];
+const TABS = ['orbite', 'parcours', 'foi', 'routine', 'argent', 'business'];
 let tab = 'orbite';
 function moveIndicator() {
   const i = TABS.indexOf(tab), ind = $('.tab-ind');
@@ -1277,16 +1893,21 @@ function render(animate) {
   $$('.tabbar [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   moveIndicator();
   app.className = animate ? 'view' : '';
-  app.innerHTML = { orbite: vOrbite, parcours: vParcours, arabe: vArabe, routine: vRoutine, heures: vHeures }[tab]();
+  checkUnlocks();
+  app.innerHTML = { orbite: vOrbite, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : vHabits(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : vBudget(), business: vBusiness }[tab]();
   if (tab === 'orbite') startOrbit();
   if (tab === 'parcours') bindParcours();
-  if (tab === 'arabe') { if (quiz && !quiz.answered) drawQuiz(); else nextQuiz(); }
-  if (tab === 'heures') bindDial();
+  if (tab === 'foi' && F.view === 'arabe') { if (quiz && !quiz.answered) drawQuiz(); else nextQuiz(); }
+  if (tab === 'argent' && A.view === 'heures') bindDial();
 }
+function setAView(v) { A.view = v; try { localStorage.setItem('sdp-argent-view', v); } catch (e) {} }
+function setFView(v) { F.view = v; try { localStorage.setItem('sdp-foi-view', v); } catch (e) {} }
 function go(t) {
+  if (t === 'arabe' || t === 'habitudes') { setFView(t); if (tab === 'foi') { render(); window.scrollTo(0, 0); return; } t = 'foi'; }
+  if (t === 'heures' || t === 'budget') { if (tab === 'argent' && A.view === 'heures' && $('#fDate')) readForm(); setAView(t); if (tab === 'argent') { render(); window.scrollTo(0, 0); return; } t = 'argent'; }
   if (!TABS.includes(t)) return;
   if (t === tab) { window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); return; }
-  if (tab === 'heures' && $('#fDate')) readForm();
+  if (tab === 'argent' && A.view === 'heures' && $('#fDate')) readForm();
   tab = t;
   try { localStorage.setItem('sdp-tab', t); } catch (e) {}
   history.replaceState(null, '', '#' + t);
@@ -1300,6 +1921,74 @@ document.addEventListener('click', e => {
   const t = e.target, c = sel => t.closest(sel);
   let el;
   if ((el = c('[data-open]'))) { el.dataset.open === 'settings' ? openSettings() : openIdeas(); return; }
+  // Foi
+  if ((el = c('[data-fview]'))) { go(el.dataset.fview); return; }
+  if ((el = c('[data-fstep]'))) { F.day = iso(addDays(parseDate(F.day), Number(el.dataset.fstep))); render(); return; }
+  if ((el = c('[data-fday]'))) { F.day = el.dataset.fday; render(); return; }
+  if ((el = c('[data-habit]'))) { toggleHabit(el.dataset.habit); return; }
+  if (c('[data-fsetup]')) { openFaithSetup(); return; }
+  if (c('[data-hadd]')) { const v = $('#hNew').value.trim(); if (!v) return; S.faith.habits.push({ id: 'h-' + uid(), name: v }); save(); openFaithSetup(); return; }
+  if ((el = c('[data-hdel]'))) { S.faith.habits = S.faith.habits.filter(h => h.id !== el.dataset.hdel); save(); openFaithSetup(); return; }
+  // Fondations & investissement
+  if (c('[data-debtpay]')) {
+    const b = budgetOf(A.month), left = b.debt.plan - b.debt.done;
+    if (left > 0) { commitKind('debt', left); return; }
+    $('#debtCustom').innerHTML = `<div class="confirm"><p class="small">Combien rembourses-tu ?</p><div class="row" style="margin-top:10px"><input id="debtAmt" inputmode="decimal" class="famt num" style="flex:1;text-align:left" placeholder="Montant"><button class="btn sm" data-debtok>Valider</button></div></div>`; $('#debtAmt').focus(); return;
+  }
+  if (c('[data-openinc]')) { const d = $('#incDetails'); if (d) { d.open = true; A.open.add('inc'); d.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }); const f = d.querySelector('[data-incval]'); if (f) setTimeout(() => f.focus(), 350); } return; }
+  if (c('[data-debtcustom]')) { $('#debtCustom').innerHTML = `<div class="confirm"><p class="small">Combien as-tu remboursé ?</p><div class="row" style="margin-top:10px"><input id="debtAmt" inputmode="decimal" class="famt num" style="flex:1;text-align:left" placeholder="Montant"><button class="btn sm" data-debtok>Valider</button></div></div>`; $('#debtAmt').focus(); return; }
+  if (c('[data-planedit]')) {
+    const b = budgetOf(A.month);
+    $('#planEdit').innerHTML = `<div class="srow" style="margin-top:12px"><input id="plDebt" inputmode="decimal" value="${b.plan.debt}" placeholder="Dette €" aria-label="Dette ce mois" style="flex:1"><input id="plSafe" inputmode="decimal" value="${b.plan.safety}" placeholder="Épargne €" aria-label="Épargne ce mois" style="flex:1"><button class="btn sm" data-plansave>OK</button></div><p class="hint" style="margin-top:0">Ne vaut que pour ${monthLabel(A.month)}. Le mois prochain, l'app recalcule en tenant compte de ce que tu as vraiment versé.</p>`;
+    $('#plDebt').focus(); return;
+  }
+  if (c('[data-plansave]')) {
+    const st = S.money.months[A.month] = S.money.months[A.month] || {};
+    st.plan = { debt: $('#plDebt').value.trim().replace(/\s/g, '').replace(',', '.'), safety: $('#plSafe').value.trim().replace(/\s/g, '').replace(',', '.') };
+    save(); render(); toast('Plan du mois modifié'); return;
+  }
+  if (c('[data-planreset]')) { const st = S.money.months[A.month]; if (st) delete st.plan; save(); render(); toast('Retour au calcul automatique'); return; }
+  if (c('[data-debtok]')) { commitKind('debt', numv($('#debtAmt').value.replace(/\s/g, ''))); return; }
+  if ((el = c('[data-invest]'))) { $('#invCustom').innerHTML = `<div class="confirm"><p class="small">Montant investi aujourd'hui</p><div class="row" style="margin-top:10px"><input id="invAmt" inputmode="decimal" class="famt num" style="flex:1;text-align:left" placeholder="Montant"><button class="btn sm" data-invok="${el.dataset.invest}">Valider</button></div></div>`; $('#invAmt').focus(); return; }
+  if ((el = c('[data-invok]'))) { commitKind('invest', numv($('#invAmt').value.replace(/\s/g, '')), el.dataset.invok); return; }
+  if (c('[data-invsetup]')) { openInvestSetup(); return; }
+  if (c('[data-invadd]')) { S.money.investments.push({ id: 'inv-' + uid(), name: '', type: 'etf', start: '', value: '' }); save(); openInvestSetup(); return; }
+  if ((el = c('[data-invdel]'))) { S.money.investments = S.money.investments.filter(i => i.id !== el.dataset.invdel); save(); openInvestSetup(); return; }
+  // Business
+  if (c('[data-padd]')) { S.biz.projects.push({ id: 'p-' + uid(), name: '', stage: 0, next: '' }); save(); render(); const ins = $$('.proj-name'); if (ins.length) ins[ins.length - 1].focus(); return; }
+  if ((el = c('[data-pdel]'))) { const i = S.biz.projects.findIndex(p => p.id === el.dataset.pdel); const [r] = S.biz.projects.splice(i, 1); save(); render(); toast('Projet supprimé', 'Annuler', () => { S.biz.projects.splice(i, 0, r); save(); render(); }); return; }
+  if ((el = c('[data-pstage]'))) { const [id, st] = el.dataset.pstage.split('.'); const p = S.biz.projects.find(x => x.id === id); if (p) { p.stage = Number(st); save(); haptic(); render(); } return; }
+  // Argent · budget
+  if ((el = c('[data-aview]'))) { go(el.dataset.aview); return; }
+  if (c('[data-bsetup]')) { openBudgetSetup(); return; }
+  if ((el = c('[data-bnav]'))) { const d = parseDate(A.month + '-01'); d.setMonth(d.getMonth() + Number(el.dataset.bnav)); A.month = iso(d).slice(0, 7); A.catFilter = 'all'; render(); return; }
+  if ((el = c('[data-bkind]'))) { A.kind = el.dataset.bkind; A.cat = A.kind === 'exp' ? 'courses' : 'virement'; const v = $('#bAmount').value; render(); $('#bAmount').value = v; return; }
+  if ((el = c('[data-bcat]'))) { A.cat = el.dataset.bcat; $$('[data-bcat]').forEach(b => b.setAttribute('aria-pressed', String(b === el))); haptic(); return; }
+  if (c('#bAdd')) { addTx(); return; }
+  if ((el = c('[data-psave]'))) { potSave(el.dataset.psave, !!el.dataset.custom); return; }
+  if ((el = c('[data-potok]'))) { commitPot(el.dataset.potok, numv($('#potAmt').value.replace(/\s/g, '')), 'save'); return; }
+  if ((el = c('[data-potwd]'))) { commitPot(el.dataset.potwd, numv($('#potAmt').value.replace(/\s/g, '')), 'withdraw'); return; }
+  if ((el = c('[data-tx]'))) { openTx(el.dataset.tx); return; }
+  if ((el = c('[data-txcat]'))) { $$('[data-txcat]').forEach(b => b.setAttribute('aria-pressed', String(b === el))); return; }
+  if (c('#txSave')) {
+    const t = S.money.tx.find(x => x.id === $('#shiftSheetBody').dataset.tx); if (!t) return;
+    const a = numv($('#txAmt').value.replace(/\s/g, '')); if (!(a > 0)) { toast('Entre un montant.'); return; }
+    t.amount = Math.round(a * 100) / 100; const cb = $('[data-txcat][aria-pressed="true"]'); if (cb) t.cat = cb.dataset.txcat;
+    t.note = $('#txNote').value.trim(); t.date = $('#txDate').value || t.date; save(); $('#shiftSheet').close(); render(); toast('Mouvement modifié'); return;
+  }
+  if (c('#txDel')) {
+    const i = S.money.tx.findIndex(x => x.id === $('#shiftSheetBody').dataset.tx); if (i < 0) return;
+    const [r] = S.money.tx.splice(i, 1); save(); $('#shiftSheet').close(); render();
+    toast('Mouvement supprimé', 'Annuler', () => { S.money.tx.push(r); save(); render(); }, 6000); return;
+  }
+  if (c('#bCsv')) { exportBudgetCSV(); return; }
+  if ((el = c('[data-bfilter]'))) { A.catFilter = el.dataset.bfilter; render(); return; }
+  if ((el = c('[data-madd]'))) {
+    const l = el.dataset.madd, id = l.slice(0, 3) + '-' + uid();
+    S.money[l].push(l === 'incomes' ? { id, label: '', amount: '', day: 1, src: '' } : l === 'fixed' ? { id, label: '', amount: '', day: 1 } : l === 'pots' ? { id, name: '', target: '', start: '', monthly: '', deadline: '' } : { id, cat: 'sorties', limit: '' });
+    save(); openBudgetSetup(); const inputs = $$(`[data-mset^="${l}.${id}."]`); if (inputs[0]) inputs[0].focus(); return;
+  }
+  if ((el = c('[data-mdel]'))) { const [l, id] = el.dataset.mdel.split('.'); S.money[l] = S.money[l].filter(x => x.id !== id); save(); openBudgetSetup(); return; }
   if (c('[data-close]')) { c('dialog').close(); return; }
   if (c('[data-export]')) { exportData(); return; }
   if (c('#importBtn')) { $('#importFile').click(); return; }
@@ -1311,7 +2000,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-calib]'))) {
     const k = el.dataset.calib, b = numv($(`#cb-${k}`).value.replace(/\s/g, '')), n = numv($(`#cn-${k}`).value.replace(/\s/g, ''));
     if (!b || !n || n >= b) { toast('Indique un brut et un net valides.'); return; }
-    S.settings.cotis[k] = Math.round((1 - n / b) * 1000) / 10; save(); openSettings(); if (tab === 'heures') render();
+    S.settings.cotis[k] = Math.round((1 - n / b) * 1000) / 10; save(); openSettings(); if (tab === 'argent') render();
     toast(`Cotisations ${EMP[k]} : ${String(S.settings.cotis[k]).replace('.', ',')} %`); return;
   }
   // Parcours
@@ -1335,6 +2024,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-pause]'))) { H.form.pause = Math.max(0, (Number(H.form.pause) || 0) + Number(el.dataset.pause)); $('#fPause').textContent = `${H.form.pause} min`; updateDial(); return; }
   if (c('#saveShift')) { saveShift(); return; }
   if (c('#dupShift')) { dupLast(); return; }
+  if ((el = c('[data-arch]'))) { H.month = el.dataset.arch; $('#month').innerHTML = vMonth(); $('#month').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }); return; }
   if ((el = c('[data-mnav]'))) { const d = parseDate(H.month + '-01'); d.setMonth(d.getMonth() + Number(el.dataset.mnav)); H.month = iso(d).slice(0, 7); $('#month').innerHTML = vMonth(); return; }
   if ((el = c('[data-filter]'))) { H.filter = el.dataset.filter; $('#month').innerHTML = vMonth(); return; }
   if (c('#csv')) { exportCSV(); return; }
@@ -1357,6 +2047,7 @@ document.addEventListener('keydown', e => {
     if (t.dataset.planet) go(t.dataset.planet); else if (t.dataset.moon) selectMonth(Number(t.dataset.moon)); else toggleBlock(Number(t.dataset.block));
   }
   if (e.key === 'Enter' && t.id === 'fNote') { e.preventDefault(); saveShift(); }
+  if (e.key === 'Enter' && (t.id === 'bAmount' || t.id === 'bNote')) { e.preventDefault(); addTx(); }
 });
 document.addEventListener('change', e => {
   const t = e.target;
@@ -1364,6 +2055,26 @@ document.addEventListener('change', e => {
     if (t.checked) S.checks[t.dataset.chk] = true; else delete S.checks[t.dataset.chk];
     save(); askPersist(); if (t.checked) haptic(); refreshParcours(); return;
   }
+  if (t.dataset.increc) {
+    const ym = A.month, st = S.money.months[ym] = S.money.months[ym] || {}; st.inc = st.inc || {};
+    if (t.checked) { const i = S.money.incomes.find(x => x.id === t.dataset.increc), e = expectedIncome(i).v; if (!e) { t.checked = false; const inp = $('#inc-' + i.id); if (inp) inp.focus(); toast('Tape le montant reçu à droite.'); return; } st.inc[i.id] = Math.round(e * 100) / 100; haptic(); } else delete st.inc[t.dataset.increc];
+    save(); render(); return;
+  }
+  if (t.dataset.incval) {
+    const ym = A.month, st = S.money.months[ym] = S.money.months[ym] || {}; st.inc = st.inc || {};
+    const v = t.value.trim(); if (v === '') delete st.inc[t.dataset.incval]; else st.inc[t.dataset.incval] = numv(v.replace(/\s/g, ''));
+    save(); render(); return;
+  }
+  if (t.dataset.fpaid) { const st = S.money.months[A.month] = S.money.months[A.month] || {}; st.paid = st.paid || {}; if (t.checked) { st.paid[t.dataset.fpaid] = true; haptic(); } else delete st.paid[t.dataset.fpaid]; save(); render(); return; }
+  if (t.dataset.mset) { mset(t.dataset.mset, t.value); return; }
+  if (t.id === 'mAuto') { S.money.auto = t.checked; save(); openBudgetSetup(); return; }
+  if (t.id === 'mLife') { S.money.life = t.value.trim().replace(/\s/g, '').replace(',', '.'); save(); openBudgetSetup(); return; }
+  if (t.dataset.habitc) { toggleHabit(t.dataset.habitc); return; }
+  if (t.dataset.hset) { const h = S.faith.habits.find(x => x.id === t.dataset.hset); if (h && t.value.trim()) { h.name = t.value.trim(); save(); } return; }
+  if (t.dataset.dset) { S.money.debt[t.dataset.dset] = t.value.trim().replace(/\s/g, '').replace(',', '.'); save(); return; }
+  if (t.hasAttribute && t.hasAttribute('data-sgoal')) { S.money.safetyGoal = t.value.trim().replace(/\s/g, '').replace(',', '.') || '4000'; const p = S.money.pots.find(x => x.safety); if (p) p.target = S.money.safetyGoal; save(); return; }
+  if (t.dataset.iset) { const [id, k] = t.dataset.iset.split('.'), i = S.money.investments.find(x => x.id === id); if (i) { i[k] = k === 'name' || k === 'type' ? t.value : t.value.trim().replace(/\s/g, '').replace(',', '.'); save(); } return; }
+  if (t.dataset.pset) { const [id, k] = t.dataset.pset.split('.'), p = S.biz.projects.find(x => x.id === id); if (p) { p[k] = t.value; save(); } return; }
   if (t.dataset.sour) { if (t.checked) S.sourates[t.dataset.sour] = true; else delete S.sourates[t.dataset.sour]; save(); if (t.checked) haptic(); $('#sourN').textContent = `${SOURATES.filter(s => S.sourates[s[1]]).length} / ${SOURATES.length}`; return; }
   if (t.id === 'tajTotal') { S.tajwid.total = Math.max(0, parseInt(t.value, 10) || 0); if (S.tajwid.total) S.tajwid.done = Math.min(S.tajwid.done, S.tajwid.total); save(); render(); return; }
   if (t.id === 'fDate') { const h = holidayName(t.value); $('#fFerie').checked = !!h; $('#ferieName').textContent = h || ''; readForm(); updateDial(); return; }
@@ -1374,9 +2085,9 @@ document.addEventListener('change', e => {
     if (v) S.payslips[k] = v; else delete S.payslips[k];
     save(); $('#month').innerHTML = vMonth(); return;
   }
-  if (t.dataset.set) { const raw = t.value.trim(); setPath(S.settings, t.dataset.set, /^counter/.test(t.dataset.set) ? raw : raw.replace(',', '.')); save(); if (tab === 'heures' || tab === 'orbite') render(); return; }
-  if (t.id === 'sNs' && t.value) { S.settings.nightStart = t.value; save(); if (tab === 'heures') render(); return; }
-  if (t.id === 'sNe' && t.value) { S.settings.nightEnd = t.value; save(); if (tab === 'heures') render(); return; }
+  if (t.dataset.set) { const raw = t.value.trim(); setPath(S.settings, t.dataset.set, /^counter/.test(t.dataset.set) ? raw : raw.replace(',', '.')); save(); if (tab === 'argent' || tab === 'orbite') render(); return; }
+  if (t.id === 'sNs' && t.value) { S.settings.nightStart = t.value; save(); if (tab === 'argent') render(); return; }
+  if (t.id === 'sNe' && t.value) { S.settings.nightEnd = t.value; save(); if (tab === 'argent') render(); return; }
   if (t.id === 'sStart' && t.value) { S.start = t.value; P.sel = null; save(); render(); return; }
   if (t.id === 'importFile' && t.files[0]) { const r = new FileReader(); r.onload = () => handleImport(r.result); r.readAsText(t.files[0]); t.value = ''; }
 });
@@ -1387,10 +2098,12 @@ document.addEventListener('input', e => {
   if ((t.id === 'fStart' || t.id === 'fEnd') && t.value) { H.form[t.id === 'fStart' ? 'start' : 'end'] = t.value; updateDial(); }
 });
 $$('dialog.sheet').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+document.addEventListener('toggle', e => { const d = e.target; if (d.dataset && d.dataset.flow) { if (d.open) A.open.add(d.dataset.flow); else A.open.delete(d.dataset.flow); } }, true);
+$('#ideasSheet').addEventListener('close', () => { if ($('#ideasSheet').dataset.mode === 'bsetup') { delete $('#ideasSheet').dataset.mode; render(); } });
 let lastDay = todayISO();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { stopOrbit(); return; }
-  if (todayISO() !== lastDay) { lastDay = todayISO(); H.form = null; H.month = todayISO().slice(0, 7); P.sel = null; render(); }
+  if (todayISO() !== lastDay) { lastDay = todayISO(); H.form = null; H.month = todayISO().slice(0, 7); A.month = H.month; P.sel = null; render(); }
   else if (tab === 'orbite') startOrbit();
 });
 window.addEventListener('resize', moveIndicator);
@@ -1402,7 +2115,10 @@ window.addEventListener('resize', moveIndicator);
   S = await loadState();
   save(true);
   let t = location.hash.slice(1);
+  if (t === 'arabe' || t === 'habitudes') { setFView(t); t = 'foi'; }
+  if (t === 'heures' || t === 'budget') { setAView(t); t = 'argent'; }
   if (!TABS.includes(t)) { try { t = localStorage.getItem('sdp-tab'); } catch (e) {} }
+  if (t === 'heures' || t === 'budget') { setAView(t); t = 'argent'; }
   tab = TABS.includes(t) ? t : 'orbite';
   render(true);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -1418,4 +2134,4 @@ window.addEventListener('resize', moveIndicator);
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; save(true); location.reload(); } });
   }
 })();
-window.__sdp = { calc, sumShifts, money, gareCounter, parseHours, fmtH, holidayName, save, get S() { return S; } };
+window.__sdp = { calc, sumShifts, money, gareCounter, budgetOf, autoPlan, A, faithScore, bizStatus, investStatus, parseHours, fmtH, holidayName, save, get S() { return S; } };
