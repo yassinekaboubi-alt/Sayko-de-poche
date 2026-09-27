@@ -1,4 +1,4 @@
-/* Sayko de poche — v1.0
+/* Sayko de poche — v2.1
    App 100 % locale : aucune donnée ne quitte le téléphone. */
 'use strict';
 
@@ -286,24 +286,41 @@ const holidayName = dateStr => holidays(Number(dateStr.slice(0, 4)))[dateStr] ||
    3. DONNÉES (IndexedDB, avec copie de secours dans localStorage)
    ===================================================================== */
 const DB_NAME = 'sayko-de-poche', STORE = 'kv', LS_KEY = 'sayko-de-poche-state';
+function nextFullMonth() { const d = new Date(); if (d.getDate() > 1) d.setMonth(d.getMonth() + 1, 1); return iso(d).slice(0, 7); }
+function defaultSettings() {
+  return {
+    v: 2, nightStart: '21:00', nightEnd: '06:00', pas: 0,
+    base: { gare: 150, pizza: 80 },            // Gare : base du compteur · Pizza : simple repère pour l'anneau
+    counterStart: nextFullMonth(),             // mois où démarre le compteur d'heures de la Gare
+    counterInit: '',                           // solde de départ du compteur (h, peut être négatif)
+    threshold: { gare: 35, pizza: '' },        // alerte hebdo (vide = désactivée)
+    rate: { gare: '', pizza: '' },             // taux horaire brut
+    cotis: { gare: 22, pizza: 22 },            // % de cotisations salariales (brut → net)
+    maj: { gare: { extra: 25, night: 0, sunday: 0, holiday: 0 }, pizza: { extra: 10, night: 0, sunday: 0, holiday: 0 } }
+  };
+}
 function defaults() {
   return {
     v: 1, start: todayISO(),
     checks: {}, notes: {}, words: {}, hideFatiha: false, tajwid: { done: 0, total: 0 }, sourates: {},
     days: {},
     shifts: [], payslips: {},
-    settings: { nightStart: '21:00', nightEnd: '06:00', threshold: { gare: 35, pizza: 35 }, rate: { gare: '', pizza: '' } },
+    blocks: {}, seen: {},
+    settings: defaultSettings(),
     ideas: [], lastExport: null, createdAt: Date.now(), updatedAt: 0
   };
 }
 function normalize(s) {
   const d = defaults();
   const out = Object.assign(d, s || {});
-  out.settings = Object.assign(d.settings, (s && s.settings) || {});
-  out.settings.threshold = Object.assign({ gare: 35, pizza: 35 }, out.settings.threshold || {});
-  out.settings.rate = Object.assign({ gare: '', pizza: '' }, out.settings.rate || {});
+  const src = (s && s.settings) || {}, ds = defaultSettings();
+  // Migration v1 → v2 : le seuil hebdo de Mister Pizza passe en « désactivé », les bases mensuelles arrivent.
+  if (s && s.settings && !src.v && src.threshold && Number(src.threshold.pizza) === 35) src.threshold.pizza = '';
+  out.settings = Object.assign(ds, src, { v: 2 });
+  ['threshold', 'rate', 'base', 'cotis'].forEach(k => { out.settings[k] = Object.assign({}, ds[k], src[k] || {}); });
+  out.settings.maj = { gare: Object.assign({}, ds.maj.gare, (src.maj || {}).gare || {}), pizza: Object.assign({}, ds.maj.pizza, (src.maj || {}).pizza || {}) };
   out.tajwid = Object.assign({ done: 0, total: 0 }, out.tajwid || {});
-  ['checks', 'notes', 'words', 'sourates', 'days', 'payslips'].forEach(k => { if (typeof out[k] !== 'object' || !out[k] || Array.isArray(out[k])) out[k] = {}; });
+  ['checks', 'notes', 'words', 'sourates', 'days', 'payslips', 'blocks', 'seen'].forEach(k => { if (typeof out[k] !== 'object' || !out[k] || Array.isArray(out[k])) out[k] = {}; });
   ['shifts', 'ideas'].forEach(k => { if (!Array.isArray(out[k])) out[k] = []; });
   return out;
 }
@@ -413,28 +430,97 @@ function bestStreak() {
   return best;
 }
 
+
 /* =====================================================================
-   6. INTERFACE COMMUNE
+   6. ARGENT (brut → net → dans ta poche)
+   ===================================================================== */
+const numv = v => { const n = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
+function money(emp, t) {
+  const st = S.settings, rate = numv(st.rate[emp]);
+  if (!rate) return null;
+  const maj = st.maj[emp] || {};
+  // Gare : mensualisé, les heures en plus vont au compteur (pas payées) → on paie la base.
+  // Mister Pizza : payé à l'heure, toutes les heures du mois au même taux.
+  const paid = emp === 'gare' && numv(st.base.gare) ? numv(st.base.gare) * 60 : t.worked;
+  const brut = paid / 60 * rate + (t.night * numv(maj.night) + t.sunday * numv(maj.sunday) + t.holiday * numv(maj.holiday)) / 100 / 60 * rate;
+  const net = brut * (1 - numv(st.cotis[emp]) / 100);
+  return { brut, net, poche: net * (1 - numv(st.pas) / 100) };
+}
+/* « -12h30 », « +8 », « 4,5 » → minutes */
+function parseSigned(v) { const str = String(v ?? '').trim().replace(/\s/g, ''); if (!str) return 0; const neg = /^[-−]/.test(str); const m = parseHours(str.replace(/^[-+−]/, '')); return m == null ? 0 : (neg ? -m : m); }
+const fmtSigned = m => (m > 0 ? '+' : m < 0 ? '−' : '') + fmtH(Math.abs(m));
+/* Compteur d'heures de la Gare (heures en plus stockées, rattrapées en repos) */
+function gareCounter() {
+  const st = S.settings, base = numv(st.base.gare) * 60; if (!base) return null;
+  const cur = todayISO().slice(0, 7), start = st.counterStart || cur;
+  const months = [];
+  let bal = parseSigned(st.counterInit);
+  for (let d = parseDate(start + '-01'); iso(d).slice(0, 7) < cur; d.setMonth(d.getMonth() + 1)) {
+    const ym = iso(d).slice(0, 7), w = sumShifts(shiftsIn(ym, 'gare')).worked;
+    bal += w - base; months.push({ ym, w, diff: w - base, bal });
+  }
+  const w = sumShifts(shiftsIn(cur, 'gare')).worked;
+  return { started: start <= cur, start, init: parseSigned(st.counterInit), closed: bal, months, cur: { ym: cur, w, diff: w - base }, base };
+}
+const eur0 = v => v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+
+/* =====================================================================
+   7. OUTILS D'INTERFACE
    ===================================================================== */
 const ICON = {
-  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
-  idea: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  idea: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg>',
   prev: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
   next: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
   chev: '<svg class="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
   warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
-  tick: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>',
-  done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+  tick: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>'
 };
-function pageHead(title, sub) {
+/* Mini-icônes des planètes (chemins 24×24) */
+const GLYPH = {
+  parcours: '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 2.4"/><circle cx="12" cy="4" r="2.4" fill="currentColor"/>',
+  arabe: '<path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5v13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  routine: '<path d="M12 3.5a8.5 8.5 0 1 1-8.5 8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  heures: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+};
+/* Géométrie : 0° = en haut, sens des aiguilles d'une montre */
+const polar = (r, deg) => { const a = (deg - 90) * Math.PI / 180; return [r * Math.cos(a), r * Math.sin(a)]; };
+function arc(r, a0, a1) {
+  let sweep = a1 - a0; if (sweep <= 0) sweep += 360; sweep = Math.min(sweep, 359.99);
+  const [x0, y0] = polar(r, a0), [x1, y1] = polar(r, a0 + sweep);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${sweep > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+const ringDash = (r, p) => { const c = 2 * Math.PI * r; return `stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - Math.max(0, Math.min(1, p)))).toFixed(1)}"`; };
+function tween(dur, fn, done) {
+  if (reduceMotion()) { fn(1); done && done(); return; }
+  const t0 = performance.now();
+  const step = now => { const k = Math.min(1, (now - t0) / dur); fn(1 - Math.pow(1 - k, 3)); if (k < 1) requestAnimationFrame(step); else done && done(); };
+  requestAnimationFrame(step);
+}
+
+const COACH = {
+  orbite: ['Ton système', 'Chaque planète est un module. Son anneau doré montre où tu en es. Touche une planète pour y aller, fais tourner le système du doigt.'],
+  parcours: ['12 mois pour te former au business', 'Fais glisser l\'anneau ou touche une lune pour choisir un mois. Chaque mois se fait dans l\'ordre :', ['Écoute et lis les ressources', 'Coche les acquis quand tu les maîtrises', 'Fais l\'exercice pratique', 'Note ce que tu retiens']],
+  arabe: ['Comprendre le sens de ce que tu récites', 'Quelques minutes de quiz par jour suffisent. Chaque étoile de la constellation est un mot : elle brille quand il est maîtrisé (3 bonnes réponses).'],
+  routine: ['Ta 1 h 30 quotidienne', 'L\'anneau est découpé en 4 blocs. Touche un bloc quand il est fait : les 4 faits, la journée est validée et ta série continue.'],
+  heures: ['Vérifier ta paie', 'Fais glisser les deux poignées du cadran pour ton début et ta fin (la zone sombre, c\'est la nuit). L\'app calcule tes heures de nuit, du dimanche, au-delà de ta base, et ton net estimé.']
+};
+function coach(key) {
+  if (S.seen[key]) return '';
+  const c = COACH[key];
+  return `<div class="coach" data-coach="${key}"><b>${c[0]}.</b> ${c[1]}${c[2] ? `<ol>${c[2].map(x => `<li>${x}</li>`).join('')}</ol>` : ''}<br><button data-seen="${key}">J'ai compris</button></div>`;
+}
+function pageHead(title, sub, key) {
   return `<header class="top"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>
     <div class="top-actions">
+      ${key && S.seen[key] ? `<button class="icon-btn" data-unseen="${key}" aria-label="Revoir l'explication">${ICON.info}</button>` : ''}
       <button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button>
       <button class="icon-btn" data-open="settings" aria-label="Réglages et sauvegarde">${ICON.gear}</button>
-    </div></header>`;
+    </div></header>${key ? coach(key) : ''}`;
 }
-const checkbox = (key, label, extraAttr = 'data-chk') =>
-  `<label class="check"><input type="checkbox" ${extraAttr}="${esc(key)}" ${(extraAttr === 'data-chk' ? S.checks[key] : S.sourates[key]) ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${label}</span></label>`;
+const checkbox = (key, label, attr = 'data-chk', on = S.checks[key]) =>
+  `<label class="check"><input type="checkbox" ${attr}="${esc(key)}" ${on ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${label}</span></label>`;
 
 let toastTimer = null;
 function toast(msg, action, fn, ms = 4000) {
@@ -445,153 +531,289 @@ function toast(msg, action, fn, ms = 4000) {
 }
 function hideToast() { $('#toast').classList.remove('on'); }
 function haptic() { try { navigator.vibrate && navigator.vibrate(8); } catch (e) {} }
-
-/* Téléchargement / partage d'un fichier */
 async function deliverFile(name, text, type) {
   const blob = new Blob([text], { type });
   try {
     const file = new File([blob], name, { type });
-    if (navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) {
-      await navigator.share({ files: [file], title: name });
-      return true;
-    }
+    if (navigator.canShare && navigator.canShare({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) { await navigator.share({ files: [file], title: name }); return true; }
   } catch (e) { if (e && e.name === 'AbortError') return false; }
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   return true;
 }
+/* Petit indicateur circulaire (liste « Aujourd'hui ») */
+const miniOrb = (p, key, mint) => `<svg class="mini-orb" viewBox="-20 -20 40 40" aria-hidden="true"><circle r="16" fill="none" stroke="var(--raise)" stroke-width="3"/><circle r="16" fill="none" stroke="var(--${mint ? 'mint' : 'gold'})" stroke-width="3" stroke-linecap="round" transform="rotate(-90)" ${ringDash(16, p)}/><svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" style="color:var(--ink-2)">${GLYPH[key]}</svg></svg>`;
 
 /* =====================================================================
-   7. ONGLET PARCOURS
+   8. ORBITE (accueil)
    ===================================================================== */
-function vParcours() {
-  const cm = currentMonth(), cur = MONTHS[cm - 1];
-  const frise = QUARTERS.map((q, qi) => `<div class="quarter">${[0, 1, 2].map(k => {
-    const m = MONTHS[qi * 3 + k];
-    return `<button class="mcol ${m.n === cm ? 'now' : ''}" data-month="${m.n}" aria-label="Mois ${m.n}, ${m.title}"><span class="fill"></span><span class="n">${m.n}</span></button>`;
-  }).join('')}<span class="ql">T${qi + 1}</span></div>`).join('');
-
-  const skills = Object.keys(DOMAINS).map(k => `<div class="skill" data-skill="${k}"><span>${DOMAINS[k]}</span><span class="small muted num" data-skill-n></span><div class="bar"><i style="width:0"></i></div></div>`).join('');
-
-  const months = QUARTERS.map((q, qi) => `<div class="qhead"><p class="eyebrow">${q.t}</p><p class="small muted" style="margin-top:4px">${q.d}</p></div>
-    <div class="months">${[0, 1, 2].map(k => {
-      const m = MONTHS[qi * 3 + k];
-      if (m.n === cm) return `<details data-mid="${m.n}"><summary data-goto-focus><span class="mn">${m.n}</span><span class="mt">${esc(m.title)}<small>En cours · voir plus haut</small></span><span class="small muted num" data-mpct="${m.n}"></span></summary></details>`;
-      return `<details data-mid="${m.n}" id="month-${m.n}"><summary><span class="mn">${m.n}</span><span class="mt">${esc(m.title)}<small>${DOMAINS[m.dom]}</small></span><span class="small muted num" data-mpct="${m.n}"></span></summary><div class="mbody">${monthBody(m)}</div></details>`;
-    }).join('')}</div>`).join('');
-
-  const startLbl = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(parseDate(S.start));
-  return `${pageHead('Parcours', `Mois ${cm} sur 12 · depuis le ${startLbl}`)}
-  <div class="frise-wrap">
-    <div class="frise-head"><div><p class="eyebrow">Acquis validés</p><p class="big num" id="gpct">0<small>%</small></p></div>
-      <p class="small muted" style="text-align:right;max-width:13em">Chaque colonne se remplit avec les acquis cochés du mois.</p></div>
-    <div class="frise" role="group" aria-label="Frise des 12 mois">${frise}</div>
-  </div>
-  <section class="focus-month" id="focus">
-    <p class="eyebrow">Ce mois-ci · Mois ${cm} · ${DOMAINS[cur.dom]}</p>
-    <h2 style="font-size:1.625rem;margin:8px 0 0">${esc(cur.title)}</h2>
-    <p class="why">${esc(cur.why)}</p>
-    ${monthBody(cur)}
-  </section>
-  <section><h2>Par compétence</h2><div class="skills">${skills}</div></section>
-  <section><h2>Les 12 mois</h2>${months}</section>`;
+const PLANETS = [
+  { key: 'routine', name: 'Routine', r: 66, speed: 9, phase: 210 },
+  { key: 'arabe', name: 'Arabe', r: 98, speed: 6, phase: 330, mint: true },
+  { key: 'heures', name: 'Heures', r: 130, speed: 4, phase: 70 },
+  { key: 'parcours', name: 'Parcours', r: 160, speed: 2.4, phase: 150 }
+];
+const todayBlocks = () => (S.blocks[todayISO()] || [0, 0, 0, 0]).filter(Boolean).length;
+const baseTotal = () => (numv(S.settings.base.gare) + numv(S.settings.base.pizza)) * 60 || 1;
+function planetValue(k) {
+  const ym = todayISO().slice(0, 7);
+  if (k === 'parcours') return [globalPct() / 100, `${globalPct()} %`];
+  if (k === 'arabe') return [wordsKnown() / WORDS.length, `${wordsKnown()}/${WORDS.length} mots`];
+  if (k === 'routine') { const d = S.days[todayISO()] ? 4 : todayBlocks(); return [d / 4, `${d}/4 blocs`]; }
+  const w = sumShifts(shiftsIn(ym)).worked; return [w / baseTotal(), fmtH(w)];
 }
-function monthBody(m) {
-  return `<div class="sub-h"><h3>Ressources</h3></div>
-    <ul class="res">${m.res.map(r => `<li><b>${esc(r.t)}</b><span>${esc(r.w)}</span></li>`).join('')}</ul>
-    <div class="sub-h"><h3>Acquis</h3><span class="small muted num" data-mcount="${m.n}"></span></div>
-    <div class="checks">${m.acq.map((a, i) => checkbox(`m${m.n}-${i}`, esc(a))).join('')}</div>
-    <div class="exercise"><p class="eyebrow">Exercice pratique</p><p>${esc(m.ex)}</p></div>
-    <div class="sub-h"><h3><label for="note-${m.n}">Mes notes</label></h3></div>
-    <textarea id="note-${m.n}" data-note="${m.n}" placeholder="Idées clés, déclics, ce que tu veux appliquer…">${esc(S.notes[m.n] || '')}</textarea>`;
+function vOrbite() {
+  const now = new Date(), h = now.getHours();
+  const hello = h < 5 ? 'Bonne nuit' : h < 18 ? 'Bonjour' : 'Bonsoir';
+  // Étoiles déterministes (même ciel à chaque ouverture)
+  let seed = 7, stars = '';
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let i = 0; i < 46; i++) { const x = rnd() * 420 - 210, y = rnd() * 420 - 210, r = rnd() * 1.1 + .3; stars += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}" fill="var(--muted)" opacity="${(rnd() * .5 + .15).toFixed(2)}"/>`; }
+  const planets = PLANETS.map(p => {
+    const [v, lbl] = planetValue(p.key);
+    return `<g class="planet ${p.mint ? 'mint' : ''}" data-planet="${p.key}" role="button" tabindex="0" aria-label="${p.name} : ${lbl}">
+      <circle r="34" fill="transparent"/>
+      <circle class="trk" r="26"/><circle class="prog" r="26" transform="rotate(-90)" ${ringDash(26, v)}/>
+      <circle class="body" r="20"/>
+      <svg x="-10" y="-10" width="20" height="20" viewBox="0 0 24 24" class="ic">${GLYPH[p.key]}</svg>
+      <text class="lbl" y="44">${p.name}</text><text class="val" y="57">${lbl}</text></g>`;
+  }).join('');
+  const wk = sumShifts(shiftsWeek(mondayOf(now))).worked, cm = currentMonth(), cur = MONTHS[cm - 1];
+  const tb = S.days[todayISO()] ? 4 : todayBlocks();
+  return `${pageHead(`${hello}, <em>Yassine</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite')}
+  <div class="orbit-stage" id="stage">
+    <svg viewBox="-210 -215 420 440" aria-label="Système de tes 4 modules">
+      <defs><radialGradient id="sunGlow"><stop offset="0" stop-color="var(--gold)" stop-opacity=".55"/><stop offset=".45" stop-color="var(--gold)" stop-opacity=".12"/><stop offset="1" stop-color="var(--gold)" stop-opacity="0"/></radialGradient></defs>
+      ${stars}
+      ${PLANETS.map(p => `<circle class="orbit-ring" r="${p.r}"/>`).join('')}
+      <circle r="78" fill="url(#sunGlow)" id="sunGlowC"/>
+      <circle class="sun-core" r="34"/>
+      <text y="-2" text-anchor="middle" style="font:400 30px var(--serif);fill:var(--gold-ink)">${now.getDate()}</text>
+      <text y="16" text-anchor="middle" style="font-size:9px;font-weight:700;letter-spacing:.12em;fill:var(--gold-ink);opacity:.75">${DAY_SHORT.format(now).replace('.', '').toUpperCase()}</text>
+      <g id="planets">${planets}</g>
+    </svg>
+  </div>
+  <section style="margin-top:18px">
+    <h2>Aujourd'hui</h2>
+    <div class="today-list">
+      <button class="today-item" data-goto="heures">${miniOrb(planetValue('heures')[0], 'heures')}<span><b>${wk ? `${fmtH(wk)} cette semaine` : 'Aucun service cette semaine'}</b><span class="s">Noter un service</span></span>${ICON.chev}</button>
+      <button class="today-item" data-goto="routine">${miniOrb(tb / 4, 'routine')}<span><b>${tb === 4 ? 'Routine faite' : `${tb} bloc${tb > 1 ? 's' : ''} sur 4`}</b><span class="s">${streak()} jour${streak() > 1 ? 's' : ''} d'affilée</span></span>${ICON.chev}</button>
+      <button class="today-item" data-goto="parcours">${miniOrb(modPct(cur), 'parcours')}<span><b>Mois ${cm} · ${esc(cur.title)}</b><span class="s">${modDone(cur)} acquis sur ${cur.acq.length}</span></span>${ICON.chev}</button>
+      <button class="today-item" data-goto="arabe">${miniOrb(wordsKnown() / WORDS.length, 'arabe', true)}<span><b>Réviser 5 mots</b><span class="s">${wordsKnown()} mots maîtrisés sur ${WORDS.length}</span></span>${ICON.chev}</button>
+    </div>
+  </section>`;
+}
+/* Animation du système + rotation au doigt avec inertie */
+const orb = { raf: 0, t0: 0, spin: 0, vel: 0, drag: null, last: 0 };
+function startOrbit() {
+  stopOrbit();
+  const g = $('#planets'); if (!g) return;
+  const nodes = PLANETS.map(p => $(`[data-planet="${p.key}"]`, g));
+  const still = reduceMotion();
+  orb.t0 = performance.now() - (orb.elapsed || 0); orb.last = performance.now();
+  const frame = now => {
+    const dt = Math.min(50, now - orb.last) / 1000; orb.last = now;
+    if (!orb.drag && Math.abs(orb.vel) > 0.01) { orb.spin += orb.vel * dt; orb.vel *= Math.pow(0.04, dt); }
+    orb.elapsed = still ? 0 : now - orb.t0;
+    const t = orb.elapsed / 1000;
+    PLANETS.forEach((p, i) => {
+      const a = p.phase + (still ? 0 : p.speed * t) + orb.spin * (70 / p.r);
+      const [x, y] = polar(p.r, a);
+      nodes[i].setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
+    });
+    orb.raf = requestAnimationFrame(frame);
+  };
+  orb.raf = requestAnimationFrame(frame);
+  const stage = $('#stage');
+  stage.addEventListener('pointerdown', e => { orb.drag = { x: e.clientX, y: e.clientY, moved: false, t: performance.now() }; orb.vel = 0; });
+  stage.addEventListener('pointermove', e => {
+    const d = orb.drag; if (!d) return;
+    const dx = e.clientX - d.x; if (Math.abs(dx) > 6 || Math.abs(e.clientY - d.y) > 6) d.moved = true;
+    if (Math.abs(dx) > Math.abs(e.clientY - d.y)) { orb.spin += dx * 0.6; const dt = Math.max(1, performance.now() - d.t); orb.vel = dx * 0.6 / dt * 1000; }
+    d.x = e.clientX; d.y = e.clientY; d.t = performance.now();
+  });
+  const end = e => {
+    const d = orb.drag; orb.drag = null;
+    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); }
+  };
+  stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', () => { orb.drag = null; });
+}
+function stopOrbit() { cancelAnimationFrame(orb.raf); orb.raf = 0; }
+
+/* =====================================================================
+   9. PARCOURS — l'année en orbite
+   ===================================================================== */
+const P = { sel: null, rot: 0 };
+function vParcours() {
+  const cm = currentMonth();
+  if (P.sel == null) P.sel = cm;
+  P.rot = -(P.sel - 1) * 30;
+  const R = 118;
+  const quarters = [0, 1, 2, 3].map(q => {
+    const a0 = q * 90 - 13, a1 = q * 90 + 73, [lx, ly] = polar(150, q * 90 + 30);
+    return `<path d="${arc(150, a0, a1)}" fill="none" stroke="var(--orbit)" stroke-width="1.2" stroke-linecap="round"/>
+      <g class="qc" data-cx="${lx.toFixed(2)}" data-cy="${ly.toFixed(2)}"><rect x="${(lx - 13).toFixed(2)}" y="${(ly - 9).toFixed(2)}" width="26" height="18" rx="9" fill="var(--bg)"/><text class="qlabel" x="${lx.toFixed(2)}" y="${ly.toFixed(2)}">T${q + 1}</text></g>`;
+  }).join('');
+  const moons = MONTHS.map(m => {
+    const [x, y] = polar(R, (m.n - 1) * 30);
+    return `<g class="moon ${m.n === P.sel ? 'sel' : ''} ${m.n === cm ? 'now' : ''}" data-moon="${m.n}" role="button" tabindex="0" aria-label="Mois ${m.n} : ${esc(m.title)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})">
+      <circle r="26" fill="transparent"/>${m.n === cm ? '<circle class="halo" r="27"/>' : ''}
+      <circle class="mt" r="22"/><circle class="mp" r="22" transform="rotate(-90)" ${ringDash(22, modPct(m))}/>
+      <circle class="mb" r="${m.n === P.sel ? 18 : 16}"/>
+      <text class="mn">${m.n}</text></g>`;
+  }).join('');
+  return `${pageHead('Parcours', `<span id="psub">Mois ${cm} sur 12 · ${globalPct()} % des acquis</span>`, 'parcours')}
+  <div class="dial-wrap" id="pdial">
+    <svg viewBox="-172 -172 344 344" aria-label="Les 12 mois du parcours">
+      <circle r="${R}" fill="none" stroke="var(--orbit)" stroke-width="1"/>
+      <circle r="84" fill="var(--gold-soft)" opacity=".55"/>
+      <g id="ring" transform="rotate(${P.rot})">${quarters}${moons}</g>
+    </svg>
+    <div class="dial-center" id="pcenter"></div>
+  </div>
+  <div class="dial-nav">
+    <button class="btn sm quiet" data-pstep="-1" aria-label="Mois précédent">${ICON.prev}</button>
+    <button class="btn sm ghost" id="pnow" ${P.sel === cm ? 'hidden' : ''}>Revenir au mois ${cm}</button>
+    <button class="btn sm quiet" data-pstep="1" aria-label="Mois suivant">${ICON.next}</button>
+  </div>
+  <div id="mcard"></div>
+  <section><h2>Par compétence</h2>
+    <div class="stats-line" style="margin-bottom:18px"><div><b class="num" id="gpct">${globalPct()} %</b><span>des acquis</span></div><div><b class="num" id="mdone">${MONTHS.filter(m => modPct(m) === 1).length}</b><span>mois bouclés</span></div></div>
+    <div class="skills">${Object.keys(DOMAINS).map(k => `<div class="skill" data-skill="${k}"><span>${DOMAINS[k]}</span><span class="small muted num" data-skill-n></span><div class="bar"><i style="width:0"></i></div></div>`).join('')}</div>
+  </section>`;
+}
+function counterRotate() {
+  const r = P.rot;
+  $$('#ring .moon').forEach(g => { const t = g.querySelector('text'); t.setAttribute('transform', `rotate(${-r})`); });
+  $$('#ring .qc').forEach(g => g.setAttribute('transform', `rotate(${-r} ${g.dataset.cx} ${g.dataset.cy})`));
+}
+function pCenter() {
+  const m = MONTHS[P.sel - 1], el = $('#pcenter'); if (!el) return;
+  el.innerHTML = `<p class="eyebrow">Mois ${m.n} · T${Math.ceil(m.n / 3)}</p><p class="big num">${Math.round(modPct(m) * 100)}<span style="font-size:1.5rem"> %</span></p><p class="t">${esc(m.title)}</p>`;
+}
+function pCard(animate) {
+  const m = MONTHS[P.sel - 1], el = $('#mcard'); if (!el) return;
+  const done = modDone(m), note = S.notes[m.n] || '';
+  el.innerHTML = `<div class="month-card">
+    <p class="eyebrow">${DOMAINS[m.dom]}${m.n === currentMonth() ? ' · <span style="color:var(--mint)">en cours</span>' : ''}</p>
+    <h2 style="margin:8px 0 0">${esc(m.title)}</h2>
+    <p class="why">${esc(m.why)}</p>
+    <div class="steps">
+      <div class="step"><span class="sn">1</span><div><h3>Écouter et lire</h3><ul class="res">${m.res.map(r => `<li><b>${esc(r.t)}</b><span>${esc(r.w)}</span></li>`).join('')}</ul></div></div>
+      <div class="step ${done === m.acq.length ? 'ok' : ''}" id="step2"><span class="sn">2</span><div><h3>Valider les acquis <span id="acqn">${done}/${m.acq.length}</span></h3><div class="checks">${m.acq.map((a, i) => checkbox(`m${m.n}-${i}`, esc(a))).join('')}</div></div></div>
+      <div class="step"><span class="sn">3</span><div><h3>Mettre en pratique</h3><div class="exercise"><p>${esc(m.ex)}</p></div></div></div>
+      <div class="step ${note.trim() ? 'ok' : ''}" id="step4"><span class="sn">4</span><div><h3><label for="note-${m.n}">Noter ce que tu retiens</label></h3><textarea id="note-${m.n}" data-note="${m.n}" style="margin-top:10px" placeholder="Idées clés, déclics, ce que tu veux appliquer…">${esc(note)}</textarea></div></div>
+    </div></div>`;
+  if (animate && !reduceMotion()) { el.firstElementChild.style.animation = 'rise .45s var(--ease) both'; }
 }
 function refreshParcours() {
-  const g = $('#gpct'); if (!g) return;
-  g.innerHTML = `${globalPct()}<small>%</small>`;
-  MONTHS.forEach(m => {
-    const p = modPct(m), col = $(`.mcol[data-month="${m.n}"]`);
-    if (col) { $('.fill', col).style.transform = `scaleY(${p})`; col.classList.toggle('lit', p >= 0.2); col.setAttribute('aria-label', `Mois ${m.n}, ${m.title} : ${Math.round(p * 100)} %`); }
-    $$(`[data-mpct="${m.n}"]`).forEach(el => { el.textContent = `${modDone(m)}/${m.acq.length}`; });
-    $$(`[data-mcount="${m.n}"]`).forEach(el => { el.textContent = `${modDone(m)} sur ${m.acq.length}`; });
-    $$(`details[data-mid="${m.n}"]`).forEach(el => el.classList.toggle('done', p === 1));
-  });
+  if (!$('#ring')) return;
+  MONTHS.forEach(m => { const c = $(`[data-moon="${m.n}"] .mp`); if (c) { const C = 2 * Math.PI * 22; c.setAttribute('stroke-dashoffset', (C * (1 - modPct(m))).toFixed(1)); } });
+  pCenter();
+  const m = MONTHS[P.sel - 1], d = modDone(m);
+  if ($('#acqn')) { $('#acqn').textContent = `${d}/${m.acq.length}`; $('#step2').classList.toggle('ok', d === m.acq.length); }
+  $('#psub').textContent = `Mois ${currentMonth()} sur 12 · ${globalPct()} % des acquis`;
+  $('#gpct').textContent = `${globalPct()} %`; $('#mdone').textContent = MONTHS.filter(x => modPct(x) === 1).length;
   Object.keys(DOMAINS).forEach(k => {
-    const ms = MONTHS.filter(m => m.dom === k); let t = 0, d = 0;
-    ms.forEach(m => { t += m.acq.length; d += modDone(m); });
+    let t = 0, dd = 0; MONTHS.filter(x => x.dom === k).forEach(x => { t += x.acq.length; dd += modDone(x); });
     const el = $(`[data-skill="${k}"]`); if (!el) return;
-    $('[data-skill-n]', el).textContent = `${d}/${t}`;
-    $('.bar i', el).style.width = `${t ? d / t * 100 : 0}%`;
+    $('[data-skill-n]', el).textContent = `${dd}/${t}`; $('.bar i', el).style.width = `${t ? dd / t * 100 : 0}%`;
+  });
+}
+function selectMonth(n) {
+  n = ((n - 1 + 12) % 12) + 1;
+  if (n === P.sel) return;
+  const from = P.rot; let to = -(n - 1) * 30;
+  while (to - from > 180) to -= 360; while (to - from < -180) to += 360;
+  $$('#ring .moon').forEach(g => { const on = Number(g.dataset.moon) === n; g.classList.toggle('sel', on); g.querySelector('.mb').setAttribute('r', on ? 18 : 16); });
+  P.sel = n; haptic();
+  $('#pnow').hidden = n === currentMonth();
+  pCenter(); pCard(true);
+  tween(550, k => { P.rot = from + (to - from) * k; $('#ring').setAttribute('transform', `rotate(${P.rot})`); counterRotate(); });
+}
+function bindParcours() {
+  counterRotate(); pCenter(); pCard(false);
+  requestAnimationFrame(() => requestAnimationFrame(refreshParcours));
+  const wrap = $('#pdial'); let sw = null;
+  wrap.addEventListener('pointerdown', e => { sw = { x: e.clientX, y: e.clientY }; });
+  wrap.addEventListener('pointerup', e => {
+    if (!sw) return; const dx = e.clientX - sw.x, dy = e.clientY - sw.y; sw = null;
+    if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy)) { selectMonth(P.sel + (dx < 0 ? 1 : -1)); return; }
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) { const m = e.target.closest('[data-moon]'); if (m) selectMonth(Number(m.dataset.moon)); }
   });
 }
 
 /* =====================================================================
-   8. ONGLET ARABE & CORAN
+   10. ARABE & CORAN
    ===================================================================== */
 let quiz = null; const session = { ok: 0, n: 0 };
-function currentQuarter() { return Math.min(3, Math.floor((currentMonth() - 1) / 3)); }
-function vArabe() {
-  const t = S.tajwid, cq = currentQuarter();
-  const steps = AR_STEPS.map((s, si) => {
-    const body = `<div class="checks">${s.items.map((it, i) => checkbox(`ar${si}-${i}`, esc(it))).join('')}</div>`;
-    return si === cq
-      ? `<div class="cur-q" style="margin-top:14px"><p class="eyebrow" style="margin-top:12px;color:var(--accent)">Maintenant · ${s.t}</p>${body}</div>`
-      : `<p class="eyebrow" style="margin-top:22px">${s.t}</p>${body}`;
+const currentQuarter = () => Math.min(3, Math.floor((currentMonth() - 1) / 3));
+function constellation() {
+  return WORDS.map((w, i) => {
+    const r = 13.6 * Math.sqrt(i + 0.6), a = i * 137.508, [x, y] = polar(r, a), sc = Math.min(3, S.words[i] || 0);
+    const on = sc >= 3;
+    return `<circle class="star" data-star="${i}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(2.4 + sc * 1.25).toFixed(2)}" fill="var(--${on ? 'mint' : 'gold'})" opacity="${on ? 1 : (0.22 + sc * 0.22).toFixed(2)}" ${on ? 'style="filter:drop-shadow(0 0 4px var(--mint))"' : ''}/>`;
   }).join('');
+}
+function vArabe() {
+  const t = S.tajwid, cq = currentQuarter(), nS = SOURATES.filter(s => S.sourates[s[1]]).length;
   const fat = FATIHA.map((v, vi) => `<div class="verse"><span class="vn">Verset ${vi + 1}</span><div class="words">${v.map(w => `<button class="w" data-fw><span class="a" lang="ar">${w[0]}</span><span class="f">${esc(w[1])}</span></button>`).join('')}</div></div>`).join('');
-  const nS = SOURATES.filter(s => S.sourates[s[1]]).length;
-  return `${pageHead('Arabe & Coran', 'Le sens de ce que tu lis. Tajwid Institut s\'occupe de la lecture.')}
-  <section>
-    <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:12px"><h2 style="margin:0">Vocabulaire</h2><span class="small muted num" id="wk">${wordsKnown()} / ${WORDS.length} maîtrisés</span></div>
-    <div class="quiz" id="quiz" aria-live="polite"></div>
-    <p class="hint">Un mot est maîtrisé après 3 bonnes réponses. Les mots que tu connais le moins reviennent plus souvent.</p>
+  const steps = AR_STEPS.map((s, si) => `<div class="qtr ${si === cq ? 'cur' : ''}" style="margin-top:${si ? 18 : 0}px"><p class="eyebrow" ${si === cq ? 'style="color:var(--gold)"' : ''}>${si === cq ? 'Maintenant · ' : ''}${s.t}</p><div class="checks">${s.items.map((it, i) => checkbox(`ar${si}-${i}`, esc(it))).join('')}</div></div>`).join('');
+  return `${pageHead('Arabe <em>&</em> Coran', 'Le sens de ce que tu lis. Tajwid Institut s\'occupe de la lecture.', 'arabe')}
+  <div class="constel">
+    <svg viewBox="-112 -104 224 208" id="constel" aria-label="${wordsKnown()} mots maîtrisés sur ${WORDS.length}">${constellation()}</svg>
+    <p class="constel-tip" id="ctip"></p>
+  </div>
+  <div class="row between" style="margin-top:6px"><p class="eyebrow">Constellation de vocabulaire</p><p class="small num"><b id="wk" style="font:400 1.5rem var(--serif);color:var(--mint)">${wordsKnown()}</b><span class="muted"> / ${WORDS.length} mots</span></p></div>
+  <section style="margin-top:22px">
+    <div class="quiz"><div class="qcard" id="quiz" aria-live="polite"></div></div>
+    <p class="hint">Les mots que tu connais le moins reviennent plus souvent.</p>
   </section>
   <section>
-    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px"><h2 style="margin:0">Al-Fatiha mot à mot</h2>
-      <button class="btn sm quiet" id="toggleFat" aria-pressed="${S.hideFatiha}">${S.hideFatiha ? 'Montrer le sens' : 'Cacher le sens'}</button></div>
-    <p class="hint" style="margin:0 0 10px">${S.hideFatiha ? 'Touche un mot pour révéler sa traduction.' : 'Cache le sens pour te tester.'}</p>
+    <div class="row between" style="margin-bottom:4px"><h2 style="margin:0">Al-Fatiha</h2><button class="btn sm quiet" id="toggleFat" aria-pressed="${S.hideFatiha}">${S.hideFatiha ? 'Montrer le sens' : 'Cacher le sens'}</button></div>
+    <p class="hint" id="fatHint" style="margin:0 0 10px">${S.hideFatiha ? 'Touche un mot pour révéler sa traduction.' : 'Mot à mot. Cache le sens pour te tester.'}</p>
     <div id="fatiha" class="${S.hideFatiha ? 'hide' : ''}">${fat}</div>
   </section>
   <section>
     <h2>Tajwid Institut</h2>
-    <div class="counter">
-      <div><p class="big num" id="tajDone">${t.done}<small> / ${t.total || '—'}</small></p><p class="small muted">modules terminés</p></div>
-      <div class="stepper"><button data-taj="-1" aria-label="Retirer un module">−</button><button data-taj="1" aria-label="Ajouter un module terminé">+</button></div>
-    </div>
-    <div class="bar" style="margin-top:14px"><i style="width:${t.total ? Math.min(100, t.done / t.total * 100) : 0}%"></i></div>
-    <div class="group" style="margin-top:16px"><div class="cell"><label for="tajTotal">Nombre total de modules</label><input type="number" inputmode="numeric" min="0" id="tajTotal" value="${t.total || ''}" placeholder="à renseigner"></div></div>
+    <div class="counter"><div><p class="big num" id="tajDone">${t.done}<small> / ${t.total || '—'}</small></p><p class="small muted">modules terminés</p></div>
+      <div class="stepper"><button data-taj="-1" aria-label="Retirer un module">−</button><button data-taj="1" aria-label="Ajouter un module terminé">+</button></div></div>
+    <div class="bar" style="margin-top:14px"><i id="tajBar" style="width:${t.total ? Math.min(100, t.done / t.total * 100) : 0}%"></i></div>
+    <div class="group" style="margin-top:14px"><div class="cell"><label for="tajTotal">Nombre total de modules</label><input type="number" inputmode="numeric" min="0" id="tajTotal" value="${t.total || ''}" placeholder="à renseigner"></div></div>
   </section>
-  <section><h2>Parcours de l'année</h2>${steps}</section>
+  <section><h2>L'année d'arabe</h2>${steps}</section>
   <section>
-    <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:10px"><h2 style="margin:0">Sourates comprises</h2><span class="small muted num" id="sourN">${nS} / ${SOURATES.length}</span></div>
-    <p class="hint" style="margin:0 0 10px">Coche une sourate quand tu en comprends le sens en la récitant.</p>
-    <div class="sour">${SOURATES.map(s => `<label class="check"><input type="checkbox" data-sour="${esc(s[1])}" ${S.sourates[s[1]] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="sn">${s[0]}</span><span class="txt">${esc(s[1])}</span><span class="ar" lang="ar">${s[2]}</span></label>`).join('')}</div>
+    <div class="row between" style="margin-bottom:6px"><h2 style="margin:0">Sourates comprises</h2><span class="small muted num" id="sourN">${nS} / ${SOURATES.length}</span></div>
+    <p class="hint" style="margin:0 0 6px">Coche une sourate quand tu en comprends le sens en la récitant.</p>
+    <div class="sour checks">${SOURATES.map(s => `<label class="check"><input type="checkbox" data-sour="${esc(s[1])}" ${S.sourates[s[1]] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="sn">${s[0]}</span><span class="txt">${esc(s[1])}</span><span class="ar" lang="ar">${s[2]}</span></label>`).join('')}</div>
   </section>`;
 }
 function pickWord() {
-  // Tirage pondéré : moins un mot est maîtrisé, plus il a de chances de sortir.
   const weights = WORDS.map((_, i) => { const sc = S.words[i] || 0; return sc >= 3 ? 0.4 : 4 - sc; });
   const prev = quiz && quiz.idx;
-  let total = weights.reduce((a, b) => a + b, 0), r = Math.random() * total, idx = 0;
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0), idx = 0;
   for (; idx < weights.length; idx++) { r -= weights[idx]; if (r <= 0) break; }
+  idx = Math.min(idx, WORDS.length - 1);
   if (idx === prev) idx = (idx + 1 + Math.floor(Math.random() * (WORDS.length - 1))) % WORDS.length;
-  return Math.min(idx, WORDS.length - 1);
+  return idx;
 }
-function nextQuiz() {
+function nextQuiz(anim) {
   const idx = pickWord();
   const others = WORDS.map((_, i) => i).filter(i => i !== idx && WORDS[i][1] !== WORDS[idx][1]).sort(() => Math.random() - 0.5).slice(0, 3);
   quiz = { idx, opts: [idx, ...others].sort(() => Math.random() - 0.5), answered: false };
-  drawQuiz();
+  const el = $('#quiz');
+  if (anim && el && !reduceMotion()) { el.classList.add('out'); setTimeout(() => { el.classList.remove('out'); drawQuiz(); el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); }, 220); }
+  else drawQuiz();
 }
 function drawQuiz() {
   const el = $('#quiz'); if (!el || !quiz) return;
   const w = WORDS[quiz.idx], sc = Math.min(3, S.words[quiz.idx] || 0);
   el.innerHTML = `<div class="word" lang="ar">${w[0]}</div>
-    <div class="root">${w[2] ? `Racine <span class="ar" lang="ar">${w[2]}</span>` : 'Mot-outil, sans racine à retenir'}</div>
+    <div class="root">${w[2] ? `racine <span class="ar" lang="ar">${w[2]}</span>` : 'mot-outil'}</div>
     <div class="opts">${quiz.opts.map(o => `<button class="opt" data-q="${o}">${esc(WORDS[o][1])}</button>`).join('')}</div>
     <div class="quiz-foot"><span class="num">Session ${session.ok}/${session.n}</span>
-      <span class="mastery" aria-label="Maîtrise de ce mot : ${sc} sur 3">${[0, 1, 2].map(i => `<i class="${i < sc ? 'on' : ''}"></i>`).join('')}</span>
-      <span id="qnext" style="min-width:88px;text-align:right"></span></div>`;
+      <span class="mastery" aria-label="Maîtrise : ${sc} sur 3">${[0, 1, 2].map(i => `<i class="${i < sc ? 'on' : ''}"></i>`).join('')}</span>
+      <span id="qnext" style="min-width:96px;text-align:right"></span></div>`;
 }
 function answerQuiz(btn) {
   if (!quiz || quiz.answered) return;
@@ -606,147 +828,258 @@ function answerQuiz(btn) {
   const sc = Math.min(3, S.words[quiz.idx] || 0);
   $$('.mastery i').forEach((i, k) => i.classList.toggle('on', k < sc));
   $('#qnext').innerHTML = `<button class="btn sm" id="qgo">Suivant</button>`;
-  $('#wk').textContent = `${wordsKnown()} / ${WORDS.length} maîtrisés`;
+  $('#wk').textContent = wordsKnown();
+  $('#constel').innerHTML = constellation();
+  const star = $(`[data-star="${quiz.idx}"]`); if (star && !reduceMotion()) star.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.8)' }, { transform: 'scale(1)' }], { duration: 600, easing: 'ease-out', transformOrigin: 'center', transformBox: 'fill-box' });
+  showStar(quiz.idx);
   $('#qgo').focus({ preventScroll: true });
 }
-
-/* =====================================================================
-   9. ONGLET ROUTINE
-   ===================================================================== */
-function vRoutine() {
-  const today = todayISO(), done = !!S.days[today], st = streak();
-  const start = addDays(mondayOf(new Date()), -21);
-  let cells = '';
-  for (let i = 0; i < 28; i++) {
-    const d = addDays(start, i), k = iso(d), future = k > today;
-    cells += `<button class="day ${S.days[k] ? 'on' : ''} ${k === today ? 'today' : ''}" data-day="${k}" ${future ? 'disabled' : ''} aria-pressed="${!!S.days[k]}" aria-label="${DAY_LONG.format(d)}${S.days[k] ? ', routine faite' : ''}">${d.getDate()}</button>`;
-  }
-  const last28 = Array.from({ length: 28 }, (_, i) => iso(addDays(new Date(), -i))).filter(k => S.days[k]).length;
-  return `${pageHead('Routine', '1 h 30 par jour, calée sur tes deux emplois.')}
-  <div class="routine-hero">
-    <button class="done-btn ${done ? 'on' : ''}" id="dayBtn" aria-pressed="${done}">${ICON.done}${done ? 'Faite' : 'J\'ai fait ma routine'}</button>
-    <div><p class="big num" id="streak">${st}<small> j</small></p><p class="small muted">${st > 1 ? 'jours d\'affilée' : 'jour d\'affilée'}</p>
-      <p class="small muted num" style="margin-top:8px">Record : ${bestStreak()} j · ${last28}/28 sur 4 semaines</p></div>
-  </div>
-  <section>
-    <h2>Le programme du jour</h2>
-    <div class="split" aria-hidden="true">${ROUTINE.map(r => `<i style="flex:${r[0]}"></i>`).join('')}</div>
-    <div class="slots">${ROUTINE.map(r => `<div class="slot"><b>${r[0]} min</b><div><h3>${r[1]}</h3><p class="small muted">${r[2]}</p></div></div>`).join('')}</div>
-    <p class="hint">Un jour chargé ? Garde au moins l'audio et l'arabe.</p>
-  </section>
-  <section>
-    <h2>4 dernières semaines</h2>
-    <div class="cal">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span class="dh">${x}</span>`).join('')}${cells}</div>
-    <p class="hint">Touche un jour passé pour le corriger.</p>
-  </section>`;
+function showStar(i) {
+  const w = WORDS[i], sc = Math.min(3, S.words[i] || 0);
+  $('#ctip').innerHTML = `<span class="ar" lang="ar" style="font-size:1.25rem">${w[0]}</span> · ${esc(w[1])} · <span class="num">${sc}/3</span>`;
 }
 
 /* =====================================================================
-   10. ONGLET HEURES
+   11. ROUTINE — l'anneau des 4 blocs
+   ===================================================================== */
+function dayBlocks(k) { return S.days[k] && !S.blocks[k] ? [1, 1, 1, 1] : (S.blocks[k] || [0, 0, 0, 0]); }
+function vRoutine() {
+  const k = todayISO(), bl = dayBlocks(k), n = bl.filter(Boolean).length, st = streak();
+  let a = 0; const GAP = 3, total = ROUTINE.reduce((s, r) => s + r[0], 0);
+  const segs = ROUTINE.map((r, i) => {
+    const span = r[0] / total * 360, a0 = a + GAP / 2, a1 = a + span - GAP / 2, mid = a + span / 2; a += span;
+    const [lx, ly] = polar(118, mid);
+    return `<path class="seg-arc ${bl[i] ? 'on' : ''}" data-block="${i}" d="${arc(118, a0, a1)}" role="button" tabindex="0" aria-pressed="${!!bl[i]}" aria-label="${r[1]}, ${r[0]} minutes"/>
+      <text class="seg-lbl ${bl[i] ? 'on' : ''}" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}">${r[0]}′</text>`;
+  }).join('');
+  const start = addDays(mondayOf(new Date()), -21); let cells = '';
+  for (let i = 0; i < 28; i++) {
+    const d = addDays(start, i), key = iso(d), future = key > k, b = dayBlocks(key), p = S.days[key] ? 100 : b.filter(Boolean).length * 25;
+    cells += `<button class="day ${S.days[key] ? 'on' : ''} ${key === k ? 'today' : ''}" data-day="${key}" ${future ? 'disabled' : ''} style="--p:${p}" aria-pressed="${!!S.days[key]}" aria-label="${DAY_LONG.format(d)}${S.days[key] ? ', routine faite' : ''}"><i></i><span>${d.getDate()}</span></button>`;
+  }
+  const last28 = Array.from({ length: 28 }, (_, i) => iso(addDays(new Date(), -i))).filter(x => S.days[x]).length;
+  return `${pageHead('Routine', '1 h 30 par jour, calée sur tes deux emplois.', 'routine')}
+  <div class="ring-wrap ${n === 4 ? 'complete' : ''}" id="ringWrap">
+    <svg viewBox="-150 -150 300 300" aria-label="Blocs de la routine du jour">${segs}</svg>
+    <div class="ring-center">${n === 4
+      ? `<div><p class="big" style="color:var(--gold)">${st}<span style="font-size:1.5rem"> j</span></p><p>Journée validée · série en cours</p></div>`
+      : `<div><p class="big num">${n}<span style="font-size:1.5rem;color:var(--muted)">/4</span></p><p>blocs faits aujourd'hui</p></div>`}</div>
+  </div>
+  <div class="blocks">${ROUTINE.map((r, i) => `<button class="block ${bl[i] ? 'on' : ''}" data-block="${i}" aria-pressed="${!!bl[i]}"><b>${r[0]} min</b><span><h3>${r[1]}</h3><span class="small muted">${r[2]}</span></span><span class="dotc">${ICON.tick}</span></button>`).join('')}</div>
+  <p class="hint">Un jour chargé ? Garde au moins l'audio et l'arabe.</p>
+  <section>
+    <div class="stats-line"><div><b class="num">${st}</b><span>jours d'affilée</span></div><div><b class="num">${bestStreak()}</b><span>record</span></div><div><b class="num">${last28}/28</b><span>sur 4 semaines</span></div></div>
+  </section>
+  <section style="margin-top:28px">
+    <div class="cal">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span class="dh">${x}</span>`).join('')}${cells}</div>
+    <p class="hint">Touche un jour passé pour le valider ou l'annuler en entier.</p>
+  </section>`;
+}
+function toggleBlock(i) {
+  const k = todayISO(), bl = dayBlocks(k).slice();
+  bl[i] = bl[i] ? 0 : 1; S.blocks[k] = bl;
+  const all = bl.every(Boolean), was = !!S.days[k];
+  if (all) S.days[k] = true; else delete S.days[k];
+  save(); askPersist(); if (bl[i]) haptic();
+  render();
+  if (all && !was) toast(`Journée validée · ${streak()} jour${streak() > 1 ? 's' : ''} d'affilée`);
+}
+
+/* =====================================================================
+   12. HEURES — cadran 24 h, argent, vérification de paie
    ===================================================================== */
 const H = { month: todayISO().slice(0, 7), filter: 'all', form: null };
 function lastShift(emp) { return sortShifts(S.shifts.filter(x => !emp || x.emp === emp))[0] || null; }
 function freshForm(emp) {
-  const e = emp || (lastShift() || {}).emp || 'gare';
-  const l = lastShift(e);
-  const d = todayISO();
-  return { emp: e, date: d, start: l ? l.start : '06:00', end: l ? l.end : '13:00', pause: l ? Number(l.pause) || 0 : 0, ferie: !!holidayName(d), note: '' };
+  const e = emp || (lastShift() || {}).emp || 'gare', l = lastShift(e), d = todayISO();
+  return { emp: e, date: d, start: l ? l.start : (e === 'gare' ? '06:00' : '18:30'), end: l ? l.end : (e === 'gare' ? '13:00' : '23:00'), pause: l ? Number(l.pause) || 0 : 0, ferie: !!holidayName(d), note: '' };
+}
+const m2deg = m => m / 1440 * 360;
+const hhmm = m => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
+function vDial() {
+  const R = 118, ns = toMin(S.settings.nightStart), ne = toMin(S.settings.nightEnd);
+  let ticks = '', labels = '';
+  for (let h = 0; h < 24; h++) {
+    const [x0, y0] = polar(137, h * 15), [x1, y1] = polar(h % 3 ? 141 : 144, h * 15);
+    ticks += `<line class="tick" x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}"/>`;
+    if (h % 3 === 0) { const [lx, ly] = polar(88, h * 15); labels += `<text class="hl" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}">${pad(h)}</text>`; }
+  }
+  return `<div class="tdial" id="tdial">
+    <svg viewBox="-160 -160 320 320" id="tdialSvg" aria-label="Cadran des heures">
+      <circle class="trk" r="${R}"/>
+      <path class="night" d="${arc(R, m2deg(ns), m2deg(ne))}"/>
+      ${ticks}${labels}
+      <path class="shift-arc" id="shiftArc" d=""/>
+      <g class="handle start" id="hStart" data-h="start" role="slider" tabindex="0" aria-label="Heure de début" aria-valuemin="0" aria-valuemax="1435"><circle class="hit" r="26"/><circle class="hb" r="16"/><path d="M-3 -5 L5 0 L-3 5Z" fill="var(--gold-ink)"/></g>
+      <g class="handle end" id="hEnd" data-h="end" role="slider" tabindex="0" aria-label="Heure de fin" aria-valuemin="0" aria-valuemax="1435"><circle class="hit" r="26"/><circle class="hb" r="16"/><rect x="-4" y="-4" width="8" height="8" rx="1.5" fill="var(--gold)"/></g>
+    </svg>
+    <div class="tdial-center"><div><p class="big num" id="tdur"></p><p id="tsub"></p></div></div>
+  </div>`;
+}
+function updateDial() {
+  const f = H.form, R = 118; if (!$('#tdial')) return;
+  const s = toMin(f.start), e = toMin(f.end);
+  $('#shiftArc').setAttribute('d', s === e ? '' : arc(R, m2deg(s), m2deg(e)));
+  [['#hStart', s], ['#hEnd', e]].forEach(([id, m]) => {
+    const [x, y] = polar(R, m2deg(m)), g = $(id);
+    g.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
+    g.setAttribute('aria-valuenow', m); g.setAttribute('aria-valuetext', hhmm(m));
+  });
+  const c = calc(f);
+  $('#tdur').textContent = fmtH(c.worked);
+  const extra = [c.night ? `${fmtH(c.night)} de nuit` : '', c.sunday ? `${fmtH(c.sunday)} dimanche` : ''].filter(Boolean).join(' · ');
+  $('#tsub').textContent = extra || (c.overnight ? 'passe minuit' : `${f.start} → ${f.end}`);
+  if ($('#fStart').value !== f.start) $('#fStart').value = f.start;
+  if ($('#fEnd').value !== f.end) $('#fEnd').value = f.end;
+}
+function bindDial() {
+  const svg = $('#tdialSvg'); if (!svg) return;
+  let which = null, lastQ = null;
+  const toMinutes = ev => {
+    const b = svg.getBoundingClientRect(), dx = ev.clientX - (b.left + b.width / 2), dy = ev.clientY - (b.top + b.height / 2);
+    let deg = Math.atan2(dx, -dy) * 180 / Math.PI; if (deg < 0) deg += 360;
+    return (Math.round(deg / 360 * 1440 / 5) * 5) % 1440;
+  };
+  $$('.handle', svg).forEach(h => {
+    h.addEventListener('pointerdown', ev => { ev.preventDefault(); which = h.dataset.h; h.setPointerCapture(ev.pointerId); h.classList.add('drag'); });
+    h.addEventListener('pointermove', ev => {
+      if (which !== h.dataset.h) return;
+      const m = toMinutes(ev); H.form[which] = hhmm(m); updateDial();
+      const q = Math.floor(m / 15); if (q !== lastQ) { lastQ = q; haptic(); }
+    });
+    const up = () => { which = null; h.classList.remove('drag'); };
+    h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+    h.addEventListener('keydown', ev => {
+      const step = { ArrowUp: 5, ArrowRight: 5, ArrowDown: -5, ArrowLeft: -5, PageUp: 60, PageDown: -60 }[ev.key]; if (!step) return;
+      ev.preventDefault(); const k = h.dataset.h; H.form[k] = hhmm((toMin(H.form[k]) + step + 1440) % 1440); updateDial();
+    });
+  });
+  updateDial();
+}
+function pocketBlock() {
+  const ym = todayISO().slice(0, 7);
+  const t = { gare: sumShifts(shiftsIn(ym, 'gare')), pizza: sumShifts(shiftsIn(ym, 'pizza')) };
+  const mo = { gare: money('gare', t.gare), pizza: money('pizza', t.pizza) };
+  const anyRate = mo.gare || mo.pizza, poche = (mo.gare ? mo.gare.poche : 0) + (mo.pizza ? mo.pizza.poche : 0);
+  const bg = numv(S.settings.base.gare) * 60 || 1, bp = Math.max(numv(S.settings.base.pizza) * 60 || 4800, t.pizza.worked);
+  return `<div class="pocket">
+    <svg viewBox="-68 -68 136 136" aria-label="Heures du mois par rapport à tes bases">
+      <circle r="58" fill="none" stroke="var(--raise)" stroke-width="9"/><circle r="58" fill="none" stroke="var(--gold)" stroke-width="9" stroke-linecap="round" transform="rotate(-90)" ${ringDash(58, t.gare.worked / bg)}/>
+      <circle r="44" fill="none" stroke="var(--raise)" stroke-width="9"/><circle r="44" fill="none" stroke="var(--mint)" stroke-width="9" stroke-linecap="round" transform="rotate(-90)" ${ringDash(44, t.pizza.worked / bp)}/>
+      <text y="2" text-anchor="middle" dominant-baseline="central" style="font:400 22px var(--serif);fill:var(--ink)">${Math.floor((t.gare.worked + t.pizza.worked) / 60)} h</text>
+    </svg>
+    <div>
+      <p class="eyebrow">${anyRate ? `Dans ta poche · ${monthLabel(ym).split(' ')[0]}` : 'Ton mois'}</p>
+      ${anyRate ? `<p class="big num">${eur0(poche)}</p>` : `<button class="btn sm ghost" data-open="settings" style="margin-top:8px">Ajouter mes taux horaires</button>`}
+      <div class="lines">
+        <span><i class="legend" style="background:var(--gold)"></i>Gare <b>${fmtH(t.gare.worked)}</b> / ${numv(S.settings.base.gare)} h</span>
+        <span><i class="legend" style="background:var(--mint)"></i>Mister Pizza <b>${fmtH(t.pizza.worked)}</b> ce mois</span>
+      </div>
+    </div>
+  </div>`;
+}
+function counterBlock() {
+  const c = gareCounter(); if (!c) return '';
+  const startLbl = monthLabel(c.start);
+  if (!c.started) return `<section style="margin-top:30px"><p class="eyebrow"><span class="edot gare" style="margin-right:6px"></span>Compteur Gare</p>
+    <p style="font:400 2.5rem/1.1 var(--serif);margin-top:6px" class="num">${fmtSigned(c.init)}</p>
+    <p class="small muted">Démarre le 1er ${startLbl}. Chaque mois, les heures au-delà de ${numv(S.settings.base.gare)} h s'ajoutent, celles en dessous (repos de rattrapage) se retirent.</p>
+    ${c.init ? '' : '<button class="btn sm ghost" data-open="settings" style="margin-top:12px">Entrer mon solde actuel</button>'}</section>`;
+  const prevLbl = c.months.length ? `fin ${monthLabel(c.months[c.months.length - 1].ym).split(' ')[0]}` : 'au départ';
+  const proj = c.closed + c.cur.diff;
+  const col = c.closed < 0 ? 'var(--danger)' : 'var(--gold)';
+  return `<section style="margin-top:30px">
+    <p class="eyebrow"><span class="edot gare" style="margin-right:6px"></span>Compteur Gare · heures stockées</p>
+    <div class="row between" style="align-items:flex-end;margin-top:6px">
+      <div><p style="font:400 3rem/1 var(--serif);color:${col}" class="num">${fmtSigned(c.closed)}</p><p class="small muted">${c.closed < 0 ? 'à rattraper' : 'à récupérer en repos'} · ${prevLbl}</p></div>
+      <div style="text-align:right"><p class="small muted">${monthLabel(c.cur.ym).split(' ')[0]} en cours</p><p class="num" style="font-weight:600">${fmtH(c.cur.w)} / ${numv(S.settings.base.gare)} h</p><p class="small muted num">fin de mois si tu t'arrêtes là : ${fmtSigned(proj)}</p></div>
+    </div>
+    ${c.months.length ? `<details style="margin-top:12px"><summary class="small" style="color:var(--gold);font-weight:650;min-height:44px;display:flex;align-items:center;cursor:pointer">Détail par mois</summary>
+      <div class="weeks">${c.init ? `<div class="wk"><span>Solde de départ</span><b class="num">${fmtSigned(c.init)}</b></div>` : ''}${c.months.map(m => `<div class="wk"><span style="text-transform:capitalize">${monthLabel(m.ym)}</span><b class="num">${fmtSigned(m.bal)}</b><small>${fmtH(m.w)} travaillées · ${fmtSigned(m.diff)}</small></div>`).join('')}</div></details>` : ''}
+  </section>`;
 }
 function vHeures() {
   if (!H.form) H.form = freshForm();
-  const f = H.form;
-  const mon = mondayOf(new Date());
-  const wk = { all: sumShifts(shiftsWeek(mon)) };
-  const empRows = Object.keys(EMP).map(k => {
-    const t = sumShifts(shiftsWeek(mon, k)).worked, th = Number(S.settings.threshold[k]) || 35, over = t > th * 60;
-    return `<div class="emp-row"><span>${EMP[k]}</span><span class="small num ${over ? '' : 'muted'}" style="${over ? 'color:var(--warn);font-weight:600' : ''}">${fmtH(t)} / ${th} h</span><div class="bar ${over ? 'over' : ''}"><i style="width:${Math.min(100, t / (th * 60) * 100)}%"></i></div></div>`;
-  }).join('');
-  const overs = Object.keys(EMP).filter(k => sumShifts(shiftsWeek(mon, k)).worked > (Number(S.settings.threshold[k]) || 35) * 60);
+  const f = H.form, mon = mondayOf(new Date()), wk = sumShifts(shiftsWeek(mon));
+  const overs = Object.keys(EMP).filter(k => numv(S.settings.threshold[k]) > 0 && sumShifts(shiftsWeek(mon, k)).worked > numv(S.settings.threshold[k]) * 60);
   const backupDays = S.lastExport ? Math.floor((Date.now() - S.lastExport) / 864e5) : null;
   const needBackup = S.shifts.length >= 3 && (backupDays === null || backupDays >= 14);
-
-  return `${pageHead('Heures', 'Pour vérifier ta paie, service par service.')}
-  <div class="week-hero">
-    <p class="eyebrow">Cette semaine · du ${DAY_MONTH.format(mon)} au ${DAY_MONTH.format(addDays(mon, 6))}</p>
-    <p class="big num" style="margin-top:6px">${fmtH(wk.all.worked)}</p>
-    <p class="small muted num">${wk.all.n} service${wk.all.n > 1 ? 's' : ''}${wk.all.night ? ` · ${fmtH(wk.all.night)} de nuit` : ''}${wk.all.sunday ? ` · ${fmtH(wk.all.sunday)} le dimanche` : ''}</p>
-    <div class="emp-rows">${empRows}</div>
-    ${overs.length ? `<div class="alert">${ICON.warn}<span>Seuil dépassé cette semaine chez ${overs.map(k => EMP[k]).join(' et ')}. Vérifie que ces heures sup ou complémentaires apparaissent sur ta fiche de paie.</span></div>` : ''}
-  </div>
-
-  <section id="entry">
+  const hol = holidayName(f.date);
+  return `${pageHead('Heures', 'Chaque service noté, chaque euro vérifié.', 'heures')}
+  ${pocketBlock()}
+  ${counterBlock()}
+  <section id="entry" style="margin-top:36px">
     <h2>Noter un service</h2>
-    <div class="seg" role="group" aria-label="Employeur">${Object.keys(EMP).map(k => `<button data-emp="${k}" aria-pressed="${f.emp === k}">${EMP[k]}</button>`).join('')}</div>
-    <div class="group" style="margin-top:12px" id="formGroup">
-      <div class="cell"><label for="fDate">Date</label><input type="date" id="fDate" value="${f.date}" required></div>
-      <div class="cell"><label for="fStart">Début</label><input type="time" id="fStart" value="${f.start}" required></div>
-      <div class="cell"><label for="fEnd">Fin</label><input type="time" id="fEnd" value="${f.end}" required></div>
-      <div class="cell"><span class="lbl" id="pauseLbl">Pause</span><div class="stepper" role="group" aria-labelledby="pauseLbl"><button data-pause="-15" aria-label="Moins 15 minutes">−</button><output id="fPause" class="num">${f.pause} min</output><button data-pause="15" aria-label="Plus 15 minutes">+</button></div></div>
-      <div class="cell"><label for="fFerie">Jour férié<span class="small muted" id="ferieName" style="display:block">${holidayName(f.date) ? esc(holidayName(f.date)) : ''}</span></label><span class="switch"><input type="checkbox" id="fFerie" ${f.ferie ? 'checked' : ''}><span></span></span></div>
-      <div class="cell"><input type="text" id="fNote" value="${esc(f.note)}" placeholder="Note (facultatif)" aria-label="Note" autocomplete="off"></div>
+    <div class="seg" role="group" aria-label="Employeur">${Object.keys(EMP).map(k => `<button data-emp="${k}" aria-pressed="${f.emp === k}"><span class="dot"></span>${EMP[k]}</button>`).join('')}</div>
+    ${vDial()}
+    <div class="time-chips">
+      <label class="time-chip"><span>Début</span><input type="time" id="fStart" value="${f.start}"></label>
+      <label class="time-chip"><span>Fin</span><input type="time" id="fEnd" value="${f.end}"></label>
     </div>
-    <div class="preview" id="preview"></div>
+    <div class="group" style="margin-top:12px" id="formGroup">
+      <div class="cell"><label for="fDate">Date</label><input type="date" id="fDate" value="${f.date}"></div>
+      <div class="cell"><span class="lbl" id="pauseLbl">Pause</span><div class="stepper" role="group" aria-labelledby="pauseLbl"><button data-pause="-15" aria-label="Moins 15 minutes">−</button><output id="fPause" class="num">${f.pause} min</output><button data-pause="15" aria-label="Plus 15 minutes">+</button></div></div>
+      <div class="cell"><label for="fFerie">Jour férié<span class="small muted" id="ferieName" style="display:block">${hol ? esc(hol) : ''}</span></label><span class="switch"><input type="checkbox" id="fFerie" ${f.ferie ? 'checked' : ''}><span></span></span></div>
+      <div class="cell"><input type="text" class="full" id="fNote" value="${esc(f.note)}" placeholder="Note (facultatif)" aria-label="Note" autocomplete="off"></div>
+    </div>
     <div class="form-actions">
       <button class="btn" id="saveShift">Enregistrer</button>
-      <button class="btn quiet" id="dupShift" ${S.shifts.length ? '' : 'disabled style="opacity:.5"'}>Dupliquer le dernier</button>
+      <button class="btn quiet" id="dupShift" ${S.shifts.length ? '' : 'disabled'}>Dupliquer le dernier</button>
     </div>
   </section>
-
+  <section>
+    <p class="eyebrow">Cette semaine · du ${DAY_MONTH.format(mon)} au ${DAY_MONTH.format(addDays(mon, 6))}</p>
+    <div class="row between" style="margin-top:6px;align-items:baseline"><p style="font:400 2.5rem/1 var(--serif)" class="num">${fmtH(wk.worked)}</p>
+      <p class="small muted num" style="text-align:right">${Object.keys(EMP).map(k => `${EMP[k]} ${fmtH(sumShifts(shiftsWeek(mon, k)).worked)}`).join('<br>')}</p></div>
+    ${overs.length ? `<div class="alert">${ICON.warn}<span>Seuil hebdo dépassé chez ${overs.map(k => EMP[k]).join(' et ')}. Vérifie que ces heures sup apparaissent sur ta fiche de paie.</span></div>` : ''}
+  </section>
   <section id="month">${vMonth()}</section>
-  ${needBackup ? `<div class="backup-nudge"><span>${backupDays === null ? "Tu n'as encore jamais sauvegardé tes données." : `Dernière sauvegarde il y a ${backupDays} jours.`}</span><button class="btn sm quiet" data-export>Sauvegarder</button></div>` : ''}`;
+  ${needBackup ? `<div class="nudge"><span>${backupDays === null ? "Tu n'as encore jamais sauvegardé tes données." : `Dernière sauvegarde il y a ${backupDays} jours.`}</span><button class="btn sm quiet" data-export>Sauvegarder</button></div>` : ''}`;
 }
 function vMonth() {
-  const ym = H.month;
+  const ym = H.month, st = S.settings;
   const blocks = Object.keys(EMP).map(k => {
-    const t = sumShifts(shiftsIn(ym, k));
-    const slip = S.payslips[`${ym}|${k}`];
-    const slipMin = slip != null && slip !== '' ? parseHours(slip) : null;
-    const rate = Number(String(S.settings.rate[k] || '').replace(',', '.'));
+    const t = sumShifts(shiftsIn(ym, k)), base = numv(st.base[k]) * 60, mo = money(k, t);
+    const slip = S.payslips[`${ym}|${k}`], slipMin = slip != null && slip !== '' ? parseHours(slip) : null;
     let gap = '';
     if (slipMin != null) {
       const diff = slipMin - t.worked;
-      gap = Math.abs(diff) < 1 ? `<span class="pill ok">Ça correspond</span>`
-        : diff < 0 ? `<span class="pill danger num">Il te manque ${fmtH(-diff)}</span>`
-          : `<span class="pill accent num">+${fmtH(diff)} sur la fiche</span>`;
+      gap = Math.abs(diff) < 1 ? `<span class="pill mint">Ça correspond</span>` : diff < 0 ? `<span class="pill danger num">Il te manque ${fmtH(-diff)}</span>` : `<span class="pill gold num">+${fmtH(diff)} sur la fiche</span>`;
     }
+    const baseLine = k === 'gare' && base ? (t.worked >= base ? `<span class="pill gold num">${fmtSigned(t.worked - base)} vers ton compteur</span>` : `<span class="small muted num">Base ${numv(st.base[k])} h · ${fmtSigned(t.worked - base)}</span>`) : '<span class="small muted">Total du mois</span>';
     return `<div class="emp-block">
-      <div class="head"><h3>${EMP[k]}</h3><b class="num">${fmtH(t.worked)}</b></div>
-      <p class="small muted num" style="text-align:right">${fmtDec(t.worked)} h en décimal · ${t.n} service${t.n > 1 ? 's' : ''}</p>
+      <div class="head"><h3 class="row" style="gap:8px"><span class="edot ${k}"></span>${EMP[k]}</h3><b class="num">${fmtH(t.worked)}</b></div>
+      <div class="row between" style="margin-top:6px;flex-wrap:wrap">${baseLine}<span class="small muted num">${fmtDec(t.worked)} h · ${t.n} service${t.n > 1 ? 's' : ''}</span></div>
       <div class="kv"><div>Nuit<b>${fmtH(t.night)}</b></div><div>Dimanche<b>${fmtH(t.sunday)}</b></div><div>Férié<b>${fmtH(t.holiday)}</b></div></div>
-      ${rate > 0 ? `<p class="small muted num" style="margin-top:10px">Brut de base estimé : <b style="color:var(--ink)">${fmtEur(t.worked / 60 * rate)}</b> <span class="muted">(${String(S.settings.rate[k]).replace('.', ',')} €/h, hors majorations)</span></p>` : ''}
-      <div class="payslip"><label for="slip-${k}">Heures sur ta fiche de paie</label><input id="slip-${k}" data-slip="${k}" inputmode="decimal" placeholder="ex. 151,67" value="${esc(slip ?? '')}"><span data-gap="${k}">${gap}</span></div>
+      ${mo ? `<div class="money"><div>Brut<b>${eur0(mo.brut)}</b></div><div ${numv(st.pas) ? '' : 'class="hi"'}>Net<b>${eur0(mo.net)}</b></div>${numv(st.pas) ? `<div class="hi">Après impôt<b>${eur0(mo.poche)}</b></div>` : `<div>Cotisations<b>${numv(st.cotis[k])} %</b></div>`}</div>` : ''}
+      <div class="payslip"><label for="slip-${k}">Heures sur ta fiche de paie</label><input id="slip-${k}" data-slip="${k}" inputmode="decimal" placeholder="ex. ${numv(st.base[k]) || '151,67'}" value="${esc(slip ?? '')}"><span>${gap}</span></div>
     </div>`;
   }).join('');
   const tot = sumShifts(shiftsIn(ym));
-
-  // Semaines du mois (lundi → dimanche)
   const first = parseDate(ym + '-01'), last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
   let weeks = '';
   for (let m = mondayOf(first); m <= last; m = addDays(m, 7)) {
-    const all = sumShifts(shiftsWeek(m));
-    if (!all.n) continue;
+    const all = sumShifts(shiftsWeek(m)); if (!all.n) continue;
     const parts = Object.keys(EMP).map(k => { const w = sumShifts(shiftsWeek(m, k)).worked; return w ? `${EMP[k]} ${fmtH(w)}` : ''; }).filter(Boolean).join(' · ');
-    const over = Object.keys(EMP).filter(k => sumShifts(shiftsWeek(m, k)).worked > (Number(S.settings.threshold[k]) || 35) * 60);
-    weeks += `<div class="wk"><span>Du ${DAY_MONTH.format(m)} au ${DAY_MONTH.format(addDays(m, 6))}</span><b class="num">${fmtH(all.worked)}</b><small>${parts}${over.length ? ` <span class="pill warn">Seuil dépassé · ${over.map(k => EMP[k]).join(', ')}</span>` : ''}</small></div>`;
+    const over = Object.keys(EMP).filter(k => numv(st.threshold[k]) > 0 && sumShifts(shiftsWeek(m, k)).worked > numv(st.threshold[k]) * 60);
+    weeks += `<div class="wk"><span>Du ${DAY_MONTH.format(m)} au ${DAY_MONTH.format(addDays(m, 6))}</span><b class="num">${fmtH(all.worked)}</b><small>${parts}${over.length ? ` <span class="pill warn">Seuil dépassé</span>` : ''}</small></div>`;
   }
-
   const list = sortShifts(shiftsIn(ym, H.filter === 'all' ? null : H.filter));
   const rows = list.map(sh => {
     const c = calc(sh), d = parseDate(sh.date);
-    const tags = [c.night ? `<span class="pill">Nuit ${fmtH(c.night)}</span>` : '', c.sunday ? `<span class="pill">Dim. ${fmtH(c.sunday)}</span>` : '', sh.ferie ? '<span class="pill accent">Férié</span>' : '', c.overnight ? '<span class="pill">Passe minuit</span>' : ''].join('');
+    const tags = [c.night ? `<span class="pill">Nuit ${fmtH(c.night)}</span>` : '', c.sunday ? `<span class="pill">Dim. ${fmtH(c.sunday)}</span>` : '', sh.ferie ? '<span class="pill gold">Férié</span>' : ''].join('');
     return `<button class="shift" data-edit="${sh.id}"><span class="d"><b>${d.getDate()}</b><span>${DAY_SHORT.format(d).replace('.', '')}</span></span>
-      <span><span class="who">${EMP[sh.emp]}</span><span class="when" style="display:block">${sh.start} → ${sh.end}${Number(sh.pause) ? ` · pause ${sh.pause} min` : ''}</span>${sh.note ? `<span class="when" style="display:block">${esc(sh.note)}</span>` : ''}${tags ? `<span class="tags">${tags}</span>` : ''}</span>
+      <span><span class="who"><span class="edot ${sh.emp}"></span>${EMP[sh.emp]}</span><span class="when">${sh.start} → ${sh.end}${Number(sh.pause) ? ` · pause ${sh.pause} min` : ''}</span>${sh.note ? `<span class="when">${esc(sh.note)}</span>` : ''}${tags ? `<span class="tags">${tags}</span>` : ''}</span>
       <span class="dur">${fmtH(c.worked)}</span></button>`;
   }).join('');
-
-  return `<div class="month-nav"><h2>${monthLabel(ym)}</h2><div class="row">
+  return `<div class="month-nav"><h2>${monthLabel(ym)}</h2><div class="row" style="gap:0">
       <button class="icon-btn" data-mnav="-1" aria-label="Mois précédent">${ICON.prev}</button>
       <button class="icon-btn" data-mnav="1" aria-label="Mois suivant" ${ym >= todayISO().slice(0, 7) ? 'disabled style="opacity:.3"' : ''}>${ICON.next}</button></div></div>
-    <p class="small muted num" style="margin:-6px 0 10px">Total ${fmtH(tot.worked)} (${fmtDec(tot.worked)} h) · ${tot.n} service${tot.n > 1 ? 's' : ''}</p>
+    <p class="small muted num" style="margin:-4px 0 6px">Total ${fmtH(tot.worked)} (${fmtDec(tot.worked)} h) · ${tot.n} service${tot.n > 1 ? 's' : ''}</p>
     ${blocks}
-    <p class="hint">Nuit (${S.settings.nightStart.replace(':', ' h ')} – ${S.settings.nightEnd.replace(':', ' h ')}) et dimanche : la pause est répartie au prorata. Réglable dans les réglages.</p>
-    ${weeks ? `<h3 style="margin:28px 0 10px">Semaines</h3><div class="weeks">${weeks}</div>` : ''}
-    <div class="row" style="justify-content:space-between;margin:28px 0 10px"><h3>Historique</h3><button class="btn sm line" id="csv" ${tot.n ? '' : 'disabled style="opacity:.5"'}>Exporter en CSV</button></div>
+    <p class="hint">Estimations. Gare : salaire de base (tes heures en plus vont au compteur). Mister Pizza : toutes tes heures × ton taux. Puis cotisations. Pour plus de justesse, calibre tes cotisations avec une vraie fiche de paie dans les réglages.</p>
+    ${weeks ? `<h3 style="margin:30px 0 8px">Semaines</h3><div class="weeks">${weeks}</div>` : ''}
+    <div class="row between" style="margin:30px 0 10px"><h3>Historique</h3><button class="btn sm ghost" id="csv" ${tot.n ? '' : 'disabled'}>Exporter en CSV</button></div>
     <div class="filters" role="group" aria-label="Filtrer par employeur">
       <button class="chip" data-filter="all" aria-pressed="${H.filter === 'all'}">Tous</button>
       ${Object.keys(EMP).map(k => `<button class="chip" data-filter="${k}" aria-pressed="${H.filter === k}">${EMP[k]}</button>`).join('')}
@@ -754,27 +1087,17 @@ function vMonth() {
     <div>${rows || `<p class="empty">Aucun service noté en ${monthLabel(ym)}.</p>`}</div>`;
 }
 function readForm() {
-  const f = H.form;
-  f.date = $('#fDate').value || todayISO(); f.start = $('#fStart').value; f.end = $('#fEnd').value;
+  const f = H.form; if (!$('#fDate')) return f;
+  f.date = $('#fDate').value || todayISO(); f.start = $('#fStart').value || f.start; f.end = $('#fEnd').value || f.end;
   f.ferie = $('#fFerie').checked; f.note = $('#fNote').value.trim();
   return f;
 }
-function updatePreview() {
-  const el = $('#preview'); if (!el) return;
-  const f = readForm();
-  if (!f.start || !f.end) { el.innerHTML = '<span class="muted">Renseigne le début et la fin.</span>'; return; }
-  const c = calc(f);
-  const extra = [c.night ? `${fmtH(c.night)} de nuit` : '', c.sunday ? `${fmtH(c.sunday)} le dimanche` : '', c.overnight ? 'passe minuit' : ''].filter(Boolean).join(' · ');
-  el.innerHTML = `<span class="muted small">${extra || 'Durée travaillée'}</span><b>${fmtH(c.worked)}</b>`;
-}
 function saveShift() {
   const f = readForm();
-  if (!f.start || !f.end) { toast('Renseigne l\'heure de début et de fin.'); return; }
   if (f.start === f.end) { toast('Le début et la fin sont identiques.'); return; }
   const sh = { id: uid(), emp: f.emp, date: f.date, start: f.start, end: f.end, pause: Number(f.pause) || 0, ferie: !!f.ferie, note: f.note, created: Date.now() };
   S.shifts.push(sh); save(); askPersist(); haptic();
-  H.month = sh.date.slice(0, 7);
-  H.form = freshForm(sh.emp);
+  H.month = sh.date.slice(0, 7); H.form = freshForm(sh.emp);
   render();
   toast(`${EMP[sh.emp]} · ${fmtH(calc(sh).worked)} enregistré`, 'Annuler', () => { S.shifts = S.shifts.filter(x => x.id !== sh.id); save(); render(); });
 }
@@ -783,36 +1106,33 @@ function dupLast() {
   const d = $('#fDate').value || todayISO();
   H.form = { emp: l.emp, date: d, start: l.start, end: l.end, pause: Number(l.pause) || 0, ferie: !!holidayName(d), note: l.note || '' };
   render();
-  const g = $('#formGroup'); if (g && !reduceMotion()) { g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash'); }
+  const g = $('#tdial'); if (g && !reduceMotion()) { g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash'); }
   toast('Dernier service repris. Vérifie la date, puis enregistre.');
 }
 function exportCSV() {
   const ym = H.month, list = shiftsIn(ym).slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
-  const n = v => (v / 60).toFixed(2).replace('.', ',');
-  const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
+  const n = v => (v / 60).toFixed(2).replace('.', ','), q = s => `"${String(s ?? '').replace(/"/g, '""')}"`, hm = v => fmtH(v).replace(' h ', ':');
   const lines = [['Date', 'Jour', 'Employeur', 'Début', 'Fin', 'Pause (min)', 'Heures (décimal)', 'Heures (h:min)', 'Dont nuit', 'Dont dimanche', 'Férié', 'Note'].join(';')];
   list.forEach(sh => { const c = calc(sh), d = parseDate(sh.date);
-    lines.push([sh.date.split('-').reverse().join('/'), DAY_SHORT.format(d).replace('.', ''), EMP[sh.emp], sh.start, sh.end, sh.pause || 0, n(c.worked), fmtH(c.worked).replace(' h ', ':'), n(c.night), n(c.sunday), sh.ferie ? 'oui' : 'non', q(sh.note)].join(';')); });
+    lines.push([sh.date.split('-').reverse().join('/'), DAY_SHORT.format(d).replace('.', ''), EMP[sh.emp], sh.start, sh.end, sh.pause || 0, n(c.worked), hm(c.worked), n(c.night), n(c.sunday), sh.ferie ? 'oui' : 'non', q(sh.note)].join(';')); });
   lines.push('');
-  Object.keys(EMP).forEach(k => { const t = sumShifts(shiftsIn(ym, k)); if (t.n) lines.push([`Total ${EMP[k]}`, '', '', '', '', '', n(t.worked), fmtH(t.worked).replace(' h ', ':'), n(t.night), n(t.sunday), n(t.holiday), ''].join(';')); });
-  const t = sumShifts(list); lines.push(['Total', '', '', '', '', '', n(t.worked), fmtH(t.worked).replace(' h ', ':'), n(t.night), n(t.sunday), n(t.holiday), ''].join(';'));
+  Object.keys(EMP).forEach(k => { const t = sumShifts(shiftsIn(ym, k)); if (t.n) lines.push([`Total ${EMP[k]}`, '', '', '', '', '', n(t.worked), hm(t.worked), n(t.night), n(t.sunday), n(t.holiday), ''].join(';')); });
+  const t = sumShifts(list); lines.push(['Total', '', '', '', '', '', n(t.worked), hm(t.worked), n(t.night), n(t.sunday), n(t.holiday), ''].join(';'));
   deliverFile(`heures-${ym}.csv`, '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
 }
-
-/* Feuille : modifier / supprimer un service */
 function openShift(id) {
   const sh = S.shifts.find(x => x.id === id); if (!sh) return;
   const body = $('#shiftSheetBody');
   body.innerHTML = `<div class="grab"></div>
-    <div class="sheet-top"><button class="link-btn" data-close>Annuler</button><h2 id="shiftSheetTitle">Modifier</h2><button class="link-btn" id="eSave">OK</button></div>
-    <div class="seg" role="group" aria-label="Employeur">${Object.keys(EMP).map(k => `<button data-eemp="${k}" aria-pressed="${sh.emp === k}">${EMP[k]}</button>`).join('')}</div>
+    <div class="sheet-top"><button class="link-btn" data-close style="text-align:left">Annuler</button><h2 id="shiftSheetTitle">Modifier</h2><button class="link-btn" id="eSave" style="text-align:right">OK</button></div>
+    <div class="seg" role="group" aria-label="Employeur">${Object.keys(EMP).map(k => `<button data-eemp="${k}" aria-pressed="${sh.emp === k}"><span class="dot"></span>${EMP[k]}</button>`).join('')}</div>
     <div class="group" style="margin-top:12px">
       <div class="cell"><label for="eDate">Date</label><input type="date" id="eDate" value="${sh.date}"></div>
       <div class="cell"><label for="eStart">Début</label><input type="time" id="eStart" value="${sh.start}"></div>
       <div class="cell"><label for="eEnd">Fin</label><input type="time" id="eEnd" value="${sh.end}"></div>
-      <div class="cell"><label for="ePause">Pause (min)</label><input type="number" inputmode="numeric" min="0" step="5" id="ePause" value="${Number(sh.pause) || 0}"></div>
+      <div class="cell"><label for="ePause">Pause</label><input type="number" inputmode="numeric" min="0" step="5" id="ePause" value="${Number(sh.pause) || 0}"><span class="unit">min</span></div>
       <div class="cell"><label for="eFerie">Jour férié</label><span class="switch"><input type="checkbox" id="eFerie" ${sh.ferie ? 'checked' : ''}><span></span></span></div>
-      <div class="cell"><input type="text" id="eNote" value="${esc(sh.note || '')}" placeholder="Note (facultatif)" aria-label="Note"></div>
+      <div class="cell"><input type="text" class="full" id="eNote" value="${esc(sh.note || '')}" placeholder="Note (facultatif)" aria-label="Note"></div>
     </div>
     <button class="btn danger block" style="margin-top:22px" id="eDel">Supprimer ce service</button>`;
   body.dataset.id = id;
@@ -822,8 +1142,7 @@ function commitShiftEdit() {
   const id = $('#shiftSheetBody').dataset.id, sh = S.shifts.find(x => x.id === id); if (!sh) return;
   const st = $('#eStart').value, en = $('#eEnd').value;
   if (!st || !en || st === en) { toast('Vérifie les heures de début et de fin.'); return; }
-  sh.emp = $('[data-eemp][aria-pressed="true"]').dataset.eemp;
-  sh.date = $('#eDate').value || sh.date; sh.start = st; sh.end = en;
+  sh.emp = $('[data-eemp][aria-pressed="true"]').dataset.eemp; sh.date = $('#eDate').value || sh.date; sh.start = st; sh.end = en;
   sh.pause = Math.max(0, Number($('#ePause').value) || 0); sh.ferie = $('#eFerie').checked; sh.note = $('#eNote').value.trim();
   save(); $('#shiftSheet').close(); render(); toast('Service modifié');
 }
@@ -835,65 +1154,79 @@ function deleteShift() {
 }
 
 /* =====================================================================
-   11. RÉGLAGES, SAUVEGARDE, IMPORT
+   13. RÉGLAGES, SAUVEGARDE, IMPORT
    ===================================================================== */
+function getPath(o, p) { return p.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
+function setPath(o, p, v) { const ks = p.split('.'), last = ks.pop(); ks.reduce((a, k) => (a[k] = a[k] || {}), o)[last] = v; }
+const numCell = (path, label, unit, ph = '') => `<div class="cell"><label for="set-${path}">${label}</label><input class="r" type="text" inputmode="decimal" id="set-${path}" data-set="${path}" value="${esc(String(getPath(S.settings, path) ?? '').replace('.', ','))}" placeholder="${ph}"><span class="unit">${unit}</span></div>`;
 function openSettings() {
   const st = S.settings;
   const backup = S.lastExport ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date(S.lastExport)) : 'jamais';
+  const empGroup = k => `<p class="gt"><span class="edot ${k}" style="margin-right:6px"></span>${EMP[k]}</p>
+    <div class="group">
+      ${k === 'gare' ? numCell('base.gare', 'Base mensuelle', 'h') : ''}
+      ${numCell(`rate.${k}`, 'Taux horaire brut', '€/h', 'ex. 12,20')}
+      ${numCell(`cotis.${k}`, 'Cotisations salariales', '%')}
+      ${numCell(`maj.${k}.night`, 'Majoration nuit', '%', '0')}
+      ${numCell(`maj.${k}.sunday`, 'Majoration dimanche', '%', '0')}
+      ${numCell(`maj.${k}.holiday`, 'Majoration férié', '%', '0')}
+      ${numCell(`threshold.${k}`, 'Alerte hebdo au-delà de', 'h', 'aucune')}
+    </div>
+    <details style="margin-top:10px"><summary class="small" style="color:var(--gold);font-weight:650;min-height:44px;display:flex;align-items:center;cursor:pointer">Calibrer avec une fiche de paie</summary>
+      <div class="group"><div class="cell"><label for="cb-${k}">Salaire brut</label><input class="r" type="text" inputmode="decimal" id="cb-${k}" placeholder="ex. 1 830"><span class="unit">€</span></div>
+      <div class="cell"><label for="cn-${k}">Net avant impôt</label><input class="r" type="text" inputmode="decimal" id="cn-${k}" placeholder="ex. 1 425"><span class="unit">€</span></div></div>
+      <button class="btn sm quiet" data-calib="${k}" style="margin-top:10px">Calculer mes cotisations</button>
+    </details>
+    ${k === 'gare' ? `<p class="gt">Compteur d'heures · Gare</p>
+    <div class="group">
+      <div class="cell"><label for="set-counterInit">Solde de départ</label><input class="r" type="text" id="set-counterInit" data-set="counterInit" value="${esc(S.settings.counterInit || '')}" placeholder="ex. 12h30 ou -4"><span class="unit">h</span></div>
+      <div class="cell"><label for="set-counterStart">Démarre en</label><input type="month" id="set-counterStart" data-set="counterStart" value="${esc(S.settings.counterStart || '')}"></div>
+    </div>
+    <p class="hint">Chaque mois, tes heures au-delà de la base s'ajoutent au compteur, et celles en dessous (repos de rattrapage) se retirent. Mets en solde de départ celui de ta fiche de paie, avec un « - » s'il est négatif.</p>` : ''}`;
   $('#settingsBody').innerHTML = `<div class="grab"></div>
-    <div class="sheet-top"><span style="width:60px"></span><h2 id="settingsTitle">Réglages</h2><button class="link-btn" data-close>OK</button></div>
-
+    <div class="sheet-top"><span style="width:60px"></span><h2 id="settingsTitle">Réglages</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
     <p class="gt">Sauvegarde</p>
     <div class="group">
-      <button class="cell tap" data-export><span class="lbl">Exporter mes données</span><span class="val small">${backup}</span>${ICON.chev}</button>
+      <button class="cell tap" data-export><span class="lbl">Exporter mes données</span><span class="small muted">${backup}</span>${ICON.chev}</button>
       <button class="cell tap" id="importBtn"><span class="lbl">Importer une sauvegarde</span>${ICON.chev}</button>
     </div>
-    <p class="hint">Tout est stocké sur ce téléphone, rien n'est envoyé ailleurs. Exporte une fois par semaine et range le fichier dans Fichiers ou iCloud Drive. <span id="persistInfo"></span></p>
+    <p class="hint">Tout reste sur ce téléphone. Exporte une fois par semaine et range le fichier dans Fichiers ou iCloud Drive. <span id="persistInfo"></span></p>
     <div id="importConfirm"></div>
-
-    <p class="gt">Heures de travail</p>
+    ${empGroup('gare')}
+    ${empGroup('pizza')}
+    <p class="gt">Impôt et nuit</p>
     <div class="group">
+      ${numCell('pas', 'Prélèvement à la source', '%', '0')}
       <div class="cell"><label for="sNs">Début de la nuit</label><input type="time" id="sNs" value="${st.nightStart}"></div>
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
-    <p class="hint">21 h – 6 h par défaut. Adapte à ta convention collective.</p>
-    <div class="group" style="margin-top:14px">
-      ${Object.keys(EMP).map(k => `<div class="cell"><label for="sTh-${k}">Seuil hebdo · ${EMP[k]}</label><input type="number" inputmode="decimal" min="0" step="0.5" id="sTh-${k}" data-th="${k}" value="${st.threshold[k]}"><span class="val small">h</span></div>`).join('')}
-      ${Object.keys(EMP).map(k => `<div class="cell"><label for="sRate-${k}">Taux brut · ${EMP[k]}</label><input type="text" inputmode="decimal" id="sRate-${k}" data-rate="${k}" value="${esc(st.rate[k] || '')}" placeholder="facultatif" style="text-align:right;max-width:40%"><span class="val small">€/h</span></div>`).join('')}
-    </div>
-    <p class="hint">Le seuil déclenche l'alerte d'heures sup ou complémentaires. Le taux sert à estimer le brut de base.</p>
-
+    <p class="hint">Ton taux de prélèvement est sur ta fiche de paie ou sur impots.gouv.fr. Les majorations dépendent de ta convention collective et de ton contrat : laisse 0 si tu ne sais pas.</p>
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v1.0 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.1 · fonctionne hors ligne</p>`;
   $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
 async function exportData() {
-  const payload = { app: 'sayko-de-poche', version: 1, exportedAt: new Date().toISOString(), data: S };
+  const payload = { app: 'sayko-de-poche', version: 2, exportedAt: new Date().toISOString(), data: S };
   const ok = await deliverFile(`sayko-de-poche-${todayISO()}.json`, JSON.stringify(payload, null, 2), 'application/json');
-  if (ok) { S.lastExport = Date.now(); save(true); toast('Sauvegarde exportée'); if (tab === 'heures') render(); const s = $('#settingsSheet'); if (s.open) openSettings(); }
+  if (ok) { S.lastExport = Date.now(); save(true); toast('Sauvegarde exportée'); if (tab === 'heures') render(); if ($('#settingsSheet').open) openSettings(); }
 }
 let pendingImport = null;
 function handleImport(text) {
   let j; try { j = JSON.parse(text); } catch (e) { showImport(null, 'Ce fichier n\'est pas un JSON lisible.'); return; }
   if (j && j.app === 'sayko-de-poche' && j.data) {
-    const d = normalize(j.data);
-    pendingImport = { mode: 'replace', data: d };
+    const d = normalize(j.data); pendingImport = { mode: 'replace', data: d };
     showImport(`Sauvegarde du ${new Date(j.exportedAt).toLocaleDateString('fr-FR')} : ${d.shifts.length} services, ${Object.keys(d.checks).length} acquis cochés, ${Object.keys(d.days).length} jours de routine, ${d.ideas.length} idées. Elle remplacera les données actuelles.`);
   } else if (j && typeof j === 'object' && ('checks' in j || 'days' in j) && 'start' in j) {
-    // Ancienne page « Prépa Sayko — 12 mois »
     pendingImport = { mode: 'prepa', data: j };
     showImport(`Données de « Prépa Sayko » : ${Object.keys(j.checks || {}).length} acquis cochés, ${Object.keys(j.days || {}).length} jours de routine. Elles seront ajoutées à tes données actuelles (tes heures ne sont pas touchées).`);
-  } else {
-    showImport(null, "Format non reconnu. Si c'est un export de l'ancienne Sayko de poche, garde ce fichier : la conversion sera ajoutée quand ton PC sera relié.");
-  }
+  } else showImport(null, "Format non reconnu. Si c'est un export de l'ancienne Sayko de poche, garde ce fichier : la conversion sera ajoutée quand ton PC sera relié.");
 }
 function showImport(msg, err) {
   const el = $('#importConfirm'); if (!el) return;
-  el.innerHTML = err ? `<div class="alert danger" style="margin-top:14px">${ICON.warn}<span>${esc(err)}</span></div>`
+  el.innerHTML = err ? `<div class="alert danger">${ICON.warn}<span>${esc(err)}</span></div>`
     : `<div class="confirm"><p class="small">${esc(msg)}</p><div class="row" style="margin-top:12px"><button class="btn sm grow" id="impYes">Importer</button><button class="btn sm quiet" id="impNo">Annuler</button></div></div>`;
 }
 async function applyImport() {
@@ -912,17 +1245,17 @@ async function applyImport() {
     if (j.start) S.start = j.start;
   }
   pendingImport = null; save(true);
-  $('#settingsSheet').close(); H.form = null; render();
-  toast('Import terminé', 'Annuler', async () => { S = normalize(before); save(true); render(); }, 8000);
+  $('#settingsSheet').close(); H.form = null; P.sel = null; render();
+  toast('Import terminé', 'Annuler', () => { S = normalize(before); save(true); render(); }, 8000);
 }
 
 /* =====================================================================
-   12. IDÉES (saisie rapide, comme l'ancienne version)
+   14. IDÉES
    ===================================================================== */
 function openIdeas() {
   const list = S.ideas.slice().sort((a, b) => b.created - a.created);
   $('#ideasBody').innerHTML = `<div class="grab"></div>
-    <div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Idées</h2><button class="link-btn" data-close>OK</button></div>
+    <div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Idées</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
     <textarea id="ideaText" placeholder="Note une idée, tu la trieras plus tard…" style="min-height:90px"></textarea>
     <div class="row" style="margin-top:10px"><button class="btn grow" id="ideaAdd">Ajouter</button>${list.length ? '<button class="btn quiet" id="ideaCopy">Tout copier</button>' : ''}</div>
     <div style="margin-top:18px">${list.map(i => `<div class="idea"><p>${esc(i.text)}<time>${new Date(i.created).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</time></p><button class="icon-btn" data-idel="${i.id}" aria-label="Supprimer cette idée"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join('') || '<p class="empty">Aucune idée pour l\'instant.</p>'}</div>`;
@@ -930,31 +1263,41 @@ function openIdeas() {
 }
 
 /* =====================================================================
-   13. RENDU & ÉVÉNEMENTS
+   15. RENDU & NAVIGATION
    ===================================================================== */
-const TABS = ['parcours', 'arabe', 'routine', 'heures'];
-let tab = 'parcours';
-function render() {
+const TABS = ['orbite', 'parcours', 'arabe', 'routine', 'heures'];
+let tab = 'orbite';
+function moveIndicator() {
+  const i = TABS.indexOf(tab), ind = $('.tab-ind');
+  if (ind) ind.style.left = `calc(${(i + 0.5) / TABS.length * 100}% - 14px)`;
+}
+function render(animate) {
   const app = $('#app');
+  stopOrbit();
   $$('.tabbar [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
-  app.innerHTML = tab === 'parcours' ? vParcours() : tab === 'arabe' ? vArabe() : tab === 'routine' ? vRoutine() : vHeures();
-  if (tab === 'parcours') requestAnimationFrame(() => requestAnimationFrame(refreshParcours));
+  moveIndicator();
+  app.className = animate ? 'view' : '';
+  app.innerHTML = { orbite: vOrbite, parcours: vParcours, arabe: vArabe, routine: vRoutine, heures: vHeures }[tab]();
+  if (tab === 'orbite') startOrbit();
+  if (tab === 'parcours') bindParcours();
   if (tab === 'arabe') { if (quiz && !quiz.answered) drawQuiz(); else nextQuiz(); }
-  if (tab === 'heures') updatePreview();
+  if (tab === 'heures') bindDial();
 }
 function go(t) {
   if (!TABS.includes(t)) return;
-  const y = window.scrollY; tab = t;
+  if (t === tab) { window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); return; }
+  if (tab === 'heures' && $('#fDate')) readForm();
+  tab = t;
   try { localStorage.setItem('sdp-tab', t); } catch (e) {}
   history.replaceState(null, '', '#' + t);
-  render(); if (y) window.scrollTo(0, 0);
+  const swap = () => { render(true); window.scrollTo(0, 0); };
+  if (document.startViewTransition && !reduceMotion()) document.startViewTransition(swap); else swap();
 }
 
 $('.tabbar').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) go(b.dataset.tab); });
 
 document.addEventListener('click', e => {
-  const t = e.target;
-  const c = sel => t.closest(sel);
+  const t = e.target, c = sel => t.closest(sel);
   let el;
   if ((el = c('[data-open]'))) { el.dataset.open === 'settings' ? openSettings() : openIdeas(); return; }
   if (c('[data-close]')) { c('dialog').close(); return; }
@@ -962,34 +1305,34 @@ document.addEventListener('click', e => {
   if (c('#importBtn')) { $('#importFile').click(); return; }
   if (c('#impYes')) { applyImport(); return; }
   if (c('#impNo')) { pendingImport = null; $('#importConfirm').innerHTML = ''; return; }
-
-  // Parcours
-  if ((el = c('.mcol'))) {
-    const n = Number(el.dataset.month);
-    const target = n === currentMonth() ? $('#focus') : $(`#month-${n}`);
-    if (target) { if (target.tagName === 'DETAILS') target.open = true; target.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }); }
-    return;
+  if ((el = c('[data-seen]'))) { S.seen[el.dataset.seen] = true; save(); const box = c('.coach'); box.style.transition = 'opacity .25s,transform .25s'; box.style.opacity = 0; box.style.transform = 'translateY(-6px)'; setTimeout(() => render(), reduceMotion() ? 0 : 250); return; }
+  if ((el = c('[data-unseen]'))) { delete S.seen[el.dataset.unseen]; save(); render(); return; }
+  if ((el = c('[data-goto]'))) { go(el.dataset.goto); return; }
+  if ((el = c('[data-calib]'))) {
+    const k = el.dataset.calib, b = numv($(`#cb-${k}`).value.replace(/\s/g, '')), n = numv($(`#cn-${k}`).value.replace(/\s/g, ''));
+    if (!b || !n || n >= b) { toast('Indique un brut et un net valides.'); return; }
+    S.settings.cotis[k] = Math.round((1 - n / b) * 1000) / 10; save(); openSettings(); if (tab === 'heures') render();
+    toast(`Cotisations ${EMP[k]} : ${String(S.settings.cotis[k]).replace('.', ',')} %`); return;
   }
-  if ((el = c('[data-goto-focus]'))) { e.preventDefault(); $('#focus').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth' }); return; }
-
+  // Parcours
+  if ((el = c('[data-pstep]'))) { selectMonth(P.sel + Number(el.dataset.pstep)); return; }
+  if (c('#pnow')) { selectMonth(currentMonth()); return; }
   // Arabe
   if ((el = c('[data-q]'))) { answerQuiz(el); return; }
-  if (c('#qgo')) { nextQuiz(); $('.opt') && $('.opt').focus({ preventScroll: true }); return; }
-  if ((el = c('[data-fw]'))) { if ($('#fatiha').classList.contains('hide')) el.classList.toggle('shown'); return; }
-  if (c('#toggleFat')) { S.hideFatiha = !S.hideFatiha; save(); const f = $('#fatiha'); f.classList.toggle('hide', S.hideFatiha); $$('.w.shown').forEach(w => w.classList.remove('shown')); const b = $('#toggleFat'); b.textContent = S.hideFatiha ? 'Montrer le sens' : 'Cacher le sens'; b.setAttribute('aria-pressed', S.hideFatiha); b.parentElement.nextElementSibling.textContent = S.hideFatiha ? 'Touche un mot pour révéler sa traduction.' : 'Cache le sens pour te tester.'; return; }
+  if (c('#qgo')) { nextQuiz(true); return; }
+  if ((el = c('[data-star]'))) { showStar(Number(el.dataset.star)); return; }
+  if ((el = c('[data-fw]'))) { if ($('#fatiha').classList.contains('hide')) { el.classList.toggle('shown'); haptic(); } return; }
+  if (c('#toggleFat')) { S.hideFatiha = !S.hideFatiha; save(); $('#fatiha').classList.toggle('hide', S.hideFatiha); $$('.w.shown').forEach(w => w.classList.remove('shown')); const b = $('#toggleFat'); b.textContent = S.hideFatiha ? 'Montrer le sens' : 'Cacher le sens'; b.setAttribute('aria-pressed', S.hideFatiha); $('#fatHint').textContent = S.hideFatiha ? 'Touche un mot pour révéler sa traduction.' : 'Mot à mot. Cache le sens pour te tester.'; return; }
   if ((el = c('[data-taj]'))) {
     const tj = S.tajwid; tj.done = Math.max(0, tj.done + Number(el.dataset.taj)); if (tj.total) tj.done = Math.min(tj.done, tj.total);
-    save(); haptic(); $('#tajDone').innerHTML = `${tj.done}<small> / ${tj.total || '—'}</small>`;
-    $('#tajDone').closest('section').querySelector('.bar i').style.width = `${tj.total ? Math.min(100, tj.done / tj.total * 100) : 0}%`; return;
+    save(); haptic(); $('#tajDone').innerHTML = `${tj.done}<small> / ${tj.total || '—'}</small>`; $('#tajBar').style.width = `${tj.total ? Math.min(100, tj.done / tj.total * 100) : 0}%`; return;
   }
-
   // Routine
-  if (c('#dayBtn')) { const k = todayISO(); if (S.days[k]) delete S.days[k]; else { S.days[k] = true; haptic(); } save(); askPersist(); render(); return; }
-  if ((el = c('[data-day]'))) { const k = el.dataset.day; if (S.days[k]) delete S.days[k]; else S.days[k] = true; save(); render(); return; }
-
+  if ((el = c('[data-block]'))) { toggleBlock(Number(el.dataset.block)); return; }
+  if ((el = c('[data-day]'))) { const k = el.dataset.day; if (S.days[k]) { delete S.days[k]; S.blocks[k] = [0, 0, 0, 0]; } else { S.days[k] = true; S.blocks[k] = [1, 1, 1, 1]; haptic(); } save(); render(); return; }
   // Heures
-  if ((el = c('[data-emp]'))) { readForm(); const l = lastShift(el.dataset.emp); H.form.emp = el.dataset.emp; if (l) { H.form.start = l.start; H.form.end = l.end; H.form.pause = Number(l.pause) || 0; } render(); return; }
-  if ((el = c('[data-pause]'))) { H.form.pause = Math.max(0, (Number(H.form.pause) || 0) + Number(el.dataset.pause)); $('#fPause').textContent = `${H.form.pause} min`; updatePreview(); return; }
+  if ((el = c('[data-emp]'))) { readForm(); const l = lastShift(el.dataset.emp); H.form.emp = el.dataset.emp; if (l) { H.form.start = l.start; H.form.end = l.end; H.form.pause = Number(l.pause) || 0; } else { const fr = freshForm(el.dataset.emp); H.form.start = fr.start; H.form.end = fr.end; } $$('[data-emp]').forEach(b => b.setAttribute('aria-pressed', String(b === el))); updateDial(); $('#fPause').textContent = `${H.form.pause} min`; haptic(); return; }
+  if ((el = c('[data-pause]'))) { H.form.pause = Math.max(0, (Number(H.form.pause) || 0) + Number(el.dataset.pause)); $('#fPause').textContent = `${H.form.pause} min`; updateDial(); return; }
   if (c('#saveShift')) { saveShift(); return; }
   if (c('#dupShift')) { dupLast(); return; }
   if ((el = c('[data-mnav]'))) { const d = parseDate(H.month + '-01'); d.setMonth(d.getMonth() + Number(el.dataset.mnav)); H.month = iso(d).slice(0, 7); $('#month').innerHTML = vMonth(); return; }
@@ -999,81 +1342,75 @@ document.addEventListener('click', e => {
   if ((el = c('[data-eemp]'))) { $$('[data-eemp]').forEach(b => b.setAttribute('aria-pressed', String(b === el))); return; }
   if (c('#eSave')) { commitShiftEdit(); return; }
   if (c('#eDel')) { deleteShift(); return; }
-
   // Idées
   if (c('#ideaAdd')) { const v = $('#ideaText').value.trim(); if (!v) return; S.ideas.push({ id: uid(), text: v, created: Date.now() }); save(); haptic(); openIdeas(); $('#ideaText').focus(); return; }
   if ((el = c('[data-idel]'))) { const i = S.ideas.findIndex(x => x.id === el.dataset.idel); const [r] = S.ideas.splice(i, 1); save(); openIdeas(); toast('Idée supprimée', 'Annuler', () => { S.ideas.push(r); save(); if ($('#ideasSheet').open) openIdeas(); }); return; }
   if (c('#ideaCopy')) {
     const txt = S.ideas.slice().sort((a, b) => a.created - b.created).map(i => `- ${i.text}`).join('\n');
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Idées copiées')).catch(() => toast('Copie impossible sur cet appareil.'));
-    return;
   }
 });
-
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if ((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-planet],[data-moon],.seg-arc')) {
+    e.preventDefault();
+    if (t.dataset.planet) go(t.dataset.planet); else if (t.dataset.moon) selectMonth(Number(t.dataset.moon)); else toggleBlock(Number(t.dataset.block));
+  }
+  if (e.key === 'Enter' && t.id === 'fNote') { e.preventDefault(); saveShift(); }
+});
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.chk) {
     if (t.checked) S.checks[t.dataset.chk] = true; else delete S.checks[t.dataset.chk];
-    save(); askPersist(); if (t.checked) haptic();
-    $$(`[data-chk="${t.dataset.chk}"]`).forEach(x => { if (x !== t) x.checked = t.checked; });
-    refreshParcours(); return;
+    save(); askPersist(); if (t.checked) haptic(); refreshParcours(); return;
   }
-  if (t.dataset.sour) {
-    if (t.checked) S.sourates[t.dataset.sour] = true; else delete S.sourates[t.dataset.sour];
-    save(); if (t.checked) haptic(); $('#sourN').textContent = `${SOURATES.filter(s => S.sourates[s[1]]).length} / ${SOURATES.length}`; return;
-  }
+  if (t.dataset.sour) { if (t.checked) S.sourates[t.dataset.sour] = true; else delete S.sourates[t.dataset.sour]; save(); if (t.checked) haptic(); $('#sourN').textContent = `${SOURATES.filter(s => S.sourates[s[1]]).length} / ${SOURATES.length}`; return; }
   if (t.id === 'tajTotal') { S.tajwid.total = Math.max(0, parseInt(t.value, 10) || 0); if (S.tajwid.total) S.tajwid.done = Math.min(S.tajwid.done, S.tajwid.total); save(); render(); return; }
-  if (t.id === 'fDate') { const h = holidayName(t.value); $('#fFerie').checked = !!h; $('#ferieName').textContent = h || ''; updatePreview(); return; }
-  if (t.id === 'fFerie' || t.id === 'fStart' || t.id === 'fEnd') { updatePreview(); return; }
+  if (t.id === 'fDate') { const h = holidayName(t.value); $('#fFerie').checked = !!h; $('#ferieName').textContent = h || ''; readForm(); updateDial(); return; }
+  if (t.id === 'fStart' || t.id === 'fEnd') { if (t.value) { H.form[t.id === 'fStart' ? 'start' : 'end'] = t.value; updateDial(); } return; }
   if (t.dataset.slip) {
-    const k = `${H.month}|${t.dataset.slip}`; const v = t.value.trim();
+    const k = `${H.month}|${t.dataset.slip}`, v = t.value.trim();
     if (v && parseHours(v) == null) { toast('Écris les heures comme 151,67 ou 151h40.'); return; }
     if (v) S.payslips[k] = v; else delete S.payslips[k];
     save(); $('#month').innerHTML = vMonth(); return;
   }
-  // Réglages
+  if (t.dataset.set) { const raw = t.value.trim(); setPath(S.settings, t.dataset.set, /^counter/.test(t.dataset.set) ? raw : raw.replace(',', '.')); save(); if (tab === 'heures' || tab === 'orbite') render(); return; }
   if (t.id === 'sNs' && t.value) { S.settings.nightStart = t.value; save(); if (tab === 'heures') render(); return; }
   if (t.id === 'sNe' && t.value) { S.settings.nightEnd = t.value; save(); if (tab === 'heures') render(); return; }
-  if (t.dataset.th) { S.settings.threshold[t.dataset.th] = Math.max(0, Number(t.value) || 35); save(); if (tab === 'heures') render(); return; }
-  if (t.dataset.rate) { S.settings.rate[t.dataset.rate] = t.value.trim().replace(',', '.'); save(); if (tab === 'heures') render(); return; }
-  if (t.id === 'sStart' && t.value) { S.start = t.value; save(); if (tab === 'parcours' || tab === 'arabe') render(); return; }
+  if (t.id === 'sStart' && t.value) { S.start = t.value; P.sel = null; save(); render(); return; }
   if (t.id === 'importFile' && t.files[0]) { const r = new FileReader(); r.onload = () => handleImport(r.result); r.readAsText(t.files[0]); t.value = ''; }
 });
-
 let noteTimer = null;
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.dataset.note) { S.notes[t.dataset.note] = t.value; clearTimeout(noteTimer); noteTimer = setTimeout(save, 400); return; }
-  if (t.id === 'fStart' || t.id === 'fEnd') updatePreview();
+  if (t.dataset.note) { S.notes[t.dataset.note] = t.value; clearTimeout(noteTimer); noteTimer = setTimeout(save, 400); const s4 = $('#step4'); if (s4) s4.classList.toggle('ok', !!t.value.trim()); return; }
+  if ((t.id === 'fStart' || t.id === 'fEnd') && t.value) { H.form[t.id === 'fStart' ? 'start' : 'end'] = t.value; updateDial(); }
 });
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.target.id === 'fNote') { e.preventDefault(); saveShift(); }
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && e.target.id === 'ideaText') $('#ideaAdd').click();
-});
-// Fermer une feuille en touchant le fond
 $$('dialog.sheet').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
-// Mise à jour quand l'app revient au premier plan (changement de jour)
 let lastDay = todayISO();
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && todayISO() !== lastDay) { lastDay = todayISO(); H.form = null; render(); } });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { stopOrbit(); return; }
+  if (todayISO() !== lastDay) { lastDay = todayISO(); H.form = null; H.month = todayISO().slice(0, 7); P.sel = null; render(); }
+  else if (tab === 'orbite') startOrbit();
+});
+window.addEventListener('resize', moveIndicator);
 
 /* =====================================================================
-   14. DÉMARRAGE
+   16. DÉMARRAGE
    ===================================================================== */
 (async function boot() {
   S = await loadState();
-  if (!S.updatedAt) save(true);
+  save(true);
   let t = location.hash.slice(1);
   if (!TABS.includes(t)) { try { t = localStorage.getItem('sdp-tab'); } catch (e) {} }
-  tab = TABS.includes(t) ? t : 'parcours';
-  render();
-
+  tab = TABS.includes(t) ? t : 'orbite';
+  render(true);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js').then(reg => {
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
         nw && nw.addEventListener('statechange', () => {
-          if (nw.state === 'installed' && navigator.serviceWorker.controller)
-            toast('Nouvelle version disponible', 'Recharger', () => { nw.postMessage('skipWaiting'); }, 15000);
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) toast('Nouvelle version disponible', 'Recharger', () => nw.postMessage('skipWaiting'), 15000);
         });
       });
     }).catch(() => {});
@@ -1081,6 +1418,4 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; save(true); location.reload(); } });
   }
 })();
-
-/* Exposé pour les tests */
-window.__sdp = { calc, sumShifts, parseHours, fmtH, holidayName, mondayOf, get S() { return S; } };
+window.__sdp = { calc, sumShifts, money, gareCounter, parseHours, fmtH, holidayName, save, get S() { return S; } };

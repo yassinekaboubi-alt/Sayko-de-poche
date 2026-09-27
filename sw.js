@@ -1,8 +1,8 @@
 /* Sayko de poche — service worker : tout fonctionne hors ligne. */
-const VERSION = 'sdp-v1.0.0';
+const VERSION = 'sdp-v2.1.0';
 const FILES = [
   './', './index.html', './app.js', './manifest.json',
-  './amiri-400.woff2', './amiri-700.woff2',
+  './amiri-400.woff2', './amiri-700.woff2', './serif-400.woff2', './serif-400i.woff2',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'
 ];
 
