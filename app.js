@@ -1,4 +1,4 @@
-/* Sayko de poche — v2.5
+/* Sayko de poche — v2.6
    App 100 % locale : aucune donnée ne quitte le téléphone. */
 'use strict';
 
@@ -1249,7 +1249,7 @@ function lifeBudget(ym) {
   if (!env && !hist) return { v: 0, src: 'inconnu' };
   return hist > env ? { v: Math.round(hist), src: 'historique' } : { v: env, src: 'enveloppes' };
 }
-function autoPlan(ym, incTotal, fixTotal) {
+function autoPlan(ym, incTotal, fixTotal, carry = 0) {
   const M = S.money, L = lifeBudget(ym);
   if (!(incTotal > 0)) return { ok: false, why: 'revenus', life: L };
   if (!(L.v > 0)) return { ok: false, why: 'vie', life: L };
@@ -1257,7 +1257,7 @@ function autoPlan(ym, incTotal, fixTotal) {
   const remDebt = Math.max(0, numv(M.debt.total) - debtRepaid(prevMonth(ym)));
   const sp = M.pots.find(p => p.safety), safeBal = sp ? potBalance(sp, prevMonth(ym)) : 0;
   const safeNeed = Math.max(0, (numv(M.safetyGoal) || 4000) - safeBal);
-  const avail = incTotal - fixTotal - L.v - others;
+  const avail = incTotal + carry - fixTotal - L.v - others;
   const surplus = Math.max(0, Math.floor(avail * (1 - PLAN_MARGIN) / 10) * 10);
   let phase, ratio;
   if (remDebt > 0 && safeBal < STARTER_CUSHION) { phase = 1; ratio = 0.5; }
@@ -1270,8 +1270,8 @@ function autoPlan(ym, incTotal, fixTotal) {
   if (left > 0 && safety < safeNeed) { const add = Math.min(left, safeNeed - safety); safety += add; left -= add; }
   return { ok: true, auto: true, avail, surplus, debt, safety, extra: left, phase: surplus <= 0 ? 0 : phase, life: L, others, remDebt, safeBal };
 }
-function planFor(ym, incTotal, fixTotal) {
-  const a = autoPlan(ym, incTotal, fixTotal), o = (S.money.months[ym] || {}).plan;
+function planFor(ym, incTotal, fixTotal, carry = 0) {
+  const a = autoPlan(ym, incTotal, fixTotal, carry), o = (S.money.months[ym] || {}).plan;
   if (o && (o.debt !== '' || o.safety !== '')) return { ...a, ok: true, auto: false, debt: o.debt !== '' ? numv(o.debt) : (a.debt || 0), safety: o.safety !== '' ? numv(o.safety) : (a.safety || 0) };
   return a;
 }
@@ -1307,21 +1307,22 @@ function budgetOf(ym) {
   const incTotal = incomes.reduce((a, i) => a + i.val, 0) + extraInc + fromPots;
   const fixed = M.fixed.map(f => ({ ...f, val: numv(f.amount), paid: !!(st.paid && st.paid[f.id]) }));
   const fixTotal = fixed.reduce((a, f) => a + f.val, 0);
-  const P = M.auto ? planFor(ym, incTotal, fixTotal) : null;
+  const carry = st.carry != null && st.carry !== '' ? numv(st.carry) : 0;
+  const P = M.auto ? planFor(ym, incTotal, fixTotal, carry) : null;
   const pots = M.pots.map(p => { const done = txIn(ym, 'save').filter(t => t.pot === p.id).reduce((a, t) => a + numv(t.amount), 0), plan = P && p.safety ? (P.ok ? P.safety : 0) : numv(p.monthly); return { ...p, done, plan, val: Math.max(plan, done), bal: potBalance(p) }; });
   const invested = txIn(ym, 'invest').reduce((a, t) => a + numv(t.amount), 0);
   const saveTotal = pots.reduce((a, p) => a + p.val, 0) + invested;
   const dTot = numv(M.debt.total), remStart = Math.max(0, dTot - debtRepaid(prevMonth(ym)));
   const dDone = txIn(ym, 'debt').reduce((a, t) => a + numv(t.amount), 0), dPlan = Math.min(P ? (P.ok ? P.debt : 0) : numv(M.debt.monthly), remStart);
   const debt = { plan: dPlan, done: dDone, val: Math.max(dPlan, dDone), remStart };
-  const free = incTotal - fixTotal - saveTotal - debt.val;
+  const free = carry + incTotal - fixTotal - saveTotal - debt.val;
   const exps = txIn(ym, 'exp'), spent = exps.reduce((a, t) => a + numv(t.amount), 0);
   const byCat = {}; exps.forEach(t => { byCat[t.cat] = (byCat[t.cat] || 0) + numv(t.amount); });
   const cur = todayISO().slice(0, 7), dim = daysIn(ym), today = new Date().getDate();
   const daysLeft = ym === cur ? dim - today + 1 : ym > cur ? dim : 0;
   const elapsed = ym === cur ? (today - 1) / dim : ym < cur ? 1 : 0;
   const reste = free - spent;
-  return { plan: P, incomes, extraInc, fromPots, incTotal, fixed, fixTotal, pots, saveTotal, invested, debt, free, spent, byCat, reste, daysLeft, elapsed, dim, exps, envelopes: M.envelopes.map(e => ({ ...e, lim: numv(e.limit), sp: byCat[e.cat] || 0 })) };
+  return { plan: P, carry, incomes, extraInc, fromPots, incTotal, fixed, fixTotal, pots, saveTotal, invested, debt, free, spent, byCat, reste, daysLeft, elapsed, dim, exps, envelopes: M.envelopes.map(e => ({ ...e, lim: numv(e.limit), sp: byCat[e.cat] || 0 })) };
 }
 const isSetUp = () => S.money.incomes.some(i => String(i.amount).trim() !== '') || S.money.fixed.some(f => numv(f.amount) > 0) || Object.values(S.money.months).some(m => m.inc && Object.keys(m.inc).length);
 
@@ -1423,6 +1424,11 @@ function vBudget() {
   <section>
     <h2>Ton mois en une ligne</h2>
     <div class="flow">
+      <details data-flow="carry" ${A.open.has('carry') ? 'open' : ''}><summary><span>Solde de départ</span><b class="num" style="color:var(--${b.carry < 0 ? 'danger' : b.carry > 0 ? 'mint' : 'muted'})">${b.carry < 0 ? '−' : b.carry > 0 ? '+' : ''}${eur0(Math.abs(b.carry))}</b></summary>
+        <div class="flow-in">
+          <div class="frow"><label class="check" style="padding:6px 0;min-height:44px"><input type="checkbox" data-carryneg ${b.carry < 0 || (S.money.months[ym] || {}).carryNeg ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">À découvert<span class="small muted" style="display:block">coche si ton compte est dans le rouge</span></span></label><input class="famt num" id="carryAmt" data-carry inputmode="decimal" value="${b.carry ? String(Math.abs(b.carry)).replace('.', ',') : ''}" placeholder="0" aria-label="Solde de départ"></div>
+          <p class="hint">Le solde de ton compte courant avant les revenus de ce mois. Un découvert est couvert en premier par tes rentrées, sans compter comme une charge fixe, et ne revient pas le mois suivant.</p>
+        </div></details>
       <details id="incDetails" data-flow="inc" ${A.open.has('inc') ? 'open' : ''}><summary><span>Revenus reçus</span><b class="num" style="color:var(--mint)">+${eur0(b.incTotal)}</b></summary>
         <div class="flow-in">${b.incomes.map(i => `<div class="frow"><label class="check" style="padding:6px 0;min-height:44px"><input type="checkbox" data-increc="${i.id}" ${i.rec != null ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(i.label)}<span class="small muted" style="display:block">${i.rec != null ? 'reçu' : i.exp ? `attendu : ${eur0(i.exp)}, vers le ${i.day}` : `à saisir quand il arrive (vers le ${i.day})`}</span></span></label><input class="famt num" id="inc-${i.id}" data-incval="${i.id}" inputmode="decimal" value="${i.rec != null ? String(Math.round(i.rec * 100) / 100).replace('.', ',') : ''}" placeholder="${i.exp ? String(i.exp).replace('.', ',') : 'reçu'}" aria-label="Montant reçu ${esc(i.label)}"></div>`).join('')}
         ${b.extraInc ? `<div class="frow"><span class="small">Rentrées ponctuelles</span><b class="num small">+${eur0(b.extraInc)}</b></div>` : ''}${b.fromPots ? `<div class="frow"><span class="small">Retiré de l'épargne</span><b class="num small">+${eur0(b.fromPots)}</b></div>` : ''}
@@ -1820,7 +1826,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.5 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.6 · fonctionne hors ligne</p>`;
   $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -2058,6 +2064,12 @@ document.addEventListener('change', e => {
   if (t.dataset.increc) {
     const ym = A.month, st = S.money.months[ym] = S.money.months[ym] || {}; st.inc = st.inc || {};
     if (t.checked) { const i = S.money.incomes.find(x => x.id === t.dataset.increc), e = expectedIncome(i).v; if (!e) { t.checked = false; const inp = $('#inc-' + i.id); if (inp) inp.focus(); toast('Tape le montant reçu à droite.'); return; } st.inc[i.id] = Math.round(e * 100) / 100; haptic(); } else delete st.inc[t.dataset.increc];
+    save(); render(); return;
+  }
+  if (t.hasAttribute && (t.hasAttribute('data-carry') || t.hasAttribute('data-carryneg'))) {
+    const st = S.money.months[A.month] = S.money.months[A.month] || {};
+    const neg = $('[data-carryneg]').checked, v = numv(($('#carryAmt').value || '').replace(/\s/g, '').replace('-', ''));
+    st.carryNeg = neg; st.carry = v ? String(neg ? -v : v) : '';
     save(); render(); return;
   }
   if (t.dataset.incval) {
