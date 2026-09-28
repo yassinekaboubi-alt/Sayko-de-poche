@@ -1,4 +1,4 @@
-/* Sayko de poche — v2.6
+/* Sayko de poche — v2.8
    App 100 % locale : aucune donnée ne quitte le téléphone. */
 'use strict';
 
@@ -305,7 +305,7 @@ function defaults() {
     checks: {}, notes: {}, words: {}, hideFatiha: false, tajwid: { done: 0, total: 0 }, sourates: {},
     days: {},
     shifts: [], payslips: {},
-    blocks: {}, seen: {}, money: defaultMoney(), faith: defaultFaith(), unlocks: {}, biz: { projects: [] },
+    blocks: {}, seen: {}, money: defaultMoney(), faith: defaultFaith(), unlocks: {}, biz: { projects: [] }, body: defaultBody(), nour: { log: {}, seen: '' }, zc: null,
     settings: defaultSettings(),
     ideas: [], lastExport: null, createdAt: Date.now(), updatedAt: 0
   };
@@ -336,6 +336,9 @@ function normalize(s) {
   out.faith = { habits: Array.isArray(sf.habits) && sf.habits.length ? sf.habits : df.habits, log: sf.log && typeof sf.log === 'object' ? sf.log : {} };
   out.unlocks = (s && s.unlocks && typeof s.unlocks === 'object') ? s.unlocks : {};
   out.biz = { projects: s && s.biz && Array.isArray(s.biz.projects) ? s.biz.projects : [] };
+  out.body = normalizeBody(s && s.body);
+  out.nour = { log: s && s.nour && s.nour.log && typeof s.nour.log === 'object' ? s.nour.log : {}, seen: (s && s.nour && s.nour.seen) || '' };
+  out.zc = s && s.zc && s.zc.c && s.zc.s && s.zc.i ? s.zc : null;
   return out;
 }
 let dbp = null;
@@ -498,7 +501,11 @@ const GLYPH = {
   arabe: '<path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5v13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
   routine: '<path d="M12 3.5a8.5 8.5 0 1 1-8.5 8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
   argent: '<rect x="3.5" y="6" width="17" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 12.25h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 6l8.5-2.5 1 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
-  heures: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+  heures: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  corps: '<path d="M6.5 12h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3.8" y="7.8" width="3.2" height="8.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="7.8" width="3.2" height="8.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2 10.5v3M22 10.5v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  business: '<rect x="3.5" y="7.5" width="17" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5M3.5 12.5h17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  orbite: '<circle cx="12" cy="12" r="3.4" fill="currentColor"/><ellipse cx="12" cy="12" rx="9.8" ry="4.3" transform="rotate(-25 12 12)" fill="none" stroke="currentColor" stroke-width="1.8"/>'
 };
 /* Géométrie : 0° = en haut, sens des aiguilles d'une montre */
 const polar = (r, deg) => { const a = (deg - 90) * Math.PI / 180; return [r * Math.cos(a), r * Math.sin(a)]; };
@@ -516,7 +523,7 @@ function tween(dur, fn, done) {
 }
 
 const COACH = {
-  orbite: ['Ton système', 'Chaque planète est un module. Son anneau doré montre où tu en es. Touche une planète pour y aller, fais tourner le système du doigt.'],
+  orbite: ['Ton système', 'Chaque planète est un module, son anneau doré montre où tu en es. Touche une planète pour y aller, fais tourner le système du doigt. Partout dans l\'app, le noyau doré en bas ouvre la roue des modules : touche-le, ou appuie et glisse vers un module.'],
   parcours: ['12 mois pour te former au business', 'Fais glisser l\'anneau ou touche une lune pour choisir un mois. Chaque mois se fait dans l\'ordre :', ['Écoute et lis les ressources', 'Coche les acquis quand tu les maîtrises', 'Fais l\'exercice pratique', 'Note ce que tu retiens']],
   arabe: ['Comprendre le sens de ce que tu récites', 'Quelques minutes de quiz par jour suffisent. Chaque étoile de la constellation est un mot : elle brille quand il est maîtrisé (3 bonnes réponses).'],
   routine: ['Ta 1 h 30 quotidienne', 'L\'anneau est découpé en 4 blocs. Touche un bloc quand il est fait : les 4 faits, la journée est validée et ta série continue.'],
@@ -524,6 +531,9 @@ const COACH = {
   foi: ['Ta régularité', 'Coche chaque prière faite à l\'heure sur le chemin du soleil, et tes autres habitudes en dessous. Atteindre 90 % sur 30 jours est une des deux clés de l\'onglet Business.'],
   business: ['Pourquoi c\'est verrouillé', 'Pour que l\'app reflète honnêtement tes priorités : d\'abord les compétences et la constance, ensuite le business. Chaque volet affiche ce qu\'il te reste.'],
   businessOn: ['Ton atelier', 'Un projet = un nom, une étape, et une prochaine action concrète. Rien de plus pour l\'instant.'],
+  corps: ['Construire, étape par étape', 'Tu repars de l\'arrêt : 12 séances de Réveil à la maison ouvrent la salle, 36 séances de Forge ouvrent la Sculpture. Pendant une séance, touche ✓ à chaque série : le repos se lance tout seul et l\'app te dit quand monter la charge.'],
+  nutri: ['Ton carburant', 'Pour prendre du muscle : un léger surplus de calories et assez de protéines. Touche un aliment quand tu le manges, la jauge se remplit. Pèse-toi une fois par semaine : l\'app ajuste ta cible si tu prends trop vite ou trop lentement.'],
+  soin: ['Réparer et entretenir', 'Le muscle se construit pendant le sommeil. Note tes nuits, calcule ton heure de coucher, et garde un œil sur la fitra : chaque jauge se vide en 40 jours.'],
   heures: ['Vérifier ta paie', 'Fais glisser les deux poignées du cadran pour ton début et ta fin (la zone sombre, c\'est la nuit). L\'app cumule tes heures du mois, tes heures de nuit et du dimanche, et le compteur d\'heures stockées de la Gare.']
 };
 function coach(key) {
@@ -570,8 +580,10 @@ const miniOrb = (p, key, mint) => `<svg class="mini-orb" viewBox="-20 -20 40 40"
 const PLANETS = [
   { key: 'routine', name: 'Routine', r: 66, speed: 9, phase: 210 },
   { key: 'foi', name: 'Foi', r: 98, speed: 6, phase: 330, mint: true },
+  { key: 'corps', name: 'Corps', r: 98, speed: 6, phase: 150 },
   { key: 'argent', name: 'Argent', r: 130, speed: 4, phase: 70 },
-  { key: 'parcours', name: 'Parcours', r: 160, speed: 2.4, phase: 150 }
+  { key: 'parcours', name: 'Parcours', r: 160, speed: 2.4, phase: 150 },
+  { key: 'business', name: 'Business', r: 160, speed: 2.4, phase: 330 }
 ];
 const todayBlocks = () => (S.blocks[todayISO()] || [0, 0, 0, 0]).filter(Boolean).length;
 const baseTotal = () => (numv(S.settings.base.gare) + numv(S.settings.base.pizza)) * 60 || 1;
@@ -584,6 +596,12 @@ function planetValue(k) {
   if (k === 'parcours') return [globalPct() / 100, `${globalPct()} %`];
   if (k === 'foi') { const sc = faithScore(); return [sc.pct / FAITH_GOAL, `${Math.round(sc.pct * 100)} % / 30 j`]; }
   if (k === 'routine') { const d = S.days[todayISO()] ? 4 : todayBlocks(); return [d / 4, `${d}/4 blocs`]; }
+  if (k === 'corps') { const ph = phaseOf(S.body.phase), n = weekSessions().length; return [n / ph.perWeek, `${n}/${ph.perWeek} séances`]; }
+  if (k === 'business') {
+    if (S.unlocks.business) { const n = S.biz.projects.length; return [1, `${n} projet${n > 1 ? 's' : ''}`]; }
+    const st = bizStatus(), d = st.skills.reduce((m, x) => m + x.d, 0), t = st.skills.reduce((m, x) => m + x.t, 0) || 1;
+    return [.5 * d / t + .5 * Math.min(1, st.faith.pct / FAITH_GOAL), 'Verrouillé'];
+  }
   const w = sumShifts(shiftsIn(ym)).worked; return [w / baseTotal(), fmtH(w)];
 }
 function vOrbite() {
@@ -595,34 +613,40 @@ function vOrbite() {
   for (let i = 0; i < 46; i++) { const x = rnd() * 420 - 210, y = rnd() * 420 - 210, r = rnd() * 1.1 + .3; stars += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}" fill="var(--muted)" opacity="${(rnd() * .5 + .15).toFixed(2)}"/>`; }
   const planets = PLANETS.map(p => {
     const [v, lbl] = planetValue(p.key);
-    return `<g class="planet ${p.mint ? 'mint' : ''}" data-planet="${p.key}" role="button" tabindex="0" aria-label="${p.name} : ${lbl}">
+    const locked = p.key === 'business' && !S.unlocks.business;
+    return `<g class="planet ${p.mint ? 'mint' : ''} ${locked ? 'locked' : ''}" data-planet="${p.key}" role="button" tabindex="0" aria-label="${p.name} : ${lbl}">
       <circle r="34" fill="transparent"/>
       <circle class="trk" r="26"/><circle class="prog" r="26" transform="rotate(-90)" ${ringDash(26, v)}/>
       <circle class="body" r="20"/>
-      <svg x="-10" y="-10" width="20" height="20" viewBox="0 0 24 24" class="ic">${GLYPH[p.key]}</svg>
+      <svg x="-10" y="-10" width="20" height="20" viewBox="0 0 24 24" class="ic">${locked ? GLYPH.lock : GLYPH[p.key]}</svg>
       <text class="lbl" y="44">${p.name}</text><text class="val" y="57">${lbl}</text></g>`;
   }).join('');
   const wk = sumShifts(shiftsWeek(mondayOf(now))).worked, cm = currentMonth(), cur = MONTHS[cm - 1];
   const tb = S.days[todayISO()] ? 4 : todayBlocks();
   return `${pageHead(`${hello}, <em>Yassine</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite')}
   <div class="orbit-stage" id="stage">
-    <svg viewBox="-210 -215 420 440" aria-label="Système de tes 4 modules">
+    <svg viewBox="-210 -215 420 440" aria-label="Système de tes 6 modules">
       <defs><radialGradient id="sunGlow"><stop offset="0" stop-color="var(--gold)" stop-opacity=".55"/><stop offset=".45" stop-color="var(--gold)" stop-opacity=".12"/><stop offset="1" stop-color="var(--gold)" stop-opacity="0"/></radialGradient></defs>
       ${stars}
       ${PLANETS.map(p => `<circle class="orbit-ring" r="${p.r}"/>`).join('')}
-      <circle r="78" fill="url(#sunGlow)" id="sunGlowC"/>
-      <circle class="sun-core" r="34"/>
+      <circle r="${(56 + 44 * sunLevel()).toFixed(0)}" fill="url(#sunGlow)" id="sunGlowC" style="opacity:${(.35 + .65 * sunLevel()).toFixed(2)};transition:r .8s,opacity .8s"/>
+      <circle class="sun-core" id="sunCore" r="34" style="opacity:${(.55 + .45 * Math.min(1, sunLevel() * 1.6)).toFixed(2)};transition:opacity .8s"/>
       <text y="-2" text-anchor="middle" style="font:400 30px var(--serif);fill:var(--gold-ink)">${now.getDate()}</text>
       <text y="16" text-anchor="middle" style="font-size:9px;font-weight:700;letter-spacing:.12em;fill:var(--gold-ink);opacity:.75">${DAY_SHORT.format(now).replace('.', '').toUpperCase()}</text>
+      <text id="sunNour" y="58" text-anchor="middle" style="font-size:10.5px;font-weight:700;letter-spacing:.06em;fill:var(--gold)">✦ ${nourDay()}</text>
       <g id="planets">${planets}</g>
     </svg>
   </div>
+  ${yesterdayCard()}${atStake()}
   <section style="margin-top:18px">
     <h2>Aujourd'hui</h2>
     <div class="today-list">
       ${isSetUp() ? (() => { const bb = budgetOf(todayISO().slice(0, 7)), dd = bb.daysLeft ? bb.reste / bb.daysLeft : 0; return `<button class="today-item" data-goto="budget">${miniOrb(bb.free > 0 ? Math.max(0, bb.reste) / bb.free : 0, 'argent')}<span><b>${bb.reste > 0 ? `${eur0(dd)} à dépenser aujourd'hui` : 'Budget du mois épuisé'}</b><span class="s">Reste ${eur0(bb.reste)} ce mois</span></span>${ICON.chev}</button>`; })() : ''}
       <button class="today-item" data-goto="heures">${miniOrb(planetValue('heures')[0], 'heures')}<span><b>${wk ? `${fmtH(wk)} cette semaine` : 'Aucun service cette semaine'}</b><span class="s">Noter un service</span></span>${ICON.chev}</button>
       <button class="today-item" data-goto="routine">${miniOrb(tb / 4, 'routine')}<span><b>${tb === 4 ? 'Routine faite' : `${tb} bloc${tb > 1 ? 's' : ''} sur 4`}</b><span class="s">${streak()} jour${streak() > 1 ? 's' : ''} d'affilée</span></span>${ICON.chev}</button>
+      ${(() => { const ph = phaseOf(S.body.phase), n = weekSessions().length, t = bodyTargets(), fd = foodDay();
+        const b = S.body.active ? 'Séance en cours' : n >= ph.perWeek ? 'Séances de la semaine faites' : isFastDay() ? 'Jour de jeûne · repos' : `Séance ${nextTpl(ph)} · ${ph.name}`;
+        return `<button class="today-item" data-goto="corps">${miniOrb(n / ph.perWeek, 'corps')}<span><b>${b}</b><span class="s">${t ? `Protéines ${fd.p} / ${t.prot} g aujourd'hui` : `${n}/${ph.perWeek} séances cette semaine`}</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="parcours">${miniOrb(modPct(cur), 'parcours')}<span><b>Mois ${cm} · ${esc(cur.title)}</b><span class="s">${modDone(cur)} acquis sur ${cur.acq.length}</span></span>${ICON.chev}</button>
       ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="arabe">${miniOrb(wordsKnown() / WORDS.length, 'arabe', true)}<span><b>Réviser 5 mots</b><span class="s">${wordsKnown()} mots maîtrisés sur ${WORDS.length}</span></span>${ICON.chev}</button>
@@ -846,7 +870,7 @@ function answerQuiz(btn) {
   quiz.answered = true;
   const pick = Number(btn.dataset.q), ok = pick === quiz.idx;
   session.n++;
-  if (ok) { session.ok++; S.words[quiz.idx] = (S.words[quiz.idx] || 0) + 1; haptic(); }
+  if (ok) { session.ok++; S.words[quiz.idx] = (S.words[quiz.idx] || 0) + 1; haptic(); if (S.words[quiz.idx] === 3) reward(2, { msg: ['Mot maîtrisé', `${WORDS[quiz.idx][0]} · ${WORDS[quiz.idx][1]}`] }); }
   else S.words[quiz.idx] = Math.max(0, (S.words[quiz.idx] || 0) - 1);
   save();
   $$('.opt').forEach(b => { const v = Number(b.dataset.q); b.classList.add(v === quiz.idx ? 'good' : v === pick ? 'bad' : 'dim'); b.disabled = true; });
@@ -908,7 +932,9 @@ function toggleBlock(i) {
   if (all) S.days[k] = true; else delete S.days[k];
   save(); askPersist(); if (bl[i]) haptic();
   render();
-  if (all && !was) toast(`Journée validée · ${streak()} jour${streak() > 1 ? 's' : ''} d'affilée`);
+  if (!bl[i]) { unreward(1 + (was ? 4 : 0)); return; }
+  if (all && !was) reward(5, { big: true, msg: [`Routine validée · ${streak()} jour${streak() > 1 ? 's' : ''} d'affilée`, 'Une journée de plus sur la bonne trajectoire.'] });
+  else reward(1);
 }
 
 /* =====================================================================
@@ -1506,13 +1532,14 @@ function commitPot(id, amount, kind) {
   if (!(amount > 0)) { toast('Entre un montant.'); return; }
   const t = { id: uid(), kind, amount: Math.round(amount * 100) / 100, pot: id, cat: kind, date: A.month === todayISO().slice(0, 7) ? todayISO() : A.month + '-01', note: '', created: Date.now() };
   S.money.tx.push(t); save(); haptic(); render();
-  toast(`${kind === 'save' ? 'Versé' : 'Retiré'} ${eur2(t.amount)}`, 'Annuler', () => { S.money.tx = S.money.tx.filter(x => x.id !== t.id); save(); render(); });
+  if (kind === 'save') reward(4, { msg: [`Épargne · ${eur2(t.amount)}`, 'Tu te paies d\'abord. C\'est comme ça qu\'on construit.'] });
+  else toast(`Retiré ${eur2(t.amount)}`, 'Annuler', () => { S.money.tx = S.money.tx.filter(x => x.id !== t.id); save(); render(); });
 }
 function commitKind(kind, amount, inv) {
   if (!(amount > 0)) { toast('Entre un montant.'); return; }
   const t = { id: uid(), kind, amount: Math.round(amount * 100) / 100, cat: kind, inv, date: A.month === todayISO().slice(0, 7) ? todayISO() : A.month + '-01', note: '', created: Date.now() };
   S.money.tx.push(t); save(); haptic(); render();
-  toast(`${kind === 'debt' ? 'Remboursé' : 'Investi'} ${eur2(t.amount)}`, 'Annuler', () => { S.money.tx = S.money.tx.filter(x => x.id !== t.id); save(); render(); });
+  reward(kind === 'debt' ? 5 : 3, { big: kind === 'debt', msg: [kind === 'debt' ? `Remboursé · ${eur2(t.amount)}` : `Investi · ${eur2(t.amount)}`, kind === 'debt' ? 'Une dette en moins, un poids en moins.' : 'Ton argent travaille pour toi.'] });
 }
 function openTx(id) {
   const t = S.money.tx.find(x => x.id === id); if (!t) return;
@@ -1626,7 +1653,7 @@ function investStatus() {
 function checkUnlocks() {
   if (!S.unlocks.invest && investStatus().ok) { S.unlocks.invest = todayISO(); save(); setTimeout(() => toast('Investissement débloqué. Tes fondations sont posées.'), 400); }
   if (!S.unlocks.business && bizStatus().ok) { S.unlocks.business = todayISO(); save(); setTimeout(() => toast('Onglet Business débloqué. Bravo.'), S.unlocks.invest === todayISO() ? 4600 : 400); }
-  const bt = $('.tabbar [data-tab="business"]'); if (bt) bt.classList.toggle('locked', !S.unlocks.business);
+  checkBodyUnlocks();
 }
 const lockIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>';
 const condRow = (ok, title, p, detail) => `<div class="cond ${ok ? 'ok' : ''}">
@@ -1743,10 +1770,15 @@ function openFaithSetup() {
 }
 function toggleHabit(id) {
   const k = F.day, d = S.faith.log[k] = S.faith.log[k] || {};
+  const on = !d[id], h = S.faith.habits.find(x => x.id === id), pts = h && h.prayer ? 2 : 1;
   if (d[id]) delete d[id]; else { d[id] = true; haptic(); }
   if (!Object.keys(d).length) delete S.faith.log[k];
   save(); askPersist(); render();
-  if (dayDone(k) === S.faith.habits.length && d[id]) toast(k === todayISO() ? 'Journée complète. Qu\'Allah l\'accepte.' : 'Journée complète.');
+  const full = dayDone(k) === S.faith.habits.length;
+  if (k !== todayISO()) { if (full && on) toast('Journée complète.'); return; }
+  if (!on) { unreward(pts + (dayDone(k) === S.faith.habits.length - 1 ? 5 : 0)); return; }
+  if (full) reward(pts + 5, { big: true, msg: ['Journée de foi complète', 'Qu\'Allah l\'accepte. Les actes les plus aimés sont les plus réguliers.'] });
+  else reward(pts);
 }
 
 /* ----- Onglet Business ----- */
@@ -1785,6 +1817,697 @@ function vBusiness() {
       <button class="btn block" data-padd style="margin-top:14px">+ Nouveau projet</button>
       <p class="hint">Un projet avance d'une étape quand il a une prochaine action claire. Valide avant d'investir (mois 9 du parcours).</p></section>`;
 }
+
+/* =====================================================================
+   12 quater. CORPS — entraînement, nutrition, soin & sommeil
+   Repères (sources dans NOTES.md) :
+   - Prise de muscle propre : +0,25 à 0,5 % du poids par semaine (Iraki et al. 2019).
+   - Protéines : ~1,6 g/kg suffit à la plupart, jusqu'à 2,2 g/kg (Morton et al. 2018) → cible 1,8 g/kg, en 4 prises.
+   - Volume : ~10 séries par muscle et par semaine pour démarrer (Schoenfeld et al. 2017).
+   - Sommeil : une nuit blanche réduit la synthèse des protéines musculaires d'environ 18 % (Lamon et al. 2021).
+   - Mémoire musculaire : le muscle revient vite, tendons et articulations plus lentement → 4 semaines de reprise.
+   - Fitra : ongles, moustache, aisselles, pubis, pas plus de 40 nuits (Muslim 258).
+   ===================================================================== */
+const EX = {
+  // Maison, poids du corps
+  squat_pdc: { n: 'Squat', cue: 'Pieds largeur d\'épaules, hanches sous les genoux, dos neutre.', v: ['Squat', 'Squat tempo (3 s en descente)', 'Squat pause (2 s en bas)'] },
+  pompes: { n: 'Pompes', cue: 'Corps gainé, coudes à 45°, poitrine à 2 cm du sol.', v: ['Pompes inclinées (mains sur une table)', 'Pompes classiques', 'Pompes pieds surélevés', 'Pompes archer'] },
+  row_table: { n: 'Rowing sous une table', cue: 'Allongé sous une table solide, tire ta poitrine vers le bord, omoplates serrées.', v: ['Rowing table, genoux pliés', 'Rowing table, jambes tendues', 'Rowing table, pieds surélevés'] },
+  fentes: { n: 'Fentes arrière', cue: 'Grand pas en arrière, genou avant au-dessus de la cheville. Reps par jambe.', v: ['Fentes arrière', 'Fentes arrière tempo', 'Squat bulgare (pied sur une chaise)'] },
+  planche: { n: 'Planche', cue: 'Coudes sous les épaules, fessiers serrés, respire.', sec: true },
+  pont: { n: 'Pont fessier', cue: 'Pousse dans les talons, serre les fessiers 1 s en haut.', v: ['Pont fessier', 'Pont fessier une jambe'] },
+  pike: { n: 'Pompes piquées', cue: 'Hanches hautes en V, la tête descend entre les mains : ce sont tes épaules qui travaillent.', v: ['Pompes piquées', 'Pompes piquées pieds surélevés'] },
+  superman: { n: 'Superman en Y', cue: 'À plat ventre, bras en Y, décolle poitrine et bras, 2 s de pause.' },
+  deadbug: { n: 'Dead bug', cue: 'Dos plaqué au sol, bras et jambe opposés s\'allongent lentement.' },
+  // Salle
+  squat: { n: 'Squat barre', cue: 'Barre sur les trapèzes, gainé, descends au moins à la parallèle.', kg: true, alt: 'ou presse à cuisses' },
+  bench: { n: 'Développé couché', cue: 'Omoplates serrées, barre au bas des pectoraux, pieds ancrés.', kg: true },
+  rowb: { n: 'Rowing buste penché', cue: 'Dos plat à 45°, tire vers le nombril.', kg: true, alt: 'ou rowing à la machine' },
+  lat: { n: 'Élévations latérales', cue: 'Haltères légers, monte jusqu\'à hauteur d\'épaules.', kg: true },
+  curl: { n: 'Curl biceps', cue: 'Coudes fixes, descente contrôlée.', kg: true },
+  rdl: { n: 'Soulevé de terre roumain', cue: 'Genoux à peine fléchis, pousse les hanches en arrière, barre contre les cuisses.', kg: true },
+  ohp: { n: 'Développé militaire haltères', cue: 'Gainé, pousse au-dessus de la tête sans cambrer.', kg: true },
+  pulldown: { n: 'Tirage vertical', cue: 'Barre vers le haut de la poitrine, coudes vers les hanches.', kg: true, alt: 'ou tractions assistées' },
+  lunge: { n: 'Fentes marchées haltères', cue: 'Grands pas, buste droit. Reps par jambe.', kg: true },
+  tri: { n: 'Extension triceps à la poulie', cue: 'Coudes collés au corps, extension complète.', kg: true },
+  calf: { n: 'Mollets debout', cue: 'Amplitude complète, 1 s en haut, 1 s en bas.', kg: true },
+  incl: { n: 'Développé incliné haltères', cue: 'Banc à 30°, descends jusqu\'à l\'étirement des pectoraux.', kg: true },
+  pullup: { n: 'Tractions', cue: 'Menton au-dessus de la barre. Lest en kg, ou assistance en kg négatifs.', kg: true },
+  dips: { n: 'Dips', cue: 'Buste légèrement penché, descends jusqu\'à 90° aux coudes.', kg: true },
+  row1: { n: 'Rowing haltère un bras', cue: 'Main et genou sur le banc, tire vers la hanche.', kg: true },
+  face: { n: 'Face pull', cue: 'Corde à hauteur des yeux, tire vers le front, coudes hauts.', kg: true },
+  hammer: { n: 'Curl marteau', cue: 'Prise neutre, coudes fixes.', kg: true },
+  ohtri: { n: 'Extension triceps au-dessus de la tête', cue: 'Coudes serrés, grand étirement en bas.', kg: true },
+  press: { n: 'Presse à cuisses', cue: 'Bas du dos collé au dossier, descends profond.', kg: true },
+  legcurl: { n: 'Leg curl', cue: 'Descente contrôlée sur 2 s.', kg: true },
+  deadlift: { n: 'Soulevé de terre', cue: 'Barre contre les tibias, dos plat, pousse le sol.', kg: true },
+  bulg: { n: 'Squat bulgare haltères', cue: 'Pied arrière sur le banc, genou avant stable. Reps par jambe.', kg: true },
+  legext: { n: 'Leg extension', cue: '1 s de contraction en haut.', kg: true },
+  hipthrust: { n: 'Hip thrust', cue: 'Dos contre le banc, menton rentré, verrouille les fessiers en haut.', kg: true },
+  raises: { n: 'Relevés de jambes suspendu', cue: 'Sans élan, enroule le bassin.' }
+};
+/* Programme : [exercice, séries, reps min, reps max (ou secondes), repos en s] */
+const PROG = [
+  { id: 1, name: 'Réveil', where: 'Maison · poids du corps', perWeek: 3,
+    why: 'Tes muscles reviennent vite (mémoire musculaire), tes tendons et articulations beaucoup plus lentement. 4 semaines pour retrouver la technique et le rythme de 3 séances, sans te blesser.',
+    tpl: { A: [['squat_pdc', 3, 12, 20, 60], ['pompes', 3, 6, 15, 90], ['row_table', 3, 6, 12, 90], ['fentes', 2, 8, 12, 60], ['planche', 3, 20, 45, 45]],
+           B: [['pont', 3, 12, 20, 60], ['pike', 3, 6, 12, 90], ['row_table', 3, 6, 12, 90], ['fentes', 3, 8, 12, 60], ['superman', 2, 10, 15, 45], ['deadbug', 2, 8, 12, 45]] } },
+  { id: 2, name: 'Forge', where: 'Salle · corps entier', perWeek: 3,
+    why: 'Chaque muscle travaillé 3 fois par semaine, avec des charges qui montent dès que tu atteins le haut de la fourchette. C\'est ici que se construit l\'essentiel.',
+    tpl: { A: [['squat', 3, 6, 10, 150], ['bench', 3, 6, 10, 150], ['rowb', 3, 8, 12, 120], ['lat', 3, 12, 20, 60], ['curl', 2, 10, 15, 60], ['planche', 2, 30, 60, 45]],
+           B: [['rdl', 3, 8, 12, 150], ['ohp', 3, 8, 12, 120], ['pulldown', 3, 8, 12, 120], ['lunge', 2, 10, 12, 90], ['tri', 2, 10, 15, 60], ['calf', 3, 10, 15, 60]] } },
+  { id: 3, name: 'Sculpture', where: 'Salle · haut / bas', perWeek: 4,
+    why: 'Plus de volume par muscle, réparti sur 4 séances. Pour quand ta base est solide et que tes charges montent moins vite.',
+    tpl: { 'Haut A': [['bench', 4, 6, 10, 150], ['rowb', 4, 8, 10, 120], ['incl', 3, 8, 12, 90], ['pulldown', 3, 8, 12, 90], ['lat', 3, 12, 20, 60], ['curl', 2, 10, 15, 60], ['tri', 2, 10, 15, 60]],
+           'Bas A': [['squat', 4, 6, 10, 180], ['rdl', 3, 8, 10, 150], ['press', 3, 10, 15, 90], ['legcurl', 3, 10, 15, 60], ['calf', 3, 10, 15, 60], ['planche', 2, 30, 60, 45]],
+           'Haut B': [['ohp', 4, 6, 10, 150], ['pullup', 4, 6, 10, 150], ['dips', 3, 8, 12, 90], ['row1', 3, 8, 12, 90], ['face', 3, 12, 20, 60], ['hammer', 2, 10, 15, 60], ['ohtri', 2, 10, 15, 60]],
+           'Bas B': [['deadlift', 3, 4, 6, 180], ['bulg', 3, 8, 12, 90], ['hipthrust', 3, 8, 12, 90], ['legext', 3, 12, 15, 60], ['calf', 3, 10, 15, 60], ['raises', 3, 8, 15, 60]] } }
+];
+const UNLOCK = { 2: { from: 1, need: 12 }, 3: { from: 2, need: 36 } };
+const FOODS = [['Œufs ×3', 19], ['Poulet 150 g', 45], ['Steak haché 5 % 125 g', 26], ['Thon, 1 boîte', 28], ['Skyr 150 g', 15], ['Fromage blanc 200 g', 15], ['Lentilles cuites 200 g', 18], ['Lait 250 ml', 8],
+  ['Sardines, 1 boîte', 22], ['Poisson blanc 150 g', 30], ['Pois chiches cuits 200 g', 16], ['Flocons d\'avoine 80 g', 10], ['Whey, 1 dose', 24], ['Amandes 30 g', 6]];
+const FITRA = [['ongles', 'Ongles'], ['moustache', 'Moustache'], ['aisselles', 'Aisselles'], ['pubis', 'Poils intimes']];
+const FITRA_MAX = 40;
+const C = { view: 'entrainement', edit: false, allFoods: false };
+try { const v = localStorage.getItem('sdp-corps-view'); if (['entrainement', 'nutrition', 'soin'].includes(v)) C.view = v; } catch (e) {}
+function setCView(v) { C.view = v; try { localStorage.setItem('sdp-corps-view', v); } catch (e) {} }
+
+function defaultBody() {
+  return {
+    phase: 1, gym: false, unlocks: {}, sessions: [], active: null, level: {},
+    profile: { weight: '', height: '', age: '24', fast: false, adj: 0, adjAt: '' },
+    food: {}, fcount: {}, weights: [], sleep: {}, wake: '04:30',
+    care: { list: [{ id: 'dents-m', name: 'Dents le matin' }, { id: 'dents-s', name: 'Dents le soir + fil dentaire' }, { id: 'douche', name: 'Douche' }, { id: 'visage', name: 'Visage : nettoyant + crème' }], log: {} },
+    fitra: {}, ghusl: {}
+  };
+}
+function normalizeBody(sb) {
+  const d = defaultBody(); sb = sb && typeof sb === 'object' ? sb : {};
+  const b = Object.assign(d, sb);
+  b.profile = Object.assign(defaultBody().profile, sb.profile || {});
+  b.care = { list: sb.care && Array.isArray(sb.care.list) && sb.care.list.length ? sb.care.list : d.care.list, log: sb.care && sb.care.log && typeof sb.care.log === 'object' ? sb.care.log : {} };
+  ['unlocks', 'level', 'food', 'fcount', 'sleep', 'fitra', 'ghusl'].forEach(k => { if (!b[k] || typeof b[k] !== 'object' || Array.isArray(b[k])) b[k] = {}; });
+  ['sessions', 'weights'].forEach(k => { if (!Array.isArray(b[k])) b[k] = []; });
+  if (![1, 2, 3].includes(b.phase)) b.phase = 1;
+  return b;
+}
+
+/* ----- Calculs ----- */
+const phaseOf = id => PROG.find(p => p.id === id) || PROG[0];
+const kgTxt = w => `${String(Math.round(w * 100) / 100).replace('.', ',')} kg`;
+const unitOf = id => EX[id].sec ? 's' : 'reps';
+const exName = id => { const e = EX[id]; return e.v ? e.v[Math.min(S.body.level[id] || 0, e.v.length - 1)] : e.n; };
+const fmtClock = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${Math.floor(m / 60)} h ${pad(m % 60)}`; };
+const fmtDur = m => `${Math.floor(m / 60)} h${m % 60 ? ' ' + pad(m % 60) : ''}`;
+function weekSessions(d = new Date()) { const a = iso(mondayOf(d)), b = iso(addDays(mondayOf(d), 6)); return S.body.sessions.filter(s => s.date >= a && s.date <= b); }
+const phaseCount = id => S.body.sessions.filter(s => s.phase === id).length;
+function nextTpl(ph) { const keys = Object.keys(ph.tpl), last = S.body.sessions.filter(s => s.phase === ph.id).slice(-1)[0]; return last ? keys[(keys.indexOf(last.tpl) + 1) % keys.length] : keys[0]; }
+function phaseStatus(id) {
+  if (id === 1 || S.body.unlocks[id]) return { open: true, p: 1 };
+  const u = UNLOCK[id], n = phaseCount(u.from);
+  return { open: false, n, need: u.need, gymOk: id !== 2 || S.body.gym, p: Math.min(1, n / u.need) };
+}
+function checkBodyUnlocks() {
+  [2, 3].forEach(id => {
+    if (S.body.unlocks[id]) return;
+    const u = UNLOCK[id];
+    if (phaseCount(u.from) >= u.need && (id !== 2 || S.body.gym)) { S.body.unlocks[id] = todayISO(); save(); setTimeout(() => toast(`Étape ${phaseOf(id).name} débloquée. Choisis-la sur ta piste.`), 600); }
+  });
+}
+const isFastDay = (k = todayISO()) => !!S.body.profile.fast && [1, 4].includes(parseDate(k).getDay());
+/* Dernière perf sur cet exercice (même variante) */
+function lastPerf(id) {
+  const lvl = S.body.level[id] || 0;
+  for (let i = S.body.sessions.length - 1; i >= 0; i--) {
+    const s = S.body.sessions[i];
+    if (s.sets[id] && s.sets[id].length && (!EX[id].v || ((s.v || {})[id] || 0) === lvl)) return s.sets[id];
+  }
+  return null;
+}
+/* Double progression : on monte la charge quand toutes les séries atteignent le haut de la fourchette */
+function suggest(id, sets, lo, hi) {
+  const e = EX[id], u = e.sec ? ' s' : '', lp = lastPerf(id);
+  if (!lp) return { r: lo, w: '', txt: e.kg ? 'Première fois : prends une charge avec laquelle tu t\'arrêtes à 2 reps de l\'échec.' : `Vise ${lo} à ${hi}${u || ' reps'} par série, en gardant 1 ou 2 reps en réserve.` };
+  const w = e.kg ? Math.max(...lp.map(x => numv(x.w))) : '';
+  const perf = `Dernière fois : ${lp.map(x => x.r).join(' · ')}${u}${e.kg && w ? ` à ${kgTxt(w)}` : ''}.`;
+  if (lp.length >= sets && lp.every(x => x.r >= hi)) {
+    if (e.kg) return { r: lo, w: w + 2.5, up: true, txt: `${perf} Haut de fourchette partout : monte à ${kgTxt(w + 2.5)} et repars à ${lo}.` };
+    if (e.v && (S.body.level[id] || 0) < e.v.length - 1) return { r: hi, w: '', up: true, txt: `${perf} Haut de fourchette partout : passe à la variante plus dure avec ›.` };
+    return { r: hi, w: '', txt: `${perf} Au plafond : ralentis la descente (3 s) pour garder l'effort.` };
+  }
+  return { r: Math.min(hi, lp[0].r), w, txt: `${perf} Bats au moins une série.` };
+}
+function estMinutes(tpl) { return Math.round(5 + tpl.reduce((m, [, s, , , rest]) => m + s * (45 + rest) / 60, 0)); }
+
+/* Nutrition : Mifflin-St Jeor × 1,55 (deux emplois debout + 3 séances) + 300 kcal */
+function sortedWeights() { return S.body.weights.slice().sort((a, b) => (a.date < b.date ? -1 : 1)); }
+function bodyWeight() { const ws = sortedWeights(); return ws.length ? numv(ws[ws.length - 1].kg) : numv(S.body.profile.weight); }
+function bodyTargets() {
+  const pr = S.body.profile, w = bodyWeight(), h = numv(pr.height), a = numv(pr.age) || 24;
+  if (!w || !h) return null;
+  const bmr = 10 * w + 6.25 * h - 5 * a + 5, tdee = bmr * 1.55;
+  return { w, kcal: Math.round((tdee + 300 + numv(pr.adj)) / 50) * 50, maint: Math.round(tdee / 50) * 50, prot: Math.round(w * 1.8 / 5) * 5, lo: w * 0.0025, hi: w * 0.005, water: Math.max(8, Math.round(w * 35 / 250)) };
+}
+const foodDay = (k = todayISO()) => S.body.food[k] || { p: 0, water: 0, log: [] };
+function weightVerdict(t) {
+  const ws = sortedWeights(); if (ws.length < 2) return null;
+  const last = ws[ws.length - 1], from = iso(addDays(parseDate(last.date), -28)), pts = ws.filter(w => w.date >= from);
+  if (pts.length < 2) return null;
+  const xs = pts.map(p => (parseDate(p.date) - parseDate(pts[0].date)) / 864e5), ys = pts.map(p => numv(p.kg));
+  if (xs[xs.length - 1] < 10) return { wait: true };
+  const mx = xs.reduce((a, b) => a + b) / xs.length, my = ys.reduce((a, b) => a + b) / ys.length;
+  let num = 0, den = 0; xs.forEach((x, i) => { num += (x - mx) * (ys[i] - my); den += (x - mx) ** 2; });
+  const rate = den ? num / den * 7 : 0;
+  return { rate, st: rate < t.lo ? 'slow' : rate > t.hi ? 'fast' : 'ok' };
+}
+
+/* ----- En-tête Corps ----- */
+function corpsTop(view) {
+  return `${pageHead('Corps', 'Un esprit sain dans un corps sain.', { entrainement: 'corps', nutrition: 'nutri', soin: 'soin' }[view])}
+  <div class="seg seg3" role="group" aria-label="Section" style="margin-top:20px">
+    <button data-cview="entrainement" aria-pressed="${view === 'entrainement'}">Entraînement</button>
+    <button data-cview="nutrition" aria-pressed="${view === 'nutrition'}">Nutrition</button>
+    <button data-cview="soin" aria-pressed="${view === 'soin'}">Soin</button>
+  </div>`;
+}
+
+/* ----- Entraînement ----- */
+function phaseTrack() {
+  const xs = [34, 165, 296], cur = S.body.phase;
+  const st = PROG.map(p => phaseStatus(p.id));
+  const segs = [0, 1].map(i => {
+    const p = st[i + 1].p, x0 = xs[i] + 26, x1 = xs[i + 1] - 26;
+    return `<line x1="${x0}" y1="36" x2="${x1}" y2="36" stroke="var(--line)" stroke-width="4" stroke-linecap="round"/>
+      <line x1="${x0}" y1="36" x2="${(x0 + (x1 - x0) * p).toFixed(1)}" y2="36" stroke="var(--gold)" stroke-width="4" stroke-linecap="round"/>`;
+  }).join('');
+  const nodes = PROG.map((p, i) => {
+    const s = st[i], on = p.id === cur;
+    return `<g class="pnode" data-phase="${p.id}" transform="translate(${xs[i]} 36)" role="button" tabindex="0" aria-label="Étape ${p.id}, ${p.name}${s.open ? '' : ', verrouillée'}${on ? ', en cours' : ''}">
+      <circle r="34" fill="transparent"/>
+      ${on ? '<circle r="31" fill="var(--glow)"/>' : ''}
+      <circle class="pb" r="24" fill="${on ? 'var(--gold)' : 'var(--surface)'}" stroke="${s.open ? 'var(--gold)' : 'var(--orbit)'}" stroke-width="2"/>
+      ${s.open ? `<text y="1" text-anchor="middle" dominant-baseline="central" style="font:400 22px var(--serif);fill:${on ? 'var(--gold-ink)' : 'var(--gold)'}">${p.id}</text>`
+        : `<svg x="-9" y="-9" width="18" height="18" viewBox="0 0 24 24" style="color:var(--muted)">${GLYPH.lock}</svg>`}
+      <text y="46" text-anchor="middle" style="font-size:12px;font-weight:700;fill:${on ? 'var(--gold)' : 'var(--ink-2)'}">${p.name}</text>
+      <text y="61" text-anchor="middle" style="font-size:9.5px;fill:var(--muted)">${p.where.split(' · ')[0]}</text></g>`;
+  }).join('');
+  return `<div class="ptrack"><svg viewBox="0 0 330 104" aria-label="Tes 3 étapes">${segs}${nodes}</svg></div>`;
+}
+function unlockBlock(ph) {
+  const nxt = PROG.find(p => p.id === ph.id + 1); if (!nxt) return '';
+  const s = phaseStatus(nxt.id);
+  if (s.open) return S.body.phase === ph.id ? `<div class="alert" style="background:var(--mint-soft);color:var(--mint)">${ICON.tick.replace('<svg', '<svg style="stroke:currentColor;stroke-width:2.5;fill:none"')}<span>L'étape ${nxt.name} est ouverte. Touche-la sur la piste quand tu es prêt.</span></div>` : '';
+  let h = `<p class="eyebrow" style="margin-top:18px">Pour ouvrir ${nxt.name}</p>`;
+  h += condRow(s.n >= s.need, `${s.need} séances de ${ph.name}`, s.n / s.need, s.n >= s.need ? 'Fait.' : `${s.n} sur ${s.need} · encore ${s.need - s.n}`);
+  if (nxt.id === 2) h += `<label class="cell tap gymrow"><span class="lbl">Je suis inscrit à la salle</span><span class="switch"><input type="checkbox" id="gymSw" ${S.body.gym ? 'checked' : ''}><span></span></span></label>
+    <p class="hint">La salle se mérite : 12 séances à la maison d'abord. Tu ne paies l'abonnement qu'une fois l'habitude installée.</p>`;
+  return h;
+}
+function spark(vals, w = 84, h = 26) {
+  if (vals.length < 2) return '';
+  const mn = Math.min(...vals), mx = Math.max(...vals), rg = mx - mn || 1;
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * (w - 6) + 3).toFixed(1)},${(h - 3 - (v - mn) / rg * (h - 6)).toFixed(1)}`);
+  const [lx, ly] = pts[pts.length - 1].split(',');
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true"><polyline points="${pts.join(' ')}" fill="none" stroke="var(--gold)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${lx}" cy="${ly}" r="2.6" fill="var(--gold)"/></svg>`;
+}
+function progressRows(ph) {
+  const ids = [...new Set(Object.values(ph.tpl).flat().map(x => x[0]))];
+  const rows = ids.map(id => {
+    const e = EX[id], lvl = S.body.level[id] || 0;
+    const vals = S.body.sessions.filter(s => s.sets[id] && (!e.v || ((s.v || {})[id] || 0) === lvl))
+      .map(s => e.kg ? Math.max(...s.sets[id].map(x => numv(x.w))) : Math.max(...s.sets[id].map(x => x.r))).slice(-10);
+    if (!vals.length) return '';
+    const last = vals[vals.length - 1];
+    return `<div class="prog-row"><span class="grow">${esc(exName(id))}</span><b class="num">${e.kg ? kgTxt(last) : `${last} ${e.sec ? 's' : 'reps'}`}</b>${spark(vals) || '<span></span>'}</div>`;
+  }).join('');
+  return rows ? `<section><h2>Tes progrès</h2><p class="small muted" style="margin:-8px 0 8px">${ph.id === 1 ? 'Meilleure série de chaque exercice, séance après séance.' : 'Charge de travail, séance après séance.'}</p>${rows}</section>` : '';
+}
+function vTraining() {
+  if (S.body.active) return vSession();
+  const ph = phaseOf(S.body.phase), wk = weekSessions(), n = wk.length, per = ph.perWeek;
+  const key = nextTpl(ph), tpl = ph.tpl[key], mon = mondayOf(new Date()), today = todayISO();
+  const days = ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((l, i) => {
+    const k = iso(addDays(mon, i)), did = wk.some(s => s.date === k);
+    return `<span class="${did ? 'on' : ''} ${k === today ? 'today' : ''} ${isFastDay(k) ? 'fast' : ''}"><i>${did ? ICON.tick : ''}</i>${l}</span>`;
+  }).join('');
+  const recent = S.body.sessions.slice(-3).reverse();
+  return `${corpsTop('entrainement')}
+  <figure class="hadith"><p class="ar" lang="ar" dir="rtl">الْمُؤْمِنُ الْقَوِيُّ خَيْرٌ وَأَحَبُّ إِلَى اللَّهِ مِنَ الْمُؤْمِنِ الضَّعِيفِ</p>
+    <figcaption>« Le croyant fort est meilleur et plus aimé d'Allah que le croyant faible, et en chacun il y a du bien. » Muslim</figcaption></figure>
+  ${phaseTrack()}
+  <div class="phase-card"><p class="eyebrow">Étape ${ph.id} · ${ph.where} · ${per} séances / semaine</p><h3>${ph.name}</h3><p class="small" style="color:var(--ink-2);margin:0">${ph.why}</p>${unlockBlock(ph)}</div>
+  <section>
+    <div class="row between" style="align-items:flex-end"><h2 style="margin:0">Cette semaine</h2><p class="num" style="font:400 2.25rem/1 var(--serif);margin:0;color:var(--${n >= per ? 'mint' : 'gold'})">${n}<span style="font-size:1.1rem;color:var(--muted)">/${per}</span></p></div>
+    <div class="wk">${days}</div>
+    ${S.body.profile.fast ? '<p class="hint"><span class="fdot"></span> jours de jeûne (lundi, jeudi) : repos, ou séance légère après l\'iftar.</p>' : ''}
+    ${isFastDay() ? `<div class="alert">${ICON.warn}<span>Jour de jeûne. Mieux vaut te reposer, ou t'entraîner après l'iftar, une fois hydraté et nourri.</span></div>` : ''}
+    <div class="next-card">
+      <p class="eyebrow">${n >= per ? 'Objectif de la semaine atteint' : 'Prochaine séance'}</p>
+      <h3>Séance ${key}</h3>
+      <p class="small muted" style="margin:0">≈ ${estMinutes(tpl)} min · ${tpl.length} exercices · échauffement compris</p>
+      <ul class="ex-prev">${tpl.map(([id, s, lo, hi]) => `<li><span>${esc(exName(id))}</span><b>${s} × ${lo}–${hi}${EX[id].sec ? ' s' : ''}</b></li>`).join('')}</ul>
+      <button class="btn block" data-cstart>Commencer la séance</button>
+      ${n >= per ? '<p class="hint">Le muscle grandit pendant le repos. Une séance de plus reste possible si tu es frais.</p>' : ''}
+    </div>
+  </section>
+  ${progressRows(ph)}
+  ${recent.length ? `<section><h2>Dernières séances</h2>${recent.map(s => `<div class="prog-row"><span class="grow">${DAY_LONG.format(parseDate(s.date))}</span><b>${esc(phaseOf(s.phase).name)} · ${esc(s.tpl)}</b><span class="small muted" style="text-align:right">${s.min || '—'} min</span></div>`).join('')}</section>` : ''}`;
+}
+function sessLine() {
+  const a = S.body.active, ph = phaseOf(a.phase), tpl = ph.tpl[a.tpl] || [];
+  const tot = tpl.reduce((m, x) => m + x[1], 0), dn = Object.values(a.sets).reduce((m, arr) => m + (arr || []).filter(Boolean).length, 0);
+  return `${Math.max(0, Math.round((Date.now() - a.start) / 60000))} min · ${dn}/${tot} séries`;
+}
+function vSession() {
+  const a = S.body.active, ph = phaseOf(a.phase), tpl = ph.tpl[a.tpl] || [];
+  const cards = tpl.map(([id, sets, lo, hi, rest], ei) => {
+    const e = EX[id], lvl = S.body.level[id] || 0, sg = suggest(id, sets, lo, hi), done = a.sets[id] || [];
+    let prevW = sg.w;
+    const rows = Array.from({ length: sets }, (_, i) => {
+      const d = done[i]; if (d && e.kg) prevW = d.w;
+      const wv = d ? d.w : prevW;
+      return `<div class="set-row ${e.kg ? '' : 'bw'} ${d ? 'done' : ''}"><span class="set-n">${i + 1}</span>
+        <label class="set-f"><input inputmode="numeric" id="r-${id}-${i}" value="${d ? d.r : ''}" placeholder="${sg.r}" aria-label="Série ${i + 1}, ${e.sec ? 'secondes' : 'répétitions'}" ${d ? 'disabled' : ''}><span>${e.sec ? 's' : 'reps'}</span></label>
+        ${e.kg ? `<label class="set-f"><input inputmode="decimal" id="w-${id}-${i}" value="${wv === '' || wv == null ? '' : String(wv).replace('.', ',')}" placeholder="—" aria-label="Série ${i + 1}, charge" ${d ? 'disabled' : ''}><span>kg</span></label>` : ''}
+        <button class="set-ok" data-set="${id}.${i}" aria-pressed="${!!d}" aria-label="Série ${i + 1} ${d ? 'faite, toucher pour annuler' : 'faite'}">${ICON.tick}</button></div>`;
+    }).join('');
+    const nDone = done.filter(Boolean).length;
+    return `<article class="ex-card ${nDone >= sets ? 'complete' : ''}">
+      <div class="row between" style="align-items:flex-start"><div class="grow"><p class="eyebrow">${ei + 1}/${tpl.length} · ${sets} × ${lo}–${hi} ${e.sec ? 's' : 'reps'} · repos ${rest >= 60 ? `${Math.floor(rest / 60)} min${rest % 60 ? ' ' + rest % 60 : ''}` : rest + ' s'}</p><h3 class="ex-name">${esc(exName(id))}</h3></div>
+      ${e.v ? `<div class="lvl"><button data-lvl="${id}.-1" aria-label="Variante plus facile" ${lvl === 0 ? 'disabled' : ''}>‹</button><button data-lvl="${id}.1" aria-label="Variante plus dure" ${lvl >= e.v.length - 1 ? 'disabled' : ''}>›</button></div>` : ''}</div>
+      <p class="small muted" style="margin:0">${e.cue}${e.alt ? ` <i>(${e.alt})</i>` : ''}</p>
+      <p class="sugg ${sg.up ? 'up' : ''}">${sg.txt}</p>
+      ${rows}</article>`;
+  }).join('');
+  return `<header class="top"><div><p class="eyebrow">${ph.name} · séance en cours</p><h1>Séance <em>${esc(a.tpl)}</em></h1><p id="sessEl" class="num">${sessLine()}</p></div></header>
+  <details class="warm"><summary>Échauffement · 5 min</summary><p>30 s de jumping jacks, 10 rotations d'épaules, 10 squats lents, 10 pompes faciles. Puis, pour le premier exercice, 1 ou 2 séries légères.</p></details>
+  ${cards}
+  <button class="btn block" data-cfinish style="margin-top:22px">Terminer la séance</button>
+  <button class="btn block quiet" data-cabort style="margin-top:10px">Abandonner</button>
+  <p class="hint">Touche ✓ quand une série est faite : si tu n'as rien tapé, le chiffre grisé est retenu et le repos se lance. Tes notes sont gardées même si tu quittes l'app.</p>`;
+}
+function startSession() {
+  const ph = phaseOf(S.body.phase);
+  S.body.active = { phase: ph.id, tpl: nextTpl(ph), start: Date.now(), sets: {}, v: {} };
+  save(); audioUnlock(); render(true); window.scrollTo(0, 0);
+}
+function doSet(id, i) {
+  const a = S.body.active; if (!a) return;
+  const arr = a.sets[id] = a.sets[id] || [];
+  if (arr[i]) { arr[i] = null; while (arr.length && !arr[arr.length - 1]) arr.pop(); save(); render(); return; }
+  const rIn = $(`#r-${id}-${i}`), wIn = $(`#w-${id}-${i}`);
+  const r = parseInt((rIn.value || rIn.placeholder || '').replace(/\D/g, ''), 10) || 0;
+  if (!r) { toast('Indique ce que tu as fait.'); rIn.focus(); return; }
+  const w = wIn ? numv((wIn.value || '').replace(/\s/g, '').replace(',', '.')) : '';
+  arr[i] = { r, w }; a.v[id] = S.body.level[id] || 0;
+  audioUnlock(); save(); reward(1);
+  const tplRow = (phaseOf(a.phase).tpl[a.tpl] || []).find(x => x[0] === id);
+  const sy = window.scrollY; render(); window.scrollTo(0, sy);
+  const allDone = (phaseOf(a.phase).tpl[a.tpl] || []).every(([x, s]) => (a.sets[x] || []).filter(Boolean).length >= s);
+  if (allDone) { stopRest(); toast('Tout est fait. Termine ta séance.'); } else if (tplRow) startRest(tplRow[4]);
+}
+function finishSession() {
+  const a = S.body.active; if (!a) return;
+  const sets = {}; let n = 0;
+  Object.keys(a.sets).forEach(id => { const arr = (a.sets[id] || []).filter(Boolean); if (arr.length) { sets[id] = arr; n += arr.length; } });
+  stopRest();
+  if (!n) { S.body.active = null; save(); render(); toast('Séance fermée : aucune série notée.'); return; }
+  S.body.sessions.push({ id: uid(), date: iso(new Date(a.start)), phase: a.phase, tpl: a.tpl, sets, v: a.v || {}, min: Math.max(1, Math.round((Date.now() - a.start) / 60000)) });
+  S.body.active = null; save(); askPersist(); checkUnlocks(); render(true); window.scrollTo(0, 0);
+  const per = phaseOf(S.body.phase).perWeek, w = weekSessions().length;
+  reward(8, { big: true, msg: [w >= per ? `Semaine bouclée · ${w}/${per}` : `Séance enregistrée · ${w}/${per}`, 'Le croyant fort est meilleur et plus aimé d\'Allah que le croyant faible.', 'Muslim'] });
+}
+
+/* Minuteur de repos (hors de #app pour survivre aux rendus) */
+const RT = { end: 0, total: 0, iv: 0, hide: 0 };
+let actx = null;
+function audioUnlock() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) {} }
+function beep() {
+  const c = actx; if (!c) return;
+  try { [0, .24].forEach(t => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = 880; g.gain.setValueAtTime(.0001, c.currentTime + t); g.gain.exponentialRampToValueAtTime(.3, c.currentTime + t + .02); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + t + .2); o.connect(g).connect(c.destination); o.start(c.currentTime + t); o.stop(c.currentTime + t + .22); }); } catch (e) {}
+}
+function restEl() {
+  let el = $('#rest');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'rest'; el.className = 'rest'; el.setAttribute('role', 'timer'); el.setAttribute('aria-live', 'off');
+    el.innerHTML = `<svg viewBox="-22 -22 44 44" aria-hidden="true"><circle r="18" class="trk"/><circle r="18" class="prg" transform="rotate(-90)"/></svg><span class="rl"><small>Repos</small><b class="num"></b></span><button data-rest="15">+15 s</button><button data-rest="0">Passer</button>`;
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function startRest(sec) {
+  const el = restEl(); clearTimeout(RT.hide); clearInterval(RT.iv);
+  RT.total = sec; RT.end = Date.now() + sec * 1000; el.classList.remove('end'); el.classList.add('on');
+  const c = 2 * Math.PI * 18, prg = $('.prg', el); prg.style.strokeDasharray = c.toFixed(1);
+  const tick = () => {
+    const left = Math.max(0, RT.end - Date.now()), s = Math.ceil(left / 1000);
+    $('b', el).textContent = `${Math.floor(s / 60)}:${pad(s % 60)}`; $('small', el).textContent = 'Repos';
+    prg.style.strokeDashoffset = (c * (1 - left / (RT.total * 1000))).toFixed(1);
+    if (left <= 0) {
+      clearInterval(RT.iv); RT.iv = 0; el.classList.add('end'); $('small', el).textContent = 'À toi'; $('b', el).textContent = 'Go';
+      beep(); try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {}
+      RT.hide = setTimeout(() => el.classList.remove('on'), 3500);
+    }
+  };
+  tick(); RT.iv = setInterval(tick, 250);
+}
+function stopRest() { clearInterval(RT.iv); RT.iv = 0; clearTimeout(RT.hide); const el = $('#rest'); if (el) el.classList.remove('on'); }
+
+/* ----- Nutrition ----- */
+function calibForm() {
+  const pr = S.body.profile;
+  return `<section style="margin-top:26px"><h2>${C.edit ? 'Mon profil' : 'Ton carburant'}</h2>
+    ${C.edit ? '' : '<p class="small muted" style="margin:-6px 0 14px">Trois chiffres et l\'app calcule tes calories, tes protéines et ton rythme de prise de poids.</p>'}
+    <div class="group">
+      <div class="cell"><label for="cbW">Poids</label><input id="cbW" class="r" inputmode="decimal" value="${esc(bodyWeight() || '')}" placeholder="70"><span class="unit">kg</span></div>
+      <div class="cell"><label for="cbH">Taille</label><input id="cbH" class="r" inputmode="numeric" value="${esc(pr.height)}" placeholder="178"><span class="unit">cm</span></div>
+      <div class="cell"><label for="cbA">Âge</label><input id="cbA" class="r" inputmode="numeric" value="${esc(pr.age)}"><span class="unit">ans</span></div>
+      <label class="cell tap"><span class="lbl">Je jeûne le lundi et le jeudi</span><span class="switch"><input type="checkbox" id="cbF" ${pr.fast ? 'checked' : ''}><span></span></span></label>
+    </div>
+    <button class="btn block" data-cbody style="margin-top:14px">${C.edit ? 'Enregistrer' : 'Calculer'}</button>
+    ${C.edit ? '<button class="btn block quiet" data-cbodyx style="margin-top:10px">Annuler</button>' : ''}</section>`;
+}
+function weightChart(t) {
+  const ws = sortedWeights().slice(-16); if (!ws.length) return '';
+  const d0 = parseDate(ws[0].date), w0 = numv(ws[0].kg);
+  const dx = w => (parseDate(w.date) - d0) / 864e5, lastX = Math.max(14, dx(ws[ws.length - 1]) + 7);
+  const band = x => [w0 + t.lo * x / 7, w0 + t.hi * x / 7];
+  const ys = ws.map(w => numv(w.kg)).concat([w0, band(lastX)[1]]);
+  const mn = Math.floor(Math.min(...ys) - .5), mx = Math.ceil(Math.max(...ys) + .5);
+  const W = 320, H = 150, L = 34, R = 8, T = 10, B = 24;
+  const X = x => L + x / lastX * (W - L - R), Y = v => T + (mx - v) / (mx - mn) * (H - T - B);
+  const poly = `${X(0)},${Y(band(0)[1])} ${X(lastX)},${Y(band(lastX)[1])} ${X(lastX)},${Y(band(lastX)[0])} ${X(0)},${Y(band(0)[0])}`;
+  const pts = ws.map(w => `${X(dx(w)).toFixed(1)},${Y(numv(w.kg)).toFixed(1)}`);
+  return `<div class="wchart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Courbe de poids">
+    <polygon points="${poly}" fill="var(--gold-soft)" opacity=".9"/>
+    <text x="${W - R}" y="${Y(band(lastX)[1]) - 4}" text-anchor="end" style="font-size:9px;font-weight:700;letter-spacing:.08em;fill:var(--gold)">COULOIR</text>
+    <line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" stroke="var(--line)"/>
+    <text x="${L - 6}" y="${Y(mx) + 4}" text-anchor="end" style="font-size:10px;fill:var(--muted)">${mx}</text>
+    <text x="${L - 6}" y="${Y(mn) + 4}" text-anchor="end" style="font-size:10px;fill:var(--muted)">${mn}</text>
+    <text x="${L}" y="${H - 8}" style="font-size:10px;fill:var(--muted)">${DAY_MONTH.format(d0)}</text>
+    <text x="${X(dx(ws[ws.length - 1]))}" y="${H - 8}" text-anchor="middle" style="font-size:10px;fill:var(--muted)">${DAY_MONTH.format(parseDate(ws[ws.length - 1].date))}</text>
+    ${pts.length > 1 ? `<polyline points="${pts.join(' ')}" fill="none" stroke="var(--gold)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+    ${pts.map((p, i) => { const [x, y] = p.split(','); return `<circle cx="${x}" cy="${y}" r="${i === pts.length - 1 ? 4.5 : 3}" fill="${i === pts.length - 1 ? 'var(--gold)' : 'var(--surface)'}" stroke="var(--gold)" stroke-width="2"/>`; }).join('')}
+  </svg></div>`;
+}
+function vNutrition() {
+  const t = bodyTargets();
+  if (!t || C.edit) return `${corpsTop('nutrition')}${calibForm()}`;
+  const day = foodDay(), p = day.p, pr = S.body.profile, R = 100, circ = 2 * Math.PI * R, full = p >= t.prot;
+  const ticks = [1, 2, 3].map(q => { const [x0, y0] = polar(R - 13, q * 90), [x1, y1] = polar(R + 13, q * 90); return `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="var(--bg)" stroke-width="3"/>`; }).join('');
+  const order = FOODS.map((f, i) => [f, i]).sort((a, b) => (S.body.fcount[b[0][0]] || 0) - (S.body.fcount[a[0][0]] || 0) || a[1] - b[1]).map(x => x[0]);
+  const shown = C.allFoods ? order : order.slice(0, 8);
+  const drops = Array.from({ length: t.water }, (_, i) => `<button class="drop ${i < day.water ? 'on' : ''}" data-water="${i + 1}" aria-label="${i + 1} verre${i ? 's' : ''}"><svg viewBox="0 0 24 28" aria-hidden="true"><path d="M12 2C8 8 4.5 12.5 4.5 17.5a7.5 7.5 0 0 0 15 0C19.5 12.5 16 8 12 2z"/></svg></button>`).join('');
+  const v = weightVerdict(t), canAdj = !pr.adjAt || (parseDate(todayISO()) - parseDate(pr.adjAt)) / 864e5 >= 14;
+  let verdict = '<p class="hint">Pèse-toi une fois par semaine, le même jour, le matin à jeun. Il faut 2 pesées à 10 jours d\'écart pour juger ton rythme.</p>';
+  if (v && v.wait) verdict = '<p class="hint">Encore quelques jours : l\'app juge ton rythme sur au moins 10 jours de pesées.</p>';
+  else if (v) {
+    const r = `${v.rate >= 0 ? '+' : '−'}${String(Math.abs(Math.round(v.rate * 100) / 100)).replace('.', ',')} kg / semaine`;
+    if (v.st === 'ok') verdict = `<div class="alert" style="background:var(--mint-soft);color:var(--mint)">${ICON.info}<span><b>${r}</b> : pile dans le couloir. Ne change rien.</span></div>`;
+    else verdict = `<div class="alert">${ICON.warn}<span><b>${r}</b> : ${v.st === 'slow' ? 'trop lent pour construire. Ajoute environ 150 kcal par jour, par exemple une banane et une poignée d\'amandes.' : 'trop rapide, tu risques de stocker surtout du gras. Retire environ 150 kcal par jour, par exemple un peu de féculents au dîner.'}</span></div>
+      ${canAdj ? `<button class="btn sm ghost" data-kadj="${v.st === 'slow' ? 150 : -150}" style="margin-top:10px">Appliquer ${v.st === 'slow' ? '+' : '−'}150 kcal à ma cible</button>` : '<p class="hint">Ajustement récent : laisse 2 semaines avant de juger à nouveau.</p>'}`;
+  }
+  const lastW = sortedWeights().slice(-1)[0];
+  return `${corpsTop('nutrition')}
+  ${isFastDay() ? `<div class="alert" style="background:var(--mint-soft);color:var(--mint)">${ICON.info}<span><b>Jour de jeûne.</b> Protéines en 3 temps : au suhoor (œufs, skyr, flocons ≈ 45 g), à l'iftar après les dattes et l'eau (un vrai repas ≈ 50 g), puis avant de dormir (fromage blanc).</span></div>` : ''}
+  <div class="fuel">
+    <svg viewBox="-130 -130 260 260" aria-hidden="true">
+      <circle r="${R}" fill="none" stroke="var(--raise)" stroke-width="18"/>
+      <circle r="${R}" fill="none" stroke="var(--${full ? 'mint' : 'gold'})" stroke-width="18" stroke-linecap="round" transform="rotate(-90)" ${ringDash(R, p / t.prot)} style="transition:stroke-dashoffset .7s var(--ease)"/>
+      ${ticks}
+    </svg>
+    <div class="fuel-c"><div><b class="num" style="color:var(--${full ? 'mint' : 'ink'})">${p}</b><span>sur ${t.prot} g de protéines</span><br><span>4 prises de ${Math.round(t.prot / 4 / 5) * 5} g environ</span></div></div>
+  </div>
+  <div class="foods">${shown.map(([n, g]) => `<button class="food" data-food="${esc(n)}"><span>${esc(n)}</span><b>+${g}</b></button>`).join('')}</div>
+  <div class="row" style="margin-top:10px;gap:8px">
+    <button class="btn sm quiet" data-fall style="flex:1">${C.allFoods ? 'Moins' : 'Tout voir'}</button>
+    <input id="fCustom" inputmode="numeric" class="famt num" placeholder="+ g" aria-label="Protéines en grammes" style="width:84px;text-align:center">
+    <button class="btn sm" data-fcustom>Ajouter</button>
+  </div>
+  ${day.log.length ? `<div class="flog">${day.log.map((l, i) => `<button data-fdel="${i}" aria-label="Retirer ${esc(l[0])}">${esc(l[0])} · ${l[1]} g <span aria-hidden="true">×</span></button>`).join('')}</div>` : ''}
+  <section>
+    <div class="row between" style="align-items:flex-end"><h2 style="margin:0">Eau</h2><p class="small muted" style="margin:0">${day.water} / ${t.water} verres · ${String(t.water * .25).replace('.', ',')} L</p></div>
+    <div class="drops">${drops}</div>
+    <p class="hint">Un verre de plus par heure d'entraînement. À la gare, garde une gourde avec toi.</p>
+  </section>
+  <section>
+    <div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Ta cible</h2><button class="link-btn" data-cedit>Profil</button></div>
+    <div class="kpis">
+      <div class="kpi"><b class="num">${t.kcal.toLocaleString('fr-FR')}</b><span>kcal par jour${numv(pr.adj) ? ` (ajusté ${numv(pr.adj) > 0 ? '+' : ''}${pr.adj})` : ''}</span></div>
+      <div class="kpi"><b class="num">${t.prot} g</b><span>protéines (1,8 g/kg)</span></div>
+      <div class="kpi"><b class="num">${t.maint.toLocaleString('fr-FR')}</b><span>kcal pour maintenir ton poids</span></div>
+      <div class="kpi"><b class="num">+${String(Math.round(t.lo * 4.3 * 10) / 10).replace('.', ',')} à ${String(Math.round(t.hi * 4.3 * 10) / 10).replace('.', ',')}</b><span>kg par mois visés</span></div>
+    </div>
+    <p class="hint">Les calories sont une estimation de départ. C'est la balance qui dit la vérité : l'app ajuste à partir de tes pesées.</p>
+  </section>
+  <section>
+    <h2>Pesée</h2>
+    ${weightChart(t)}
+    <div class="row" style="margin-top:12px;gap:8px"><input id="wIn" inputmode="decimal" class="famt num" placeholder="${lastW ? String(lastW.kg).replace('.', ',') : 'kg'}" aria-label="Poids du jour en kg" style="flex:1;text-align:left"><button class="btn sm" data-wsave>Enregistrer</button></div>
+    ${verdict}
+    ${lastW ? `<button class="link-btn small" data-wdel style="color:var(--muted);min-width:0;padding:0;margin-top:6px">Supprimer la dernière pesée (${DAY_MONTH.format(parseDate(lastW.date))})</button>` : ''}
+  </section>
+  <section>
+    <h2>L'assiette</h2>
+    <div class="plate">
+      <svg viewBox="-60 -60 120 120" aria-hidden="true">
+        <circle r="56" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/><circle r="44" fill="none" stroke="var(--line)" stroke-width="1"/>
+        <path d="M0 0 L0 -44 A44 44 0 0 1 38.1 22 Z" fill="var(--gold)" opacity=".85"/>
+        <path d="M0 0 L38.1 22 A44 44 0 0 1 -38.1 22 Z" fill="var(--mint)" opacity=".75"/>
+        <path d="M0 0 L-38.1 22 A44 44 0 0 1 0 -44 Z" fill="var(--warn)" opacity=".55"/>
+      </svg>
+      <ul class="plate-l"><li><i style="background:var(--gold)"></i><span><b>Protéines</b> · une à deux paumes</span></li><li><i style="background:var(--mint)"></i><span><b>Légumes</b> · un à deux poings</span></li><li><i style="background:var(--warn);opacity:.7"></i><span><b>Féculents</b> · un à deux poings (riz, pâtes, pain, pommes de terre)</span></li><li><i style="background:var(--line)"></i><span>+ un pouce d'huile d'olive, d'avocat ou d'oléagineux</span></li></ul>
+    </div>
+    <p class="hint">« Un tiers pour la nourriture, un tiers pour la boisson, un tiers pour le souffle » (Tirmidhi). Pour prendre du muscle sans te gaver : 4 repas raisonnables plutôt que 3 énormes.</p>
+  </section>`;
+}
+function addFood(label, g) {
+  const k = todayISO(), d = S.body.food[k] = S.body.food[k] || { p: 0, water: 0, log: [] };
+  d.log.push([label, g]); d.p = d.log.reduce((m, x) => m + x[1], 0);
+  if (FOODS.some(f => f[0] === label)) S.body.fcount[label] = (S.body.fcount[label] || 0) + 1;
+  save(); askPersist(); haptic(); const sy = window.scrollY; render(); window.scrollTo(0, sy);
+  const t = bodyTargets();
+  if (t && d.p >= t.prot && d.p - g < t.prot) reward(4, { big: true, msg: [`Protéines atteintes · ${d.p} g`, 'Ton corps a de quoi construire aujourd\'hui.'] });
+  else toast(`+${g} g de protéines`, 'Annuler', () => { d.log.pop(); d.p = d.log.reduce((m, x) => m + x[1], 0); save(); render(); });
+}
+
+/* ----- Soin & sommeil ----- */
+function sleepBars() {
+  const W = 320, H = 150, T = 18, B = 26, max = 600, bw = 30, L0 = 26, gap = (W - L0 - 7 * bw) / 6;
+  const Y = m => T + (1 - Math.min(m, max) / max) * (H - T - B);
+  let h = `<line x1="${L0 - 4}" y1="${Y(420)}" x2="${W}" y2="${Y(420)}" stroke="var(--mint)" stroke-dasharray="4 4" stroke-width="1.2"/><text x="0" y="${Y(420) + 3.5}" style="font-size:10px;font-weight:700;fill:var(--mint)">7 h</text>`;
+  for (let i = 6; i >= 0; i--) {
+    const d = addDays(new Date(), -i), k = iso(d), m = S.body.sleep[k], x = L0 + (6 - i) * (bw + gap);
+    h += m ? `<rect x="${x.toFixed(1)}" y="${Y(m).toFixed(1)}" width="${bw}" height="${(H - B - Y(m)).toFixed(1)}" rx="8" fill="var(--${m >= 420 ? 'gold' : 'warn'})" opacity="${i ? .75 : 1}"/><text x="${(x + bw / 2).toFixed(1)}" y="${(Y(m) - 5).toFixed(1)}" text-anchor="middle" style="font-size:10px;font-weight:700;fill:var(--ink-2)">${Math.floor(m / 60)}h${m % 60 ? pad(m % 60) : ''}</text>`
+      : `<circle cx="${(x + bw / 2).toFixed(1)}" cy="${H - B - 6}" r="3" fill="var(--line)"/>`;
+    h += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle" style="font-size:10px;font-weight:${i ? 600 : 800};fill:var(--${i ? 'muted' : 'gold'})">${i ? DAY_SHORT.format(d).replace('.', '') : 'nuit'}</text>`;
+  }
+  return `<div class="sbars"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Sommeil des 7 dernières nuits">${h}</svg></div>`;
+}
+function fitraRing(id, name) {
+  const hist = S.body.fitra[id] || [], last = hist[hist.length - 1];
+  const days = last ? Math.round((parseDate(todayISO()) - parseDate(last)) / 864e5) : null;
+  const left = days == null ? 0 : Math.max(0, 1 - days / FITRA_MAX);
+  const col = days == null || days >= FITRA_MAX ? 'danger' : days >= 30 ? 'warn' : 'gold';
+  return `<button class="fit" data-fitra="${id}" aria-label="${name} : ${days == null ? 'jamais noté' : days === 0 ? 'fait aujourd\'hui' : `il y a ${days} jours`}. Toucher quand c'est fait.">
+    <svg viewBox="-34 -34 68 68" aria-hidden="true"><circle r="28" fill="none" stroke="var(--${days != null && days >= FITRA_MAX ? 'danger-soft' : 'raise'})" stroke-width="6"/><circle r="28" fill="none" stroke="var(--${col})" stroke-width="6" stroke-linecap="round" transform="rotate(-90)" ${ringDash(28, left)}/>
+      <text y="${days == null ? 5 : 2}" text-anchor="middle" style="font:400 ${days == null ? 18 : 20}px var(--serif);fill:var(--ink)">${days == null ? '—' : days}</text>${days == null ? '' : '<text y="14" text-anchor="middle" style="font-size:7.5px;font-weight:700;letter-spacing:.08em;fill:var(--muted)">JOURS</text>'}</svg>
+    ${name}<small>${days == null ? 'à noter' : days >= FITRA_MAX ? 'à faire' : `reste ${FITRA_MAX - days} j`}</small></button>`;
+}
+function vSoin() {
+  const k = todayISO(), m = S.body.sleep[k], logged = Array.from({ length: 7 }, (_, i) => S.body.sleep[iso(addDays(new Date(), -i))]).filter(Boolean);
+  const avg = logged.length ? Math.round(logged.reduce((a, b) => a + b) / logged.length) : 0;
+  const wake = toMin(S.body.wake || '04:30'), bed5 = wake - 450 - 15, bed4 = wake - 360 - 15;
+  const care = S.body.care, cl = care.log[k] || {}, cn = care.list.filter(c => cl[c.id]).length;
+  const fri = iso(addDays(mondayOf(new Date()), 4));
+  return `${corpsTop('soin')}
+  <section style="margin-top:26px">
+    <div class="row between" style="align-items:flex-end"><h2 style="margin:0">Sommeil</h2><p class="small muted" style="margin:0;text-align:right">${logged.length ? `moyenne ${fmtDur(avg)}` : 'objectif 7 à 9 h'}</p></div>
+    ${sleepBars()}
+    <p class="eyebrow" style="margin-top:14px">Cette nuit</p>
+    <div class="row" style="margin-top:8px;gap:8px">
+      <button class="icon-btn" data-sleep="-15" aria-label="Moins 15 minutes" style="background:var(--surface)">−</button>
+      <p class="num" style="flex:1;text-align:center;margin:0;font:400 2.25rem/1 var(--serif);color:var(--${!m ? 'muted' : m >= 420 ? 'gold' : 'warn'})">${m ? fmtDur(m) : '—'}</p>
+      <button class="icon-btn" data-sleep="15" aria-label="Plus 15 minutes" style="background:var(--surface)">+</button>
+    </div>
+    <div class="chips" style="justify-content:center">${[300, 360, 420, 480, 540].map(v => `<button class="chip" data-sleep="=${v}" aria-pressed="${m === v}">${v / 60} h</button>`).join('')}</div>
+    ${avg && avg < 420 ? `<div class="alert">${ICON.warn}<span>Moins de 7 h en moyenne : le muscle se construit surtout la nuit. Une seule nuit blanche fait chuter d'environ 18 % la fabrication de muscle le lendemain. Après la gare, une sieste de 20 min aide.</span></div>` : ''}
+  </section>
+  <section>
+    <h2>Heure de coucher</h2>
+    <div class="bed">
+      <div class="row between"><label for="bedWake" class="small muted">Lever demain</label><input type="time" id="bedWake" value="${esc(S.body.wake || '04:30')}" class="num" style="border:0;background:var(--raise);border-radius:12px;min-height:44px;padding:0 12px;color:var(--ink)"></div>
+      <div class="chips"><button class="chip" data-wake="04:30" aria-pressed="${S.body.wake === '04:30'}">Gare · 4 h 30</button><button class="chip" data-wake="07:30" aria-pressed="${S.body.wake === '07:30'}">Repos · 7 h 30</button></div>
+      <p class="eyebrow" style="margin-top:18px">Au lit à</p><b class="num">${fmtClock(bed5)}</b>
+      <p class="small muted" style="margin:6px 0 0">5 cycles de 90 min (7 h 30) + 15 min pour t'endormir. Soir de Mister Pizza ? Vise au moins <b style="font:inherit;color:var(--ink)">${fmtClock(bed4)}</b> (4 cycles, 6 h) et fais une sieste le lendemain.</p>
+    </div>
+  </section>
+  <section>
+    <div class="row between" style="align-items:flex-end;margin-bottom:6px"><h2 style="margin:0">Hygiène du jour</h2><p class="small muted" style="margin:0">${cn}/${care.list.length}</p></div>
+    <div class="checks">${care.list.map(c => checkbox(c.id, esc(c.name), 'data-care', !!cl[c.id])).join('')}${checkbox('ghusl', 'Ghusl du vendredi <span class="small muted">· cette semaine</span>', 'data-ghusl', !!S.body.ghusl[fri])}</div>
+    <button class="btn sm ghost" data-caresetup style="margin-top:8px">Modifier la liste</button>
+  </section>
+  <section>
+    <h2>La fitra</h2>
+    <p class="small muted" style="margin:-8px 0 0">Ongles, moustache, aisselles, poils intimes : pas plus de 40 nuits (Muslim). Chaque jauge se vide avec le temps. Touche-la quand c'est fait.</p>
+    <div class="fitra">${FITRA.map(([id, n]) => fitraRing(id, n)).join('')}</div>
+  </section>`;
+}
+function openCareSetup() {
+  $('#ideasBody').innerHTML = `<div class="grab"></div><div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Hygiène du jour</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
+    <p class="small muted">Ce que tu veux cocher chaque jour. La liste repart à zéro chaque matin.</p>
+    <div style="margin-top:14px">${S.body.care.list.map(c => `<div class="srow"><input data-cset="${c.id}" value="${esc(c.name)}" aria-label="Nom" style="flex:1"><button class="icon-btn" data-cdel="${c.id}" aria-label="Supprimer"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join('')}</div>
+    <div class="srow" style="margin-top:14px"><input id="cNew" placeholder="Ex. Siwak, parfum, crème solaire" aria-label="Nouvel élément" style="flex:1"><button class="btn sm" data-cadd>Ajouter</button></div>`;
+  const d = $('#ideasSheet'); if (!d.open) d.showModal(); d.dataset.mode = 'bsetup';
+}
+
+/* =====================================================================
+   12 quinquies. LUMIÈRE — renforcement sur toute l'app
+   - Chaque bonne action allume de la lumière (✦) : son doux, éclat doré, vibration.
+   - Récompense variable : de temps en temps (≈ 1 fois sur 8), une « pépite » double la lumière
+     et apporte une parole. L'imprévu est ce qui fait le plus réagir la dopamine
+     (erreur de prédiction de la récompense, Schultz).
+   - Tension avant : le soir, l'orbite montre ce qui s'éteint à minuit (aversion à la perte).
+   - Poids après : le bilan de la veille s'assombrit quand la journée a été vide, et le soleil
+     de l'orbite brille selon ta lumière du jour. Jamais d'humiliation : un cap, tout de suite.
+   ===================================================================== */
+const GEMS = [
+  ['Les actes les plus aimés d\'Allah sont les plus réguliers, même s\'ils sont peu nombreux.', 'Bukhari, Muslim'],
+  ['Certes, avec la difficulté vient la facilité.', 'Coran 94:6'],
+  ['Allah ne change pas l\'état d\'un peuple tant qu\'il ne change pas ce qui est en lui-même.', 'Coran 13:11'],
+  ['Le fort n\'est pas celui qui terrasse les autres. Le fort est celui qui se maîtrise.', 'Bukhari'],
+  ['Ceux qui luttent pour Notre cause, Nous les guiderons sur Nos chemins.', 'Coran 29:69'],
+  ['Quiconque craint Allah, Il lui donnera une issue, et le nourrira d\'où il ne s\'y attend pas.', 'Coran 65:2-3'],
+  ['Profite de ta jeunesse avant ta vieillesse, de ta santé avant ta maladie, de ton temps libre avant ton occupation.', 'Hakim'],
+  ['Allah aime, lorsque l\'un de vous accomplit une chose, qu\'il l\'accomplisse avec excellence.', 'Bayhaqi'],
+  ['Le croyant fort est meilleur et plus aimé d\'Allah que le croyant faible.', 'Muslim'],
+  ['Chaque fois que tu tiens, tu rends la fois suivante plus facile.', 'Sayko']
+];
+const NOTES5 = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+let lastPt = null;
+document.addEventListener('pointerdown', e => { lastPt = { x: e.clientX, y: e.clientY }; }, true);
+function tone(freq, t0, dur, gain, type = 'sine', glideTo) {
+  const c = actx; if (!c) return;
+  try {
+    const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + t0;
+    o.type = type; o.frequency.setValueAtTime(freq, t); if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + .02);
+  } catch (e) {}
+}
+function chime(big) {
+  audioUnlock();
+  const i = Math.floor(Math.random() * 3), n = big ? [NOTES5[i], NOTES5[i + 2], NOTES5[i + 3]] : [NOTES5[i + 1], NOTES5[i + 3]];
+  n.forEach((f, k) => tone(f, k * .085, big ? .55 : .35, big ? .11 : .07));
+}
+function thud() { audioUnlock(); tone(130, 0, .9, .22, 'triangle', 55); tone(98, .05, 1.1, .12, 'sine', 49); }
+function burst(n, label, big) {
+  if (reduceMotion()) { if (label) floatTxt(label, big); return; }
+  const p = lastPt || { x: innerWidth / 2, y: innerHeight / 2 };
+  const layer = document.createElement('div'); layer.className = 'fx'; layer.style.left = p.x + 'px'; layer.style.top = p.y + 'px';
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, d = (big ? 70 : 38) + Math.random() * (big ? 90 : 40), s = document.createElement('i');
+    s.style.setProperty('--dx', (Math.cos(a) * d).toFixed(0) + 'px'); s.style.setProperty('--dy', (Math.sin(a) * d - 20).toFixed(0) + 'px');
+    s.style.setProperty('--s', (.5 + Math.random() * (big ? 1.1 : .7)).toFixed(2)); s.style.animationDelay = (Math.random() * 60).toFixed(0) + 'ms';
+    layer.appendChild(s);
+  }
+  document.body.appendChild(layer); setTimeout(() => layer.remove(), 1100);
+  if (label) floatTxt(label, big);
+}
+function floatTxt(label, big) {
+  const p = lastPt || { x: innerWidth / 2, y: innerHeight / 2 }, t = document.createElement('b');
+  t.className = 'fx-t' + (big ? ' big' : ''); t.textContent = label; t.style.left = Math.min(innerWidth - 40, Math.max(40, p.x)) + 'px'; t.style.top = p.y + 'px';
+  document.body.appendChild(t); setTimeout(() => t.remove(), 1300);
+}
+function gemCard(title, text, src) {
+  let el = $('#gem'); if (!el) { el = document.createElement('div'); el.id = 'gem'; el.className = 'gem'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  el.innerHTML = `<p class="gem-t">✦ ${title}</p><p class="gem-q">${text}</p>${src ? `<p class="gem-s">${src}</p>` : ''}`;
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 5200);
+  el.onclick = () => el.classList.remove('on');
+}
+const nourDay = (k = todayISO()) => (S.nour.log[k] || 0);
+function nourAdd(pts, k = todayISO()) { S.nour.log[k] = Math.max(0, nourDay(k) + pts); if (!S.nour.log[k]) delete S.nour.log[k]; }
+function nourAvg(days = 14) { let t = 0, n = 0; for (let i = 1; i <= days; i++) { const v = S.nour.log[iso(addDays(new Date(), -i))]; if (v != null) { t += v; n++; } } return n ? t / n : 0; }
+/* Récompense : pts de lumière. opts.big = moment fort, opts.msg = [titre, texte]. */
+function reward(pts, opts = {}) {
+  const bonus = !opts.big && !opts.noBonus && Math.random() < .125;
+  const got = bonus ? pts * 2 : pts;
+  nourAdd(got); save();
+  try { navigator.vibrate && navigator.vibrate(opts.big || bonus ? [12, 40, 18] : 10); } catch (e) {}
+  chime(opts.big || bonus); burst(opts.big ? 28 : bonus ? 20 : 11, `+${got} ✦`, opts.big || bonus);
+  if (bonus) { const g = GEMS[Math.floor(Math.random() * GEMS.length)]; gemCard('Pépite · lumière doublée', g[0], g[1]); }
+  else if (opts.msg) gemCard(opts.msg[0], opts.msg[1], opts.msg[2]);
+  refreshSun();
+}
+function unreward(pts) { nourAdd(-pts); save(); refreshSun(); }
+function refreshSun() {
+  const g = $('#sunGlowC'); if (!g) return;
+  const v = sunLevel(); g.setAttribute('r', (56 + 44 * v).toFixed(0)); g.style.opacity = (.35 + .65 * v).toFixed(2);
+  const c = $('#sunCore'); if (c) c.style.opacity = (.55 + .45 * Math.min(1, v * 1.6)).toFixed(2);
+  const n = $('#sunNour'); if (n) n.textContent = `✦ ${nourDay()}`;
+}
+function sunLevel() { const avg = Math.max(15, nourAvg()); return Math.min(1, nourDay() / avg); }
+
+/* Bilan de la veille (orbite) : lumineux ou lourd. */
+function yesterdayCard() {
+  const y = iso(addDays(new Date(), -1));
+  if (S.nour.seen === todayISO() || y < S.start) return '';
+  const pts = nourDay(y), avg = nourAvg(14), d = S.faith.log[y] || {}, pr = PRAYERS.filter(p => d[p[0]]).length;
+  const lost = [];
+  const y2 = iso(addDays(new Date(), -2));
+  if (!S.days[y] && S.days[y2]) { let n = 0; for (let i = 2; i < 400 && S.days[iso(addDays(new Date(), -i))]; i++) n++; if (n >= 2) lost.push(`ta série de routine de ${n} jours s'est arrêtée`); }
+  const heavy = pts === 0 || (avg >= 10 && pts < avg * .35) || lost.length;
+  const bits = [`${pr}/5 prières à l'heure`, S.days[y] ? 'routine faite' : 'routine non faite', S.body.sessions.some(s => s.date === y) ? 'séance faite' : ''].filter(Boolean).join(' · ');
+  return `<div class="yday ${heavy ? 'heavy' : ''}">
+    <div class="row between"><p class="eyebrow">Hier</p><button class="link-btn small" data-ydone style="min-width:0;padding:0">OK</button></div>
+    <p class="yday-n num">✦ ${pts}</p>
+    <p class="small" style="margin:4px 0 0">${heavy
+      ? `${pts === 0 ? 'Ta lumière est restée éteinte.' : 'Ta lumière est restée faible.'}${lost.length ? ' Et ' + lost.join(', ') + '.' : ''} Un jour vide rend le suivant plus facile à gâcher. Allume une seule chose maintenant.`
+      : pts >= avg ? `Au-dessus de ta moyenne (✦ ${Math.round(avg)}). Garde ce rythme.` : `Moyenne des 14 derniers jours : ✦ ${Math.round(avg)}.`}</p>
+    <p class="small muted" style="margin:6px 0 0">${bits}</p>
+    ${heavy ? '<button class="btn sm" data-goto="routine" style="margin-top:12px">Allumer : un bloc de routine</button>' : ''}
+  </div>`;
+}
+/* Tension du soir : ce qui s'éteint à minuit. */
+function atStake() {
+  const h = new Date().getHours(); if (h < 19) return '';
+  const k = todayISO(), items = [], st = streak();
+  if (!S.days[k] && st > 0) items.push(['routine', `Ta série de routine (${st} j) s'éteint à minuit`, `${todayBlocks()}/4 blocs`]);
+  const n = S.faith.habits.length, dn = dayDone(k); if (dn < n) items.push(['habitudes', `Journée de foi incomplète`, `${dn}/${n}`]);
+  const t = bodyTargets(); if (t && foodDay().p < t.prot) items.push(['nutrition', 'Protéines pas encore atteintes', `${foodDay().p}/${t.prot} g`]);
+  if (!items.length) return '';
+  return `<div class="stake"><p class="eyebrow" style="color:var(--warn)">Avant minuit</p>${items.map(i => `<button class="stake-i" data-goto="${i[0]}"><span>${i[1]}</span><b class="num">${i[2]}</b></button>`).join('')}</div>`;
+}
+
+/* ----- Chiffrement local (AES-GCM, clé PBKDF2) ----- */
+const Z_BOOT = '0c346fa2690cf9ce91d2989746b5f4d02822bdc7ff8c1adc235932960481bc40';
+const b64 = u8 => btoa(String.fromCharCode(...u8)), ub64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function sha(txt) { const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt)); return [...new Uint8Array(h)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+async function zKey(code, salt) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function zSeal(key, salt, obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+  return { s: b64(salt), i: b64(iv), c: b64(new Uint8Array(ct)) };
+}
+async function zOpen(key, z) { const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ub64(z.i) }, key, ub64(z.c)); return JSON.parse(new TextDecoder().decode(pt)); }
+function zLoad() { if (!window.__z) (new Function(new TextDecoder().decode(ub64(Z_MOD))))(); return window.__z; }
+/* Vérification d'un texte saisi. */
+async function zTry(v) {
+  if (!v || v.length > 64 || /\n/.test(v) || !window.crypto || !crypto.subtle) return false;
+  try {
+    if (S.zc && S.zc.c) {
+      const key = await zKey(v, ub64(S.zc.s)); const data = await zOpen(key, S.zc);
+      zLoad().open(key, ub64(S.zc.s), data); return true;
+    }
+  } catch (e) { /* mauvais code : c'est une idée normale */ }
+  try { if ((await sha('sdp·' + v)) === Z_BOOT) { zLoad().setup(); return true; } } catch (e) {}
+  return false;
+}
+function zLock() { if (window.__z) window.__z.lock(); }
 
 /* =====================================================================
    13. RÉGLAGES, SAUVEGARDE, IMPORT
@@ -1887,20 +2610,16 @@ function openIdeas() {
 /* =====================================================================
    15. RENDU & NAVIGATION
    ===================================================================== */
-const TABS = ['orbite', 'parcours', 'foi', 'routine', 'argent', 'business'];
+const TABS = ['orbite', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business'];
+const CVIEWS = ['entrainement', 'nutrition', 'soin'];
 let tab = 'orbite';
-function moveIndicator() {
-  const i = TABS.indexOf(tab), ind = $('.tab-ind');
-  if (ind) ind.style.left = `calc(${(i + 0.5) / TABS.length * 100}% - 14px)`;
-}
 function render(animate) {
   const app = $('#app');
   stopOrbit();
-  $$('.tabbar [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
-  moveIndicator();
   app.className = animate ? 'view' : '';
   checkUnlocks();
-  app.innerHTML = { orbite: vOrbite, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : vHabits(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : vBudget(), business: vBusiness }[tab]();
+  app.innerHTML = { orbite: vOrbite, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
+  coreGlyph();
   if (tab === 'orbite') startOrbit();
   if (tab === 'parcours') bindParcours();
   if (tab === 'foi' && F.view === 'arabe') { if (quiz && !quiz.answered) drawQuiz(); else nextQuiz(); }
@@ -1909,6 +2628,8 @@ function render(animate) {
 function setAView(v) { A.view = v; try { localStorage.setItem('sdp-argent-view', v); } catch (e) {} }
 function setFView(v) { F.view = v; try { localStorage.setItem('sdp-foi-view', v); } catch (e) {} }
 function go(t) {
+  if (tab === 'z') zLock();
+  if (CVIEWS.includes(t)) { setCView(t); if (tab === 'corps') { render(); window.scrollTo(0, 0); return; } t = 'corps'; }
   if (t === 'arabe' || t === 'habitudes') { setFView(t); if (tab === 'foi') { render(); window.scrollTo(0, 0); return; } t = 'foi'; }
   if (t === 'heures' || t === 'budget') { if (tab === 'argent' && A.view === 'heures' && $('#fDate')) readForm(); setAView(t); if (tab === 'argent') { render(); window.scrollTo(0, 0); return; } t = 'argent'; }
   if (!TABS.includes(t)) return;
@@ -1921,7 +2642,81 @@ function go(t) {
   if (document.startViewTransition && !reduceMotion()) document.startViewTransition(swap); else swap();
 }
 
-$('.tabbar').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) go(b.dataset.tab); });
+/* ----- Navigation : le noyau et sa roue -----
+   Toucher le noyau : la roue s'ouvre, on touche un module.
+   Appuyer et glisser : on vise un module et on relâche pour y aller.
+   Appui long, ou toucher le noyau quand la roue est ouverte : retour à l'orbite. */
+const NAV = [['foi', 'Foi'], ['corps', 'Corps'], ['routine', 'Routine'], ['parcours', 'Parcours'], ['argent', 'Argent'], ['business', 'Business']];
+const NAV_A0 = -80, NAV_SPAN = 160;
+const W8 = { open: false, hi: null, press: null, lp: 0 };
+const navAngle = i => NAV_A0 + NAV_SPAN / (NAV.length - 1) * i;
+function coreGlyph() { $('#coreIc').innerHTML = GLYPH[tab === 'orbite' ? 'orbite' : tab] || GLYPH.orbite; }
+function buildWheel() {
+  const R = Math.max(112, Math.min(150, innerWidth / 2 - 38));
+  $('#wheelItems').innerHTML = NAV.map(([k, n], i) => {
+    const [x, y] = polar(R, navAngle(i)), locked = k === 'business' && !S.unlocks.business;
+    return `<button class="w-item ${k === tab ? 'cur' : ''} ${locked ? 'locked' : ''}" data-nav="${k}" style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px;--i:${i}" aria-label="${n}${locked ? ', verrouillé' : ''}${k === tab ? ', ouvert' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true">${locked ? GLYPH.lock : GLYPH[k]}</svg><span class="w-lbl">${n}</span></button>`;
+  }).join('');
+  $('#wheelHint').textContent = tab === 'orbite' ? 'Où va-t-on ?' : 'Noyau : orbite';
+}
+function openWheel() {
+  if (W8.open) return;
+  buildWheel(); const w = $('#wheel'); w.hidden = false; W8.open = true;
+  requestAnimationFrame(() => requestAnimationFrame(() => w.classList.add('open')));
+  $('#core').setAttribute('aria-expanded', 'true'); haptic();
+}
+function closeWheel() {
+  if (!W8.open) return;
+  const w = $('#wheel'); w.classList.remove('open'); W8.open = false; W8.hi = null;
+  $('#core').setAttribute('aria-expanded', 'false');
+  setTimeout(() => { if (!W8.open) w.hidden = true; }, reduceMotion() ? 0 : 280);
+}
+function highlight(k) {
+  if (W8.hi === k) return; W8.hi = k;
+  $$('.w-item').forEach(b => b.classList.toggle('hi', b.dataset.nav === k));
+  $('#wheelHint').textContent = k ? NAV.find(n => n[0] === k)[1] : (tab === 'orbite' ? 'Où va-t-on ?' : 'Noyau : orbite');
+  if (k) haptic();
+}
+(function bindCore() {
+  const core = $('#core');
+  core.addEventListener('pointerdown', e => {
+    if (e.button > 0) return;
+    e.preventDefault();
+    const r = core.getBoundingClientRect();
+    W8.press = { x: e.clientX, y: e.clientY, cx: r.left + r.width / 2, cy: r.top + r.height / 2, moved: false, wasOpen: W8.open };
+    try { core.setPointerCapture(e.pointerId); } catch (err) {}
+    if (!W8.open) openWheel();
+    clearTimeout(W8.lp);
+    W8.lp = setTimeout(() => { const p = W8.press; if (p && !p.moved) { W8.press = null; closeWheel(); go('orbite'); } }, 520);
+  });
+  core.addEventListener('pointermove', e => {
+    const p = W8.press; if (!p) return;
+    if (!p.moved && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 12) { p.moved = true; clearTimeout(W8.lp); }
+    if (!p.moved) return;
+    const dx = e.clientX - p.cx, dy = e.clientY - p.cy;
+    if (Math.hypot(dx, dy) < 56) { highlight(null); return; }
+    const ang = Math.atan2(dx, -dy) * 180 / Math.PI;
+    let best = null, bd = 999;
+    NAV.forEach(([k], i) => { const d = Math.abs(navAngle(i) - ang); if (d < bd) { bd = d; best = k; } });
+    highlight(bd < 28 ? best : null);
+  });
+  core.addEventListener('pointerup', () => {
+    clearTimeout(W8.lp); const p = W8.press; W8.press = null; if (!p) return;
+    if (p.moved) { const k = W8.hi; if (k) { closeWheel(); go(k); } return; }
+    if (p.wasOpen) { closeWheel(); go('orbite'); }
+  });
+  core.addEventListener('pointercancel', () => { clearTimeout(W8.lp); W8.press = null; });
+  core.addEventListener('contextmenu', e => e.preventDefault());
+  // Clavier et lecteurs d'écran (pas de pointeur)
+  core.addEventListener('click', e => { if (e.detail !== 0) return; if (W8.open) closeWheel(); else { openWheel(); const f = $('.w-item'); if (f) setTimeout(() => f.focus(), 60); } });
+  $('#wheel').addEventListener('click', e => {
+    const b = e.target.closest('[data-nav]');
+    if (b) { const k = b.dataset.nav; closeWheel(); go(k); return; }
+    if (!e.target.closest('#core')) closeWheel();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && W8.open) { closeWheel(); core.focus(); } });
+})();
+setInterval(() => { const el = $('#sessEl'); if (el && S.body.active) el.textContent = sessLine(); }, 15000);
 
 document.addEventListener('click', e => {
   const t = e.target, c = sel => t.closest(sel);
@@ -1960,6 +2755,57 @@ document.addEventListener('click', e => {
   if (c('[data-invsetup]')) { openInvestSetup(); return; }
   if (c('[data-invadd]')) { S.money.investments.push({ id: 'inv-' + uid(), name: '', type: 'etf', start: '', value: '' }); save(); openInvestSetup(); return; }
   if ((el = c('[data-invdel]'))) { S.money.investments = S.money.investments.filter(i => i.id !== el.dataset.invdel); save(); openInvestSetup(); return; }
+  // Corps
+  if ((el = c('[data-cview]'))) { go(el.dataset.cview); return; }
+  if ((el = c('[data-phase]'))) {
+    const id = Number(el.dataset.phase), st = phaseStatus(id);
+    if (st.open) { if (S.body.phase !== id) { S.body.phase = id; save(); haptic(); render(); toast(`Étape ${phaseOf(id).name} choisie`); } return; }
+    toast(`${phaseOf(id).name} : ${st.need - st.n > 0 ? `encore ${st.need - st.n} séance${st.need - st.n > 1 ? 's' : ''} de ${phaseOf(UNLOCK[id].from).name}` : ''}${id === 2 && !S.body.gym ? `${st.need - st.n > 0 ? ' et ' : ''}l'inscription à la salle` : ''}.`); return;
+  }
+  if (c('[data-cstart]')) { startSession(); return; }
+  if ((el = c('[data-set]'))) { const [id, i] = el.dataset.set.split('.'); doSet(id, Number(i)); return; }
+  if ((el = c('[data-lvl]'))) { const [id, d] = el.dataset.lvl.split('.'), e = EX[id]; S.body.level[id] = Math.max(0, Math.min(e.v.length - 1, (S.body.level[id] || 0) + Number(d))); save(); haptic(); const sy = window.scrollY; render(); window.scrollTo(0, sy); return; }
+  if (c('[data-cfinish]')) { finishSession(); return; }
+  if (c('[data-cabort]')) { toast('Abandonner cette séance ?', 'Oui', () => { stopRest(); S.body.active = null; save(); render(); window.scrollTo(0, 0); }, 6000); return; }
+  if ((el = c('[data-rest]'))) { const v = Number(el.dataset.rest); if (!v) stopRest(); else { RT.end += v * 1000; RT.total += v; } return; }
+  if (c('[data-cbody]')) {
+    const w = numv($('#cbW').value.replace(/\s/g, '')), h = numv($('#cbH').value.replace(/\s/g, '')), a = numv($('#cbA').value);
+    if (!(w > 30 && w < 250) || !(h > 120 && h < 230)) { toast('Indique un poids et une taille valides.'); return; }
+    const pr = S.body.profile; pr.height = String(h); pr.age = String(a || 24); pr.fast = $('#cbF').checked;
+    if (!S.body.weights.length || Math.abs(bodyWeight() - w) > .01) { const k = todayISO(); S.body.weights = S.body.weights.filter(x => x.date !== k); S.body.weights.push({ date: k, kg: w }); }
+    pr.weight = String(w); C.edit = false; save(); askPersist(); render(); window.scrollTo(0, 0); toast('Cible calculée'); return;
+  }
+  if (c('[data-cbodyx]')) { C.edit = false; render(); return; }
+  if (c('[data-cedit]')) { C.edit = true; render(); window.scrollTo(0, 0); return; }
+  if ((el = c('[data-food]'))) { const f = FOODS.find(x => x[0] === el.dataset.food); if (f) addFood(f[0], f[1]); return; }
+  if (c('[data-fcustom]')) { const g = Math.round(numv($('#fCustom').value.replace(/\s/g, ''))); if (!(g > 0 && g < 300)) { toast('Indique des grammes de protéines.'); return; } addFood('Autre', g); return; }
+  if (c('[data-fall]')) { C.allFoods = !C.allFoods; const sy = window.scrollY; render(); window.scrollTo(0, sy); return; }
+  if ((el = c('[data-fdel]'))) { const d = S.body.food[todayISO()]; if (!d) return; const i = Number(el.dataset.fdel), [r] = d.log.splice(i, 1); d.p = d.log.reduce((m, x) => m + x[1], 0); save(); const sy = window.scrollY; render(); window.scrollTo(0, sy); toast(`${r[0]} retiré`, 'Annuler', () => { d.log.splice(i, 0, r); d.p = d.log.reduce((m, x) => m + x[1], 0); save(); render(); }); return; }
+  if ((el = c('[data-water]'))) { const k = todayISO(), d = S.body.food[k] = S.body.food[k] || { p: 0, water: 0, log: [] }, n = Number(el.dataset.water); const before = d.water; d.water = d.water === n ? n - 1 : n; save(); haptic(); const sy = window.scrollY; render(); window.scrollTo(0, sy); const tw = (bodyTargets() || { water: 8 }).water; if (before < tw && d.water >= tw) reward(2, { msg: ['Hydratation complète', 'Bien joué.'] }); else if (before >= tw && d.water < tw) unreward(2); return; }
+  if (c('[data-wsave]')) {
+    const w = numv($('#wIn').value.replace(/\s/g, '')); if (!(w > 30 && w < 250)) { toast('Indique ton poids en kg.'); return; }
+    const k = todayISO(); S.body.weights = S.body.weights.filter(x => x.date !== k); S.body.weights.push({ date: k, kg: w }); S.body.profile.weight = String(w);
+    save(); askPersist(); haptic(); render(); toast('Pesée enregistrée'); return;
+  }
+  if (c('[data-wdel]')) { const ws = sortedWeights(), l = ws[ws.length - 1]; if (!l) return; S.body.weights = S.body.weights.filter(x => x !== l); save(); render(); toast('Pesée supprimée', 'Annuler', () => { S.body.weights.push(l); save(); render(); }); return; }
+  if ((el = c('[data-kadj]'))) { const pr = S.body.profile; pr.adj = numv(pr.adj) + Number(el.dataset.kadj); pr.adjAt = todayISO(); save(); render(); toast(`Cible ajustée : ${bodyTargets().kcal.toLocaleString('fr-FR')} kcal`); return; }
+  if ((el = c('[data-sleep]'))) {
+    const k = todayISO(), v = el.dataset.sleep, cur = S.body.sleep[k] || 420;
+    const was = S.body.sleep[k] || 0;
+    S.body.sleep[k] = v[0] === '=' ? Number(v.slice(1)) : Math.max(60, Math.min(720, cur + (S.body.sleep[k] ? Number(v) : 0)));
+    save(); haptic();
+    if (was < 420 && S.body.sleep[k] >= 420) reward(2); else if (was >= 420 && S.body.sleep[k] < 420) unreward(2); const sy = window.scrollY; render(); window.scrollTo(0, sy); return;
+  }
+  if ((el = c('[data-wake]'))) { S.body.wake = el.dataset.wake; save(); const sy = window.scrollY; render(); window.scrollTo(0, sy); return; }
+  if ((el = c('[data-fitra]'))) {
+    const id = el.dataset.fitra, h = S.body.fitra[id] = S.body.fitra[id] || [], k = todayISO();
+    if (h[h.length - 1] === k) { h.pop(); save(); render(); unreward(2); toast('Annulé'); return; }
+    h.push(k); if (h.length > 8) h.shift(); save(); const sy = window.scrollY; render(); window.scrollTo(0, sy);
+    reward(2); return;
+  }
+  if (c('[data-caresetup]')) { openCareSetup(); return; }
+  if (c('[data-cadd]')) { const v = $('#cNew').value.trim(); if (!v) return; S.body.care.list.push({ id: 'c-' + uid(), name: v }); save(); openCareSetup(); return; }
+  if ((el = c('[data-cdel]'))) { S.body.care.list = S.body.care.list.filter(x => x.id !== el.dataset.cdel); save(); openCareSetup(); return; }
   // Business
   if (c('[data-padd]')) { S.biz.projects.push({ id: 'p-' + uid(), name: '', stage: 0, next: '' }); save(); render(); const ins = $$('.proj-name'); if (ins.length) ins[ins.length - 1].focus(); return; }
   if ((el = c('[data-pdel]'))) { const i = S.biz.projects.findIndex(p => p.id === el.dataset.pdel); const [r] = S.biz.projects.splice(i, 1); save(); render(); toast('Projet supprimé', 'Annuler', () => { S.biz.projects.splice(i, 0, r); save(); render(); }); return; }
@@ -2002,6 +2848,7 @@ document.addEventListener('click', e => {
   if (c('#impNo')) { pendingImport = null; $('#importConfirm').innerHTML = ''; return; }
   if ((el = c('[data-seen]'))) { S.seen[el.dataset.seen] = true; save(); const box = c('.coach'); box.style.transition = 'opacity .25s,transform .25s'; box.style.opacity = 0; box.style.transform = 'translateY(-6px)'; setTimeout(() => render(), reduceMotion() ? 0 : 250); return; }
   if ((el = c('[data-unseen]'))) { delete S.seen[el.dataset.unseen]; save(); render(); return; }
+  if (c('[data-ydone]')) { S.nour.seen = todayISO(); save(); const y = c('.yday'); y.style.transition = 'opacity .25s'; y.style.opacity = 0; setTimeout(() => render(), reduceMotion() ? 0 : 250); return; }
   if ((el = c('[data-goto]'))) { go(el.dataset.goto); return; }
   if ((el = c('[data-calib]'))) {
     const k = el.dataset.calib, b = numv($(`#cb-${k}`).value.replace(/\s/g, '')), n = numv($(`#cn-${k}`).value.replace(/\s/g, ''));
@@ -2039,7 +2886,16 @@ document.addEventListener('click', e => {
   if (c('#eSave')) { commitShiftEdit(); return; }
   if (c('#eDel')) { deleteShift(); return; }
   // Idées
-  if (c('#ideaAdd')) { const v = $('#ideaText').value.trim(); if (!v) return; S.ideas.push({ id: uid(), text: v, created: Date.now() }); save(); haptic(); openIdeas(); $('#ideaText').focus(); return; }
+  if (c('#ideaAdd')) {
+    const v = $('#ideaText').value.trim(); if (!v) return;
+    const btn = $('#ideaAdd'); btn.disabled = true;
+    (/\s/.test(v) ? Promise.resolve(false) : zTry(v)).then(ok => {
+      btn.disabled = false;
+      if (ok) { $('#ideaText').value = ''; if ($('#ideasSheet').open && $('#ideasSheet').dataset.mode !== 'z') $('#ideasSheet').close(); return; }
+      S.ideas.push({ id: uid(), text: v, created: Date.now() }); save(); haptic(); openIdeas(); $('#ideaText').focus();
+    });
+    return;
+  }
   if ((el = c('[data-idel]'))) { const i = S.ideas.findIndex(x => x.id === el.dataset.idel); const [r] = S.ideas.splice(i, 1); save(); openIdeas(); toast('Idée supprimée', 'Annuler', () => { S.ideas.push(r); save(); if ($('#ideasSheet').open) openIdeas(); }); return; }
   if (c('#ideaCopy')) {
     const txt = S.ideas.slice().sort((a, b) => a.created - b.created).map(i => `- ${i.text}`).join('\n');
@@ -2048,8 +2904,9 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   const t = e.target;
-  if ((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-planet],[data-moon],.seg-arc')) {
+  if ((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-planet],[data-moon],.seg-arc,[data-phase]')) {
     e.preventDefault();
+    if (t.dataset.phase) { t.dispatchEvent(new MouseEvent('click', { bubbles: true })); return; }
     if (t.dataset.planet) go(t.dataset.planet); else if (t.dataset.moon) selectMonth(Number(t.dataset.moon)); else toggleBlock(Number(t.dataset.block));
   }
   if (e.key === 'Enter' && t.id === 'fNote') { e.preventDefault(); saveShift(); }
@@ -2059,7 +2916,7 @@ document.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.chk) {
     if (t.checked) S.checks[t.dataset.chk] = true; else delete S.checks[t.dataset.chk];
-    save(); askPersist(); if (t.checked) haptic(); refreshParcours(); return;
+    save(); askPersist(); refreshParcours(); if (t.checked) reward(3); else unreward(3); return;
   }
   if (t.dataset.increc) {
     const ym = A.month, st = S.money.months[ym] = S.money.months[ym] || {}; st.inc = st.inc || {};
@@ -2082,6 +2939,18 @@ document.addEventListener('change', e => {
   if (t.id === 'mAuto') { S.money.auto = t.checked; save(); openBudgetSetup(); return; }
   if (t.id === 'mLife') { S.money.life = t.value.trim().replace(/\s/g, '').replace(',', '.'); save(); openBudgetSetup(); return; }
   if (t.dataset.habitc) { toggleHabit(t.dataset.habitc); return; }
+  if (t.dataset.care) {
+    const k = todayISO(), l = S.body.care.log[k] = S.body.care.log[k] || {}, wasAll = S.body.care.list.every(x => l[x.id]);
+    if (t.checked) l[t.dataset.care] = true; else delete l[t.dataset.care];
+    if (!Object.keys(l).length) delete S.body.care.log[k]; save(); render();
+    const cl = S.body.care.log[k] || {}, all = S.body.care.list.every(x => cl[x.id]);
+    if (t.checked) { if (all) reward(4, { msg: ['Hygiène du jour complète', 'La propreté est la moitié de la foi. (Muslim)'] }); else reward(1); } else unreward(1 + (wasAll ? 3 : 0));
+    return;
+  }
+  if (t.dataset.ghusl) { const fri = iso(addDays(mondayOf(new Date()), 4)); if (t.checked) { S.body.ghusl[fri] = true; } else delete S.body.ghusl[fri]; save(); render(); if (t.checked) reward(3); else unreward(3); return; }
+  if (t.dataset.cset) { const x = S.body.care.list.find(y => y.id === t.dataset.cset); if (x && t.value.trim()) { x.name = t.value.trim(); save(); } return; }
+  if (t.id === 'gymSw') { S.body.gym = t.checked; save(); render(); if (t.checked) toast('Noté. La salle s\'ouvre après tes 12 séances de Réveil.'); return; }
+  if (t.id === 'bedWake' && t.value) { S.body.wake = t.value; save(); const sy = window.scrollY; render(); window.scrollTo(0, sy); return; }
   if (t.dataset.hset) { const h = S.faith.habits.find(x => x.id === t.dataset.hset); if (h && t.value.trim()) { h.name = t.value.trim(); save(); } return; }
   if (t.dataset.dset) { S.money.debt[t.dataset.dset] = t.value.trim().replace(/\s/g, '').replace(',', '.'); save(); return; }
   if (t.hasAttribute && t.hasAttribute('data-sgoal')) { S.money.safetyGoal = t.value.trim().replace(/\s/g, '').replace(',', '.') || '4000'; const p = S.money.pots.find(x => x.safety); if (p) p.target = S.money.safetyGoal; save(); return; }
@@ -2114,11 +2983,11 @@ document.addEventListener('toggle', e => { const d = e.target; if (d.dataset && 
 $('#ideasSheet').addEventListener('close', () => { if ($('#ideasSheet').dataset.mode === 'bsetup') { delete $('#ideasSheet').dataset.mode; render(); } });
 let lastDay = todayISO();
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') { stopOrbit(); return; }
+  if (document.visibilityState === 'hidden') { stopOrbit(); if (tab === 'z') { zLock(); tab = 'orbite'; render(); } return; }
   if (todayISO() !== lastDay) { lastDay = todayISO(); H.form = null; H.month = todayISO().slice(0, 7); A.month = H.month; P.sel = null; render(); }
   else if (tab === 'orbite') startOrbit();
 });
-window.addEventListener('resize', moveIndicator);
+window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
 
 /* =====================================================================
    16. DÉMARRAGE
@@ -2129,6 +2998,7 @@ window.addEventListener('resize', moveIndicator);
   let t = location.hash.slice(1);
   if (t === 'arabe' || t === 'habitudes') { setFView(t); t = 'foi'; }
   if (t === 'heures' || t === 'budget') { setAView(t); t = 'argent'; }
+  if (CVIEWS.includes(t)) { setCView(t); t = 'corps'; }
   if (!TABS.includes(t)) { try { t = localStorage.getItem('sdp-tab'); } catch (e) {} }
   if (t === 'heures' || t === 'budget') { setAView(t); t = 'argent'; }
   tab = TABS.includes(t) ? t : 'orbite';
@@ -2146,4 +3016,5 @@ window.addEventListener('resize', moveIndicator);
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; save(true); location.reload(); } });
   }
 })();
-window.__sdp = { calc, sumShifts, money, gareCounter, budgetOf, autoPlan, A, faithScore, bizStatus, investStatus, parseHours, fmtH, holidayName, save, get S() { return S; } };
+window.__sdp = { bodyTargets, weightVerdict, suggest, weekSessions, phaseStatus, calc, sumShifts, money, gareCounter, budgetOf, autoPlan, A, faithScore, bizStatus, investStatus, parseHours, fmtH, holidayName, save, get S() { return S; } };
+const Z_MOD = 'LyogRXNwYWNlIHByaXbDqSDigJQgY2hhcmfDqSBzZXVsZW1lbnQgYXByw6hzIGxlIGJvbiBjb2RlLiBUb3V0IGVzdCBjaGlmZnLDqSBkYW5zIFMuemMuICovCihmdW5jdGlvbiAoKSB7CiAgY29uc3QgWiA9IHsga2V5OiBudWxsLCBzYWx0OiBudWxsLCBkOiBudWxsLCB2aWV3OiAnbWFpbicsIGhpZDogbnVsbCwgdXJnZTogbnVsbCwgcmVsOiBudWxsLCBkaDogbnVsbCB9OwogIGNvbnN0IE1TID0gWzEsIDMsIDcsIDE0LCAyMSwgMzAsIDQwLCA2MCwgOTAsIDE4MCwgMzY1XTsKICBjb25zdCBUUklHID0gW1snZW5udWknLCAnRW5udWknXSwgWydzdHJlc3MnLCAnU3RyZXNzJ10sIFsnc29saXR1ZGUnLCAnU29saXR1ZGUnXSwgWydmYXRpZ3VlJywgJ0ZhdGlndWUnXSwgWydvY2Nhc2lvbicsICdPY2Nhc2lvbiddLCBbJ3Njcm9sbCcsICdTY3JvbGwnXSwgWydhdXRyZScsICdBdXRyZSddXTsKICBjb25zdCBQTEFOU19CID0gW1snSmUgbVwnZW5udWllLCBzZXVsIMOgIGxhIG1haXNvbicsICdKZSBzb3JzIG1hcmNoZXIgMTAgbWludXRlcyBvdSBqZSBsYW5jZSB1bmUgc8OpYW5jZSBDb3JwcyddLCBbJ0plIHN1aXMgYXUgbGl0IGF2ZWMgbGUgdMOpbMOpcGhvbmUnLCAnSmUgbGUgcG9zZSBob3JzIGRlIGxhIGNoYW1icmUgZXQgamUgbGlzIGRldXggcGFnZXMnXSwgWydKZSByZW50cmUgZHUgdHJhdmFpbCBzdHJlc3PDqSBvdSBmYXRpZ3XDqScsICdEb3VjaGUsIGFibHV0aW9ucywgcHVpcyAxMCBtaW51dGVzIGRlIENvcmFuIG91IGRlIGRoaWtyJ10sIFsnVW4gc2Nyb2xsIGNvbW1lbmNlIMOgIGTDqXJhcGVyJywgJ0plIGZlcm1lIGxcJ2FwcGxpLCBqZSBtZSBsw6h2ZSwgamUgY2hhbmdlIGRlIHBpw6hjZSddLCBbJ0xcJ29jY2FzaW9uIHNlIHByw6lzZW50ZScsICdKXCdvdXZyZSDCqyBKXCdhaSB1bmUgZW52aWUgwrsgZXQgamUgbGFuY2UgbGEgdmFndWUnXV07CiAgY29uc3QgUExBTlNfTiA9IFtbJ0plIHNvcnMgZHUgdHJhdmFpbCcsICdVbiBjaGV3aW5nLWd1bSBvdSB1biBncmFuZCB2ZXJyZSBkXCdlYXUgw6AgbGEgcGxhY2UnXSwgWydKZSBtXCdlbm51aWUnLCAnNSBtaW51dGVzIGRlIG1hcmNoZSA6IGxcJ2VudmllIHBhc3NlIGVuIDMgw6AgNSBtaW51dGVzJ10sIFsnSmUgZmluaXMgdW4gcmVwYXMnLCAnSmUgbWUgbMOodmUgdG91dCBkZSBzdWl0ZSBldCBqZSBtZSBicm9zc2UgbGVzIGRlbnRzJ10sIFsnT24gbVwnZW4gcHJvcG9zZSB1bmUnLCAnwqsgTm9uIG1lcmNpLCBqXCdhcnLDqnRlLiDCuyBQcsOpcGFyw6kgw6AgbFwnYXZhbmNlLCBjXCdlc3QgcGx1cyBmYWNpbGUnXV07CiAgY29uc3QgQkFSX0IgPSBbWydmaWx0cmUnLCAnRmlsdHJlIGFjdGl2w6kgc3VyIGxcJ2lQaG9uZScsICdSw6lnbGFnZXMg4oaSIFRlbXBzIGRcJ8OpY3JhbiDihpIgQ29udGVudSBldCBjb25maWRlbnRpYWxpdMOpIOKGkiBSZXN0cmljdGlvbnMgZGUgY29udGVudSDihpIgQ29udGVudSB3ZWIg4oaSIExpbWl0ZXIgbGVzIHNpdGVzIHBvdXIgYWR1bHRlcy4nXSwgWydjb2RlJywgJ0NvZGUgVGVtcHMgZFwnw6ljcmFuIGNvbmZpw6kgw6AgcXVlbHF1XCd1biBkZSBjb25maWFuY2UnLCAnVHUgbmUgcGV1eCBwbHVzIHJldGlyZXIgbGUgZmlsdHJlIHN1ciB1biBjb3VwIGRlIHTDqnRlLiddLCBbJ2NoYW1icmUnLCAnVMOpbMOpcGhvbmUgcXVpIGRvcnQgaG9ycyBkZSBsYSBjaGFtYnJlJywgJ1VuIHZyYWkgcsOpdmVpbCBwb3VyIGxlIG1hdGluLiddLCBbJ2NvdWV0dGUnLCAnSmFtYWlzIGRlIHTDqWzDqXBob25lIHNvdXMgbGEgY291ZXR0ZSBuaSBhdXggdG9pbGV0dGVzJywgJyddLCBbJ2FwcHMnLCAnQ29tcHRlcyBldCBhcHBsaXMgcXVpIGTDqWNsZW5jaGVudCA6IHN1cHByaW3DqXMgb3UgbWFzcXXDqXMnLCAnJ10sIFsncG9ydGUnLCAnU2V1bCDDoCBsYSBtYWlzb24gOiBwb3J0ZSBvdXZlcnRlLCBqYW1haXMgYWxsb25nw6kgw6AgdHJhw65uZXInLCAnJ11dOwogIGNvbnN0IEJBUl9OID0gW1snc3RvY2snLCAnQXVjdW5lIHB1ZmYgZW4gcsOpc2VydmUgw6AgbGEgbWFpc29uJywgJyddLCBbJ2FjaGF0JywgJ1BsdXMgZFwnYWNoYXQgYXV0b21hdGlxdWUgOiBqZSBub3RlIGF2YW50IGRcJ2FjaGV0ZXInLCAnJ10sIFsnbGlldXgnLCAnSlwnw6l2aXRlIGxlcyBwYXVzZXMgYXZlYyBjZXV4IHF1aSB2YXBvdGVudCcsICcnXV07CiAgY29uc3QgQUNUX0IgPSBbWydsZXZlJywgJ0plIG1lIGzDqHZlIGV0IGplIGNoYW5nZSBkZSBwacOoY2UnXSwgWyd3dWR1JywgJ0plIGZhaXMgbWVzIGFibHV0aW9ucyddLCBbJ3BvbXBlcycsICcyMCBwb21wZXMgb3UgMzAgc3F1YXRzJ10sIFsndGVsJywgJ1TDqWzDqXBob25lIHBvc8OpIGRhbnMgdW5lIGF1dHJlIHBpw6hjZSddLCBbJ2RoaWtyJywgJ0RoaWtyIDogMzMgw5cgMyddLCBbJ21zZycsICdKXCfDqWNyaXMgw6AgcXVlbHF1XCd1biddXTsKICBjb25zdCBBQ1RfTiA9IFtbJ2VhdScsICdVbiBncmFuZCB2ZXJyZSBkXCdlYXUnXSwgWydtYXJjaGUnLCAnNSBtaW51dGVzIGRlIG1hcmNoZSddLCBbJ2dvbW1lJywgJ1VuIGNoZXdpbmctZ3VtJ10sIFsnZGhpa3InLCAnRGhpa3IgOiAzMyDDlyAzJ10sIFsnbGV2ZScsICdKZSBjaGFuZ2UgZGUgcGnDqGNlJ11dOwogIGNvbnN0IERISUtSID0gW1sn2LPZj9io2ZLYrdmO2KfZhtmOINin2YTZhNmO2ZHZh9mQJywgJ1N1YmhhbkFsbGFoJ10sIFsn2KfZhNmS2K3ZjtmF2ZLYr9mPINmE2ZDZhNmO2ZHZh9mQJywgJ0FsaGFtZHVsaWxsYWgnXSwgWyfYp9mE2YTZjtmR2YfZjyDYo9mO2YPZktio2Y7YsdmPJywgJ0FsbGFodSBha2JhciddXTsKICBjb25zdCBEQVkgPSA4NjRlNTsKCiAgLyogLS0tLS0tLS0tLSBzdHlsZXMgKGluamVjdMOpcyBwb3VyIG5lIHJpZW4gbGFpc3NlciBkYW5zIGluZGV4Lmh0bWwpIC0tLS0tLS0tLS0gKi8KICBpZiAoIWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCd6c3QnKSkgewogICAgY29uc3Qgc3QgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdzdHlsZScpOyBzdC5pZCA9ICd6c3QnOwogICAgc3QudGV4dENvbnRlbnQgPSBgCi56aHttYXJnaW4tdG9wOjRweH0KLnpoZXJve3Bvc2l0aW9uOnJlbGF0aXZlO2Rpc3BsYXk6Z3JpZDtwbGFjZS1pdGVtczpjZW50ZXI7bWFyZ2luLXRvcDoxOHB4fQouemhlcm8+c3Zne3dpZHRoOm1pbigyNzBweCw3NHZ3KTtoZWlnaHQ6YXV0bztvdmVyZmxvdzp2aXNpYmxlO2Rpc3BsYXk6YmxvY2t9Ci56aGN7cG9zaXRpb246YWJzb2x1dGU7aW5zZXQ6MDtkaXNwbGF5OmdyaWQ7cGxhY2UtaXRlbXM6Y2VudGVyO3RleHQtYWxpZ246Y2VudGVyO3BvaW50ZXItZXZlbnRzOm5vbmV9Ci56aGMgYntkaXNwbGF5OmJsb2NrO2ZvbnQ6NDAwIDQuNXJlbS8xIHZhcigtLXNlcmlmKX0KLnpoYyBzcGFue2ZvbnQtc2l6ZTouODEyNXJlbTtjb2xvcjp2YXIoLS1tdXRlZCl9Ci56dGlja3tmb250OjQwMCAxLjI1cmVtLzEuMiB2YXIoLS1zZXJpZik7Y29sb3I6dmFyKC0taW5rLTIpO2ZvbnQtdmFyaWFudC1udW1lcmljOnRhYnVsYXItbnVtc30KLnpzb3N7ZGlzcGxheTpmbGV4O2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDoxMHB4O3dpZHRoOjEwMCU7bWluLWhlaWdodDo2NHB4O21hcmdpbi10b3A6MjBweDtib3JkZXItcmFkaXVzOjIycHg7YmFja2dyb3VuZDp2YXIoLS1nb2xkKTtjb2xvcjp2YXIoLS1nb2xkLWluayk7Zm9udC13ZWlnaHQ6NzAwO2ZvbnQtc2l6ZToxLjA2MjVyZW07Ym94LXNoYWRvdzowIDAgMCAwIHZhcigtLWdsb3cpO2FuaW1hdGlvbjp6cHVsc2UgMi42cyBlYXNlLW91dCBpbmZpbml0ZX0KQGtleWZyYW1lcyB6cHVsc2V7MCV7Ym94LXNoYWRvdzowIDAgMCAwIHZhcigtLWdsb3cpfTcwJXtib3gtc2hhZG93OjAgMCAwIDE2cHggdHJhbnNwYXJlbnR9MTAwJXtib3gtc2hhZG93OjAgMCAwIDAgdHJhbnNwYXJlbnR9fQouem1zPnN2Z3t3aWR0aDoxMDAlO2hlaWdodDphdXRvO2Rpc3BsYXk6YmxvY2s7b3ZlcmZsb3c6dmlzaWJsZX0KLnpjYXJke21hcmdpbi10b3A6MTJweDtwYWRkaW5nOjE2cHg7Ym9yZGVyLXJhZGl1czp2YXIoLS1yKTtiYWNrZ3JvdW5kOnZhcigtLXN1cmZhY2UpfQouenBsYW57ZGlzcGxheTpncmlkO2dyaWQtdGVtcGxhdGUtY29sdW1uczptaW5tYXgoMCwxZnIpIG1pbm1heCgwLDFmcikgMzZweDtnYXA6NnB4O21hcmdpbi1ib3R0b206OHB4fQouenBsYW4gaW5wdXR7bWluLXdpZHRoOjA7bWluLWhlaWdodDo0NHB4O2JvcmRlcjowO2JvcmRlci1yYWRpdXM6MTJweDtiYWNrZ3JvdW5kOnZhcigtLXN1cmZhY2UpO3BhZGRpbmc6MCAxMHB4O2NvbG9yOnZhcigtLWluayk7Zm9udC1zaXplOi44NzVyZW19Ci56cGxhbiBpbnB1dDpmb2N1c3tvdXRsaW5lOjJweCBzb2xpZCB2YXIoLS1nb2xkKX0KLnpwbGFuIC5pY29uLWJ0bnt3aWR0aDozNnB4fQouemlme2Rpc3BsYXk6Z3JpZDtnYXA6OHB4fQouemlmIGRpdntwYWRkaW5nOjEycHggMTRweDtib3JkZXItcmFkaXVzOjE0cHg7YmFja2dyb3VuZDp2YXIoLS1zdXJmYWNlKTtmb250LXNpemU6LjkzNzVyZW07bGluZS1oZWlnaHQ6MS40fQouemlmIHNtYWxse2Rpc3BsYXk6YmxvY2s7Zm9udC1zaXplOi42ODc1cmVtO2ZvbnQtd2VpZ2h0OjcwMDtsZXR0ZXItc3BhY2luZzouMWVtO3RleHQtdHJhbnNmb3JtOnVwcGVyY2FzZTtjb2xvcjp2YXIoLS1tdXRlZCl9Ci56aWYgYntjb2xvcjp2YXIoLS1nb2xkKTtmb250LXdlaWdodDo2NTB9Ci56ZGlhbD5zdmd7d2lkdGg6bWluKDI1MHB4LDcwdncpO2hlaWdodDphdXRvO2Rpc3BsYXk6YmxvY2s7bWFyZ2luOjAgYXV0bztvdmVyZmxvdzp2aXNpYmxlfQouenRye2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6OTBweCBtaW5tYXgoMCwxZnIpIDI4cHg7Z2FwOjEwcHg7YWxpZ24taXRlbXM6Y2VudGVyO2ZvbnQtc2l6ZTouODc1cmVtO21hcmdpbi10b3A6OHB4fQouenRyIC5iYXJ7aGVpZ2h0OjhweH0KLnprcGlze2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6cmVwZWF0KDMsbWlubWF4KDAsMWZyKSk7Z2FwOjhweDttYXJnaW4tdG9wOjE0cHh9Ci56a3BpcyBkaXZ7cGFkZGluZzoxMnB4O2JvcmRlci1yYWRpdXM6MTRweDtiYWNrZ3JvdW5kOnZhcigtLXN1cmZhY2UpO3RleHQtYWxpZ246Y2VudGVyfQouemtwaXMgYntkaXNwbGF5OmJsb2NrO2ZvbnQ6NDAwIDEuNzVyZW0vMS4xIHZhcigtLXNlcmlmKX0KLnprcGlzIHNwYW57Zm9udC1zaXplOi42ODc1cmVtO2NvbG9yOnZhcigtLW11dGVkKTtsaW5lLWhlaWdodDoxLjI1O2Rpc3BsYXk6YmxvY2t9Ci56dXJnZXtwb3NpdGlvbjpmaXhlZDtpbnNldDowO3otaW5kZXg6MzM7YmFja2dyb3VuZDp2YXIoLS1iZyk7b3ZlcmZsb3c6YXV0bztwYWRkaW5nOmNhbGModmFyKC0tc2F0KSArIDE4cHgpIDIwcHggY2FsYyh2YXIoLS1zYWIpICsgMTIwcHgpO2FuaW1hdGlvbjp6aW4gLjM1cyB2YXIoLS1lYXNlKX0KLnp1cmdlIC5pbnttYXgtd2lkdGg6NTIwcHg7bWFyZ2luOjAgYXV0b30KQGtleWZyYW1lcyB6aW57ZnJvbXtvcGFjaXR5OjA7dHJhbnNmb3JtOnNjYWxlKC45OCl9fQouenN0YWtle2ZvbnQ6NDAwIDIuNHJlbS8xLjEgdmFyKC0tc2VyaWYpO2NvbG9yOnZhcigtLWdvbGQpO2ZvbnQtdmFyaWFudC1udW1lcmljOnRhYnVsYXItbnVtczttYXJnaW46NHB4IDAgMH0KLnp3YXZle3Bvc2l0aW9uOnJlbGF0aXZlO2Rpc3BsYXk6Z3JpZDtwbGFjZS1pdGVtczpjZW50ZXI7bWFyZ2luOjIycHggMCA4cHh9Ci56d2F2ZT5zdmd7d2lkdGg6bWluKDI1MHB4LDcwdncpO2hlaWdodDphdXRvO292ZXJmbG93OnZpc2libGV9Ci56YnJlYXRoe3Bvc2l0aW9uOmFic29sdXRlO3dpZHRoOjExOHB4O2hlaWdodDoxMThweDtib3JkZXItcmFkaXVzOjUwJTtiYWNrZ3JvdW5kOnJhZGlhbC1ncmFkaWVudChjaXJjbGUsdmFyKC0tZ2xvdyksdHJhbnNwYXJlbnQgNzAlKTtib3gtc2hhZG93Omluc2V0IDAgMCAwIDEuNXB4IHZhcigtLWdvbGQpO2FuaW1hdGlvbjp6YnIgMTBzIGVhc2UtaW4tb3V0IGluZmluaXRlfQpAa2V5ZnJhbWVzIHpicnswJXt0cmFuc2Zvcm06c2NhbGUoLjcyKX00MCV7dHJhbnNmb3JtOnNjYWxlKDEuMTIpfTEwMCV7dHJhbnNmb3JtOnNjYWxlKC43Mil9fQouendje3Bvc2l0aW9uOmFic29sdXRlO2luc2V0OjA7ZGlzcGxheTpncmlkO3BsYWNlLWl0ZW1zOmNlbnRlcjt0ZXh0LWFsaWduOmNlbnRlcjtwb2ludGVyLWV2ZW50czpub25lfQouendjIGJ7ZGlzcGxheTpibG9jaztmb250OjQwMCAyLjVyZW0vMSB2YXIoLS1zZXJpZik7Zm9udC12YXJpYW50LW51bWVyaWM6dGFidWxhci1udW1zfQouendjIHNwYW57Zm9udC1zaXplOi44MTI1cmVtO2NvbG9yOnZhcigtLW11dGVkKX0KLnphY3Rze2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6cmVwZWF0KDIsbWlubWF4KDAsMWZyKSk7Z2FwOjhweDttYXJnaW4tdG9wOjE0cHh9Ci56YWN0e21pbi1oZWlnaHQ6NThweDtwYWRkaW5nOjEwcHggMTJweDtib3JkZXItcmFkaXVzOjE0cHg7YmFja2dyb3VuZDp2YXIoLS1zdXJmYWNlKTt0ZXh0LWFsaWduOmxlZnQ7Zm9udC1zaXplOi44NzVyZW07bGluZS1oZWlnaHQ6MS4zO2Rpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjEwcHg7dHJhbnNpdGlvbjpiYWNrZ3JvdW5kIC4ycyx0cmFuc2Zvcm0gLjE1cyB2YXIoLS1zcHJpbmcpfQouemFjdCBpe2ZsZXg6bm9uZTt3aWR0aDoyMnB4O2hlaWdodDoyMnB4O2JvcmRlci1yYWRpdXM6NTAlO2JveC1zaGFkb3c6aW5zZXQgMCAwIDAgMS41cHggdmFyKC0tb3JiaXQpO2Rpc3BsYXk6Z3JpZDtwbGFjZS1pdGVtczpjZW50ZXJ9Ci56YWN0IGkgc3Zne3dpZHRoOjEycHg7aGVpZ2h0OjEycHg7c3Ryb2tlOnZhcigtLWdvbGQtaW5rKTtzdHJva2Utd2lkdGg6MztmaWxsOm5vbmU7b3BhY2l0eTowfQouemFjdC5vbntiYWNrZ3JvdW5kOnZhcigtLWdvbGQtc29mdCl9Ci56YWN0Lm9uIGl7YmFja2dyb3VuZDp2YXIoLS1nb2xkKTtib3gtc2hhZG93Om5vbmV9Ci56YWN0Lm9uIGkgc3Zne29wYWNpdHk6MX0KLnphY3Q6YWN0aXZle3RyYW5zZm9ybTpzY2FsZSguOTUpfQouemRoe2Rpc3BsYXk6Z3JpZDtwbGFjZS1pdGVtczpjZW50ZXI7bWFyZ2luLXRvcDoxMnB4fQouemRoIGJ1dHRvbnt3aWR0aDoxODBweDtoZWlnaHQ6MTgwcHg7Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDp2YXIoLS1zdXJmYWNlKTtib3gtc2hhZG93Omluc2V0IDAgMCAwIDJweCB2YXIoLS1nb2xkKTtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2dhcDo0cHg7dHJhbnNpdGlvbjp0cmFuc2Zvcm0gLjFzfQouemRoIGJ1dHRvbjphY3RpdmV7dHJhbnNmb3JtOnNjYWxlKC45NSl9Ci56ZGggLmFye2ZvbnQ6NDAwIDEuNnJlbS8xLjUgdmFyKC0tYXIpfQouemRoIGJ7Zm9udDo0MDAgMi4yNXJlbS8xIHZhcigtLXNlcmlmKTtjb2xvcjp2YXIoLS1nb2xkKX0KLnpyZWFzb25ze2xpc3Qtc3R5bGU6bm9uZTttYXJnaW46MTBweCAwIDA7cGFkZGluZzowO2Rpc3BsYXk6Z3JpZDtnYXA6NnB4fQouenJlYXNvbnMgbGl7cGFkZGluZzoxMHB4IDE0cHg7Ym9yZGVyLXJhZGl1czoxMnB4O2JhY2tncm91bmQ6dmFyKC0tZ29sZC1zb2Z0KTtmb250LXNpemU6LjkzNzVyZW19Ci56ZGFya3twb3NpdGlvbjpmaXhlZDtpbnNldDowO3otaW5kZXg6MzQ7YmFja2dyb3VuZDojMDMwODA2O2NvbG9yOiNDOUQ2RDA7b3ZlcmZsb3c6YXV0bztwYWRkaW5nOmNhbGModmFyKC0tc2F0KSArIDMwcHgpIDIycHggY2FsYyh2YXIoLS1zYWIpICsgMTIwcHgpO2FuaW1hdGlvbjp6ZmFkZSAuOXMgZWFzZSBib3RofQouemRhcmsgLmlue21heC13aWR0aDo1MjBweDttYXJnaW46MCBhdXRvfQpAa2V5ZnJhbWVzIHpmYWRle2Zyb217b3BhY2l0eTowfX0KLnpkYXJrIGgye2NvbG9yOiNFRUYzRUZ9Ci56ZGFyayAubnVtLWJpZ3tmb250OjQwMCA1cmVtLzEgdmFyKC0tc2VyaWYpO2NvbG9yOiM2QjdBNzQ7Zm9udC12YXJpYW50LW51bWVyaWM6dGFidWxhci1udW1zO3RleHQtYWxpZ246Y2VudGVyO21hcmdpbjoxMHB4IDAgMH0KLnpkYXJrIC5tdXRlZCwuemRhcmsgLnNtYWxsLm11dGVke2NvbG9yOiM3RThGODh9Ci56ZGFyayAuY2hpcHtiYWNrZ3JvdW5kOiMxMzIwMUI7Y29sb3I6I0M5RDZEMH0KLnpkYXJrIC5jaGlwW2FyaWEtcHJlc3NlZD0idHJ1ZSJde2JhY2tncm91bmQ6I0U5QzQ2QTtjb2xvcjojMUExNDA1fQouemRhcmsgdGV4dGFyZWF7YmFja2dyb3VuZDojMEMxNjEyO2NvbG9yOiNFRUYzRUZ9Ci56ZGFyayAuenF7bWFyZ2luLXRvcDoyMnB4O3BhZGRpbmc6MTRweCAxNnB4O2JvcmRlci1yYWRpdXM6MTZweDtiYWNrZ3JvdW5kOiMwQzE2MTI7Y29sb3I6I0M5RDZEMDtmb250LXNpemU6LjkzNzVyZW07bGluZS1oZWlnaHQ6MS41fQouemRhcmsgLmJ0bi5xdWlldHtiYWNrZ3JvdW5kOiMxMzIwMUI7Y29sb3I6I0VFRjNFRn0KLnpiaWd7ZGlzcGxheTpncmlkO3BsYWNlLWl0ZW1zOmNlbnRlcjttYXJnaW4tdG9wOjE4cHh9Ci56YmlnIGJ1dHRvbnt3aWR0aDoxNzBweDtoZWlnaHQ6MTcwcHg7Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDp2YXIoLS1zdXJmYWNlKTtib3gtc2hhZG93Omluc2V0IDAgMCAwIDJweCB2YXIoLS1vcmJpdCk7Zm9udDo0MDAgMy4yNXJlbS8xIHZhcigtLXNlcmlmKTtjb2xvcjp2YXIoLS1pbmspO3RyYW5zaXRpb246dHJhbnNmb3JtIC4xMnMgdmFyKC0tc3ByaW5nKX0KLnpiaWcgYnV0dG9uOmFjdGl2ZXt0cmFuc2Zvcm06c2NhbGUoLjkzKX0KLnpiYXJzPnN2Z3t3aWR0aDoxMDAlO2hlaWdodDphdXRvO2Rpc3BsYXk6YmxvY2s7b3ZlcmZsb3c6dmlzaWJsZX0KLnpydWxlcntkaXNwbGF5OmdyaWQ7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOnJlcGVhdCgxMSxtaW5tYXgoMCwxZnIpKTtnYXA6NHB4O21hcmdpbi10b3A6MTBweH0KLnpydWxlciBidXR0b257bWluLWhlaWdodDo0MHB4O2JvcmRlci1yYWRpdXM6MTBweDtiYWNrZ3JvdW5kOnZhcigtLXN1cmZhY2UpO2ZvbnQtd2VpZ2h0OjcwMDtmb250LXNpemU6Ljg3NXJlbTtjb2xvcjp2YXIoLS1pbmstMil9Ci56cnVsZXIgYnV0dG9uW2FyaWEtcHJlc3NlZD0idHJ1ZSJde2JhY2tncm91bmQ6dmFyKC0tZ29sZCk7Y29sb3I6dmFyKC0tZ29sZC1pbmspfQouenNldCBpbnB1dHt3aWR0aDoxMDAlfQpgOwogICAgZG9jdW1lbnQuaGVhZC5hcHBlbmRDaGlsZChzdCk7CiAgfQoKICAvKiAtLS0tLS0tLS0tIG91dGlscyAtLS0tLS0tLS0tICovCiAgY29uc3QgSCA9ICgpID0+IFouZC5oYWJpdHMuZmluZChoID0+IGguaWQgPT09IFouaGlkKSB8fCBaLmQuaGFiaXRzWzBdOwogIGNvbnN0IG5vdyA9ICgpID0+IERhdGUubm93KCk7CiAgY29uc3QgZGF5cyA9IGggPT4gTWF0aC5tYXgoMCwgKG5vdygpIC0gaC5zdGFydCkgLyBEQVkpOwogIGNvbnN0IHR3byA9IG4gPT4gU3RyaW5nKG4pLnBhZFN0YXJ0KDIsICcwJyk7CiAgZnVuY3Rpb24gZHVyKG1zKSB7IGNvbnN0IHMgPSBNYXRoLmZsb29yKG1zIC8gMTAwMCksIGQgPSBNYXRoLmZsb29yKHMgLyA4NjQwMCk7IHJldHVybiBgJHtkfSBqICR7dHdvKE1hdGguZmxvb3IocyAlIDg2NDAwIC8gMzYwMCkpfToke3R3byhNYXRoLmZsb29yKHMgJSAzNjAwIC8gNjApKX06JHt0d28ocyAlIDYwKX1gOyB9CiAgY29uc3QgbmV4dE1zID0gZCA9PiBNUy5maW5kKG0gPT4gbSA+IGQpIHx8IG51bGw7CiAgY29uc3QgcHJldk1zID0gZCA9PiBbMCwgLi4uTVNdLmZpbHRlcihtID0+IG0gPD0gZCkucG9wKCk7CiAgYXN5bmMgZnVuY3Rpb24gcGVyc2lzdCgpIHsgaWYgKCFaLmtleSkgcmV0dXJuOyBTLnpjID0gYXdhaXQgelNlYWwoWi5rZXksIFouc2FsdCwgWi5kKTsgc2F2ZSh0cnVlKTsgfQogIGNvbnN0IGljbyA9IChwLCBzeiA9IDIwKSA9PiBgPHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIHdpZHRoPSIke3N6fSIgaGVpZ2h0PSIke3N6fSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGFyaWEtaGlkZGVuPSJ0cnVlIj4ke3B9PC9zdmc+YDsKICBjb25zdCBMT0NLID0gaWNvKCc8cmVjdCB4PSI1IiB5PSIxMC41IiB3aWR0aD0iMTQiIGhlaWdodD0iMTAiIHJ4PSIyLjUiLz48cGF0aCBkPSJNOC41IDEwLjVWNy41YTMuNSAzLjUgMCAwIDEgNyAwdjMiLz4nKTsKICBjb25zdCBYID0gaWNvKCc8cGF0aCBkPSJNNiA2bDEyIDEyTTE4IDZMNiAxOCIvPicsIDE4KTsKICBmdW5jdGlvbiBuZXdIYWJpdChuYW1lLCBtb2RlLCBuaWMsIHN0YXJ0KSB7CiAgICByZXR1cm4geyBpZDogJ2gnICsgdWlkKCksIG5hbWUsIG1vZGUsIG5pYywgc3RhcnQ6IHN0YXJ0IHx8IG5vdygpLCBiZXN0OiAwLCByZWxhcHNlczogW10sIHVyZ2VzOiBbXSwgbG9nOiBbXSwgcmVhZHk6IFtdLCByZWFzb25zOiBbXSwgcGxhbnM6IChuaWMgPyBQTEFOU19OIDogUExBTlNfQikubWFwKHAgPT4gcC5zbGljZSgpKSwgYmFyOiB7fSwgbXM6IHt9LCBsYXN0Q2xlYW46ICcnLCBwcmljZTogJycsIHBlcjogJycgfTsKICB9CgogIC8qIC0tLS0tLS0tLS0gcsOpY29tcGVuc2VzIHByb3ByZXMgw6AgbCdlc3BhY2UgLS0tLS0tLS0tLSAqLwogIGZ1bmN0aW9uIGRhaWx5Q2hlY2soKSB7CiAgICBjb25zdCBrID0gdG9kYXlJU08oKTsgbGV0IGNoYW5nZWQgPSBmYWxzZTsKICAgIFouZC5oYWJpdHMuZmlsdGVyKGggPT4gaC5tb2RlID09PSAnc3RvcCcpLmZvckVhY2goaCA9PiB7CiAgICAgIGNvbnN0IGQgPSBkYXlzKGgpOwogICAgICBjb25zdCBmcmVzaCA9IE1TLmZpbHRlcihtID0+IGQgPj0gbSAmJiAhaC5tc1ttXSk7IGZyZXNoLmZvckVhY2gobSA9PiB7IGgubXNbbV0gPSAxOyB9KTsKICAgICAgY29uc3QgdG9wID0gZnJlc2hbZnJlc2gubGVuZ3RoIC0gMV0sIGNsZWFuID0gZCA+PSAxICYmIGgubGFzdENsZWFuICE9PSBrOwogICAgICBpZiAoY2xlYW4pIGgubGFzdENsZWFuID0gazsKICAgICAgaWYgKGZyZXNoLmxlbmd0aCB8fCBjbGVhbikgY2hhbmdlZCA9IHRydWU7CiAgICAgIGlmICh0b3ApIHNldFRpbWVvdXQoKCkgPT4geyBsYXN0UHQgPSB7IHg6IGlubmVyV2lkdGggLyAyLCB5OiBpbm5lckhlaWdodCAqIC4zNSB9OyByZXdhcmQodG9wID49IDMwID8gMzAgOiB0b3AgPj0gNyA/IDE1IDogOCwgeyBiaWc6IHRydWUsIG1zZzogW2BQYWxpZXIgJHt0b3B9IGpvdXIke3RvcCA+IDEgPyAncycgOiAnJ31gLCB0b3AgPj0gNDAgPyAnUXVhcmFudGUgam91cnMgOiBsZSB0ZW1wcyBxdVwnaWwgZmF1dCwgZGl0LW9uLCBwb3VyIHF1XCd1biDDqXRhdCBkZXZpZW5uZSB1bmUgbmF0dXJlLiBUdSB5IGVzLicgOiAnVHUgdmllbnMgZFwnYWxsdW1lciB1bmUgbm91dmVsbGUgw6l0b2lsZS4gUmVnYXJkZSBsZSBjaGVtaW4gcGFyY291cnUuJ10gfSk7IH0sIDcwMCk7CiAgICAgIGVsc2UgaWYgKGNsZWFuKSBzZXRUaW1lb3V0KCgpID0+IHsgbGFzdFB0ID0geyB4OiBpbm5lcldpZHRoIC8gMiwgeTogaW5uZXJIZWlnaHQgKiAuMzUgfTsgcmV3YXJkKDQsIHsgbXNnOiBbJ1VuIGpvdXIgZGUgcGx1cycsIGAke2VzYyhoLm5hbWUpfSA6ICR7TWF0aC5mbG9vcihkKX0gam91cnMgdGVudXMuIENoYXF1ZSBqb3VyIHJlbmZvcmNlIGxlIGNoZW1pbiBxdWUgdHUgY29uc3RydWlzLmBdIH0pOyB9LCA3MDApOwogICAgICBoLmJlc3QgPSBNYXRoLm1heChoLmJlc3QgfHwgMCwgbm93KCkgLSBoLnN0YXJ0KTsKICAgIH0pOwogICAgaWYgKGNoYW5nZWQpIHBlcnNpc3QoKTsKICB9CgogIC8qIC0tLS0tLS0tLS0gdnVlcyAtLS0tLS0tLS0tICovCiAgZnVuY3Rpb24gaGVhZCgpIHsKICAgIHJldHVybiBgPGhlYWRlciBjbGFzcz0idG9wIj48ZGl2PjxwIGNsYXNzPSJleWVicm93Ij5Fc3BhY2UgcHJpdsOpPC9wPjxoMT5KaWhhZCA8ZW0+YW4tbmFmczwvZW0+PC9oMT48cD5MZSBjb21iYXQgY29udHJlIHNvaS1tw6ptZS4gSWNpLCBwZXJzb25uZSBkJ2F1dHJlIG4nZW50cmUuPC9wPjwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJ0b3AtYWN0aW9ucyI+PGJ1dHRvbiBjbGFzcz0iaWNvbi1idG4iIGRhdGEtemxvY2sgYXJpYS1sYWJlbD0iVmVycm91aWxsZXIiPiR7TE9DS308L2J1dHRvbj48L2Rpdj48L2hlYWRlcj5gOwogIH0KICBmdW5jdGlvbiB0YWJzKCkgewogICAgaWYgKFouZC5oYWJpdHMubGVuZ3RoIDwgMikgcmV0dXJuICcnOwogICAgcmV0dXJuIGA8ZGl2IGNsYXNzPSJzZWciIHJvbGU9Imdyb3VwIiBzdHlsZT0ibWFyZ2luLXRvcDoyMHB4Ij4ke1ouZC5oYWJpdHMubWFwKGggPT4gYDxidXR0b24gZGF0YS16aD0iJHtoLmlkfSIgYXJpYS1wcmVzc2VkPSIke2guaWQgPT09IEgoKS5pZH0iPiR7ZXNjKGgubmFtZSB8fCAnU2FucyBub20nKX08L2J1dHRvbj5gKS5qb2luKCcnKX08L2Rpdj5gOwogIH0KICBmdW5jdGlvbiBoZXJvKGgpIHsKICAgIGNvbnN0IGQgPSBkYXlzKGgpLCBueCA9IG5leHRNcyhkKSwgcHYgPSBwcmV2TXMoZCksIHAgPSBueCA/IChkIC0gcHYpIC8gKG54IC0gcHYpIDogMSwgUiA9IDEwMDsKICAgIHJldHVybiBgPGRpdiBjbGFzcz0iemhlcm8iPjxzdmcgdmlld0JveD0iLTEzMCAtMTMwIDI2MCAyNjAiIGFyaWEtaGlkZGVuPSJ0cnVlIj4KICAgICAgPGNpcmNsZSByPSIke1J9IiBmaWxsPSJub25lIiBzdHJva2U9InZhcigtLXJhaXNlKSIgc3Ryb2tlLXdpZHRoPSIxNiIvPgogICAgICA8Y2lyY2xlIHI9IiR7Un0iIGZpbGw9Im5vbmUiIHN0cm9rZT0idmFyKC0tZ29sZCkiIHN0cm9rZS13aWR0aD0iMTYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgdHJhbnNmb3JtPSJyb3RhdGUoLTkwKSIgJHtyaW5nRGFzaChSLCBwKX0gc3R5bGU9ImZpbHRlcjpkcm9wLXNoYWRvdygwIDAgMTBweCB2YXIoLS1nbG93KSkiLz48L3N2Zz4KICAgICAgPGRpdiBjbGFzcz0iemhjIj48ZGl2PjxiIGNsYXNzPSJudW0iPiR7TWF0aC5mbG9vcihkKX08L2I+PHNwYW4+am91ciR7TWF0aC5mbG9vcihkKSA+IDEgPyAncycgOiAnJ30gdGVudSR7TWF0aC5mbG9vcihkKSA+IDEgPyAncycgOiAnJ308L3NwYW4+PHAgY2xhc3M9Inp0aWNrIiBpZD0ielRpY2siPiR7ZHVyKG5vdygpIC0gaC5zdGFydCkuc3BsaXQoJyAnKS5zbGljZSgyKS5qb2luKCcgJyl9PC9wPjxzcGFuPiR7bnggPyBgcHJvY2hhaW5lIMOpdG9pbGUgOiAke254fSBqYCA6ICdhdS1kZWzDoCBkZXMgw6l0b2lsZXMnfTwvc3Bhbj48L2Rpdj48L2Rpdj48L2Rpdj5gOwogIH0KICBmdW5jdGlvbiBzdGFycyhoKSB7CiAgICBjb25zdCBkID0gZGF5cyhoKSwgVyA9IDMzMCwgcHRzID0gTVMubWFwKChtLCBpKSA9PiB7IGNvbnN0IHggPSAxNCArIGkgKiAoVyAtIDI4KSAvIChNUy5sZW5ndGggLSAxKSwgeSA9IDQwIC0gTWF0aC5zaW4oaSAvIChNUy5sZW5ndGggLSAxKSAqIE1hdGguUEkpICogMjY7IHJldHVybiBbeCwgeSwgbV07IH0pOwogICAgY29uc3QgbnggPSBuZXh0TXMoZCk7CiAgICByZXR1cm4gYDxkaXYgY2xhc3M9InptcyI+PHN2ZyB2aWV3Qm94PSIwIDAgJHtXfSA3NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJQYWxpZXJzIj4KICAgICAgPHBvbHlsaW5lIHBvaW50cz0iJHtwdHMubWFwKHAgPT4gcC5zbGljZSgwLCAyKS5qb2luKCcsJykpLmpvaW4oJyAnKX0iIGZpbGw9Im5vbmUiIHN0cm9rZT0idmFyKC0tb3JiaXQpIiBzdHJva2Utd2lkdGg9IjEiIHN0cm9rZS1kYXNoYXJyYXk9IjIgNCIvPgogICAgICAke3B0cy5tYXAoKFt4LCB5LCBtXSkgPT4geyBjb25zdCBvbiA9IGQgPj0gbSwgbnh0ID0gbSA9PT0gbng7IHJldHVybiBgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoJHt4LnRvRml4ZWQoMSl9ICR7eS50b0ZpeGVkKDEpfSkiPiR7b24gPyAnPGNpcmNsZSByPSIxMCIgZmlsbD0idmFyKC0tZ2xvdykiLz4nIDogJyd9PGNpcmNsZSByPSIke29uID8gNS41IDogNH0iIGZpbGw9IiR7b24gPyAndmFyKC0tZ29sZCknIDogJ3ZhcigtLXN1cmZhY2UpJ30iIHN0cm9rZT0iJHtvbiB8fCBueHQgPyAndmFyKC0tZ29sZCknIDogJ3ZhcigtLW9yYml0KSd9IiBzdHJva2Utd2lkdGg9IiR7bnh0ID8gMiA6IDEuMn0iPiR7bnh0ID8gJzxhbmltYXRlIGF0dHJpYnV0ZU5hbWU9InIiIHZhbHVlcz0iNDs2OzQiIGR1cj0iMnMiIHJlcGVhdENvdW50PSJpbmRlZmluaXRlIi8+JyA6ICcnfTwvY2lyY2xlPjx0ZXh0IHk9IjIyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBzdHlsZT0iZm9udC1zaXplOjkuNXB4O2ZvbnQtd2VpZ2h0OjcwMDtmaWxsOnZhcigtLSR7b24gPyAnZ29sZCcgOiAnbXV0ZWQnfSkiPiR7bX08L3RleHQ+PC9nPmA7IH0pLmpvaW4oJycpfQogICAgPC9zdmc+PC9kaXY+YDsKICB9CiAgZnVuY3Rpb24gZGlhbChoKSB7CiAgICBjb25zdCBSID0gNzgsIGV2ID0gaC5tb2RlID09PSAnd2F0Y2gnID8gaC5sb2cuc2xpY2UoLTIwMCkubWFwKHQgPT4gW3QsICdnb2xkJ10pIDogaC51cmdlcy5zbGljZSgtMTUwKS5tYXAodSA9PiBbdS50LCB1LndvbiA/ICdnb2xkJyA6ICdkYW5nZXInXSkuY29uY2F0KGgucmVsYXBzZXMuc2xpY2UoLTgwKS5tYXAociA9PiBbci50LCAnZGFuZ2VyJ10pKTsKICAgIGNvbnN0IGNudCA9IEFycmF5KDI0KS5maWxsKDApOyBldi5mb3JFYWNoKChbdF0pID0+IGNudFtuZXcgRGF0ZSh0KS5nZXRIb3VycygpXSsrKTsKICAgIGNvbnN0IHRvcCA9IGNudC5pbmRleE9mKE1hdGgubWF4KC4uLmNudCkpOwogICAgbGV0IHNlZWQgPSAzOyBjb25zdCBybmQgPSAoKSA9PiAoc2VlZCA9IChzZWVkICogOTMwMSArIDQ5Mjk3KSAlIDIzMzI4MCkgLyAyMzMyODA7CiAgICBjb25zdCBkb3RzID0gZXYubWFwKChbdCwgY10pID0+IHsgY29uc3QgZHQgPSBuZXcgRGF0ZSh0KSwgYSA9IChkdC5nZXRIb3VycygpICsgZHQuZ2V0TWludXRlcygpIC8gNjApICogMTUsIFt4LCB5XSA9IHBvbGFyKFIgLSAxNCArIHJuZCgpICogMjgsIGEpOyByZXR1cm4gYDxjaXJjbGUgY3g9IiR7eC50b0ZpeGVkKDEpfSIgY3k9IiR7eS50b0ZpeGVkKDEpfSIgcj0iMy4yIiBmaWxsPSJ2YXIoLS0ke2N9KSIgb3BhY2l0eT0iLjg1Ii8+YDsgfSkuam9pbignJyk7CiAgICBjb25zdCB0aWNrcyA9IEFycmF5LmZyb20oeyBsZW5ndGg6IDI0IH0sIChfLCBpKSA9PiB7IGNvbnN0IFt4MCwgeTBdID0gcG9sYXIoUiArIDIwLCBpICogMTUpLCBbeDEsIHkxXSA9IHBvbGFyKFIgKyAoaSAlIDYgPyAyNCA6IDI4KSwgaSAqIDE1KTsgcmV0dXJuIGA8bGluZSB4MT0iJHt4MC50b0ZpeGVkKDEpfSIgeTE9IiR7eTAudG9GaXhlZCgxKX0iIHgyPSIke3gxLnRvRml4ZWQoMSl9IiB5Mj0iJHt5MS50b0ZpeGVkKDEpfSIgc3Ryb2tlPSJ2YXIoLS1tdXRlZCkiIHN0cm9rZS13aWR0aD0iJHtpICUgNiA/IDEgOiAxLjZ9Ii8+YDsgfSkuam9pbignJyk7CiAgICBjb25zdCBsYmwgPSBbMCwgNiwgMTIsIDE4XS5tYXAoaGggPT4geyBjb25zdCBbeCwgeV0gPSBwb2xhcihSICsgNDAsIGhoICogMTUpOyByZXR1cm4gYDx0ZXh0IHg9IiR7eC50b0ZpeGVkKDEpfSIgeT0iJHsoeSArIDQpLnRvRml4ZWQoMSl9IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBzdHlsZT0iZm9udC1zaXplOjEwcHg7Zm9udC13ZWlnaHQ6NzAwO2ZpbGw6dmFyKC0tbXV0ZWQpIj4ke2hofSBoPC90ZXh0PmA7IH0pLmpvaW4oJycpOwogICAgcmV0dXJuIGA8ZGl2IGNsYXNzPSJ6ZGlhbCI+PHN2ZyB2aWV3Qm94PSItMTMwIC0xMzAgMjYwIDI2MCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJIZXVyZXMgZGVzIGVudmllcyI+CiAgICAgIDxjaXJjbGUgcj0iJHtSfSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ2YXIoLS1yYWlzZSkiIHN0cm9rZS13aWR0aD0iMzAiLz4ke3RpY2tzfSR7bGJsfSR7ZG90c30KICAgICAgPHRleHQgeT0iLTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIHN0eWxlPSJmb250OjQwMCAyNnB4IHZhcigtLXNlcmlmKTtmaWxsOnZhcigtLWluaykiPiR7ZXYubGVuZ3RoID8gYCR7dG9wfSBoYCA6ICfigJQnfTwvdGV4dD4KICAgICAgPHRleHQgeT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIHN0eWxlPSJmb250LXNpemU6OXB4O2ZvbnQtd2VpZ2h0OjcwMDtsZXR0ZXItc3BhY2luZzouMWVtO2ZpbGw6dmFyKC0tbXV0ZWQpIj4ke2V2Lmxlbmd0aCA/ICdIRVVSRSDDgCBSSVNRVUUnIDogJ1BBUyBFTkNPUkUgREUgRE9OTsOJRVMnfTwvdGV4dD48L3N2Zz48L2Rpdj5gOwogIH0KICBmdW5jdGlvbiB0cmlnZ2VycyhoKSB7CiAgICBjb25zdCBjID0ge307IGgudXJnZXMuY29uY2F0KGgucmVsYXBzZXMpLmZvckVhY2godSA9PiB7IGlmICh1LnRyaWcpIGNbdS50cmlnXSA9IChjW3UudHJpZ10gfHwgMCkgKyAxOyB9KTsKICAgIGNvbnN0IGFyciA9IFRSSUcubWFwKChbaywgbl0pID0+IFtuLCBjW2tdIHx8IDBdKS5maWx0ZXIoeCA9PiB4WzFdKS5zb3J0KChhLCBiKSA9PiBiWzFdIC0gYVsxXSk7CiAgICBpZiAoIWFyci5sZW5ndGgpIHJldHVybiAnJzsKICAgIGNvbnN0IG14ID0gYXJyWzBdWzFdOwogICAgcmV0dXJuIGA8cCBjbGFzcz0iZXllYnJvdyIgc3R5bGU9Im1hcmdpbi10b3A6MThweCI+RMOpY2xlbmNoZXVyczwvcD4ke2Fyci5tYXAoKFtuLCB2XSkgPT4gYDxkaXYgY2xhc3M9Inp0ciI+PHNwYW4+JHtufTwvc3Bhbj48ZGl2IGNsYXNzPSJiYXIiPjxpIHN0eWxlPSJ3aWR0aDoke3YgLyBteCAqIDEwMH0lIj48L2k+PC9kaXY+PGIgY2xhc3M9Im51bSI+JHt2fTwvYj48L2Rpdj5gKS5qb2luKCcnKX1gOwogIH0KICBmdW5jdGlvbiBwbGFuc0Jsb2NrKGgpIHsKICAgIHJldHVybiBgPHNlY3Rpb24+PGRpdiBjbGFzcz0icm93IGJldHdlZW4iIHN0eWxlPSJtYXJnaW4tYm90dG9tOjEycHgiPjxoMiBzdHlsZT0ibWFyZ2luOjAiPlNp4oCmIGFsb3Jz4oCmPC9oMj48YnV0dG9uIGNsYXNzPSJsaW5rLWJ0biIgZGF0YS16ZWRpdD0icGxhbnMiPk1vZGlmaWVyPC9idXR0b24+PC9kaXY+CiAgICAgIDxwIGNsYXNzPSJzbWFsbCBtdXRlZCIgc3R5bGU9Im1hcmdpbjotNHB4IDAgMTJweCI+RMOpY2lkw6kgw6AgZnJvaWQsIGFwcGxpcXXDqSDDoCBjaGF1ZC4gUHLDqXBhcmVyIHNhIHLDqXBvbnNlIMOgIGwnYXZhbmNlIGRvdWJsZSBsZXMgY2hhbmNlcyBkZSBzJ3kgdGVuaXIuPC9wPgogICAgICA8ZGl2IGNsYXNzPSJ6aWYiPiR7aC5wbGFucy5tYXAocCA9PiBgPGRpdj48c21hbGw+U2k8L3NtYWxsPiR7ZXNjKHBbMF0pfTxicj48c21hbGwgc3R5bGU9Im1hcmdpbi10b3A6NnB4Ij5BbG9yczwvc21hbGw+PGI+JHtlc2MocFsxXSl9PC9iPjwvZGl2PmApLmpvaW4oJycpIHx8ICc8cCBjbGFzcz0iZW1wdHkiPkF1Y3VuIHBsYW4uPC9wPid9PC9kaXY+PC9zZWN0aW9uPmA7CiAgfQogIGZ1bmN0aW9uIHJlYXNvbnNCbG9jayhoKSB7CiAgICByZXR1cm4gYDxzZWN0aW9uPjxkaXYgY2xhc3M9InJvdyBiZXR3ZWVuIiBzdHlsZT0ibWFyZ2luLWJvdHRvbToxMnB4Ij48aDIgc3R5bGU9Im1hcmdpbjowIj5NZXMgcmFpc29uczwvaDI+PGJ1dHRvbiBjbGFzcz0ibGluay1idG4iIGRhdGEtemVkaXQ9InJlYXNvbnMiPk1vZGlmaWVyPC9idXR0b24+PC9kaXY+CiAgICAgICR7aC5yZWFzb25zLmxlbmd0aCA/IGA8dWwgY2xhc3M9InpyZWFzb25zIj4ke2gucmVhc29ucy5tYXAociA9PiBgPGxpPiR7ZXNjKHIpfTwvbGk+YCkuam9pbignJyl9PC91bD5gIDogJzxwIGNsYXNzPSJzbWFsbCBtdXRlZCI+w4ljcmlzIHBvdXJxdW9pIHR1IGFycsOqdGVzLCBhdmVjIHRlcyBtb3RzLiBFbGxlcyBzXCdhZmZpY2hlcm9udCBhdSBtb21lbnQgb8O5IGxcJ2VudmllIG1vbnRlLjwvcD48YnV0dG9uIGNsYXNzPSJidG4gc20gZ2hvc3QiIGRhdGEtemVkaXQ9InJlYXNvbnMiIHN0eWxlPSJtYXJnaW4tdG9wOjEwcHgiPsOJY3JpcmUgbWVzIHJhaXNvbnM8L2J1dHRvbj4nfTwvc2VjdGlvbj5gOwogIH0KICBmdW5jdGlvbiBiYXJyaWVycyhoKSB7CiAgICBjb25zdCBsaXN0ID0gaC5uaWMgPyBCQVJfTiA6IEJBUl9CLCBuID0gbGlzdC5maWx0ZXIoYiA9PiBoLmJhcltiWzBdXSkubGVuZ3RoOwogICAgcmV0dXJuIGA8c2VjdGlvbj48ZGl2IGNsYXNzPSJyb3cgYmV0d2VlbiIgc3R5bGU9ImFsaWduLWl0ZW1zOmZsZXgtZW5kIj48aDIgc3R5bGU9Im1hcmdpbjowIj5CYXJyacOocmVzPC9oMj48cCBjbGFzcz0ic21hbGwgbXV0ZWQiIHN0eWxlPSJtYXJnaW46MCI+JHtufS8ke2xpc3QubGVuZ3RofTwvcD48L2Rpdj4KICAgICAgPHAgY2xhc3M9InNtYWxsIG11dGVkIiBzdHlsZT0ibWFyZ2luOjZweCAwIDRweCI+VGEgdm9sb250w6kgZXN0IHBsdXMgZmFpYmxlIGF1IG1hdXZhaXMgbW9tZW50LiBMZXMgYmFycmnDqHJlcyB0cmF2YWlsbGVudCDDoCBzYSBwbGFjZS48L3A+CiAgICAgIDxkaXYgY2xhc3M9ImNoZWNrcyI+JHtsaXN0Lm1hcChiID0+IGA8bGFiZWwgY2xhc3M9ImNoZWNrIj48aW5wdXQgdHlwZT0iY2hlY2tib3giIGRhdGEtemJhcj0iJHtiWzBdfSIgJHtoLmJhcltiWzBdXSA/ICdjaGVja2VkJyA6ICcnfT48c3BhbiBjbGFzcz0iYm94Ij4ke0lDT04udGlja308L3NwYW4+PHNwYW4gY2xhc3M9InR4dCI+JHtiWzFdfSR7YlsyXSA/IGA8YnI+PHNwYW4gY2xhc3M9InNtYWxsIG11dGVkIj4ke2JbMl19PC9zcGFuPmAgOiAnJ308L3NwYW4+PC9sYWJlbD5gKS5qb2luKCcnKX08L2Rpdj48L3NlY3Rpb24+YDsKICB9CiAgZnVuY3Rpb24gc3RhdHMoaCkgewogICAgY29uc3Qgd29uID0gaC51cmdlcy5maWx0ZXIodSA9PiB1LndvbikubGVuZ3RoLCB3ayA9IGgucmVsYXBzZXMuZmlsdGVyKHIgPT4gbm93KCkgLSByLnQgPCA3ICogREFZKS5sZW5ndGg7CiAgICBjb25zdCB0b3QgPSBoLnJlbGFwc2VzLmxlbmd0aDsKICAgIHJldHVybiBgPHNlY3Rpb24+PGgyPkNlIHF1ZSBkaXNlbnQgdGVzIGRvbm7DqWVzPC9oMj4KICAgICAgPGRpdiBjbGFzcz0iemtwaXMiPjxkaXY+PGIgY2xhc3M9Im51bSI+JHt3b259PC9iPjxzcGFuPmVudmllcyB2YWluY3Vlczwvc3Bhbj48L2Rpdj48ZGl2PjxiIGNsYXNzPSJudW0iPiR7TWF0aC5mbG9vcigoTWF0aC5tYXgoaC5iZXN0IHx8IDAsIG5vdygpIC0gaC5zdGFydCkpIC8gREFZKX08L2I+PHNwYW4+am91cnMsIHRvbiByZWNvcmQ8L3NwYW4+PC9kaXY+PGRpdj48YiBjbGFzcz0ibnVtIj4ke3RvdH08L2I+PHNwYW4+cmVjaHV0ZXMgbm90w6llczwvc3Bhbj48L2Rpdj48L2Rpdj4KICAgICAgJHtkaWFsKGgpfSR7dHJpZ2dlcnMoaCl9CiAgICAgICR7d2sgPj0gMyA/IGA8ZGl2IGNsYXNzPSJhbGVydCIgc3R5bGU9Im1hcmdpbi10b3A6MThweCI+JHtJQ09OLmluZm99PHNwYW4+JHt3a30gcmVjaHV0ZXMgZW4gNyBqb3Vycy4gQ2Ugbidlc3QgcGFzIHVuIG1hbnF1ZSBkZSB2b2xvbnTDqSA6IGMnZXN0IGxlIHNpZ25lIHF1J2lsIGZhdXQgcGx1cyBkZSBiYXJyacOocmVzLCBvdSBkZSBsJ2FpZGUuIEVuIHBhcmxlciDDoCB1biBtw6lkZWNpbiBvdSDDoCB1biBwc3ljaG9sb2d1ZSBuJ2EgcmllbiBkZSBob250ZXV4LCBjJ2VzdCB1biBtb3llbiBkZSBwbHVzIHBvdXIgZ2FnbmVyLjwvc3Bhbj48L2Rpdj5gIDogJyd9PC9zZWN0aW9uPmA7CiAgfQogIGZ1bmN0aW9uIHZTdG9wKGgpIHsKICAgIHJldHVybiBgJHtoZXJvKGgpfQogICAgICA8YnV0dG9uIGNsYXNzPSJ6c29zIiBkYXRhLXp1cmdlPiR7aWNvKCc8cGF0aCBkPSJNMTIgM2MyIDMgNSA1LjUgNSA5LjVhNSA1IDAgMCAxLTEwIDBjMC0yIDEtMy41IDItNC41IDAgMiAxIDMgMiAzIDAtMy0xLTUgMS04eiIvPicsIDIyKX0gSidhaSB1bmUgZW52aWU8L2J1dHRvbj4KICAgICAgPHAgY2xhc3M9ImhpbnQiIHN0eWxlPSJ0ZXh0LWFsaWduOmNlbnRlciI+VG91Y2hlLWxlIGTDqHMgcXVlIMOnYSBtb250ZS4gUGFzIGFwcsOocy48L3A+CiAgICAgIDxzZWN0aW9uPjxoMj5UZXMgw6l0b2lsZXM8L2gyPiR7c3RhcnMoaCl9PC9zZWN0aW9uPgogICAgICAke3JlYXNvbnNCbG9jayhoKX0ke3BsYW5zQmxvY2soaCl9JHtiYXJyaWVycyhoKX0ke3N0YXRzKGgpfQogICAgICAke2gubmljID8gYDxzZWN0aW9uPjxkaXYgY2xhc3M9InpjYXJkIj48cCBjbGFzcz0ic21hbGwiIHN0eWxlPSJtYXJnaW46MCI+VW5lIGVudmllIGRlIG5pY290aW5lIGR1cmUgZW4gZ8OpbsOpcmFsIDxiPjMgw6AgNSBtaW51dGVzPC9iPi4gTGVzIHN1YnN0aXR1dHMgKHBhdGNocywgZ29tbWVzKSBhaWRlbnQgdnJhaW1lbnQgOiB0b24gcGhhcm1hY2llbiBwZXV0IHRlIGNvbnNlaWxsZXIuIExlIDxiPjM5IDg5PC9iPiAoVGFiYWMgSW5mbyBTZXJ2aWNlKSB0J2FjY29tcGFnbmUgZ3JhdHVpdGVtZW50LjwvcD48L2Rpdj48L3NlY3Rpb24+YCA6ICcnfQogICAgICA8YnV0dG9uIGNsYXNzPSJidG4gYmxvY2sgcXVpZXQiIGRhdGEtenJlbCBzdHlsZT0ibWFyZ2luLXRvcDozNHB4Ij5KJ2FpIHJlY2h1dMOpPC9idXR0b24+CiAgICAgIDxwIGNsYXNzPSJoaW50IiBzdHlsZT0idGV4dC1hbGlnbjpjZW50ZXIiPkhvbm7DqnRldMOpIGQnYWJvcmQgOiB1bmUgc8OpcmllIGZhdXNzZSBuZSB0J2FwcHJlbmQgcmllbi48L3A+YDsKICB9CiAgZnVuY3Rpb24gdldhdGNoKGgpIHsKICAgIGNvbnN0IGsgPSB0b2RheUlTTygpLCB0b2RheSA9IGgubG9nLmZpbHRlcih0ID0+IGlzbyhuZXcgRGF0ZSh0KSkgPT09IGspLmxlbmd0aDsKICAgIGNvbnN0IFcgPSAzMjAsIEhoID0gMTIwLCBCID0gMjIsIGJ3ID0gMzAsIGdhcCA9IChXIC0gNyAqIGJ3KSAvIDY7IGNvbnN0IGNvdW50cyA9IFtdOwogICAgZm9yIChsZXQgaSA9IDY7IGkgPj0gMDsgaS0tKSB7IGNvbnN0IGRrID0gaXNvKGFkZERheXMobmV3IERhdGUoKSwgLWkpKTsgY291bnRzLnB1c2goW2FkZERheXMobmV3IERhdGUoKSwgLWkpLCBoLmxvZy5maWx0ZXIodCA9PiBpc28obmV3IERhdGUodCkpID09PSBkaykubGVuZ3RoXSk7IH0KICAgIGNvbnN0IG14ID0gTWF0aC5tYXgoMywgLi4uY291bnRzLm1hcChjID0+IGNbMV0pKTsKICAgIGNvbnN0IGJhcnMgPSBjb3VudHMubWFwKChbZCwgdl0sIGkpID0+IHsgY29uc3QgeCA9IGkgKiAoYncgKyBnYXApLCBoaCA9IHYgLyBteCAqIChIaCAtIEIgLSAxNiksIHkgPSBIaCAtIEIgLSBoaDsgcmV0dXJuIGAke3YgPyBgPHJlY3QgeD0iJHt4LnRvRml4ZWQoMSl9IiB5PSIke3kudG9GaXhlZCgxKX0iIHdpZHRoPSIke2J3fSIgaGVpZ2h0PSIke2hoLnRvRml4ZWQoMSl9IiByeD0iOCIgZmlsbD0idmFyKC0tZ29sZCkiIG9wYWNpdHk9IiR7aSA9PT0gNiA/IDEgOiAuNn0iLz48dGV4dCB4PSIkeyh4ICsgYncgLyAyKS50b0ZpeGVkKDEpfSIgeT0iJHsoeSAtIDUpLnRvRml4ZWQoMSl9IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBzdHlsZT0iZm9udC1zaXplOjEwcHg7Zm9udC13ZWlnaHQ6NzAwO2ZpbGw6dmFyKC0taW5rLTIpIj4ke3Z9PC90ZXh0PmAgOiBgPGNpcmNsZSBjeD0iJHsoeCArIGJ3IC8gMikudG9GaXhlZCgxKX0iIGN5PSIke0hoIC0gQiAtIDV9IiByPSIzIiBmaWxsPSJ2YXIoLS1saW5lKSIvPmB9PHRleHQgeD0iJHsoeCArIGJ3IC8gMikudG9GaXhlZCgxKX0iIHk9IiR7SGggLSA2fSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgc3R5bGU9ImZvbnQtc2l6ZToxMHB4O2ZvbnQtd2VpZ2h0OjYwMDtmaWxsOnZhcigtLW11dGVkKSI+JHtpID09PSA2ID8gJ2F1ai4nIDogREFZX1NIT1JULmZvcm1hdChkKS5yZXBsYWNlKCcuJywgJycpfTwvdGV4dD5gOyB9KS5qb2luKCcnKTsKICAgIGNvbnN0IHByaWNlID0gbnVtdihoLnByaWNlKSwgcGVyID0gbnVtdihoLnBlciksIG1vbnRoID0gcHJpY2UgJiYgcGVyID8gcHJpY2UgKiAzMCAvIHBlciA6IDA7CiAgICBjb25zdCBsYXN0UiA9IGgucmVhZHlbaC5yZWFkeS5sZW5ndGggLSAxXTsKICAgIHJldHVybiBgPGRpdiBjbGFzcz0iemNhcmQiIHN0eWxlPSJtYXJnaW4tdG9wOjIwcHgiPjxwIGNsYXNzPSJzbWFsbCIgc3R5bGU9Im1hcmdpbjowIj5Nb2RlIDxiPm9ic2VydmF0aW9uPC9iPiA6IHR1IG5lIHQnaW1wb3NlcyByaWVuLiBUdSBub3Rlcywgc2ltcGxlbWVudC4gTGUgam91ciBvw7kgdHUgZMOpY2lkZXMgZCdhcnLDqnRlciwgdHUgY29ubmHDrnRyYXMgdGVzIGhldXJlcywgdGVzIGTDqWNsZW5jaGV1cnMgZXQgY2UgcXVlIMOnYSB0ZSBjb8O7dGUuPC9wPjwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJ6YmlnIj48YnV0dG9uIGRhdGEtemxvZyBhcmlhLWxhYmVsPSJOb3RlciB1bmUgcHJpc2UiPjxzcGFuIGNsYXNzPSJudW0iPiR7dG9kYXl9PC9zcGFuPjwvYnV0dG9uPjwvZGl2PgogICAgICA8cCBjbGFzcz0iaGludCIgc3R5bGU9InRleHQtYWxpZ246Y2VudGVyIj5Ub3VjaGUgbGUgY2VyY2xlIMOgIGNoYXF1ZSBwcmlzZS4gJHtoLmxvZy5sZW5ndGggPyAnPGJ1dHRvbiBjbGFzcz0ibGluay1idG4gc21hbGwiIGRhdGEtenVubG9nIHN0eWxlPSJtaW4td2lkdGg6MDtwYWRkaW5nOjAgNHB4Ij5Bbm51bGVyIGxhIGRlcm5pw6hyZTwvYnV0dG9uPicgOiAnJ308L3A+CiAgICAgIDxzZWN0aW9uPjxoMj43IGRlcm5pZXJzIGpvdXJzPC9oMj48ZGl2IGNsYXNzPSJ6YmFycyI+PHN2ZyB2aWV3Qm94PSIwIDAgJHtXfSAke0hofSIgYXJpYS1oaWRkZW49InRydWUiPiR7YmFyc308L3N2Zz48L2Rpdj48L3NlY3Rpb24+CiAgICAgIDxzZWN0aW9uPjxoMj5DZSBxdWUgw6dhIGNvw7t0ZTwvaDI+CiAgICAgICAgPGRpdiBjbGFzcz0iZ3JvdXAiPjxkaXYgY2xhc3M9ImNlbGwiPjxsYWJlbCBmb3I9InpwciI+UHJpeCBkJ3VuZSB1bml0w6k8L2xhYmVsPjxpbnB1dCBpZD0ienByIiBjbGFzcz0iciIgaW5wdXRtb2RlPSJkZWNpbWFsIiBkYXRhLXpzZXQ9InByaWNlIiB2YWx1ZT0iJHtlc2MoaC5wcmljZSl9IiBwbGFjZWhvbGRlcj0iMCI+PHNwYW4gY2xhc3M9InVuaXQiPuKCrDwvc3Bhbj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJjZWxsIj48bGFiZWwgZm9yPSJ6cGUiPkVsbGUgbWUgZHVyZTwvbGFiZWw+PGlucHV0IGlkPSJ6cGUiIGNsYXNzPSJyIiBpbnB1dG1vZGU9ImRlY2ltYWwiIGRhdGEtenNldD0icGVyIiB2YWx1ZT0iJHtlc2MoaC5wZXIpfSIgcGxhY2Vob2xkZXI9IjAiPjxzcGFuIGNsYXNzPSJ1bml0Ij5qb3Vyczwvc3Bhbj48L2Rpdj48L2Rpdj4KICAgICAgICAke21vbnRoID8gYDxkaXYgY2xhc3M9InprcGlzIj48ZGl2PjxiIGNsYXNzPSJudW0iPiR7TWF0aC5yb3VuZChtb250aCl9IOKCrDwvYj48c3Bhbj5wYXIgbW9pczwvc3Bhbj48L2Rpdj48ZGl2PjxiIGNsYXNzPSJudW0iPiR7TWF0aC5yb3VuZChtb250aCAqIDEyKX0g4oKsPC9iPjxzcGFuPnBhciBhbjwvc3Bhbj48L2Rpdj48ZGl2PjxiIGNsYXNzPSJudW0iPiR7TWF0aC5yb3VuZChtb250aCAqIDEyIC8gKG51bXYoUy5tb25leS5zYWZldHlHb2FsKSB8fCA0MDAwKSAqIDEwMCl9ICU8L2I+PHNwYW4+ZGUgdG9uIMOpcGFyZ25lIGRlIHPDqWN1cml0w6ksIGNoYXF1ZSBhbm7DqWU8L3NwYW4+PC9kaXY+PC9kaXY+YCA6ICcnfQogICAgICA8L3NlY3Rpb24+CiAgICAgIDxzZWN0aW9uPjxoMj5Fcy10dSBwcsOqdCA/PC9oMj48cCBjbGFzcz0ic21hbGwgbXV0ZWQiIHN0eWxlPSJtYXJnaW46LThweCAwIDAiPlN1ciAxMCwgw6AgcXVlbCBwb2ludCB0ZSBzZW5zLXR1IHByw6p0IMOgIGFycsOqdGVyID8gUsOpcG9uZHMgdW5lIGZvaXMgcGFyIHNlbWFpbmUsIHNhbnMgdGUganVnZXIuPC9wPgogICAgICAgIDxkaXYgY2xhc3M9InpydWxlciI+JHtBcnJheS5mcm9tKHsgbGVuZ3RoOiAxMSB9LCAoXywgaSkgPT4gYDxidXR0b24gZGF0YS16cmVhZHk9IiR7aX0iIGFyaWEtcHJlc3NlZD0iJHtsYXN0UiAmJiBsYXN0Ui52ID09PSBpICYmIGxhc3RSLmQgPT09IHRvZGF5SVNPKCl9Ij4ke2l9PC9idXR0b24+YCkuam9pbignJyl9PC9kaXY+CiAgICAgICAgJHtsYXN0UiA/IGA8cCBjbGFzcz0ic21hbGwiIHN0eWxlPSJtYXJnaW4tdG9wOjEycHgiPkRlcm5pw6hyZSByw6lwb25zZSA6IDxiPiR7bGFzdFIudn0vMTA8L2I+JHtsYXN0Ui52ID4gMCA/IGAuIFBvdXJxdW9pICR7bGFzdFIudn0gZXQgcGFzICR7TWF0aC5tYXgoMCwgbGFzdFIudiAtIDIpfSA/IENlIHF1aSB0ZSBmYWl0IGRpcmUgw6dhLCBjJ2VzdCBkw6lqw6AgdW5lIHJhaXNvbiBkJ2FycsOqdGVyLmAgOiAnJ308L3A+YCA6ICcnfQogICAgICAgICR7aC5yZWFkeS5sZW5ndGggPiAxID8gYDxwIGNsYXNzPSJzbWFsbCBtdXRlZCIgc3R5bGU9Im1hcmdpbi10b3A6NHB4Ij7DiXZvbHV0aW9uIDogJHtoLnJlYWR5LnNsaWNlKC02KS5tYXAociA9PiByLnYpLmpvaW4oJyDihpIgJyl9PC9wPmAgOiAnJ30KICAgICAgPC9zZWN0aW9uPgogICAgICAke2RpYWwoaCkucmVwbGFjZSgnSEVVUkUgw4AgUklTUVVFJywgJ0hFVVJFIExBIFBMVVMgRlLDiVFVRU5URScpfQogICAgICA8YnV0dG9uIGNsYXNzPSJidG4gYmxvY2siIGRhdGEtenJlYWR5LWdvIHN0eWxlPSJtYXJnaW4tdG9wOjMwcHgiPkplIHN1aXMgcHLDqnQgw6AgYXJyw6p0ZXI8L2J1dHRvbj4KICAgICAgPHAgY2xhc3M9ImhpbnQiIHN0eWxlPSJ0ZXh0LWFsaWduOmNlbnRlciI+TGUgam91ciBvw7kgdHUgdG91Y2hlcyBjZSBib3V0b24sIHRhIHPDqXJpZSBkw6ltYXJyZSwgYXZlYyBsYSB2YWd1ZSwgbGVzIHBsYW5zIGV0IGxlcyBiYXJyacOocmVzLjwvcD5gOwogIH0KICBmdW5jdGlvbiB2VXJnZShoKSB7CiAgICBjb25zdCB1ID0gWi51cmdlLCB0b3RhbCA9IHUubGVuICogNjAwMDAsIGxlZnQgPSBNYXRoLm1heCgwLCB0b3RhbCAtIChub3coKSAtIHUudDApKSwgUiA9IDEwMDsKICAgIGNvbnN0IGFjdHMgPSBoLm5pYyA/IEFDVF9OIDogQUNUX0I7CiAgICByZXR1cm4gYDxkaXYgY2xhc3M9Inp1cmdlIiBpZD0ielVyZ2UiPjxkaXYgY2xhc3M9ImluIj4KICAgICAgPHAgY2xhc3M9ImV5ZWJyb3ciPkVuIGpldSBzaSB0dSBjw6hkZXM8L3A+CiAgICAgIDxwIGNsYXNzPSJ6c3Rha2UiIGlkPSJ6U3Rha2UiPiR7aC5tb2RlID09PSAnc3RvcCcgPyBkdXIobm93KCkgLSBoLnN0YXJ0KSA6ICcnfTwvcD4KICAgICAgPHAgY2xhc3M9InNtYWxsIG11dGVkIiBzdHlsZT0ibWFyZ2luOjRweCAwIDAiPisgdGEgbHVtacOocmUgZHUgam91ciAo4pymICR7bm91ckRheSgpfSkgZXQgJHtPYmplY3Qua2V5cyhoLm1zKS5sZW5ndGh9IMOpdG9pbGUke09iamVjdC5rZXlzKGgubXMpLmxlbmd0aCA+IDEgPyAncycgOiAnJ30gYWxsdW3DqWUke09iamVjdC5rZXlzKGgubXMpLmxlbmd0aCA+IDEgPyAncycgOiAnJ30uPC9wPgogICAgICA8ZGl2IGNsYXNzPSJ6d2F2ZSI+PHN2ZyB2aWV3Qm94PSItMTMwIC0xMzAgMjYwIDI2MCIgYXJpYS1oaWRkZW49InRydWUiPjxjaXJjbGUgcj0iJHtSfSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ2YXIoLS1yYWlzZSkiIHN0cm9rZS13aWR0aD0iMTAiLz48Y2lyY2xlIGlkPSJ6V2F2ZUMiIHI9IiR7Un0iIGZpbGw9Im5vbmUiIHN0cm9rZT0idmFyKC0tZ29sZCkiIHN0cm9rZS13aWR0aD0iMTAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgdHJhbnNmb3JtPSJyb3RhdGUoLTkwKSIgJHtyaW5nRGFzaChSLCBsZWZ0IC8gdG90YWwpfS8+PC9zdmc+CiAgICAgICAgPGRpdiBjbGFzcz0iemJyZWF0aCI+PC9kaXY+PGRpdiBjbGFzcz0iendjIj48ZGl2PjxiIGlkPSJ6TGVmdCI+JHtNYXRoLmZsb29yKGxlZnQgLyA2MDAwMCl9OiR7dHdvKE1hdGguZmxvb3IobGVmdCAlIDYwMDAwIC8gMTAwMCkpfTwvYj48c3BhbiBpZD0iekJyIj5JbnNwaXJl4oCmPC9zcGFuPjwvZGl2PjwvZGl2PjwvZGl2PgogICAgICA8cCBjbGFzcz0ic21hbGwiIHN0eWxlPSJ0ZXh0LWFsaWduOmNlbnRlcjttYXJnaW46MCI+VW5lIGVudmllIG1vbnRlLCBjdWxtaW5lLCBwdWlzIHJlZGVzY2VuZC4gVHUgbidhcyBwYXMgw6AgbGEgY29tYmF0dHJlIDogc3VyZmUtbGEgJHt1Lmxlbn0gbWludXRlcywgZW4gcmVzcGlyYW50IGF2ZWMgbGUgY2VyY2xlLjwvcD4KICAgICAgJHt1LnRyaWcgPyAnJyA6IGA8cCBjbGFzcz0iZXllYnJvdyIgc3R5bGU9Im1hcmdpbi10b3A6MjJweCI+UXUnZXN0LWNlIHF1aSB0ZSBwb3Vzc2UgPzwvcD48ZGl2IGNsYXNzPSJjaGlwcyI+JHtUUklHLm1hcCgoW2ssIG5dKSA9PiBgPGJ1dHRvbiBjbGFzcz0iY2hpcCIgZGF0YS16dHJpZz0iJHtrfSI+JHtufTwvYnV0dG9uPmApLmpvaW4oJycpfTwvZGl2PmB9CiAgICAgIDxwIGNsYXNzPSJleWVicm93IiBzdHlsZT0ibWFyZ2luLXRvcDoyMnB4Ij5GYWlzIGF1IG1vaW5zIHVuZSBjaG9zZSwgbWFpbnRlbmFudDwvcD4KICAgICAgPGRpdiBjbGFzcz0iemFjdHMiPiR7YWN0cy5tYXAoKFtrLCBuXSkgPT4gYDxidXR0b24gY2xhc3M9InphY3QgJHt1LmRvbmVba10gPyAnb24nIDogJyd9IiBkYXRhLXphY3Q9IiR7a30iPjxpPiR7SUNPTi50aWNrfTwvaT48c3Bhbj4ke259PC9zcGFuPjwvYnV0dG9uPmApLmpvaW4oJycpfTwvZGl2PgogICAgICAke1ouZGggPyBkaGlrckJveCgpIDogJyd9CiAgICAgICR7aC5yZWFzb25zLmxlbmd0aCA/IGA8cCBjbGFzcz0iZXllYnJvdyIgc3R5bGU9Im1hcmdpbi10b3A6MjJweCI+VGVzIHJhaXNvbnM8L3A+PHVsIGNsYXNzPSJ6cmVhc29ucyI+JHtoLnJlYXNvbnMubWFwKHIgPT4gYDxsaT4ke2VzYyhyKX08L2xpPmApLmpvaW4oJycpfTwvdWw+YCA6ICcnfQogICAgICAke2gucGxhbnMubGVuZ3RoID8gYDxwIGNsYXNzPSJleWVicm93IiBzdHlsZT0ibWFyZ2luLXRvcDoyMnB4Ij5Ub24gcGxhbjwvcD48ZGl2IGNsYXNzPSJ6aWYiPiR7aC5wbGFucy5maWx0ZXIocCA9PiAhdS50cmlnIHx8IHRydWUpLnNsaWNlKDAsIDMpLm1hcChwID0+IGA8ZGl2PjxzbWFsbD5TaTwvc21hbGw+JHtlc2MocFswXSl9PGJyPjxzbWFsbCBzdHlsZT0ibWFyZ2luLXRvcDo2cHgiPkFsb3JzPC9zbWFsbD48Yj4ke2VzYyhwWzFdKX08L2I+PC9kaXY+YCkuam9pbignJyl9PC9kaXY+YCA6ICcnfQogICAgICA8YnV0dG9uIGNsYXNzPSJidG4gYmxvY2siIGRhdGEtendvbiBzdHlsZT0ibWFyZ2luLXRvcDoyNnB4Ij5MJ2VudmllIGVzdCBwYXNzw6llPC9idXR0b24+CiAgICAgIDxidXR0b24gY2xhc3M9ImJ0biBibG9jayBxdWlldCIgZGF0YS16Z2F2ZSBzdHlsZT0ibWFyZ2luLXRvcDoxMHB4Ij5KJ2FpIGPDqWTDqTwvYnV0dG9uPgogICAgPC9kaXY+PC9kaXY+YDsKICB9CiAgZnVuY3Rpb24gZGhpa3JCb3goKSB7CiAgICBjb25zdCBbaSwgbl0gPSBaLmRoLCB3ID0gREhJS1JbaV07CiAgICByZXR1cm4gYDxkaXYgY2xhc3M9InpkaCI+PGJ1dHRvbiBkYXRhLXpkaCBhcmlhLWxhYmVsPSIke3dbMV19LCAke259IHN1ciAzMyI+PHNwYW4gY2xhc3M9ImFyIiBsYW5nPSJhciIgZGlyPSJydGwiPiR7d1swXX08L3NwYW4+PHNwYW4gY2xhc3M9InNtYWxsIG11dGVkIj4ke3dbMV19PC9zcGFuPjxiIGNsYXNzPSJudW0iPiR7bn08c3BhbiBzdHlsZT0iZm9udC1zaXplOjFyZW07Y29sb3I6dmFyKC0tbXV0ZWQpIj4vMzM8L3NwYW4+PC9iPjwvYnV0dG9uPjwvZGl2PmA7CiAgfQogIGZ1bmN0aW9uIHZSZWxhcHNlKGgpIHsKICAgIGNvbnN0IHIgPSBaLnJlbCwgZCA9IE1hdGguZmxvb3IoZGF5cyhoKSk7CiAgICBjb25zdCBsaXN0ID0gaC5uaWMgPyBCQVJfTiA6IEJBUl9CLCBvZmYgPSBsaXN0LmZpbHRlcihiID0+ICFoLmJhcltiWzBdXSk7CiAgICByZXR1cm4gYDxkaXYgY2xhc3M9InpkYXJrIiBpZD0iekRhcmsiPjxkaXYgY2xhc3M9ImluIj4KICAgICAgPHAgY2xhc3M9ImV5ZWJyb3ciIHN0eWxlPSJjb2xvcjojN0U4Rjg4Ij5Tw6lyaWUgdGVybWluw6llPC9wPgogICAgICA8cCBjbGFzcz0ibnVtLWJpZyIgaWQ9InpEb3duIj4ke2R9PC9wPgogICAgICA8cCBzdHlsZT0idGV4dC1hbGlnbjpjZW50ZXI7bWFyZ2luOjZweCAwIDA7Y29sb3I6IzdFOEY4OCI+am91ciR7ZCA+IDEgPyAncycgOiAnJ30uIEMnw6l0YWl0IHRvbiBjaGVtaW4uPC9wPgogICAgICA8aDIgc3R5bGU9Im1hcmdpbi10b3A6MzBweCI+VGEgbHVtacOocmUgYmFpc3NlLiBUYSB2YWxldXIsIG5vbi48L2gyPgogICAgICA8cCBjbGFzcz0ic21hbGwgbXV0ZWQiPuKIkjE1IOKcpiBhdWpvdXJkJ2h1aS4gQ2UgcXVpIGNvbXB0ZSBtYWludGVuYW50LCBjZSBzb250IGxlcyAxMCBwcm9jaGFpbmVzIG1pbnV0ZXMgOiBjJ2VzdCBzb3V2ZW50IGzDoCBxdSd1bmUgcmVjaHV0ZSBlbiBlbnRyYcOubmUgdW5lIGRldXhpw6htZS48L3A+CiAgICAgIDxkaXYgY2xhc3M9InpxIj7CqyBUb3VzIGxlcyBmaWxzIGQnQWRhbSBjb21tZXR0ZW50IGRlcyBmYXV0ZXMsIGV0IGxlcyBtZWlsbGV1cnMgZGVzIGZhdXRpZnMgc29udCBjZXV4IHF1aSBzZSByZXBlbnRlbnQuIMK7PGJyPjxzcGFuIGNsYXNzPSJzbWFsbCBtdXRlZCI+VGlybWlkaGk8L3NwYW4+PC9kaXY+CiAgICAgIDxwIGNsYXNzPSJleWVicm93IiBzdHlsZT0ibWFyZ2luLXRvcDoyNHB4O2NvbG9yOiM3RThGODgiPkMnw6l0YWl0IHF1YW5kID88L3A+CiAgICAgIDxkaXYgY2xhc3M9ImNoaXBzIj4ke1tbJzAnLCAnw4AgbFwnaW5zdGFudCddLCBbJzMnLCAnUGx1cyB0w7R0IGF1am91cmRcJ2h1aSddLCBbJzEyJywgJ0hpZXIgc29pciddXS5tYXAoKFt2LCBuXSkgPT4gYDxidXR0b24gY2xhc3M9ImNoaXAiIGRhdGEtendoZW49IiR7dn0iIGFyaWEtcHJlc3NlZD0iJHtyLndoZW4gPT09IHZ9Ij4ke259PC9idXR0b24+YCkuam9pbignJyl9PC9kaXY+CiAgICAgIDxwIGNsYXNzPSJleWVicm93IiBzdHlsZT0ibWFyZ2luLXRvcDoyMHB4O2NvbG9yOiM3RThGODgiPlF1J2VzdC1jZSBxdWkgbCdhIGTDqWNsZW5jaMOpID88L3A+CiAgICAgIDxkaXYgY2xhc3M9ImNoaXBzIj4ke1RSSUcubWFwKChbaywgbl0pID0+IGA8YnV0dG9uIGNsYXNzPSJjaGlwIiBkYXRhLXpydHJpZz0iJHtrfSIgYXJpYS1wcmVzc2VkPSIke3IudHJpZyA9PT0ga30iPiR7bn08L2J1dHRvbj5gKS5qb2luKCcnKX08L2Rpdj4KICAgICAgJHtvZmYubGVuZ3RoID8gYDxwIGNsYXNzPSJleWVicm93IiBzdHlsZT0ibWFyZ2luLXRvcDoyMHB4O2NvbG9yOiM3RThGODgiPlVuZSBiYXJyacOocmUgw6AgcG9zZXIgYXVqb3VyZCdodWk8L3A+PGRpdiBjbGFzcz0iY2hpcHMiPiR7b2ZmLm1hcChiID0+IGA8YnV0dG9uIGNsYXNzPSJjaGlwIiBkYXRhLXpyYmFyPSIke2JbMF19IiBhcmlhLXByZXNzZWQ9IiR7ISFyLmJhcnNbYlswXV19Ij4ke2JbMV19PC9idXR0b24+YCkuam9pbignJyl9PC9kaXY+YCA6ICcnfQogICAgICA8cCBjbGFzcz0iZXllYnJvdyIgc3R5bGU9Im1hcmdpbi10b3A6MjBweDtjb2xvcjojN0U4Rjg4Ij5DZSBxdWUgdHUgcmV0aWVucyAoZmFjdWx0YXRpZik8L3A+CiAgICAgIDx0ZXh0YXJlYSBpZD0iek5vdGUiIHBsYWNlaG9sZGVyPSJDZSBxdWkgcydlc3QgcGFzc8OpIGp1c3RlIGF2YW504oCmIiBzdHlsZT0ibWluLWhlaWdodDo4MHB4O21hcmdpbi10b3A6OHB4Ij48L3RleHRhcmVhPgogICAgICA8ZGl2IGNsYXNzPSJ6cSI+U2kgdHUgbGUgc291aGFpdGVzIDogZmFpcyBsZSBnaHVzbCwgcHJpZSBkZXV4IHJhaydhdHMgZGUgcmVwZW50aXIsIHB1aXMgcmVwcmVuZHMuIExhIHBvcnRlIG5lIHNlIGZlcm1lIHBhcy48L2Rpdj4KICAgICAgPGJ1dHRvbiBjbGFzcz0iYnRuIGJsb2NrIiBkYXRhLXpyZXN0YXJ0IHN0eWxlPSJtYXJnaW4tdG9wOjIycHgiPkplIHJlcGFycyBtYWludGVuYW50PC9idXR0b24+CiAgICAgIDxidXR0b24gY2xhc3M9ImJ0biBibG9jayBxdWlldCIgZGF0YS16cmVseCBzdHlsZT0ibWFyZ2luLXRvcDoxMHB4Ij5Bbm51bGVyLCBqZSBuJ2FpIHBhcyByZWNodXTDqTwvYnV0dG9uPgogICAgPC9kaXY+PC9kaXY+YDsKICB9CiAgZnVuY3Rpb24gdlNldHVwKCkgewogICAgY29uc3QgZXhpc3RzID0gISEoUy56YyAmJiBTLnpjLmMpOwogICAgcmV0dXJuIGA8aGVhZGVyIGNsYXNzPSJ0b3AiPjxkaXY+PHAgY2xhc3M9ImV5ZWJyb3ciPkVzcGFjZSBwcml2w6k8L3A+PGgxPkNyw6llciB0b24gPGVtPmVzcGFjZTwvZW0+PC9oMT48cD5JbnZpc2libGUgZGFucyBsJ2FwcC4gQ2hpZmZyw6kgYXZlYyB0b24gY29kZSA6IHNhbnMgbHVpLCBwZXJzb25uZSBuZSBwZXV0IGxlIGxpcmUuPC9wPjwvZGl2PjwvaGVhZGVyPgogICAgICAke2V4aXN0cyA/IGA8ZGl2IGNsYXNzPSJhbGVydCBkYW5nZXIiPiR7SUNPTi53YXJufTxzcGFuPlVuIGVzcGFjZSBleGlzdGUgZMOpasOgLiBFbiBjcsOpZXIgdW4gbm91dmVhdSBlZmZhY2VyYSBsJ2FuY2llbiBwb3VyIHRvdWpvdXJzLjwvc3Bhbj48L2Rpdj5gIDogJyd9CiAgICAgIDxzZWN0aW9uIHN0eWxlPSJtYXJnaW4tdG9wOjI2cHgiIGNsYXNzPSJ6c2V0Ij48aDI+VG9uIGNvZGU8L2gyPgogICAgICAgIDxkaXYgY2xhc3M9Imdyb3VwIj48ZGl2IGNsYXNzPSJjZWxsIj48bGFiZWwgZm9yPSJ6YzEiPkNvZGU8L2xhYmVsPjxpbnB1dCBpZD0iemMxIiB0eXBlPSJwYXNzd29yZCIgY2xhc3M9InIiIHN0eWxlPSJ3aWR0aDo5ZW07bWF4LXdpZHRoOjYwJSIgYXV0b2NvbXBsZXRlPSJvZmYiIGF1dG9jYXBpdGFsaXplPSJvZmYiPjwvZGl2PgogICAgICAgIDxkaXYgY2xhc3M9ImNlbGwiPjxsYWJlbCBmb3I9InpjMiI+Q29uZmlybWVyPC9sYWJlbD48aW5wdXQgaWQ9InpjMiIgdHlwZT0icGFzc3dvcmQiIGNsYXNzPSJyIiBzdHlsZT0id2lkdGg6OWVtO21heC13aWR0aDo2MCUiIGF1dG9jb21wbGV0ZT0ib2ZmIiBhdXRvY2FwaXRhbGl6ZT0ib2ZmIj48L2Rpdj48L2Rpdj4KICAgICAgICA8cCBjbGFzcz0iaGludCI+NiBjYXJhY3TDqHJlcyBtaW5pbXVtLCBzYW5zIGVzcGFjZS4gUG91ciBvdXZyaXIgbCdlc3BhY2UgOiBvdXZyZSBJZMOpZXMgKGwnYW1wb3VsZSksIHRhcGUgdG9uIGNvZGUsIHB1aXMgQWpvdXRlci4gU2kgdHUgbCdvdWJsaWVzLCBwZXJzb25uZSBuZSBwb3VycmEgcm91dnJpciBjZXQgZXNwYWNlLCBwYXMgbcOqbWUgdG9pLjwvcD48L3NlY3Rpb24+CiAgICAgIDxzZWN0aW9uPjxoMj5DZSBxdWUgdHUgYXJyw6p0ZXMgbWFpbnRlbmFudDwvaDI+CiAgICAgICAgPGRpdiBjbGFzcz0iZ3JvdXAiPjxkaXYgY2xhc3M9ImNlbGwiPjxsYWJlbCBmb3I9InpuMSI+Tm9tPC9sYWJlbD48aW5wdXQgaWQ9InpuMSIgY2xhc3M9InIiIHN0eWxlPSJ3aWR0aDoxMGVtO21heC13aWR0aDo2MCUiIHBsYWNlaG9sZGVyPSJWaXNpYmxlIGljaSBzZXVsZW1lbnQiPjwvZGl2PgogICAgICAgIDxkaXYgY2xhc3M9ImNlbGwiPjxsYWJlbCBmb3I9InpkMSI+RGVybmnDqHJlIGZvaXM8L2xhYmVsPjxpbnB1dCBpZD0iemQxIiB0eXBlPSJkYXRldGltZS1sb2NhbCIgdmFsdWU9IiR7bmV3IERhdGUobm93KCkgLSBuZXcgRGF0ZSgpLmdldFRpbWV6b25lT2Zmc2V0KCkgKiA2MDAwMCkudG9JU09TdHJpbmcoKS5zbGljZSgwLCAxNil9IiBzdHlsZT0ibWF4LXdpZHRoOjYyJTtib3JkZXI6MDtiYWNrZ3JvdW5kOnZhcigtLXJhaXNlKTtib3JkZXItcmFkaXVzOjEwcHg7Y29sb3I6dmFyKC0taW5rKTttaW4taGVpZ2h0OjQwcHg7cGFkZGluZzowIDhweDtmb250OmluaGVyaXQ7Zm9udC1zaXplOi44NzVyZW0iPjwvZGl2PjwvZGl2Pjwvc2VjdGlvbj4KICAgICAgPHNlY3Rpb24+PGgyPkNlIHF1ZSB0dSBvYnNlcnZlcyBkJ2Fib3JkPC9oMj4KICAgICAgICA8ZGl2IGNsYXNzPSJncm91cCI+PGRpdiBjbGFzcz0iY2VsbCI+PGxhYmVsIGZvcj0iem4yIj5Ob208L2xhYmVsPjxpbnB1dCBpZD0iem4yIiBjbGFzcz0iciIgc3R5bGU9IndpZHRoOjEwZW07bWF4LXdpZHRoOjYwJSIgcGxhY2Vob2xkZXI9IkxhaXNzZSB2aWRlIHNpIHJpZW4iPjwvZGl2PgogICAgICAgIDxsYWJlbCBjbGFzcz0iY2VsbCB0YXAiPjxzcGFuIGNsYXNzPSJsYmwiPkMnZXN0IGRlIGxhIG5pY290aW5lPC9zcGFuPjxzcGFuIGNsYXNzPSJzd2l0Y2giPjxpbnB1dCB0eXBlPSJjaGVja2JveCIgaWQ9InpuMm4iIGNoZWNrZWQ+PHNwYW4+PC9zcGFuPjwvc3Bhbj48L2xhYmVsPjwvZGl2PgogICAgICAgIDxwIGNsYXNzPSJoaW50Ij5FbiBvYnNlcnZhdGlvbiwgdHUgbm90ZXMgc2V1bGVtZW50LiBUdSBwYXNzZXMgZW4gYXJyw6p0IGxlIGpvdXIgb8O5IHR1IHRlIHNlbnMgcHLDqnQuPC9wPjwvc2VjdGlvbj4KICAgICAgPGJ1dHRvbiBjbGFzcz0iYnRuIGJsb2NrIiBkYXRhLXpjcmVhdGUgc3R5bGU9Im1hcmdpbi10b3A6MjZweCI+Q3LDqWVyIGV0IGNoaWZmcmVyPC9idXR0b24+CiAgICAgIDxidXR0b24gY2xhc3M9ImJ0biBibG9jayBxdWlldCIgZGF0YS16bG9jayBzdHlsZT0ibWFyZ2luLXRvcDoxMHB4Ij5Bbm51bGVyPC9idXR0b24+YDsKICB9CiAgZnVuY3Rpb24gb3BlbkVkaXQoa2luZCkgewogICAgY29uc3QgaCA9IEgoKTsKICAgIGNvbnN0IGJvZHkgPSBraW5kID09PSAncmVhc29ucycKICAgICAgPyBgPHAgY2xhc3M9InNtYWxsIG11dGVkIj5VbmUgcmFpc29uIHBhciBsaWduZS4gTGVzIHRpZW5uZXMsIHBhcyBjZWxsZXMgZGVzIGF1dHJlcy48L3A+PHRleHRhcmVhIGlkPSJ6RWQiIHN0eWxlPSJtaW4taGVpZ2h0OjE4MHB4O21hcmdpbi10b3A6MTJweCIgcGxhY2Vob2xkZXI9IlBvdXIgQWxsYWgmIzEwO1BvdXIgbW9uIGNvdXBsZSYjMTA7UG91ciBtb24gw6luZXJnaWUgZXQgbWEgY2xhcnTDqSYjMTA7UG91ciBsZSBww6hyZSBxdWUgamUgdmV1eCDDqnRyZSI+JHtlc2MoaC5yZWFzb25zLmpvaW4oJ1xuJykpfTwvdGV4dGFyZWE+YAogICAgICA6IGA8cCBjbGFzcz0ic21hbGwgbXV0ZWQiPlNpIFtzaXR1YXRpb25dLCBhbG9ycyBbY2UgcXVlIGplIGZhaXNdLiBDb3VydCwgY29uY3JldCwgZmFpc2FibGUgZW4gMTAgc2Vjb25kZXMuPC9wPjxkaXYgc3R5bGU9Im1hcmdpbi10b3A6MTJweCI+JHtoLnBsYW5zLm1hcCgocCwgaSkgPT4gYDxkaXYgY2xhc3M9InpwbGFuIj48aW5wdXQgZGF0YS16cD0iJHtpfS4wIiB2YWx1ZT0iJHtlc2MocFswXSl9IiBhcmlhLWxhYmVsPSJTaSI+PGlucHV0IGRhdGEtenA9IiR7aX0uMSIgdmFsdWU9IiR7ZXNjKHBbMV0pfSIgYXJpYS1sYWJlbD0iQWxvcnMiPjxidXR0b24gY2xhc3M9Imljb24tYnRuIiBkYXRhLXpwZGVsPSIke2l9IiBhcmlhLWxhYmVsPSJTdXBwcmltZXIiPiR7WH08L2J1dHRvbj48L2Rpdj5gKS5qb2luKCcnKX08L2Rpdj48YnV0dG9uIGNsYXNzPSJidG4gc20gZ2hvc3QiIGRhdGEtenBhZGQ+KyBVbiBwbGFuPC9idXR0b24+YDsKICAgICQoJyNpZGVhc0JvZHknKS5pbm5lckhUTUwgPSBgPGRpdiBjbGFzcz0iZ3JhYiI+PC9kaXY+PGRpdiBjbGFzcz0ic2hlZXQtdG9wIj48c3BhbiBzdHlsZT0id2lkdGg6NjBweCI+PC9zcGFuPjxoMiBpZD0iaWRlYXNUaXRsZSI+JHtraW5kID09PSAncmVhc29ucycgPyAnTWVzIHJhaXNvbnMnIDogJ1Np4oCmIGFsb3Jz4oCmJ308L2gyPjxidXR0b24gY2xhc3M9ImxpbmstYnRuIiBkYXRhLXplZG9rPSIke2tpbmR9IiBzdHlsZT0idGV4dC1hbGlnbjpyaWdodCI+T0s8L2J1dHRvbj48L2Rpdj4ke2JvZHl9YDsKICAgIGNvbnN0IGQgPSAkKCcjaWRlYXNTaGVldCcpOyBpZiAoIWQub3BlbikgZC5zaG93TW9kYWwoKTsgZC5kYXRhc2V0Lm1vZGUgPSAneic7CiAgfQogIGZ1bmN0aW9uIHZpZXcoKSB7CiAgICBpZiAoIVouZCkgcmV0dXJuIHZTZXR1cCgpOwogICAgY29uc3QgaCA9IEgoKTsKICAgIGxldCBodG1sID0gYCR7aGVhZCgpfSR7dGFicygpfTxkaXYgY2xhc3M9InpoIj4ke2gubW9kZSA9PT0gJ3N0b3AnID8gdlN0b3AoaCkgOiB2V2F0Y2goaCl9PC9kaXY+YDsKICAgIGlmIChaLnZpZXcgPT09ICd1cmdlJyAmJiBaLnVyZ2UpIGh0bWwgKz0gdlVyZ2UoaCk7CiAgICBpZiAoWi52aWV3ID09PSAncmVsYXBzZScgJiYgWi5yZWwpIGh0bWwgKz0gdlJlbGFwc2UoaCk7CiAgICByZXR1cm4gaHRtbDsKICB9CiAgZnVuY3Rpb24gc2hvdygpIHsgdGFiID0gJ3onOyByZW5kZXIodHJ1ZSk7IHdpbmRvdy5zY3JvbGxUbygwLCAwKTsgfQogIGZ1bmN0aW9uIHJlcmVuZGVyKCkgeyBjb25zdCBzeSA9IHdpbmRvdy5zY3JvbGxZLCB1eSA9ICQoJyN6VXJnZScpID8gJCgnI3pVcmdlJykuc2Nyb2xsVG9wIDogMCwgZHkgPSAkKCcjekRhcmsnKSA/ICQoJyN6RGFyaycpLnNjcm9sbFRvcCA6IDA7IHJlbmRlcigpOyB3aW5kb3cuc2Nyb2xsVG8oMCwgc3kpOyBpZiAoJCgnI3pVcmdlJykpICQoJyN6VXJnZScpLnNjcm9sbFRvcCA9IHV5OyBpZiAoJCgnI3pEYXJrJykpICQoJyN6RGFyaycpLnNjcm9sbFRvcCA9IGR5OyB9CgogIC8qIC0tLS0tLS0tLS0gbWludXRlcmllIChjb21wdGV1cnMgdml2YW50cywgdmFndWUsIHJlc3BpcmF0aW9uKSAtLS0tLS0tLS0tICovCiAgbGV0IGl2ID0gMDsKICBmdW5jdGlvbiB0aWNrU3RhcnQoKSB7CiAgICBjbGVhckludGVydmFsKGl2KTsKICAgIGl2ID0gc2V0SW50ZXJ2YWwoKCkgPT4gewogICAgICBpZiAodGFiICE9PSAneicgfHwgIVouZCkgeyBjbGVhckludGVydmFsKGl2KTsgcmV0dXJuOyB9CiAgICAgIGNvbnN0IGggPSBIKCk7IGlmICghaCkgcmV0dXJuOwogICAgICBjb25zdCB0ID0gJCgnI3pUaWNrJyk7IGlmICh0ICYmIGgubW9kZSA9PT0gJ3N0b3AnKSB0LnRleHRDb250ZW50ID0gZHVyKG5vdygpIC0gaC5zdGFydCkuc3BsaXQoJyAnKS5zbGljZSgyKS5qb2luKCcgJyk7CiAgICAgIGNvbnN0IHMgPSAkKCcjelN0YWtlJyk7IGlmIChzICYmIGgubW9kZSA9PT0gJ3N0b3AnKSBzLnRleHRDb250ZW50ID0gZHVyKG5vdygpIC0gaC5zdGFydCk7CiAgICAgIGlmIChaLnVyZ2UgJiYgJCgnI3pMZWZ0JykpIHsKICAgICAgICBjb25zdCB0b3RhbCA9IFoudXJnZS5sZW4gKiA2MDAwMCwgZWwgPSBub3coKSAtIFoudXJnZS50MCwgbGVmdCA9IE1hdGgubWF4KDAsIHRvdGFsIC0gZWwpOwogICAgICAgICQoJyN6TGVmdCcpLnRleHRDb250ZW50ID0gYCR7TWF0aC5mbG9vcihsZWZ0IC8gNjAwMDApfToke3R3byhNYXRoLmZsb29yKGxlZnQgJSA2MDAwMCAvIDEwMDApKX1gOwogICAgICAgIGNvbnN0IGMgPSAkKCcjeldhdmVDJyksIFIgPSAxMDAsIEMgPSAyICogTWF0aC5QSSAqIFI7IGlmIChjKSBjLnNldEF0dHJpYnV0ZSgnc3Ryb2tlLWRhc2hvZmZzZXQnLCAoQyAqICgxIC0gbGVmdCAvIHRvdGFsKSkudG9GaXhlZCgxKSk7CiAgICAgICAgY29uc3QgcGggPSAoZWwgLyAxMDAwKSAlIDEwOyAkKCcjekJyJykudGV4dENvbnRlbnQgPSBsZWZ0IDw9IDAgPyAnTGEgdmFndWUgZXN0IHBhc3PDqWUnIDogcGggPCA0ID8gJ0luc3BpcmXigKYnIDogJ0V4cGlyZeKApic7CiAgICAgICAgaWYgKGxlZnQgPD0gMCAmJiAhWi51cmdlLnJhbmcpIHsgWi51cmdlLnJhbmcgPSAxOyBjaGltZSh0cnVlKTsgdHJ5IHsgbmF2aWdhdG9yLnZpYnJhdGUgJiYgbmF2aWdhdG9yLnZpYnJhdGUoWzIwLCA2MCwgMjBdKTsgfSBjYXRjaCAoZSkge30gfQogICAgICB9CiAgICB9LCAyNTApOwogIH0KCiAgLyogLS0tLS0tLS0tLSBhY3Rpb25zIC0tLS0tLS0tLS0gKi8KICBhc3luYyBmdW5jdGlvbiBjcmVhdGUoKSB7CiAgICBjb25zdCBjMSA9ICQoJyN6YzEnKS52YWx1ZSwgYzIgPSAkKCcjemMyJykudmFsdWUsIG4xID0gJCgnI3puMScpLnZhbHVlLnRyaW0oKSwgbjIgPSAkKCcjem4yJykudmFsdWUudHJpbSgpOwogICAgaWYgKGMxLmxlbmd0aCA8IDYgfHwgL1xzLy50ZXN0KGMxKSkgeyB0b2FzdCgnQ29kZSA6IDYgY2FyYWN0w6hyZXMgbWluaW11bSwgc2FucyBlc3BhY2UuJyk7IHJldHVybjsgfQogICAgaWYgKGMxICE9PSBjMikgeyB0b2FzdCgnTGVzIGRldXggY29kZXMgbmUgc29udCBwYXMgaWRlbnRpcXVlcy4nKTsgcmV0dXJuOyB9CiAgICBpZiAoIW4xKSB7IHRvYXN0KCdEb25uZSB1biBub20gw6AgY2UgcXVlIHR1IGFycsOqdGVzLicpOyByZXR1cm47IH0KICAgIGNvbnN0IGQxID0gJCgnI3pkMScpLnZhbHVlID8gbmV3IERhdGUoJCgnI3pkMScpLnZhbHVlKS5nZXRUaW1lKCkgOiBub3coKTsKICAgIGNvbnN0IGhhYml0cyA9IFtuZXdIYWJpdChuMSwgJ3N0b3AnLCBmYWxzZSwgTWF0aC5taW4obm93KCksIGQxKSldOwogICAgaWYgKG4yKSBoYWJpdHMucHVzaChuZXdIYWJpdChuMiwgJ3dhdGNoJywgJCgnI3puMm4nKS5jaGVja2VkLCBub3coKSkpOwogICAgWi5zYWx0ID0gY3J5cHRvLmdldFJhbmRvbVZhbHVlcyhuZXcgVWludDhBcnJheSgxNikpOyBaLmtleSA9IGF3YWl0IHpLZXkoYzEsIFouc2FsdCk7CiAgICBaLmQgPSB7IHY6IDEsIGhhYml0cywgY3JlYXRlZDogbm93KCkgfTsgWi5oaWQgPSBoYWJpdHNbMF0uaWQ7IFoudmlldyA9ICdtYWluJzsKICAgIGF3YWl0IHBlcnNpc3QoKTsgYXNrUGVyc2lzdCgpOyBzaG93KCk7IHRpY2tTdGFydCgpOyBkYWlseUNoZWNrKCk7CiAgICB0b2FzdCgnRXNwYWNlIGNyw6nDqSBldCBjaGlmZnLDqS4gVG9uIGNvZGUgbFwnb3V2cmUgZGVwdWlzIElkw6llcy4nLCBudWxsLCBudWxsLCA2MDAwKTsKICB9CiAgZnVuY3Rpb24gc3RhcnRVcmdlKCkgeyBjb25zdCBoID0gSCgpOyBaLnVyZ2UgPSB7IHQwOiBub3coKSwgbGVuOiBoLm5pYyA/IDUgOiAxMCwgdHJpZzogJycsIGRvbmU6IHt9IH07IFoudmlldyA9ICd1cmdlJzsgWi5kaCA9IG51bGw7IGF1ZGlvVW5sb2NrKCk7IHJlcmVuZGVyKCk7IH0KICBmdW5jdGlvbiBlbmRVcmdlKHdvbikgewogICAgY29uc3QgaCA9IEgoKSwgdSA9IFoudXJnZTsgaWYgKCF1KSByZXR1cm47CiAgICBoLnVyZ2VzLnB1c2goeyB0OiB1LnQwLCB0cmlnOiB1LnRyaWcsIHdvbiwgZHVyOiBNYXRoLnJvdW5kKChub3coKSAtIHUudDApIC8gMTAwMCkgfSk7CiAgICBjb25zdCB0cmlnID0gdS50cmlnOyBaLnVyZ2UgPSBudWxsOyBaLmRoID0gbnVsbDsKICAgIGlmICh3b24pIHsKICAgICAgWi52aWV3ID0gJ21haW4nOyBwZXJzaXN0KCk7IHJlcmVuZGVyKCk7IHdpbmRvdy5zY3JvbGxUbygwLCAwKTsKICAgICAgY29uc3QgbiA9IGgudXJnZXMuZmlsdGVyKHggPT4geC53b24pLmxlbmd0aDsKICAgICAgbGFzdFB0ID0geyB4OiBpbm5lcldpZHRoIC8gMiwgeTogaW5uZXJIZWlnaHQgKiAuNCB9OwogICAgICBjb25zdCBnID0gR0VNU1tNYXRoLmZsb29yKE1hdGgucmFuZG9tKCkgKiBHRU1TLmxlbmd0aCldOwogICAgICByZXdhcmQoMTAsIHsgYmlnOiB0cnVlLCBtc2c6IFtgRW52aWUgdmFpbmN1ZSDCtyAke259JHtuID09PSAxID8gJ3JlJyA6ICdlJ31gLCBNYXRoLnJhbmRvbSgpIDwgLjUgPyAnVHUgdmllbnMgZGUgcHJvdXZlciDDoCB0b24gY2VydmVhdSBxdWUgbFwnZW52aWUgcGFzc2Ugc2FucyBjw6lkZXIuIExhIHByb2NoYWluZSBzZXJhIHVuIHBldSBwbHVzIGZhaWJsZS4nIDogZ1swXSwgTWF0aC5yYW5kb20oKSA8IC41ID8gJycgOiBnWzFdXSB9KTsKICAgIH0gZWxzZSBzdGFydFJlbGFwc2UodHJpZyk7CiAgfQogIGZ1bmN0aW9uIHN0YXJ0UmVsYXBzZSh0cmlnKSB7CiAgICBjb25zdCBnbSA9ICQoJyNnZW0nKTsgaWYgKGdtKSBnbS5jbGFzc0xpc3QucmVtb3ZlKCdvbicpOwogICAgWi52aWV3ID0gJ3JlbGFwc2UnOyBaLnJlbCA9IHsgd2hlbjogJzAnLCB0cmlnOiB0cmlnIHx8ICcnLCBiYXJzOiB7fSB9OyBaLnVyZ2UgPSBudWxsOwogICAgcmVyZW5kZXIoKTsgdGh1ZCgpOyB0cnkgeyBuYXZpZ2F0b3IudmlicmF0ZSAmJiBuYXZpZ2F0b3IudmlicmF0ZShbMzAwXSk7IH0gY2F0Y2ggKGUpIHt9CiAgICBjb25zdCBlbCA9ICQoJyN6RG93bicpLCBmcm9tID0gTWF0aC5mbG9vcihkYXlzKEgoKSkpOwogICAgaWYgKGVsICYmIGZyb20gPiAwICYmICFyZWR1Y2VNb3Rpb24oKSkgeyBjb25zdCB0MCA9IHBlcmZvcm1hbmNlLm5vdygpOyBjb25zdCBzdCA9IHQgPT4geyBjb25zdCBrID0gTWF0aC5taW4oMSwgKHQgLSB0MCkgLyAxODAwKTsgZWwudGV4dENvbnRlbnQgPSBNYXRoLnJvdW5kKGZyb20gKiAoMSAtIGsgKiBrKSk7IGlmIChrIDwgMSkgcmVxdWVzdEFuaW1hdGlvbkZyYW1lKHN0KTsgfTsgcmVxdWVzdEFuaW1hdGlvbkZyYW1lKHN0KTsgfQogICAgZWxzZSBpZiAoZWwpIGVsLnRleHRDb250ZW50ID0gJzAnOwogIH0KICBmdW5jdGlvbiByZXN0YXJ0KCkgewogICAgY29uc3QgaCA9IEgoKSwgciA9IFoucmVsLCB0ID0gbm93KCkgLSBOdW1iZXIoci53aGVuKSAqIDM2MDAwMDA7CiAgICBoLmJlc3QgPSBNYXRoLm1heChoLmJlc3QgfHwgMCwgdCAtIGguc3RhcnQpOwogICAgaC5yZWxhcHNlcy5wdXNoKHsgdCwgdHJpZzogci50cmlnLCBub3RlOiAoJCgnI3pOb3RlJykudmFsdWUgfHwgJycpLnRyaW0oKS5zbGljZSgwLCA1MDApLCBzdHJlYWs6IE1hdGgubWF4KDAsIHQgLSBoLnN0YXJ0KSB9KTsKICAgIE9iamVjdC5rZXlzKHIuYmFycykuZm9yRWFjaChrID0+IHsgaC5iYXJba10gPSB0cnVlOyB9KTsKICAgIGguc3RhcnQgPSB0OyBoLm1zID0ge307IGgubGFzdENsZWFuID0gdG9kYXlJU08oKTsKICAgIG5vdXJBZGQoLTE1KTsgWi52aWV3ID0gJ21haW4nOyBaLnJlbCA9IG51bGw7IHBlcnNpc3QoKTsgcmVyZW5kZXIoKTsgd2luZG93LnNjcm9sbFRvKDAsIDApOyByZWZyZXNoU3VuKCk7CiAgICB0b2FzdCgnTm91dmVsbGUgc8OpcmllIGxhbmPDqWUuIExlcyAxMCBwcm9jaGFpbmVzIG1pbnV0ZXMgY29tcHRlbnQgOiBib3VnZSwgc29ycyBkZSBsYSBwacOoY2UuJywgbnVsbCwgbnVsbCwgNzAwMCk7CiAgfQoKICBkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsIGUgPT4gewogICAgaWYgKHRhYiAhPT0gJ3onKSByZXR1cm47CiAgICBjb25zdCB0ID0gZS50YXJnZXQsIGMgPSBzID0+IHQuY2xvc2VzdChzKTsgbGV0IGVsOwogICAgaWYgKGMoJ1tkYXRhLXpsb2NrXScpKSB7IGxvY2soKTsgZ28oJ29yYml0ZScpOyByZXR1cm47IH0KICAgIGlmIChjKCdbZGF0YS16Y3JlYXRlXScpKSB7IGNyZWF0ZSgpOyByZXR1cm47IH0KICAgIGlmICghWi5kKSByZXR1cm47CiAgICBjb25zdCBoID0gSCgpOwogICAgaWYgKChlbCA9IGMoJ1tkYXRhLXpoXScpKSkgeyBaLmhpZCA9IGVsLmRhdGFzZXQuemg7IHJlcmVuZGVyKCk7IHJldHVybjsgfQogICAgaWYgKGMoJ1tkYXRhLXp1cmdlXScpKSB7IHN0YXJ0VXJnZSgpOyByZXR1cm47IH0KICAgIGlmICgoZWwgPSBjKCdbZGF0YS16dHJpZ10nKSkpIHsgWi51cmdlLnRyaWcgPSBlbC5kYXRhc2V0Lnp0cmlnOyBoYXB0aWMoKTsgcmVyZW5kZXIoKTsgcmV0dXJuOyB9CiAgICBpZiAoKGVsID0gYygnW2RhdGEtemFjdF0nKSkpIHsKICAgICAgY29uc3QgayA9IGVsLmRhdGFzZXQuemFjdDsKICAgICAgaWYgKGsgPT09ICdkaGlrcicpIHsgWi5kaCA9IFouZGggfHwgWzAsIDBdOyBaLnVyZ2UuZG9uZS5kaGlrciA9IHRydWU7IHJlcmVuZGVyKCk7IGNvbnN0IGIgPSAkKCcuemRoJyk7IGlmIChiKSBiLnNjcm9sbEludG9WaWV3KHsgYmVoYXZpb3I6ICdzbW9vdGgnLCBibG9jazogJ2NlbnRlcicgfSk7IHJldHVybjsgfQogICAgICBpZiAoIVoudXJnZS5kb25lW2tdKSB7IFoudXJnZS5kb25lW2tdID0gdHJ1ZTsgcmV3YXJkKDEsIHsgbm9Cb251czogdHJ1ZSB9KTsgfSBlbHNlIGRlbGV0ZSBaLnVyZ2UuZG9uZVtrXTsKICAgICAgcmVyZW5kZXIoKTsgcmV0dXJuOwogICAgfQogICAgaWYgKGMoJ1tkYXRhLXpkaF0nKSkgewogICAgICBjb25zdCBkID0gWi5kaDsgZFsxXSsrOyBoYXB0aWMoKTsKICAgICAgaWYgKGRbMV0gPj0gMzMpIHsgZFswXSsrOyBkWzFdID0gMDsgY2hpbWUoZmFsc2UpOyBpZiAoZFswXSA+PSAzKSB7IFouZGggPSBudWxsOyByZXdhcmQoMywgeyBtc2c6IFsnRGhpa3IgY29tcGxldCcsICdMZXMgY8WTdXJzIHNlIHRyYW5xdWlsbGlzZW50IHBhciBsZSByYXBwZWwgZFwnQWxsYWguIChDb3JhbiAxMzoyOCknXSB9KTsgcmVyZW5kZXIoKTsgcmV0dXJuOyB9IH0KICAgICAgY29uc3QgYiA9ICQoJy56ZGgnKTsgaWYgKGIpIGIub3V0ZXJIVE1MID0gZGhpa3JCb3goKTsgcmV0dXJuOwogICAgfQogICAgaWYgKGMoJ1tkYXRhLXp3b25dJykpIHsgZW5kVXJnZSh0cnVlKTsgcmV0dXJuOyB9CiAgICBpZiAoYygnW2RhdGEtemdhdmVdJykpIHsgZW5kVXJnZShmYWxzZSk7IHJldHVybjsgfQogICAgaWYgKGMoJ1tkYXRhLXpyZWxdJykpIHsgc3RhcnRSZWxhcHNlKCk7IHJldHVybjsgfQogICAgaWYgKChlbCA9IGMoJ1tkYXRhLXp3aGVuXScpKSkgeyBaLnJlbC53aGVuID0gZWwuZGF0YXNldC56d2hlbjsgcmVyZW5kZXIoKTsgcmV0dXJuOyB9CiAgICBpZiAoKGVsID0gYygnW2RhdGEtenJ0cmlnXScpKSkgeyBaLnJlbC50cmlnID0gZWwuZGF0YXNldC56cnRyaWc7IHJlcmVuZGVyKCk7IHJldHVybjsgfQogICAgaWYgKChlbCA9IGMoJ1tkYXRhLXpyYmFyXScpKSkgeyBjb25zdCBrID0gZWwuZGF0YXNldC56cmJhcjsgaWYgKFoucmVsLmJhcnNba10pIGRlbGV0ZSBaLnJlbC5iYXJzW2tdOyBlbHNlIFoucmVsLmJhcnNba10gPSAxOyBjb25zdCBuID0gJCgnI3pOb3RlJykudmFsdWU7IHJlcmVuZGVyKCk7ICQoJyN6Tm90ZScpLnZhbHVlID0gbjsgcmV0dXJuOyB9CiAgICBpZiAoYygnW2RhdGEtenJlc3RhcnRdJykpIHsgcmVzdGFydCgpOyByZXR1cm47IH0KICAgIGlmIChjKCdbZGF0YS16cmVseF0nKSkgeyBaLnZpZXcgPSAnbWFpbic7IFoucmVsID0gbnVsbDsgcmVyZW5kZXIoKTsgcmV0dXJuOyB9CiAgICBpZiAoYygnW2RhdGEtemxvZ10nKSkgeyBoLmxvZy5wdXNoKG5vdygpKTsgaWYgKGgubG9nLmxlbmd0aCA+IDMwMDApIGgubG9nLnNoaWZ0KCk7IHBlcnNpc3QoKTsgaGFwdGljKCk7IHJlcmVuZGVyKCk7IHJldHVybjsgfQogICAgaWYgKGMoJ1tkYXRhLXp1bmxvZ10nKSkgeyBoLmxvZy5wb3AoKTsgcGVyc2lzdCgpOyByZXJlbmRlcigpOyB0b2FzdCgnRGVybmnDqHJlIHByaXNlIGFubnVsw6llJyk7IHJldHVybjsgfQogICAgaWYgKChlbCA9IGMoJ1tkYXRhLXpyZWFkeV0nKSkpIHsgY29uc3QgdiA9IE51bWJlcihlbC5kYXRhc2V0LnpyZWFkeSksIGsgPSB0b2RheUlTTygpOyBoLnJlYWR5ID0gaC5yZWFkeS5maWx0ZXIociA9PiByLmQgIT09IGspOyBoLnJlYWR5LnB1c2goeyBkOiBrLCB2IH0pOyBwZXJzaXN0KCk7IGhhcHRpYygpOyByZXJlbmRlcigpOyByZXR1cm47IH0KICAgIGlmIChjKCdbZGF0YS16cmVhZHktZ29dJykpIHsKICAgICAgdG9hc3QoJ1RhIHPDqXJpZSBkw6ltYXJyZSBtYWludGVuYW50LiBQcsOqdCA/JywgJ091aScsICgpID0+IHsgaC5tb2RlID0gJ3N0b3AnOyBoLnN0YXJ0ID0gbm93KCk7IGgubXMgPSB7fTsgaC5wbGFucyA9IFBMQU5TX04ubWFwKHAgPT4gcC5zbGljZSgpKS5jb25jYXQoaC5wbGFucy5maWx0ZXIocCA9PiAhUExBTlNfTi5zb21lKHEgPT4gcVswXSA9PT0gcFswXSkpKS5zbGljZSgwLCA2KTsgcGVyc2lzdCgpOyByZXJlbmRlcigpOyB3aW5kb3cuc2Nyb2xsVG8oMCwgMCk7IHJld2FyZCgxMCwgeyBiaWc6IHRydWUsIG1zZzogWydEw6ljaXNpb24gcHJpc2UnLCAnTGUgcGx1cyBkdXIgblwnZXN0IHBhcyBkXCdhcnLDqnRlciwgY1wnZXN0IGRlIGTDqWNpZGVyLiBDXCdlc3QgZmFpdC4nXSB9KTsgfSwgNzAwMCk7IHJldHVybjsKICAgIH0KICAgIGlmICgoZWwgPSBjKCdbZGF0YS16ZWRpdF0nKSkpIHsgb3BlbkVkaXQoZWwuZGF0YXNldC56ZWRpdCk7IHJldHVybjsgfQogICAgaWYgKGMoJ1tkYXRhLXpwYWRkXScpKSB7IGgucGxhbnMucHVzaChbJycsICcnXSk7IG9wZW5FZGl0KCdwbGFucycpOyBjb25zdCBpbnMgPSAkJCgnW2RhdGEtenBdJyk7IGlmIChpbnMubGVuZ3RoKSBpbnNbaW5zLmxlbmd0aCAtIDJdLmZvY3VzKCk7IHJldHVybjsgfQogICAgaWYgKChlbCA9IGMoJ1tkYXRhLXpwZGVsXScpKSkgeyBoLnBsYW5zLnNwbGljZShOdW1iZXIoZWwuZGF0YXNldC56cGRlbCksIDEpOyBwZXJzaXN0KCk7IG9wZW5FZGl0KCdwbGFucycpOyByZXR1cm47IH0KICAgIGlmICgoZWwgPSBjKCdbZGF0YS16ZWRva10nKSkpIHsKICAgICAgaWYgKGVsLmRhdGFzZXQuemVkb2sgPT09ICdyZWFzb25zJykgaC5yZWFzb25zID0gJCgnI3pFZCcpLnZhbHVlLnNwbGl0KCdcbicpLm1hcCh4ID0+IHgudHJpbSgpKS5maWx0ZXIoQm9vbGVhbikuc2xpY2UoMCwgMTIpOwogICAgICBlbHNlIGgucGxhbnMgPSBoLnBsYW5zLmZpbHRlcihwID0+IHBbMF0udHJpbSgpIHx8IHBbMV0udHJpbSgpKTsKICAgICAgcGVyc2lzdCgpOyAkKCcjaWRlYXNTaGVldCcpLmNsb3NlKCk7IHJlcmVuZGVyKCk7IHJldHVybjsKICAgIH0KICB9KTsKICBkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCdjaGFuZ2UnLCBlID0+IHsKICAgIGlmICh0YWIgIT09ICd6JyB8fCAhWi5kKSByZXR1cm47CiAgICBjb25zdCB0ID0gZS50YXJnZXQsIGggPSBIKCk7CiAgICBpZiAodC5kYXRhc2V0LnpiYXIpIHsgaWYgKHQuY2hlY2tlZCkgeyBoLmJhclt0LmRhdGFzZXQuemJhcl0gPSB0cnVlOyByZXdhcmQoMyk7IH0gZWxzZSBkZWxldGUgaC5iYXJbdC5kYXRhc2V0LnpiYXJdOyBwZXJzaXN0KCk7IHJlcmVuZGVyKCk7IHJldHVybjsgfQogICAgaWYgKHQuZGF0YXNldC56cCkgeyBjb25zdCBbaSwgal0gPSB0LmRhdGFzZXQuenAuc3BsaXQoJy4nKS5tYXAoTnVtYmVyKTsgaWYgKGgucGxhbnNbaV0pIHsgaC5wbGFuc1tpXVtqXSA9IHQudmFsdWUudHJpbSgpOyBwZXJzaXN0KCk7IH0gcmV0dXJuOyB9CiAgICBpZiAodC5kYXRhc2V0LnpzZXQpIHsgaFt0LmRhdGFzZXQuenNldF0gPSB0LnZhbHVlLnRyaW0oKS5yZXBsYWNlKCcsJywgJy4nKTsgcGVyc2lzdCgpOyByZXJlbmRlcigpOyByZXR1cm47IH0KICB9KTsKCiAgZnVuY3Rpb24gbG9jaygpIHsKICAgIGNsZWFySW50ZXJ2YWwoaXYpOyBaLmtleSA9IG51bGw7IFouc2FsdCA9IG51bGw7IFouZCA9IG51bGw7IFoudXJnZSA9IG51bGw7IFoucmVsID0gbnVsbDsgWi5kaCA9IG51bGw7IFoudmlldyA9ICdtYWluJzsKICAgIGNvbnN0IHMgPSAkKCcjaWRlYXNTaGVldCcpOyBpZiAocyAmJiBzLm9wZW4gJiYgcy5kYXRhc2V0Lm1vZGUgPT09ICd6JykgeyBzLmNsb3NlKCk7IGRlbGV0ZSBzLmRhdGFzZXQubW9kZTsgfQogIH0KICB3aW5kb3cuX196ID0gewogICAgb3BlbihrZXksIHNhbHQsIGRhdGEpIHsgWi5rZXkgPSBrZXk7IFouc2FsdCA9IHNhbHQ7IFouZCA9IGRhdGE7IFoudmlldyA9ICdtYWluJzsgWi5oaWQgPSAoZGF0YS5oYWJpdHNbMF0gfHwge30pLmlkOyBzaG93KCk7IHRpY2tTdGFydCgpOyBkYWlseUNoZWNrKCk7IH0sCiAgICBzZXR1cCgpIHsgWi5rZXkgPSBudWxsOyBaLmQgPSBudWxsOyBzaG93KCk7IH0sCiAgICBsb2NrLCB2aWV3LAogICAgYWN0aXZlOiAoKSA9PiAhIVouZAogIH07Cn0pKCk7Cg==';
