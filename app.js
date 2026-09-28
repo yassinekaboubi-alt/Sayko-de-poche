@@ -1,4 +1,4 @@
-/* Sayko de poche — v2.8
+/* Sayko de poche — v2.10
    App 100 % locale : aucune donnée ne quitte le téléphone. */
 'use strict';
 
@@ -305,7 +305,7 @@ function defaults() {
     checks: {}, notes: {}, words: {}, hideFatiha: false, tajwid: { done: 0, total: 0 }, sourates: {},
     days: {},
     shifts: [], payslips: {},
-    blocks: {}, seen: {}, money: defaultMoney(), faith: defaultFaith(), unlocks: {}, biz: { projects: [] }, body: defaultBody(), nour: { log: {}, seen: '' }, zc: null,
+    blocks: {}, seen: {}, money: defaultMoney(), faith: defaultFaith(), unlocks: {}, biz: { projects: [] }, body: defaultBody(), nour: { log: {}, seen: '' }, zc: null, flux: { seen: {}, saved: [], day: { d: '', n: 0, q: 0, r: 0 }, used: false },
     settings: defaultSettings(),
     ideas: [], lastExport: null, createdAt: Date.now(), updatedAt: 0
   };
@@ -338,6 +338,7 @@ function normalize(s) {
   out.biz = { projects: s && s.biz && Array.isArray(s.biz.projects) ? s.biz.projects : [] };
   out.body = normalizeBody(s && s.body);
   out.nour = { log: s && s.nour && s.nour.log && typeof s.nour.log === 'object' ? s.nour.log : {}, seen: (s && s.nour && s.nour.seen) || '' };
+  { const sf = (s && s.flux) || {}; out.flux = { seen: sf.seen && typeof sf.seen === 'object' ? sf.seen : {}, saved: Array.isArray(sf.saved) ? sf.saved : [], day: sf.day && typeof sf.day === 'object' ? sf.day : { d: '', n: 0, q: 0, r: 0 }, used: !!sf.used }; }
   out.zc = s && s.zc && s.zc.c && s.zc.s && s.zc.i ? s.zc : null;
   return out;
 }
@@ -492,7 +493,10 @@ const ICON = {
   next: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
   chev: '<svg class="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>',
   warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
-  tick: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>'
+  tick: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>',
+  fstar: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5c.9 5.2 2.3 6.6 7.5 7.5-5.2.9-6.6 2.3-7.5 7.5-.9-5.2-2.3-6.6-7.5-7.5 5.2-.9 6.6-2.3 7.5-7.5z"/><path d="M19 16.5c.3 1.6.8 2.1 2.4 2.4-1.6.3-2.1.8-2.4 2.4-.3-1.6-.8-2.1-2.4-2.4 1.6-.3 2.1-.8 2.4-2.4z"/></svg>',
+  fcopy: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="8.5" width="12" height="12" rx="2.5"/><path d="M15.5 8.5V6a2.5 2.5 0 0 0-2.5-2.5H6A2.5 2.5 0 0 0 3.5 6v7A2.5 2.5 0 0 0 6 15.5h2.5"/></svg>',
+  fclose: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
 };
 /* Mini-icônes des planètes (chemins 24×24) */
 const GLYPH = {
@@ -504,6 +508,7 @@ const GLYPH = {
   heures: '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   corps: '<path d="M6.5 12h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3.8" y="7.8" width="3.2" height="8.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="7.8" width="3.2" height="8.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2 10.5v3M22 10.5v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   business: '<rect x="3.5" y="7.5" width="17" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5M3.5 12.5h17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  flux: '<path d="M12 3c.7 4.3 1.9 5.5 6.2 6.2-4.3.7-5.5 1.9-6.2 6.2-.7-4.3-1.9-5.5-6.2-6.2C10.1 8.5 11.3 7.3 12 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 19.5h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   orbite: '<circle cx="12" cy="12" r="3.4" fill="currentColor"/><ellipse cx="12" cy="12" rx="9.8" ry="4.3" transform="rotate(-25 12 12)" fill="none" stroke="currentColor" stroke-width="1.8"/>'
 };
@@ -523,7 +528,7 @@ function tween(dur, fn, done) {
 }
 
 const COACH = {
-  orbite: ['Ton système', 'Chaque planète est un module, son anneau doré montre où tu en es. Touche une planète pour y aller, fais tourner le système du doigt. Partout dans l\'app, le noyau doré en bas ouvre la roue des modules : touche-le, ou appuie et glisse vers un module.'],
+  orbite: ['Ton système', 'Chaque planète est un module, son anneau doré montre où tu en es. Touche une planète pour y aller, fais tourner le système du doigt. Touche le soleil pour ouvrir le Flux. Partout dans l\'app, le noyau doré en bas ouvre la roue des modules : touche-le, ou appuie et glisse vers un module.'],
   parcours: ['12 mois pour te former au business', 'Fais glisser l\'anneau ou touche une lune pour choisir un mois. Chaque mois se fait dans l\'ordre :', ['Écoute et lis les ressources', 'Coche les acquis quand tu les maîtrises', 'Fais l\'exercice pratique', 'Note ce que tu retiens']],
   arabe: ['Comprendre le sens de ce que tu récites', 'Quelques minutes de quiz par jour suffisent. Chaque étoile de la constellation est un mot : elle brille quand il est maîtrisé (3 bonnes réponses).'],
   routine: ['Ta 1 h 30 quotidienne', 'L\'anneau est découpé en 4 blocs. Touche un bloc quand il est fait : les 4 faits, la journée est validée et ta série continue.'],
@@ -633,6 +638,7 @@ function vOrbite() {
       <circle class="sun-core" id="sunCore" r="34" style="opacity:${(.55 + .45 * Math.min(1, sunLevel() * 1.6)).toFixed(2)};transition:opacity .8s"/>
       <text y="-2" text-anchor="middle" style="font:400 30px var(--serif);fill:var(--gold-ink)">${now.getDate()}</text>
       <text y="16" text-anchor="middle" style="font-size:9px;font-weight:700;letter-spacing:.12em;fill:var(--gold-ink);opacity:.75">${DAY_SHORT.format(now).replace('.', '').toUpperCase()}</text>
+      <circle data-sun r="40" fill="transparent" role="button" tabindex="0" aria-label="Ouvrir le Flux" style="cursor:pointer"/>
       <text id="sunNour" y="58" text-anchor="middle" style="font-size:10.5px;font-weight:700;letter-spacing:.06em;fill:var(--gold)">✦ ${nourDay()}</text>
       <g id="planets">${planets}</g>
     </svg>
@@ -641,6 +647,7 @@ function vOrbite() {
   <section style="margin-top:18px">
     <h2>Aujourd'hui</h2>
     <div class="today-list">
+      ${(() => { const d = S.flux.day.d === todayISO() ? S.flux.day.n : 0; return `<button class="today-item" data-goto="flux">${miniOrb(Math.min(1, d / 5), 'flux')}<span><b>${d >= 5 ? 'Esprit nourri aujourd\'hui' : 'Flux · 5 cartes pour ton esprit'}</b><span class="s">${d ? `${d} carte${d > 1 ? 's' : ''} lue${d > 1 ? 's' : ''} aujourd'hui` : 'Coran, business, savoir, psychologie'}</span></span>${ICON.chev}</button>`; })()}
       ${isSetUp() ? (() => { const bb = budgetOf(todayISO().slice(0, 7)), dd = bb.daysLeft ? bb.reste / bb.daysLeft : 0; return `<button class="today-item" data-goto="budget">${miniOrb(bb.free > 0 ? Math.max(0, bb.reste) / bb.free : 0, 'argent')}<span><b>${bb.reste > 0 ? `${eur0(dd)} à dépenser aujourd'hui` : 'Budget du mois épuisé'}</b><span class="s">Reste ${eur0(bb.reste)} ce mois</span></span>${ICON.chev}</button>`; })() : ''}
       <button class="today-item" data-goto="heures">${miniOrb(planetValue('heures')[0], 'heures')}<span><b>${wk ? `${fmtH(wk)} cette semaine` : 'Aucun service cette semaine'}</b><span class="s">Noter un service</span></span>${ICON.chev}</button>
       <button class="today-item" data-goto="routine">${miniOrb(tb / 4, 'routine')}<span><b>${tb === 4 ? 'Routine faite' : `${tb} bloc${tb > 1 ? 's' : ''} sur 4`}</b><span class="s">${streak()} jour${streak() > 1 ? 's' : ''} d'affilée</span></span>${ICON.chev}</button>
@@ -684,7 +691,7 @@ function startOrbit() {
   });
   const end = e => {
     const d = orb.drag; orb.drag = null;
-    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); }
+    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); else if (e.target.closest && e.target.closest('[data-sun]')) go('flux'); }
   };
   stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', () => { orb.drag = null; });
 }
@@ -2510,6 +2517,583 @@ async function zTry(v) {
 function zLock() { if (window.__z) window.__z.lock(); }
 
 /* =====================================================================
+   12 sexies. FLUX
+   ===================================================================== */
+/* ----- Contenu du Flux -----
+   Coran : texte arabe othmani (quranenc, via le paquet quran-json), sens rendu en français par nos soins
+   (ce n'est pas une traduction officielle), explication courte inspirée des commentaires classiques.
+   Business : les idées clés des livres du parcours, reformulées (aucune citation longue).
+   [id, ...] : les id ne changent jamais (historique des cartes vues et gardées). */
+const FX_CORAN = [
+  ['c1', '94:5-6', 'Ash-Sharh', 'Certes, avec la difficulté vient une facilité. Oui, avec la difficulté vient une facilité.', 'La répétition est voulue. Les commentateurs relèvent que « la difficulté » est dite avec l\'article (une seule), et « une facilité » sans article, deux fois : une seule épreuve ne vaincra pas deux facilités. La facilité n\'arrive pas après, elle est « avec ».'],
+  ['c2', '2:286', 'Al-Baqara', 'Allah n\'impose à aucune âme plus que ce qu\'elle peut porter. À elle ce qu\'elle a acquis de bien, contre elle ce qu\'elle a acquis de mal…', 'Si une épreuve est devant toi, c\'est qu\'elle est à ta mesure. Le verset se termine par des invocations que le Prophète ﷺ recommandait de réciter le soir : les deux derniers versets d\'Al-Baqara suffisent à celui qui les lit la nuit (Bukhari).'],
+  ['c3', '13:11', 'Ar-Ra\'d', 'Allah ne change pas l\'état d\'un peuple tant que ses membres ne changent pas ce qui est en eux-mêmes.', 'Le changement extérieur suit le changement intérieur. C\'est une loi divine : attendre que les circonstances changent sans rien changer en soi, c\'est inverser l\'ordre.'],
+  ['c4', '13:28', 'Ar-Ra\'d', 'Ceux qui ont cru, et dont les cœurs se tranquillisent au rappel d\'Allah. N\'est-ce point par le rappel d\'Allah que les cœurs se tranquillisent ?', 'Le cœur cherche la paix partout : écrans, bruit, distractions. Le verset désigne la seule source qui l\'apaise vraiment. Le dhikr n\'est pas une formule vide, c\'est un retour.'],
+  ['c5', '65:2-3', 'At-Talaq', '… Quiconque craint Allah, Il lui donnera une issue, et lui accordera sa subsistance par des voies qu\'il ne soupçonne pas. Et quiconque place sa confiance en Allah, Il lui suffit.', 'Deux promesses liées à la taqwa : une porte de sortie, et une subsistance inattendue. La confiance (tawakkul) n\'exclut pas l\'effort : elle vient après lui.'],
+  ['c6', '29:69', 'Al-\'Ankabut', 'Et ceux qui luttent pour Notre cause, Nous les guiderons certes sur Nos chemins. Allah est vraiment avec les bienfaisants.', 'La guidance récompense l\'effort : on ne reçoit pas le chemin avant de marcher, on le reçoit en marchant. C\'est un verset de l\'effort sur soi-même.'],
+  ['c7', '39:53', 'Az-Zumar', 'Dis : « Ô Mes serviteurs qui avez commis des excès à votre propre détriment, ne désespérez pas de la miséricorde d\'Allah. Allah pardonne tous les péchés. »', 'Plusieurs compagnons le considéraient comme l\'un des versets qui donnent le plus d\'espoir. Il s\'adresse précisément à ceux qui ont trop fauté : tant que la porte du repentir est ouverte, le désespoir est lui-même une erreur.'],
+  ['c8', '2:152', 'Al-Baqara', 'Souvenez-vous de Moi, Je Me souviendrai de vous. Soyez-Moi reconnaissants et ne soyez pas ingrats.', 'Une relation, pas une transaction : ton rappel attire Son rappel. Un hadith qudsi le prolonge : « Si Mon serviteur Me mentionne en lui-même, Je le mentionne en Moi-même. »'],
+  ['c9', '2:153', 'Al-Baqara', 'Ô vous qui avez cru, cherchez secours dans la patience et la prière. Allah est avec les patients.', 'Deux outils, pas un : la patience (tenir) et la prière (se ressourcer). Quand quelque chose le préoccupait, le Prophète ﷺ se hâtait vers la prière.'],
+  ['c10', '3:139', 'Al \'Imran', 'Ne faiblissez pas et ne vous affligez pas, alors que vous êtes les supérieurs, si vous êtes croyants.', 'Révélé après la défaite d\'Uhud. Un échec n\'annule pas la valeur : il ne faut ni se laisser abattre ni s\'enfermer dans la tristesse.'],
+  ['c11', '24:30', 'An-Nur', 'Dis aux croyants de baisser leurs regards et de préserver leur chasteté. C\'est plus pur pour eux. Allah est parfaitement informé de ce qu\'ils font.', 'Le regard vient en premier, avant la chasteté : c\'est la porte. Les savants notent que protéger ses yeux est une prévention, pas une punition : « plus pur pour eux ».'],
+  ['c12', '49:13', 'Al-Hujurat', 'Ô hommes, Nous vous avons créés d\'un mâle et d\'une femelle, et Nous avons fait de vous des peuples et des tribus pour que vous vous connaissiez. Le plus noble d\'entre vous auprès d\'Allah est le plus pieux.', 'La diversité a un but : se connaître, pas se dominer. La seule hiérarchie qui compte est invisible : la piété, que seul Allah mesure.'],
+  ['c13', '3:159', 'Al \'Imran', 'C\'est par une miséricorde d\'Allah que tu as été doux envers eux. Si tu avais été rude et dur de cœur, ils se seraient dispersés autour de toi. Pardonne-leur, demande pardon pour eux, et consulte-les dans les affaires…', 'Une leçon de leadership révélée juste après Uhud, où des compagnons avaient désobéi. Réponse : douceur, pardon, et consultation. Un chef dur fait fuir, même quand il a raison.'],
+  ['c14', '16:125', 'An-Nahl', 'Appelle au sentier de ton Seigneur par la sagesse et la bonne exhortation, et discute avec eux de la meilleure manière.', 'Trois niveaux : la sagesse (le bon moment, le bon mot), l\'exhortation qui touche le cœur, et le débat courtois. Convaincre n\'est jamais écraser.'],
+  ['c15', '17:36', 'Al-Isra\'', 'Ne poursuis pas ce dont tu n\'as aucune connaissance. L\'ouïe, la vue et le cœur : de tout cela, on sera interrogé.', 'L\'esprit critique est un devoir. Ce que tu écoutes, regardes et laisses entrer dans ton cœur, tu en répondras. Un verset à garder en tête avant chaque scroll.'],
+  ['c16', '49:6', 'Al-Hujurat', 'Ô vous qui avez cru, si un pervers vous apporte une nouvelle, vérifiez-en la teneur, de crainte de porter atteinte à des gens par ignorance et de regretter ensuite ce que vous avez fait.', 'Le principe de la vérification, quatorze siècles avant les « fake news ». Une information non vérifiée peut détruire des gens, et le regret vient toujours après.'],
+  ['c17', '2:275', 'Al-Baqara', '… Allah a rendu licite le commerce et illicite l\'usure (riba)…', 'Le verset répond à ceux qui disaient : « le commerce, c\'est comme l\'usure ». Non : le commerce partage le risque et crée de la valeur, l\'usure fait payer le temps sans risque. D\'où l\'importance de chercher des financements sans intérêt.'],
+  ['c18', '83:1-3', 'Al-Mutaffifin', 'Malheur aux fraudeurs, qui, lorsqu\'ils achètent aux gens, exigent la pleine mesure, et qui, lorsqu\'eux-mêmes leur mesurent ou leur pèsent, leur causent perte.', 'Selon Ibn Abbas, révélé à l\'arrivée du Prophète ﷺ à Médine, où certains commerçants trichaient sur les poids. Deux poids, deux mesures : exigeant pour soi, léger pour les autres. En business, c\'est la ruine de la confiance.'],
+  ['c19', '62:10', 'Al-Jumu\'a', 'Puis quand la prière est achevée, dispersez-vous sur terre, recherchez la grâce d\'Allah, et invoquez beaucoup Allah afin que vous réussissiez.', 'Après la prière du vendredi, retour au travail : l\'islam ne sépare pas la mosquée et le marché. Chercher sa subsistance est une « grâce » à rechercher, avec le rappel en fond.'],
+  ['c20', '4:29', 'An-Nisa\'', 'Ô vous qui avez cru, ne dévorez pas mutuellement vos biens illicitement, sauf s\'il s\'agit d\'un commerce fait par consentement mutuel entre vous. Et ne vous tuez pas vous-mêmes…', 'La règle d\'or du commerce : le consentement réel des deux parties. Pas de pression, pas de tromperie, pas de clause cachée.'],
+  ['c21', '25:67', 'Al-Furqan', 'Ceux qui, lorsqu\'ils dépensent, ne sont ni prodigues ni avares, mais se tiennent au juste milieu.', 'Le budget coranique en une phrase : ni gaspillage, ni avarice. Le juste milieu est une discipline, pas une moyenne tiède.'],
+  ['c22', '103:1-3', 'Al-\'Asr', 'Par le temps ! L\'homme est certes en perdition, sauf ceux qui croient, font de bonnes œuvres, s\'enjoignent mutuellement la vérité et s\'enjoignent mutuellement l\'endurance.', 'L\'imam Ash-Shafi\'i disait que si les gens méditaient seulement cette sourate, elle leur suffirait. Le temps passe de toute façon : il est soit investi, soit perdu.'],
+  ['c23', '20:114', 'Ta-Ha', '… Et dis : « Mon Seigneur, accroît ma science. »', 'La seule chose dont Allah ordonne au Prophète ﷺ de demander davantage : la science. Une invocation courte à faire avant chaque lecture.'],
+  ['c24', '96:1-2', 'Al-\'Alaq', 'Lis, au nom de ton Seigneur qui a créé, qui a créé l\'homme d\'une adhérence.', 'Les tout premiers versets révélés, dans la grotte de Hira. Le premier mot adressé à l\'humanité par ce message est « Lis ». L\'islam commence par le savoir.'],
+  ['c25', '39:9', 'Az-Zumar', '… Dis : « Sont-ils égaux, ceux qui savent et ceux qui ne savent pas ? » Seuls les doués d\'intelligence réfléchissent.', 'Une question qui n\'attend pas de réponse. Le savoir élève, et le verset lie l\'intelligence à la réflexion, pas à l\'accumulation.'],
+  ['c26', '2:216', 'Al-Baqara', '… Il se peut que vous ayez de l\'aversion pour une chose alors qu\'elle est un bien pour vous, et il se peut que vous aimiez une chose alors qu\'elle est mauvaise pour vous. Allah sait, alors que vous ne savez pas.', 'Nos goûts ne sont pas des boussoles fiables. Ce qui coûte à court terme (l\'effort, la discipline) est souvent le bien, et ce qui plaît tout de suite, parfois le piège.'],
+  ['c27', '3:200', 'Al \'Imran', 'Ô vous qui avez cru, soyez endurants, incitez-vous à l\'endurance, luttez constamment, et craignez Allah afin que vous réussissiez.', 'Dernier verset de la sourate : quatre étapes vers la réussite. La patience personnelle, puis la rivaliser en patience avec les autres, puis la constance sur la durée, et la piété comme socle.'],
+  ['c28', '8:46', 'Al-Anfal', 'Obéissez à Allah et à Son messager, et ne vous disputez pas, sinon vous fléchirez et perdrez votre force. Et soyez endurants.', 'Une équipe divisée perd sa « force » (littéralement son vent). Valable pour une armée, une famille, une équipe en gare ou une entreprise.'],
+  ['c29', '31:18-19', 'Luqman', 'Ne détourne pas ton visage des hommes par orgueil, et ne marche pas sur terre avec arrogance… Sois modeste dans ta démarche, et baisse ta voix.', 'Les conseils de Luqman à son fils touchent au langage du corps : le visage, la démarche, la voix. La noblesse se voit avant de s\'entendre.'],
+  ['c30', '2:186', 'Al-Baqara', 'Et quand Mes serviteurs t\'interrogent sur Moi, Je suis tout proche : Je réponds à l\'appel de celui qui M\'invoque quand il M\'invoque…', 'Ailleurs dans le Coran, les questions reçoivent « Dis : … ». Ici, Allah répond directement, sans intermédiaire : même dans la forme, la proximité.'],
+  ['c31', '50:16', 'Qaf', 'Nous avons effectivement créé l\'homme et Nous savons ce que son âme lui suggère, et Nous sommes plus près de lui que sa veine jugulaire.', 'Ce que tu te dis intérieurement est connu. Une conscience qui aide à la maîtrise de soi quand personne ne regarde.'],
+  ['c32', '18:23-24', 'Al-Kahf', 'Et ne dis jamais à propos d\'une chose : « Je la ferai sûrement demain », sans ajouter : « Si Allah le veut. »', 'Planifier, oui ; se croire maître de demain, non. Le « in sha Allah » n\'est pas une excuse pour ne pas faire, c\'est l\'humilité de celui qui prévoit.'],
+  ['c33', '53:39', 'An-Najm', 'Et qu\'en vérité, l\'homme n\'obtient que le fruit de ses efforts.', 'Personne ne portera le fardeau d\'un autre, et personne ne récoltera à ta place. Simple, et exigeant.'],
+  ['c34', '61:2-3', 'As-Saff', 'Ô vous qui avez cru, pourquoi dites-vous ce que vous ne faites pas ? C\'est une grande abomination auprès d\'Allah que de dire ce que vous ne faites pas.', 'L\'écart entre la parole et l\'acte. Moins annoncer, plus faire : c\'est aussi le meilleur conseil de productivité qui soit.'],
+  ['c35', '67:2', 'Al-Mulk', 'Celui qui a créé la mort et la vie afin de vous éprouver, pour savoir qui de vous est le meilleur en œuvre…', 'Le verset dit « le meilleur en œuvre », pas « le plus nombreux en œuvres ». Fudayl ibn \'Iyad l\'expliquait par : la plus sincère et la plus juste. La qualité avant la quantité.'],
+  ['c36', '3:190-191', 'Al \'Imran', 'Dans la création des cieux et de la terre, et dans l\'alternance de la nuit et du jour, il y a certes des signes pour les doués d\'intelligence, qui, debout, assis ou couchés, invoquent Allah et méditent sur la création…', 'Aïcha raconte que le Prophète ﷺ pleura toute une nuit à la révélation de ces versets. Regarder le ciel, étudier la nature : une adoration quand le cœur y est.'],
+  ['c37', '2:201', 'Al-Baqara', '… « Seigneur, accorde-nous une belle part ici-bas et une belle part dans l\'au-delà, et protège-nous du châtiment du Feu. »', 'L\'invocation que le Prophète ﷺ faisait le plus souvent (Bukhari). Elle ne rejette pas ce monde : elle demande le bien des deux.'],
+  ['c38', '30:21', 'Ar-Rum', 'Parmi Ses signes, Il a créé de vous, pour vous, des épouses pour que vous viviez en tranquillité avec elles, et Il a mis entre vous affection et miséricorde…', 'Deux mots pour le couple : mawadda (l\'affection, l\'amour actif) et rahma (la miséricorde, qui reste quand l\'élan faiblit). Le mariage est présenté comme un signe divin.'],
+  ['c39', '14:7', 'Ibrahim', 'Et lorsque votre Seigneur proclama : « Si vous êtes reconnaissants, très certainement J\'augmenterai Mes bienfaits pour vous. »', 'La gratitude n\'est pas qu\'un sentiment : c\'est une cause d\'augmentation. Compter ce qu\'on a avant ce qui manque.'],
+  ['c40', '93:3-5', 'Ad-Duha', 'Ton Seigneur ne t\'a ni abandonné ni détesté. La vie dernière t\'est certes meilleure que la vie présente. Ton Seigneur t\'accordera certes Ses faveurs, et alors tu seras satisfait.', 'Révélée après une pause de la révélation qui avait peiné le Prophète ﷺ, et dont ses ennemis se moquaient. Le silence n\'est pas l\'abandon.'],
+  ['c41', '51:56', 'Adh-Dhariyat', 'Je n\'ai créé les djinns et les hommes que pour qu\'ils M\'adorent.', 'La raison d\'être en une phrase. L\'adoration, selon les savants, englobe tout acte fait pour Allah : le travail honnête, le sport, le soin de sa famille compris.'],
+  ['c42', '88:17-20', 'Al-Ghashiya', 'Ne regardent-ils donc pas les chameaux, comment ils ont été créés, et le ciel, comment il est élevé, et les montagnes, comment elles sont dressées, et la terre, comment elle est nivelée ?', 'Quatre regards pour quelqu\'un du désert : l\'animal, le ciel, la montagne, la terre. La foi commence souvent par un regard attentif sur ce qu\'on croit déjà connaître.'],
+  ['c43', '21:30', 'Al-Anbiya\'', 'Ceux qui ont mécru n\'ont-ils pas vu que les cieux et la terre formaient une masse compacte ? Ensuite Nous les avons séparés et avons fait de l\'eau toute chose vivante…', 'Un appel à observer l\'origine des choses et le rôle de l\'eau dans la vie. Les savants invitent à la prudence : le Coran est un livre de guidance, pas un manuel scientifique, même s\'il invite sans cesse à étudier la nature.'],
+  ['c44', '25:74', 'Al-Furqan', '… « Seigneur, donne-nous, en nos épouses et nos descendants, la joie des yeux, et fais de nous un guide pour les pieux. »', 'Une invocation de couple : demander que son foyer soit une source de fraîcheur pour le regard, et viser haut, être un exemple.'],
+  ['c45', '2:45', 'Al-Baqara', 'Et cherchez secours dans l\'endurance et la prière : certes, la prière est une lourde obligation, sauf pour les humbles.', 'La prière est lourde pour qui la vit comme une corvée, légère pour qui y trouve son repos. « Repose-nous par elle, ô Bilal », disait le Prophète ﷺ.']
+];
+const FX_HADITH = [
+  ['h1', 'Les actes ne valent que par les intentions, et chacun n\'aura que ce qu\'il a eu l\'intention de faire.', 'Bukhari 1, Muslim 1907', 'Le premier hadith de Sahih Al-Bukhari. La même action peut être une adoration ou rien du tout, selon l\'intention. Renouvelle-la : même ta séance de sport peut compter.'],
+  ['h2', 'Aucun de vous ne sera vraiment croyant tant qu\'il n\'aimera pas pour son frère ce qu\'il aime pour lui-même.', 'Bukhari 13, Muslim 45', 'Le test de l\'égo : se réjouir sincèrement de la réussite des autres. En business, c\'est aussi la base d\'une réputation qui dure.'],
+  ['h3', 'Le fort n\'est pas celui qui terrasse les autres à la lutte. Le fort est celui qui se maîtrise lorsqu\'il est en colère.', 'Bukhari 6114, Muslim 2609', 'Pour un judoka, la leçon est claire : la vraie prise, c\'est sur soi-même.'],
+  ['h4', 'Que celui qui croit en Allah et au Jour dernier dise du bien ou se taise.', 'Bukhari 6018, Muslim 47', 'Un filtre à trois secondes avant chaque parole, et chaque commentaire en ligne.'],
+  ['h5', 'Fait partie de l\'excellence de l\'islam d\'une personne le fait de délaisser ce qui ne la concerne pas.', 'Tirmidhi 2317', 'Le hadith anti-scroll par excellence. Tout ce qui ne te concerne pas prend du temps à ce qui te concerne.'],
+  ['h6', 'Il y a deux bienfaits dont beaucoup de gens sont lésés : la santé et le temps libre.', 'Bukhari 6412', 'Lésés, comme dans une mauvaise affaire : on les échange contre presque rien. Tu as les deux en ce moment.'],
+  ['h7', 'Les actes les plus aimés d\'Allah sont ceux qui sont les plus réguliers, même s\'ils sont peu nombreux.', 'Bukhari 6464, Muslim 783', 'La constance bat l\'intensité. Tout le principe de cette app.'],
+  ['h8', 'Le croyant fort est meilleur et plus aimé d\'Allah que le croyant faible, et en chacun il y a du bien. Attache-toi à ce qui t\'est profitable, demande l\'aide d\'Allah et ne baisse pas les bras.', 'Muslim 2664', 'Trois consignes : viser l\'utile, s\'appuyer sur Allah, ne pas abandonner. La suite du hadith met en garde contre le « si seulement j\'avais… ».'],
+  ['h9', 'Allah ne regarde ni vos corps ni vos apparences, mais Il regarde vos cœurs et vos actes.', 'Muslim 2564', 'Le physique se travaille, mais ce qui est regardé, c\'est l\'intérieur et ce que tu en fais.'],
+  ['h10', 'Ton sourire à ton frère est une aumône.', 'Tirmidhi 1956', 'L\'aumône la moins chère et la plus rapide. En gare, avec les voyageurs, elle est à portée de main toute la journée.'],
+  ['h11', 'Le commerçant véridique et digne de confiance sera avec les prophètes, les véridiques et les martyrs.', 'Tirmidhi 1209', 'Le rang le plus élevé promis à un commerçant, à deux conditions : dire vrai et respecter ce qu\'on lui confie.'],
+  ['h12', 'Celui qui nous trompe n\'est pas des nôtres.', 'Muslim 102', 'Dit au marché, devant un tas de nourriture dont le dessus était sec et le dessous mouillé. Cacher un défaut, c\'est tromper.'],
+  ['h13', 'Qu\'Allah fasse miséricorde à un homme facile lorsqu\'il vend, lorsqu\'il achète et lorsqu\'il réclame son dû.', 'Bukhari 2076', 'La souplesse en affaires attire la miséricorde. Être dur sur les principes, facile dans la manière.'],
+  ['h14', 'Personne n\'a jamais mangé de meilleure nourriture que celle issue du travail de ses mains.', 'Bukhari 2072', 'Le hadith cite l\'exemple de Dawud, prophète et roi, qui vivait du travail de ses mains. Aucun travail honnête n\'est petit.'],
+  ['h15', 'Attache-la, puis place ta confiance en Allah.', 'Tirmidhi 2517', 'Réponse à un homme qui demandait s\'il devait attacher sa chamelle ou s\'en remettre à Allah. Les deux : l\'effort, puis la confiance.'],
+  ['h16', 'La purification est la moitié de la foi.', 'Muslim 223', 'La propreté du corps prépare celle du cœur. L\'hygiène fait partie de la religion, pas seulement du confort.'],
+  ['h17', 'Profite de cinq choses avant cinq autres : ta jeunesse avant ta vieillesse, ta santé avant ta maladie, ta richesse avant ta pauvreté, ton temps libre avant ton occupation, et ta vie avant ta mort.', 'Rapporté par al-Hakim', 'Tu es dans la fenêtre des cinq. C\'est maintenant que tout se construit.'],
+  ['h18', 'Le meilleur d\'entre vous est celui qui apprend le Coran et l\'enseigne.', 'Bukhari 5027', 'Apprendre ne suffit pas : transmettre fait partie de l\'excellence.'],
+  ['h19', 'Quiconque emprunte un chemin à la recherche d\'une science, Allah lui facilite par cela un chemin vers le Paradis.', 'Muslim 2699', 'Chaque carte de savoir que tu lis ici peut être un pas sur ce chemin, avec la bonne intention.'],
+  ['h20', 'Le meilleur d\'entre vous est le meilleur envers sa famille, et je suis le meilleur d\'entre vous envers ma famille.', 'Tirmidhi 3895', 'Le vrai caractère se voit à la maison, là où l\'on n\'a rien à prouver.'],
+  ['h21', 'Un homme dit au Prophète ﷺ : « Conseille-moi. » Il répondit : « Ne te mets pas en colère. » L\'homme répéta sa demande plusieurs fois, et il répondait : « Ne te mets pas en colère. »', 'Bukhari 6116', 'Un seul conseil, répété : la colère ouvre la porte à la plupart des regrets.'],
+  ['h22', 'La religion est facilité. Personne ne la rendra difficile sans qu\'elle ne le vainque. Visez la justesse, rapprochez-vous-en, et réjouissez-vous.', 'Bukhari 39', 'Contre le tout ou rien : mieux vaut un peu, juste et durable, qu\'un excès qui s\'effondre.'],
+  ['h23', 'Sois dans ce monde comme un étranger, ou comme un voyageur de passage.', 'Bukhari 6416', 'Le voyageur ne s\'attache pas à la gare où il attend son train. Il sait où il va.'],
+  ['h24', 'La bonté, c\'est le bon caractère. Et le péché, c\'est ce qui trouble ton âme et que tu détesterais que les gens découvrent.', 'Muslim 2553', 'Une boussole intérieure : si tu ne voudrais pas que ça se sache, c\'est un signal.'],
+  ['h25', 'La pudeur fait partie de la foi.', 'Bukhari 24, Muslim 36', 'Al-haya\' : une retenue qui protège, devant les gens et devant Allah.'],
+  ['h26', 'Le fils d\'Adam ne remplit pas de récipient pire que son ventre. Quelques bouchées suffisent pour tenir son dos droit. S\'il faut plus : un tiers pour sa nourriture, un tiers pour sa boisson, un tiers pour son souffle.', 'Tirmidhi 2380', 'Une règle de nutrition d\'une étonnante modernité : manger à sa faim, pas jusqu\'à l\'excès.'],
+  ['h27', 'Craignez Allah où que vous soyez, faites suivre une mauvaise action d\'une bonne qui l\'effacera, et comportez-vous avec les gens avec un bon caractère.', 'Tirmidhi 1987', 'Trois directions : Allah, soi-même, les autres. Et une méthode après un faux pas : enchaîner tout de suite par un bien.']
+];
+/* Business : [id, livre ou thème, mois du parcours (0 = général), titre, texte, à appliquer] */
+const FX_BIZ = [
+  ['b1', 'Le Personal MBA', 1, 'Tout business fait 5 choses', 'Créer quelque chose de valeur, attirer l\'attention (marketing), convaincre d\'acheter (vente), livrer ce qui a été promis, et gagner assez pour continuer (finance). Si une des cinq manque, l\'entreprise s\'arrête.', 'Prends Mister Pizza et trouve ses 5 fonctions.'],
+  ['b2', 'Le Personal MBA', 1, 'La valeur perçue', 'Les gens n\'achètent pas ce qu\'une chose vaut, mais ce qu\'ils croient qu\'elle vaut pour eux. Le même produit peut valoir 5 € ou 50 € selon le contexte et la présentation.', 'Observe un produit cher près de chez toi : qu\'est-ce qui justifie son prix aux yeux du client ?'],
+  ['b3', 'Le Personal MBA', 1, 'Le goulot d\'étranglement', 'Un système ne va jamais plus vite que son maillon le plus lent. Améliorer autre chose que ce maillon ne sert presque à rien.', 'Chez Mister Pizza, quel est le goulot un vendredi soir : le four, la préparation, la livraison ?'],
+  ['b4', 'Finance', 1, 'Chiffre d\'affaires ≠ bénéfice ≠ trésorerie', 'Le chiffre d\'affaires, c\'est tout ce qui entre. Le bénéfice, ce qui reste une fois toutes les charges payées. La trésorerie, l\'argent réellement disponible aujourd\'hui. Une entreprise rentable peut mourir faute de trésorerie.', 'Calcule ces trois chiffres pour ton propre mois.'],
+  ['b5', 'Finance', 1, 'Marge brute et marge nette', 'Marge brute = prix de vente − coût direct du produit. Marge nette = ce qui reste après toutes les charges (loyer, salaires, impôts…). Une belle marge brute peut cacher une marge nette nulle.', 'Estime le coût des ingrédients d\'une pizza et sa marge brute.'],
+  ['b6', 'Finance', 10, 'Le point mort', 'Le chiffre d\'affaires à partir duquel toutes les charges sont couvertes. En dessous, chaque mois coûte de l\'argent. Au-dessus, chaque vente rapporte vraiment.', 'Pour un projet imaginaire : charges fixes ÷ marge par vente = nombre de ventes pour être à l\'équilibre.'],
+  ['b7', 'Finance', 10, 'CAC et LTV', 'Le coût pour acquérir un client (CAC) doit rester bien inférieur à ce que ce client rapporte sur toute sa relation avec toi (LTV). On vise souvent une LTV au moins trois fois supérieure.', 'Combien un client fidèle rapporte-t-il à Mister Pizza sur un an ?'],
+  ['b8', 'Stratégie', 0, 'La loi de Pareto', 'Souvent, environ 20 % des causes produisent 80 % des effets : 20 % des clients font l\'essentiel du chiffre, 20 % des tâches donnent l\'essentiel du résultat. Ce n\'est pas une loi exacte, c\'est une invitation à chercher l\'essentiel.', 'Quelles 2 actions de ta semaine ont produit le plus de résultats ?'],
+  ['b9', 'Comment se faire des amis — Carnegie', 2, 'Le prénom est une musique', 'Pour chacun, son prénom est le son le plus agréable qui soit. S\'en souvenir et l\'utiliser, c\'est dire « tu comptes ».', 'Retiens et utilise le prénom de chaque personne rencontrée aujourd\'hui.'],
+  ['b10', 'Comment se faire des amis — Carnegie', 2, 'Parle de ce qui l\'intéresse, lui', 'Le moyen le plus sûr de toucher quelqu\'un est de parler de ce qui compte pour lui. On s\'intéresse davantage à son propre mal de dents qu\'à une catastrophe à l\'autre bout du monde.', 'Pose une question sur la passion de quelqu\'un et écoute vraiment.'],
+  ['b11', 'Comment se faire des amis — Carnegie', 2, 'Critiquer ne sert à rien', 'La critique met l\'autre sur la défensive et le pousse à se justifier. Carnegie conseille de comprendre avant de juger, et de commencer par ce qui va bien.', 'Avant tout reproche en équipe, commence par un point positif réel.'],
+  ['b12', 'Comment se faire des amis — Carnegie', 2, 'Admets vite tes torts', 'Reconnaître rapidement une erreur, avant qu\'on te la reproche, désarme l\'autre et renforce ton autorité au lieu de l\'affaiblir.', 'La prochaine erreur que tu fais : dis-le toi-même, en premier.'],
+  ['b13', 'Le Manager Minute — Blanchard', 2, 'L\'objectif minute', 'Un objectif doit tenir sur une page et se relire en une minute. Si ton équipier ne peut pas dire en une phrase ce qu\'on attend de lui, l\'objectif n\'est pas clair.', 'Écris l\'objectif d\'un de tes agents en une phrase mesurable.'],
+  ['b14', 'Le Manager Minute — Blanchard', 2, 'Surprendre en train de bien faire', 'Au lieu de guetter les erreurs, guette ce qui est bien fait, et félicite tout de suite, précisément. Le comportement félicité se répète.', 'Félicite quelqu\'un aujourd\'hui sur un fait précis, au moment où il se produit.'],
+  ['b15', 'Le Manager Minute — Blanchard', 2, 'Le recadrage minute', 'Recadrer vite, sur le comportement et pas sur la personne, puis rappeler qu\'on la tient en estime. Court, factuel, sans rancune.', 'Prépare ta phrase : « Ce que tu as fait… », « Ce que ça a provoqué… », « Je sais que tu vaux mieux. »'],
+  ['b16', 'Influence — Cialdini', 3, 'La réciprocité', 'Nous nous sentons obligés de rendre ce qu\'on nous donne. D\'où les échantillons gratuits, et la force d\'un service rendu sans rien attendre.', 'Repère un « cadeau » commercial reçu cette semaine : qu\'attendait-il de toi ?'],
+  ['b17', 'Influence — Cialdini', 3, 'La rareté', 'Ce qui semble rare ou sur le point de disparaître paraît plus précieux. « Plus que 2 en stock », « offre jusqu\'à minuit » : la peur de perdre pousse à agir.', 'La prochaine fois qu\'on te presse d\'acheter, attends 24 h.'],
+  ['b18', 'Influence — Cialdini', 3, 'La preuve sociale', 'Dans le doute, on fait comme les autres. Les avis, les files d\'attente et les « déjà 10 000 clients » jouent sur ce réflexe.', 'Regarde comment un restaurant plein attire plus de monde qu\'un restaurant vide.'],
+  ['b19', 'Influence — Cialdini', 3, 'L\'engagement', 'Une fois qu\'on a dit oui à une petite chose, on veut rester cohérent et on dit plus facilement oui à la suite. Le « pied dans la porte ».', 'Utilise-le pour toi : un tout petit engagement écrit rend le grand plus facile.'],
+  ['b20', 'Système 1 / Système 2 — Kahneman', 3, 'Deux vitesses de pensée', 'Le système 1 est rapide, automatique, émotionnel. Le système 2 est lent, réfléchi, fatigant. La plupart de nos décisions viennent du premier, même quand on croit utiliser le second.', 'Avant une décision importante, compte jusqu\'à 10 : laisse le système 2 arriver.'],
+  ['b21', 'Système 1 / Système 2 — Kahneman', 3, 'L\'ancrage', 'Le premier chiffre entendu influence tous les jugements suivants, même s\'il est absurde. En négociation, celui qui annonce le premier chiffre pose souvent l\'ancre.', 'Remarque les « prix barrés » : ils sont là pour ancrer.'],
+  ['b22', 'Système 1 / Système 2 — Kahneman', 3, 'L\'aversion à la perte', 'Perdre 100 € fait environ deux fois plus mal que gagner 100 € ne fait plaisir. D\'où la force des messages du type « ne perdez pas… ».', 'C\'est ce principe que l\'app utilise quand elle te montre ta série en jeu.'],
+  ['b23', 'Neuromarketing — Renvoisé & Morin', 3, 'Le contraste', 'Le cerveau décide plus vite quand il voit un avant/après, un avec/sans. Les auteurs en font l\'un de leurs six leviers de persuasion (avec l\'égocentrisme, le concret, le début et la fin, le visuel et l\'émotion).', 'Présente ta prochaine idée en « sans ça… / avec ça… ».'],
+  ['b24', 'SPIN Selling — Rackham', 4, 'Les 4 questions SPIN', 'Situation (le contexte), Problème (ce qui coince), Implication (ce que ça coûte), Need-payoff (ce que la solution apporterait). Le client se convainc lui-même en répondant.', 'Entraîne-toi sur un ami : 2 questions de chaque type.'],
+  ['b25', 'SPIN Selling — Rackham', 4, 'Poser l\'implication', 'Dans les grosses ventes, ce qui fait la différence n\'est pas de présenter le produit, mais de faire mesurer au client le coût de son problème. Un problème sans conséquence ne s\'achète pas.', 'Pose la question : « Et si ça continue, qu\'est-ce que ça te coûte ? »'],
+  ['b26', 'Offres à 100 millions $ — Hormozi', 5, 'L\'équation de la valeur', 'La valeur perçue monte avec le résultat rêvé et la probabilité perçue d\'y arriver. Elle baisse avec le délai et l\'effort demandés. Augmente le haut, réduis le bas.', 'Pour une offre imaginaire, trouve un moyen de réduire le délai ou l\'effort.'],
+  ['b27', 'Offres à 100 millions $ — Hormozi', 5, 'Une offre qu\'on se sent bête de refuser', 'Au lieu de baisser le prix, empile de la valeur : bonus, garantie, rapidité, accompagnement. L\'objectif est que refuser paraisse absurde.', 'Liste 3 bonus possibles pour un service que tu pourrais vendre.'],
+  ['b28', 'Offres à 100 millions $ — Hormozi', 5, 'La garantie inverse le risque', 'Une garantie forte transfère le risque du client vers le vendeur. Elle rassure, et en pratique peu de clients honnêtes l\'utilisent.', 'Quelle garantie pourrais-tu offrir sans te mettre en danger ?'],
+  ['b29', 'Ne coupez jamais la poire en deux — Voss', 6, 'Le miroir', 'Répéter les 1 à 3 derniers mots de l\'autre, sur un ton interrogatif. Il développe presque toujours, et se sent écouté.', 'Essaie-le une fois aujourd\'hui, naturellement.'],
+  ['b30', 'Ne coupez jamais la poire en deux — Voss', 6, 'L\'étiquetage', 'Nommer l\'émotion de l\'autre : « On dirait que ça te frustre… ». Une émotion nommée perd de sa force, et la personne se sent comprise.', 'Quand quelqu\'un s\'énerve, commence par « On dirait que… ».'],
+  ['b31', 'Ne coupez jamais la poire en deux — Voss', 6, 'Les questions calibrées', 'Des questions en « comment » ou « qu\'est-ce que » : « Comment suis-je censé faire ça ? » L\'autre se met à résoudre ton problème à ta place.', 'Remplace un « non » sec par « Comment je pourrais faire ça ? ».'],
+  ['b32', 'Comment réussir une négociation — Fisher & Ury', 6, 'Intérêts, pas positions', 'La position, c\'est ce que l\'autre réclame. L\'intérêt, c\'est pourquoi il le réclame. Deux positions opposées cachent souvent des intérêts compatibles.', 'Face à une demande, demande-toi : « Qu\'est-ce qu\'il veut vraiment obtenir ? »'],
+  ['b33', 'Comment réussir une négociation — Fisher & Ury', 6, 'Ta meilleure solution de repli', 'La MESORE (BATNA en anglais) : ce que tu feras si l\'accord échoue. Plus elle est bonne, plus tu es fort. Ne négocie jamais sans la connaître.', 'Avant ta prochaine négociation (salaire, loyer…), écris ta MESORE.'],
+  ['b34', 'This Is Marketing — Godin', 7, 'Le plus petit marché viable', 'Au lieu de viser tout le monde, vise le plus petit groupe de gens qui ont vraiment besoin de toi. Mieux vaut être indispensable pour peu que moyen pour tous.', 'Décris en une phrase le client idéal d\'un projet que tu as en tête.'],
+  ['b35', 'This Is Marketing — Godin', 7, '« Les gens comme nous… »', 'On achète pour appartenir : « les gens comme nous font des choses comme ça ». Le marketing efficace parle d\'identité, pas seulement de caractéristiques.', 'Quelle identité ton produit préféré te fait-il ressentir ?'],
+  ['b36', 'The Mom Test — Fitzpatrick', 9, 'Ne parle pas de ton idée', 'Si tu présentes ton idée, les gens seront polis et te mentiront. Parle plutôt de leur vie, de leurs problèmes, de ce qu\'ils font déjà.', 'Interroge quelqu\'un sur un problème sans jamais citer ta solution.'],
+  ['b37', 'The Mom Test — Fitzpatrick', 9, 'Le passé plutôt que le futur', '« Tu l\'achèterais ? » ne vaut rien. « La dernière fois que ça t\'est arrivé, qu\'as-tu fait ? » vaut de l\'or. Les faits passés ne mentent pas, les promesses si.', 'Transforme une question « tu ferais… » en « la dernière fois… ».'],
+  ['b38', 'The Mom Test — Fitzpatrick', 9, 'Seul l\'engagement compte', 'Un compliment n\'est pas une donnée. Ce qui compte, c\'est ce que la personne est prête à donner : du temps, de l\'argent, ou sa réputation (te présenter à quelqu\'un).', 'Demande un petit engagement concret plutôt qu\'un avis.'],
+  ['b39', 'Lean Startup — Ries', 9, 'Le produit minimum viable', 'La plus petite version qui permet d\'apprendre quelque chose de vrai auprès de vrais clients. Pas un produit bâclé : une expérience.', 'Quel serait le test le plus simple pour vérifier une de tes idées cette semaine ?'],
+  ['b40', 'Lean Startup — Ries', 9, 'Construire, mesurer, apprendre', 'Le but n\'est pas de construire, mais d\'apprendre le plus vite possible. Chaque cycle doit répondre à une question précise.', 'Écris la question que ton prochain projet doit trancher.'],
+  ['b41', 'Lean Startup — Ries', 9, 'Les métriques de vanité', 'Les chiffres qui font plaisir (vues, abonnés) mais ne disent rien de la santé du projet. Préfère les chiffres qui mènent à une décision (taux de retour, ventes répétées).', 'Sur tes réseaux, quel chiffre mesure vraiment quelque chose ?'],
+  ['b42', 'Juridique & fiscal', 11, 'Micro-entreprise : attention aux marges', 'En micro, les cotisations sont calculées sur le chiffre d\'affaires, pas sur le bénéfice. Une activité avec beaucoup de frais peut donc rapporter moins que prévu.', 'Pour une idée d\'activité, estime tes frais en % du chiffre d\'affaires.'],
+  ['b43', 'Stratégie', 0, 'Le coût d\'opportunité', 'Chaque choix a un prix caché : ce que tu aurais pu faire à la place. Une heure de scroll coûte une heure de lecture, de sport ou de repos.', 'Quelle est la meilleure chose que tu pourrais faire de la prochaine heure ?'],
+  ['b44', 'Stratégie', 0, 'Les intérêts composés… de compétences', 'Un petit progrès régulier s\'accumule comme des intérêts : 1 % de mieux chaque jour change tout en un an. Pas besoin de riba pour profiter de l\'effet composé : il marche aussi sur le savoir.', 'Quelle compétence veux-tu améliorer d\'1 % aujourd\'hui ?'],
+  ['b45', 'Relation client', 0, 'La règle du pic et de la fin', 'Un client se souvient surtout du meilleur moment et de la fin de son expérience. Soigner la fin (au revoir, petit geste, suivi) vaut souvent plus que tout le reste.', 'En gare, soigne la fin de chaque prise en charge.']
+];
+/* Science & culture : [id, cat, accroche, texte] */
+const FX_SCI = [
+  ['s1', 'sci', 'Ton cerveau pèse 2 % de ton corps', 'Et il consomme environ 20 % de ton énergie au repos. Penser coûte cher : c\'est pour ça que le cerveau adore les automatismes.'],
+  ['s2', 'sci', '86 milliards', 'C\'est l\'estimation du nombre de neurones dans un cerveau humain (Azevedo, 2009). Chacun peut former des milliers de connexions.'],
+  ['s3', 'sci', 'Ce qui s\'active ensemble se relie', 'Quand deux neurones s\'activent en même temps, leur connexion se renforce (Hebb, 1949). Chaque répétition d\'une habitude, bonne ou mauvaise, la grave un peu plus.'],
+  ['s4', 'sci', '8 minutes et 20 secondes', 'Le temps que met la lumière du Soleil pour arriver jusqu\'à toi. Le Soleil que tu vois est celui d\'il y a 8 minutes.'],
+  ['s5', 'sci', 'Les 6 dernières secondes', 'Si l\'histoire de la Terre tenait en 24 heures, Homo sapiens n\'apparaîtrait qu\'aux 6 dernières secondes avant minuit.'],
+  ['s6', 'sci', '2 mètres d\'ADN', 'Déroulé, l\'ADN d\'une seule de tes cellules mesurerait environ 2 mètres. Il tient dans un noyau de quelques millièmes de millimètre.'],
+  ['s7', 'sci', 'Autant de bactéries que de cellules', 'On a longtemps dit « 10 bactéries pour 1 cellule humaine ». Une étude de 2016 (Sender et al.) a corrigé : le rapport est proche de 1 pour 1.'],
+  ['s8', 'sci', '100 000 battements', 'Ton cœur bat environ 100 000 fois par jour, sans que tu y penses une seule fois.'],
+  ['s9', 'sci', 'La dopamine, c\'est l\'envie', 'La dopamine est surtout liée à l\'anticipation et à l\'envie (« wanting »), plus qu\'au plaisir lui-même (Berridge). C\'est pourquoi on peut vouloir quelque chose sans l\'apprécier vraiment.'],
+  ['s10', 'sci', '66 jours, en moyenne', 'Dans l\'étude de Lally (2010), une nouvelle habitude devenait automatique en 66 jours en moyenne, de 18 à 254 selon les gens et les habitudes. Rater un jour ne cassait pas le processus.'],
+  ['s11', 'sci', 'Un jour plus long qu\'une année', 'Sur Vénus, un jour (243 jours terrestres) dure plus longtemps qu\'une année (225 jours terrestres).'],
+  ['s12', 'sci', 'La Lune s\'éloigne', 'Environ 3,8 cm par an : c\'est ce que mesurent les lasers renvoyés par les réflecteurs posés par les missions Apollo.'],
+  ['s13', 'sci', 'Une cuillère d\'étoile', 'Une cuillère à café de matière d\'étoile à neutrons pèserait environ un milliard de tonnes sur Terre.'],
+  ['s14', 'sci', 'L\'eau bout à 70 °C', 'Au sommet de l\'Everest, la pression est si basse que l\'eau bout vers 70 °C. Impossible d\'y cuire correctement des pâtes.'],
+  ['s15', 'sci', 'Se tester plutôt que relire', 'Se forcer à retrouver une information (comme dans un quiz) la fixe bien mieux que la relire (Roediger & Karpicke, 2006). C\'est l\'effet de test.'],
+  ['s16', 'sci', 'La courbe de l\'oubli', 'Sans révision, on oublie une grande partie d\'une nouvelle information en quelques jours (Ebbinghaus, 1885). Chaque rappel espacé la ralentit.'],
+  ['s17', 'sci', 'Le sommeil trie tes souvenirs', 'Pendant le sommeil, le cerveau rejoue et consolide ce que tu as appris dans la journée. Apprendre puis dormir, c\'est apprendre deux fois.'],
+  ['s18', 'sci', '4 éléments à la fois', 'Ta mémoire de travail ne garde qu\'environ 4 éléments en même temps (Cowan). D\'où l\'intérêt de noter plutôt que de tout retenir.'],
+  ['s19', 'sci', 'Marcher après manger', 'Quelques minutes de marche après un repas réduisent le pic de sucre dans le sang, selon plusieurs études. Une vieille habitude de digestion, validée.'],
+  ['s20', 'sci', 'Les requins sont plus vieux que les arbres', 'Les premiers requins sont apparus il y a environ 450 millions d\'années ; les premiers arbres, vers 385 millions d\'années.'],
+  ['s21', 'sci', 'La peau, ton plus grand organe', 'Elle couvre près de 2 m² chez l\'adulte et se renouvelle en permanence.'],
+  ['s22', 'sci', 'Trois cœurs et du sang bleu', 'La pieuvre a trois cœurs, et son sang est bleu grâce à une protéine à base de cuivre (l\'hémocyanine).'],
+  ['s23', 'sci', 'La bonne fatigue', 'Le muscle ne grandit pas pendant l\'effort mais pendant la récupération, à condition de manger assez de protéines et de dormir.'],
+  ['s24', 'sci', 'Le téléphone posé à côté', 'Une étude de 2017 (Ward et al.) suggère que la simple présence du smartphone sur la table réduit la capacité d\'attention disponible, même éteint. Mets-le dans une autre pièce pour travailler.'],
+  ['k1', 'cult', 'La plus ancienne université', 'Al-Qarawiyyin, à Fès, fondée en 859 par une femme, Fatima al-Fihri, est considérée comme la plus ancienne université encore en activité.'],
+  ['k2', 'cult', 'Algorithme', 'Le mot vient du nom d\'al-Khwarizmi, mathématicien de Bagdad (IXe siècle). Et « algèbre » vient d\'al-jabr, dans le titre de son traité.'],
+  ['k3', 'cult', 'Le père de la méthode expérimentale', 'Ibn al-Haytham (Alhazen), au XIe siècle, expliqua que la vision vient de la lumière qui entre dans l\'œil, et vérifia ses idées par l\'expérience. Son Livre d\'optique a influencé la science européenne.'],
+  ['k4', 'cult', 'Ibn Khaldun, avant la sociologie', 'Dans sa Muqaddima (1377), il analyse la naissance et la chute des dynasties par la cohésion sociale (\'asabiyya). Beaucoup le voient comme un précurseur de la sociologie et de l\'économie.'],
+  ['k5', 'cult', 'Le Canon d\'Avicenne', 'Le Canon de la médecine d\'Ibn Sina a servi de manuel dans les universités européennes pendant des siècles.'],
+  ['k6', 'cult', 'Des chiffres indiens', 'Nos chiffres « arabes » sont nés en Inde. Ils ont été transmis à l\'Europe par le monde arabe, notamment grâce à al-Khwarizmi.'],
+  ['k7', 'cult', 'Le café des soufis', 'Les premières traces fiables du café comme boisson viennent des monastères soufis du Yémen, au XVe siècle, où il aidait à veiller pour les prières de nuit.'],
+  ['k8', 'cult', 'L\'homme qui fit chuter l\'or', 'En 1324, Mansa Musa, roi du Mali, passa par Le Caire en pèlerinage avec tant d\'or qu\'il en fit chuter le cours pendant des années.'],
+  ['k9', 'cult', 'Des mots arabes en français', 'Sucre (sukkar), magasin (makhazin), chiffre (sifr), hasard (az-zahr, le dé), café (qahwa), algèbre (al-jabr)… Des centaines de mots français viennent de l\'arabe.'],
+  ['k10', 'cult', 'Cléopâtre et la Lune', 'Cléopâtre a vécu plus près de nous (premier pas sur la Lune en 1969) que de la construction de la grande pyramide de Gizeh.'],
+  ['k11', 'cult', 'Oxford et les Aztèques', 'On enseignait déjà à Oxford vers 1096. Tenochtitlan, capitale aztèque, n\'a été fondée qu\'en 1325.'],
+  ['k12', 'cult', 'Napoléon n\'était pas petit', 'Il mesurait environ 1,69 m, dans la moyenne de son époque. La légende vient de la propagande britannique et d\'une confusion entre pouces français et anglais.'],
+  ['k13', 'cult', 'La tour Eiffel grandit l\'été', 'Avec la chaleur, le fer se dilate : son sommet peut gagner une quinzaine de centimètres.'],
+  ['k14', 'cult', '12 fuseaux horaires', 'Grâce à ses territoires d\'outre-mer, la France est le pays qui compte le plus de fuseaux horaires au monde.'],
+  ['k15', 'cult', 'Cannes, 1939', 'Le premier Festival de Cannes devait se tenir en septembre 1939. La guerre l\'annula : la première édition eut lieu en 1946.'],
+  ['k16', 'cult', 'Nice, française depuis 1860', 'Nice et la Savoie ont été rattachées à la France en 1860, par le traité de Turin.'],
+  ['k17', 'cult', 'Ibn Battuta, 120 000 km', 'Au XIVe siècle, ce voyageur de Tanger a parcouru environ 120 000 km en près de 30 ans, du Maroc à la Chine.'],
+  ['k18', 'cult', 'Saladin à Jérusalem', 'En 1187, Salah ad-Din reprit Jérusalem et épargna la population, un contraste frappant avec le massacre de 1099. Même ses ennemis louaient sa générosité.'],
+  ['k19', 'cult', 'Le zéro', 'Le mathématicien indien Brahmagupta a donné des règles de calcul avec le zéro dès 628. Le mot « zéro » vient de l\'arabe sifr, le vide.'],
+  ['k20', 'cult', 'L\'écriture a 5 000 ans', 'L\'écriture cunéiforme est apparue à Sumer (Irak actuel) vers 3200 av. J.-C., d\'abord pour tenir… des comptes.'],
+  ['k21', 'cult', 'Pas visible depuis l\'espace', 'La Grande Muraille de Chine ne se voit pas à l\'œil nu depuis l\'orbite : elle est très longue mais trop étroite.'],
+  ['k22', 'cult', 'Cordoue, capitale du savoir', 'Au Xe siècle, Cordoue était l\'une des plus grandes villes d\'Europe, avec des rues éclairées et, selon les chroniques, une bibliothèque de centaines de milliers de volumes.']
+];
+/* Psychologie : [id, titre, texte, à observer] */
+const FX_PSY = [
+  ['p1', 'L\'effet Barnum', 'En 1949, Forer donna à ses étudiants un même « profil personnalisé » vague. Ils le notèrent 4,3 sur 5 en moyenne pour sa justesse. On se reconnaît dans les phrases générales : c\'est la base de la lecture à froid.', 'Repère une phrase d\'horoscope qui pourrait convenir à tout le monde.'],
+  ['p2', 'La lecture à froid', 'Les « médiums » combinent phrases générales, questions déguisées et lecture des réactions. Chaque hochement de tête les guide. Patrick Jane dans The Mentalist en montre les ficelles.', 'En conversation, observe les micro-réactions quand tu dis quelque chose de juste.'],
+  ['p3', 'Le vrai sourire', 'Un sourire sincère plisse le coin des yeux (sourire de Duchenne). Un sourire de politesse ne mobilise souvent que la bouche.', 'Aujourd\'hui, regarde les yeux des gens quand ils sourient.'],
+  ['p4', 'Mentir ne fait pas regarder à gauche', 'Aucun signe unique ne trahit le mensonge : ni les yeux, ni le fait de se toucher le nez. Les méta-analyses montrent que nous détectons le mensonge à peine mieux que le hasard.', 'Méfie-toi de ceux qui prétendent lire les mensonges en un regard.'],
+  ['p5', 'L\'effet de halo', 'Une seule qualité visible (beauté, assurance, tenue) colore tout le reste du jugement. On prête plus d\'intelligence à quelqu\'un de bien habillé.', 'Ta tenue au travail parle avant toi.'],
+  ['p6', 'La simple exposition', 'Plus on voit quelque chose, plus on tend à l\'apprécier (Zajonc, 1968). La familiarité crée la sympathie, et la publicité le sait.', 'Remarque une musique que tu as fini par aimer à force de l\'entendre.'],
+  ['p7', 'L\'effet Benjamin Franklin', 'Demander un petit service à quelqu\'un le rend souvent plus bienveillant envers toi : pour rester cohérent, il se dit qu\'il doit t\'apprécier.', 'Demande un petit conseil à quelqu\'un avec qui le contact est froid.'],
+  ['p8', 'L\'effet projecteur', 'On surestime beaucoup à quel point les autres remarquent nos erreurs. Dans une expérience (Gilovich, 2000), des étudiants avec un t-shirt gênant pensaient que la moitié du groupe l\'avait vu ; environ un quart seulement l\'avait remarqué.', 'Ta dernière gaffe, presque personne ne s\'en souvient.'],
+  ['p9', 'Le biais de confirmation', 'On cherche, on retient et on croit surtout ce qui confirme ce qu\'on pense déjà. Même les gens intelligents : ils sont juste meilleurs pour se justifier.', 'Cherche un argument solide contre une de tes convictions.'],
+  ['p10', 'Le biais de négativité', 'Un reproche pèse plus lourd que plusieurs compliments. Le cerveau est réglé pour repérer les menaces en priorité.', 'Chez ton équipe, compense chaque remarque négative par plusieurs retours positifs sincères.'],
+  ['p11', 'Parler de soi fait plaisir', 'Parler de soi active les circuits de la récompense du cerveau (Tamir & Mitchell, 2012). Les gens aiment ceux qui les font parler d\'eux.', 'Dans ta prochaine conversation, parle 30 % et écoute 70 %.'],
+  ['p12', 'L\'effet caméléon', 'On imite inconsciemment la posture et les gestes de ceux qu\'on apprécie, et on apprécie davantage ceux qui nous imitent subtilement (Chartrand & Bargh, 1999).', 'Observe deux amis qui discutent : leurs postures se ressemblent-elles ?'],
+  ['p13', 'Le nombre de Dunbar', 'Notre cerveau ne pourrait entretenir qu\'environ 150 relations stables. Au-delà, on connaît des visages, pas des personnes.', 'Qui sont les 5 personnes les plus proches de toi ? Ils te façonnent.'],
+  ['p14', 'Les pieds parlent', 'Selon Joe Navarro, ancien agent du FBI, les pieds orientés vers la sortie indiquent souvent l\'envie de partir. À lire comme un indice, jamais comme une preuve.', 'En pleine discussion, jette un œil discret aux pieds de ton interlocuteur.'],
+  ['p15', 'Dunning-Kruger', 'Les débutants ont tendance à surestimer leur niveau, faute de savoir ce qu\'ils ignorent. Plus on apprend, plus on mesure l\'étendue de ce qu\'on ne sait pas.', 'Dans quel domaine te crois-tu meilleur que tu ne l\'es ?'],
+  ['p16', 'Trop de choix tue le choix', 'Dans une expérience célèbre, un stand de 24 confitures attirait plus de monde qu\'un stand de 6, mais vendait beaucoup moins. L\'effet varie selon les études, mais simplifier le choix aide souvent à décider.', 'Propose 2 ou 3 options, pas 10.'],
+  ['p17', 'L\'effet gaffe', 'Une personne compétente qui commet une petite maladresse devient plus sympathique (Aronson, 1966). La perfection éloigne, l\'humanité rapproche.', 'Ose montrer une petite faiblesse devant ton équipe.'],
+  ['p18', '100 millisecondes', 'Il suffit d\'environ un dixième de seconde pour se faire une première impression d\'un visage (Willis & Todorov, 2006). Plus de temps renforce surtout la confiance dans ce premier jugement.', 'Soigne tes premières secondes : regard, sourire, poignée de main.'],
+  ['p19', 'La porte au nez', 'Demander d\'abord quelque chose d\'énorme, qui sera refusé, rend la vraie demande (plus petite) plus facile à accepter.', 'Repère cette technique la prochaine fois qu\'on te vend quelque chose.'],
+  ['p20', 'L\'illusion de transparence', 'On croit que nos émotions se lisent sur notre visage bien plus qu\'en réalité. Ton stress avant un oral se voit beaucoup moins que tu ne le penses.', 'Avant de parler en public, rappelle-toi : ils ne voient pas ton cœur battre.'],
+  ['p21', 'Le silence qui fait parler', 'Après une question, la plupart des gens ne supportent pas un silence de quelques secondes et se mettent à en dire plus. Les enquêteurs et les bons négociateurs l\'utilisent.', 'Après ta prochaine question, attends 3 secondes de plus.'],
+  ['p22', 'L\'effet Pygmalion', 'Les attentes d\'un chef ou d\'un professeur influencent les performances de ceux qu\'il encadre. L\'effet est réel, mais plus modeste que ne le suggérait l\'étude originale de 1968.', 'Dis à un équipier que tu le crois capable d\'un défi précis.'],
+  ['p23', 'La règle du pic et de la fin', 'On juge une expérience surtout sur son moment le plus intense et sur sa fin, pas sur sa durée totale (Kahneman).', 'Termine ta journée sur une bonne action : c\'est d\'elle que tu te souviendras.'],
+  ['p24', 'L\'intention d\'implémentation', 'Dire « si X arrive, alors je fais Y » augmente nettement les chances de passer à l\'acte. Le cerveau prépare la réponse à l\'avance.', 'Écris un « si… alors… » pour ton moment le plus difficile de la journée.']
+];
+/* Quiz : [id, question, [choix], index de la bonne réponse, explication] */
+const FX_QUIZ = [
+  ['q1', 'Combien de sourates compte le Coran ?', ['99', '114', '124'], 1, '114 sourates, de longueurs très différentes.'],
+  ['q2', 'Quelle est la plus longue sourate du Coran ?', ['Al-Baqara', 'Al \'Imran', 'Yusuf'], 0, 'Al-Baqara, avec 286 versets. La plus courte est Al-Kawthar, 3 versets.'],
+  ['q3', 'Quel est le premier mot révélé du Coran ?', ['Bismillah', 'Qul (Dis)', 'Iqra (Lis)'], 2, '« Iqra », dans la grotte de Hira : sourate Al-\'Alaq.'],
+  ['q4', 'D\'où vient le mot « algorithme » ?', ['Du grec algos', 'D\'al-Khwarizmi', 'Du latin algor'], 1, 'Du nom du mathématicien al-Khwarizmi, à Bagdad au IXe siècle.'],
+  ['q5', 'Qui a fondé l\'université al-Qarawiyyin ?', ['Fatima al-Fihri', 'Harun ar-Rashid', 'Ibn Rushd'], 0, 'Fatima al-Fihri, à Fès, en 859.'],
+  ['q6', 'Sur quelle planète un jour dure-t-il plus qu\'une année ?', ['Mars', 'Vénus', 'Jupiter'], 1, 'Vénus : 243 jours terrestres pour tourner sur elle-même, 225 pour faire le tour du Soleil.'],
+  ['q7', 'Combien d\'os compte le squelette d\'un adulte ?', ['186', '206', '256'], 1, '206. Un bébé en a davantage : certains fusionnent en grandissant.'],
+  ['q8', 'Marge brute =', ['Prix − coût direct du produit', 'Bénéfice après impôts', 'Chiffre d\'affaires total'], 0, 'La marge nette, elle, retire aussi toutes les autres charges.'],
+  ['q9', 'Dans SPIN Selling, le « I » signifie :', ['Information', 'Implication', 'Intérêt'], 1, 'Implication : faire mesurer au client ce que son problème lui coûte.'],
+  ['q10', '« Plus que 2 en stock ! » joue sur quel principe de Cialdini ?', ['La réciprocité', 'La rareté', 'L\'autorité'], 1, 'La rareté : ce qui risque de manquer paraît plus précieux.'],
+  ['q11', 'Répéter les derniers mots de l\'autre s\'appelle, chez Chris Voss :', ['Le miroir', 'L\'ancrage', 'Le recadrage'], 0, 'Le miroir. L\'autre développe, et se sent écouté.'],
+  ['q12', 'La MESORE, en négociation, c\'est :', ['Ton prix de départ', 'Ta meilleure solution si l\'accord échoue', 'La concession finale'], 1, 'Meilleure Solution de Rechange. Plus elle est bonne, plus tu es fort.'],
+  ['q13', 'Selon The Mom Test, quelle réponse vaut le plus ?', ['« Super idée ! »', '« Je l\'achèterais sûrement »', '« Je te paie un acompte maintenant »'], 2, 'Un engagement (argent, temps, réputation) vaut plus que tous les compliments.'],
+  ['q14', 'Un vrai sourire se reconnaît surtout :', ['Aux dents visibles', 'Au plissement des yeux', 'À sa durée'], 1, 'Le sourire de Duchenne mobilise les muscles autour des yeux.'],
+  ['q15', 'Combien de temps en moyenne pour qu\'une habitude devienne automatique (Lally, 2010) ?', ['21 jours', '66 jours', '6 mois'], 1, '66 jours en moyenne, de 18 à 254 selon les personnes. Les « 21 jours » sont un mythe.'],
+  ['q16', 'Qui a écrit la Muqaddima ?', ['Ibn Battuta', 'Ibn Khaldun', 'Ibn Sina'], 1, 'Ibn Khaldun, en 1377.'],
+  ['q17', 'En quelle année Salah ad-Din reprend-il Jérusalem ?', ['1099', '1187', '1492'], 1, '1187. 1099 est l\'année de la prise par les croisés, 1492 celle de la chute de Grenade.'],
+  ['q18', 'Où le café est-il devenu une boisson ?', ['En Italie', 'Au Brésil', 'Au Yémen'], 2, 'Au Yémen, au XVe siècle, dans les cercles soufis.'],
+  ['q19', 'Quelle part de ton énergie ton cerveau consomme-t-il au repos ?', ['5 %', '20 %', '50 %'], 1, 'Environ 20 %, pour 2 % du poids du corps.'],
+  ['q20', 'Le point mort, c\'est :', ['Le mois le plus calme', 'Le chiffre d\'affaires qui couvre toutes les charges', 'La faillite'], 1, 'Au-dessus du point mort, chaque vente rapporte vraiment.'],
+  ['q21', 'Combien de temps met la lumière du Soleil pour nous atteindre ?', ['8 secondes', '8 minutes', '8 heures'], 1, 'Environ 8 minutes et 20 secondes.'],
+  ['q22', 'Quel verset parle de « l\'homme n\'obtient que le fruit de ses efforts » ?', ['An-Najm 53:39', 'Al-Fatiha 1:5', 'Al-Ikhlas 112:1'], 0, 'Sourate An-Najm, verset 39.'],
+  ['q23', 'Selon le hadith, quels sont les deux bienfaits dont beaucoup sont lésés ?', ['L\'argent et la famille', 'La santé et le temps libre', 'La jeunesse et la beauté'], 1, 'La santé et le temps libre (Bukhari).'],
+  ['q24', 'L\'équation de la valeur d\'Hormozi augmente quand…', ['Le délai augmente', 'L\'effort diminue', 'Le prix baisse'], 1, 'Moins d\'effort et moins de délai, plus de résultat et plus de certitude.']
+];
+/* Vrai ou faux : [id, affirmation, vrai ?, explication] */
+const FX_VF = [
+  ['v1', 'La Grande Muraille de Chine est visible à l\'œil nu depuis l\'espace.', false, 'Faux : trop étroite pour être vue à l\'œil nu depuis l\'orbite.'],
+  ['v2', 'On n\'utilise que 10 % de son cerveau.', false, 'Faux : l\'imagerie montre que toutes les zones servent, à des moments différents.'],
+  ['v3', 'Les requins existaient avant les arbres.', true, 'Vrai : environ 450 millions d\'années contre 385 millions.'],
+  ['v4', 'On enseignait à Oxford avant la fondation de la capitale aztèque.', true, 'Vrai : vers 1096 contre 1325.'],
+  ['v5', 'Regarder en haut à gauche trahit un mensonge.', false, 'Faux : aucune étude ne confirme ce signe. Aucun geste unique ne trahit le mensonge.'],
+  ['v6', 'Le poisson rouge a une mémoire de 3 secondes.', false, 'Faux : il peut retenir des informations pendant des mois.'],
+  ['v7', 'Le mot « sucre » vient de l\'arabe.', true, 'Vrai : de sukkar.'],
+  ['v8', 'Chiffre d\'affaires et bénéfice, c\'est la même chose.', false, 'Faux : le bénéfice, c\'est ce qui reste après toutes les charges.'],
+  ['v9', 'Le sucre rend les enfants hyperactifs.', false, 'Faux : les études en double aveugle ne montrent pas d\'effet. Ce sont surtout les attentes des parents qui changent.'],
+  ['v10', 'Ton cœur bat environ 100 000 fois par jour.', true, 'Vrai : environ 70 battements par minute × 1 440 minutes.'],
+  ['v11', 'Napoléon était petit pour son époque.', false, 'Faux : environ 1,69 m, dans la moyenne.'],
+  ['v12', 'La France est le pays qui compte le plus de fuseaux horaires.', true, 'Vrai : 12, grâce à ses territoires d\'outre-mer.'],
+  ['v13', 'Il faut 21 jours pour prendre une habitude.', false, 'Faux : 66 jours en moyenne dans l\'étude de Lally, avec de grandes différences selon les gens.'],
+  ['v14', 'Rater un jour ruine la formation d\'une habitude.', false, 'Faux : dans l\'étude de Lally, un oubli ponctuel ne changeait presque rien. Ce qui compte, c\'est de reprendre.']
+];
+
+const FX_AR = {"c1": "فَإِنَّ مَعَ ٱلۡعُسۡرِ يُسۡرًا ﴿٥﴾ إِنَّ مَعَ ٱلۡعُسۡرِ يُسۡرٗا ﴿٦﴾", "c2": "لَا يُكَلِّفُ ٱللَّهُ نَفۡسًا إِلَّا وُسۡعَهَاۚ لَهَا مَا كَسَبَتۡ وَعَلَيۡهَا مَا ٱكۡتَسَبَتۡۗ رَبَّنَا لَا تُؤَاخِذۡنَآ إِن نَّسِينَآ أَوۡ أَخۡطَأۡنَاۚ رَبَّنَا وَلَا تَحۡمِلۡ عَلَيۡنَآ إِصۡرٗا كَمَا حَمَلۡتَهُۥ عَلَى ٱلَّذِينَ مِن قَبۡلِنَاۚ رَبَّنَا وَلَا تُحَمِّلۡنَا مَا لَا طَاقَةَ لَنَا بِهِۦۖ وَٱعۡفُ عَنَّا وَٱغۡفِرۡ لَنَا وَٱرۡحَمۡنَآۚ أَنتَ مَوۡلَىٰنَا فَٱنصُرۡنَا عَلَى ٱلۡقَوۡمِ ٱلۡكَٰفِرِينَ ﴿٢٨٦﴾", "c3": "لَهُۥ مُعَقِّبَٰتٞ مِّنۢ بَيۡنِ يَدَيۡهِ وَمِنۡ خَلۡفِهِۦ يَحۡفَظُونَهُۥ مِنۡ أَمۡرِ ٱللَّهِۗ إِنَّ ٱللَّهَ لَا يُغَيِّرُ مَا بِقَوۡمٍ حَتَّىٰ يُغَيِّرُواْ مَا بِأَنفُسِهِمۡۗ وَإِذَآ أَرَادَ ٱللَّهُ بِقَوۡمٖ سُوٓءٗا فَلَا مَرَدَّ لَهُۥۚ وَمَا لَهُم مِّن دُونِهِۦ مِن وَالٍ ﴿١١﴾", "c4": "ٱلَّذِينَ ءَامَنُواْ وَتَطۡمَئِنُّ قُلُوبُهُم بِذِكۡرِ ٱللَّهِۗ أَلَا بِذِكۡرِ ٱللَّهِ تَطۡمَئِنُّ ٱلۡقُلُوبُ ﴿٢٨﴾", "c5": "فَإِذَا بَلَغۡنَ أَجَلَهُنَّ فَأَمۡسِكُوهُنَّ بِمَعۡرُوفٍ أَوۡ فَارِقُوهُنَّ بِمَعۡرُوفٖ وَأَشۡهِدُواْ ذَوَيۡ عَدۡلٖ مِّنكُمۡ وَأَقِيمُواْ ٱلشَّهَٰدَةَ لِلَّهِۚ ذَٰلِكُمۡ يُوعَظُ بِهِۦ مَن كَانَ يُؤۡمِنُ بِٱللَّهِ وَٱلۡيَوۡمِ ٱلۡأٓخِرِۚ وَمَن يَتَّقِ ٱللَّهَ يَجۡعَل لَّهُۥ مَخۡرَجٗا ﴿٢﴾ وَيَرۡزُقۡهُ مِنۡ حَيۡثُ لَا يَحۡتَسِبُۚ وَمَن يَتَوَكَّلۡ عَلَى ٱللَّهِ فَهُوَ حَسۡبُهُۥٓۚ إِنَّ ٱللَّهَ بَٰلِغُ أَمۡرِهِۦۚ قَدۡ جَعَلَ ٱللَّهُ لِكُلِّ شَيۡءٖ قَدۡرٗا ﴿٣﴾", "c6": "وَٱلَّذِينَ جَٰهَدُواْ فِينَا لَنَهۡدِيَنَّهُمۡ سُبُلَنَاۚ وَإِنَّ ٱللَّهَ لَمَعَ ٱلۡمُحۡسِنِينَ ﴿٦٩﴾", "c7": "۞قُلۡ يَٰعِبَادِيَ ٱلَّذِينَ أَسۡرَفُواْ عَلَىٰٓ أَنفُسِهِمۡ لَا تَقۡنَطُواْ مِن رَّحۡمَةِ ٱللَّهِۚ إِنَّ ٱللَّهَ يَغۡفِرُ ٱلذُّنُوبَ جَمِيعًاۚ إِنَّهُۥ هُوَ ٱلۡغَفُورُ ٱلرَّحِيمُ ﴿٥٣﴾", "c8": "فَٱذۡكُرُونِيٓ أَذۡكُرۡكُمۡ وَٱشۡكُرُواْ لِي وَلَا تَكۡفُرُونِ ﴿١٥٢﴾", "c9": "يَـٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُواْ ٱسۡتَعِينُواْ بِٱلصَّبۡرِ وَٱلصَّلَوٰةِۚ إِنَّ ٱللَّهَ مَعَ ٱلصَّـٰبِرِينَ ﴿١٥٣﴾", "c10": "وَلَا تَهِنُواْ وَلَا تَحۡزَنُواْ وَأَنتُمُ ٱلۡأَعۡلَوۡنَ إِن كُنتُم مُّؤۡمِنِينَ ﴿١٣٩﴾", "c11": "قُل لِّلۡمُؤۡمِنِينَ يَغُضُّواْ مِنۡ أَبۡصَٰرِهِمۡ وَيَحۡفَظُواْ فُرُوجَهُمۡۚ ذَٰلِكَ أَزۡكَىٰ لَهُمۡۚ إِنَّ ٱللَّهَ خَبِيرُۢ بِمَا يَصۡنَعُونَ ﴿٣٠﴾", "c12": "يَـٰٓأَيُّهَا ٱلنَّاسُ إِنَّا خَلَقۡنَٰكُم مِّن ذَكَرٖ وَأُنثَىٰ وَجَعَلۡنَٰكُمۡ شُعُوبٗا وَقَبَآئِلَ لِتَعَارَفُوٓاْۚ إِنَّ أَكۡرَمَكُمۡ عِندَ ٱللَّهِ أَتۡقَىٰكُمۡۚ إِنَّ ٱللَّهَ عَلِيمٌ خَبِيرٞ ﴿١٣﴾", "c13": "فَبِمَا رَحۡمَةٖ مِّنَ ٱللَّهِ لِنتَ لَهُمۡۖ وَلَوۡ كُنتَ فَظًّا غَلِيظَ ٱلۡقَلۡبِ لَٱنفَضُّواْ مِنۡ حَوۡلِكَۖ فَٱعۡفُ عَنۡهُمۡ وَٱسۡتَغۡفِرۡ لَهُمۡ وَشَاوِرۡهُمۡ فِي ٱلۡأَمۡرِۖ فَإِذَا عَزَمۡتَ فَتَوَكَّلۡ عَلَى ٱللَّهِۚ إِنَّ ٱللَّهَ يُحِبُّ ٱلۡمُتَوَكِّلِينَ ﴿١٥٩﴾", "c14": "ٱدۡعُ إِلَىٰ سَبِيلِ رَبِّكَ بِٱلۡحِكۡمَةِ وَٱلۡمَوۡعِظَةِ ٱلۡحَسَنَةِۖ وَجَٰدِلۡهُم بِٱلَّتِي هِيَ أَحۡسَنُۚ إِنَّ رَبَّكَ هُوَ أَعۡلَمُ بِمَن ضَلَّ عَن سَبِيلِهِۦ وَهُوَ أَعۡلَمُ بِٱلۡمُهۡتَدِينَ ﴿١٢٥﴾", "c15": "وَلَا تَقۡفُ مَا لَيۡسَ لَكَ بِهِۦ عِلۡمٌۚ إِنَّ ٱلسَّمۡعَ وَٱلۡبَصَرَ وَٱلۡفُؤَادَ كُلُّ أُوْلَـٰٓئِكَ كَانَ عَنۡهُ مَسۡـُٔولٗا ﴿٣٦﴾", "c16": "يَـٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوٓاْ إِن جَآءَكُمۡ فَاسِقُۢ بِنَبَإٖ فَتَبَيَّنُوٓاْ أَن تُصِيبُواْ قَوۡمَۢا بِجَهَٰلَةٖ فَتُصۡبِحُواْ عَلَىٰ مَا فَعَلۡتُمۡ نَٰدِمِينَ ﴿٦﴾", "c17": "ٱلَّذِينَ يَأۡكُلُونَ ٱلرِّبَوٰاْ لَا يَقُومُونَ إِلَّا كَمَا يَقُومُ ٱلَّذِي يَتَخَبَّطُهُ ٱلشَّيۡطَٰنُ مِنَ ٱلۡمَسِّۚ ذَٰلِكَ بِأَنَّهُمۡ قَالُوٓاْ إِنَّمَا ٱلۡبَيۡعُ مِثۡلُ ٱلرِّبَوٰاْۗ وَأَحَلَّ ٱللَّهُ ٱلۡبَيۡعَ وَحَرَّمَ ٱلرِّبَوٰاْۚ فَمَن جَآءَهُۥ مَوۡعِظَةٞ مِّن رَّبِّهِۦ فَٱنتَهَىٰ فَلَهُۥ مَا سَلَفَ وَأَمۡرُهُۥٓ إِلَى ٱللَّهِۖ وَمَنۡ عَادَ فَأُوْلَـٰٓئِكَ أَصۡحَٰبُ ٱلنَّارِۖ هُمۡ فِيهَا خَٰلِدُونَ ﴿٢٧٥﴾", "c18": "وَيۡلٞ لِّلۡمُطَفِّفِينَ ﴿١﴾ ٱلَّذِينَ إِذَا ٱكۡتَالُواْ عَلَى ٱلنَّاسِ يَسۡتَوۡفُونَ ﴿٢﴾ وَإِذَا كَالُوهُمۡ أَو وَّزَنُوهُمۡ يُخۡسِرُونَ ﴿٣﴾", "c19": "فَإِذَا قُضِيَتِ ٱلصَّلَوٰةُ فَٱنتَشِرُواْ فِي ٱلۡأَرۡضِ وَٱبۡتَغُواْ مِن فَضۡلِ ٱللَّهِ وَٱذۡكُرُواْ ٱللَّهَ كَثِيرٗا لَّعَلَّكُمۡ تُفۡلِحُونَ ﴿١٠﴾", "c20": "يَـٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُواْ لَا تَأۡكُلُوٓاْ أَمۡوَٰلَكُم بَيۡنَكُم بِٱلۡبَٰطِلِ إِلَّآ أَن تَكُونَ تِجَٰرَةً عَن تَرَاضٖ مِّنكُمۡۚ وَلَا تَقۡتُلُوٓاْ أَنفُسَكُمۡۚ إِنَّ ٱللَّهَ كَانَ بِكُمۡ رَحِيمٗا ﴿٢٩﴾", "c21": "وَٱلَّذِينَ إِذَآ أَنفَقُواْ لَمۡ يُسۡرِفُواْ وَلَمۡ يَقۡتُرُواْ وَكَانَ بَيۡنَ ذَٰلِكَ قَوَامٗا ﴿٦٧﴾", "c22": "وَٱلۡعَصۡرِ ﴿١﴾ إِنَّ ٱلۡإِنسَٰنَ لَفِي خُسۡرٍ ﴿٢﴾ إِلَّا ٱلَّذِينَ ءَامَنُواْ وَعَمِلُواْ ٱلصَّـٰلِحَٰتِ وَتَوَاصَوۡاْ بِٱلۡحَقِّ وَتَوَاصَوۡاْ بِٱلصَّبۡرِ ﴿٣﴾", "c23": "فَتَعَٰلَى ٱللَّهُ ٱلۡمَلِكُ ٱلۡحَقُّۗ وَلَا تَعۡجَلۡ بِٱلۡقُرۡءَانِ مِن قَبۡلِ أَن يُقۡضَىٰٓ إِلَيۡكَ وَحۡيُهُۥۖ وَقُل رَّبِّ زِدۡنِي عِلۡمٗا ﴿١١٤﴾", "c24": "ٱقۡرَأۡ بِٱسۡمِ رَبِّكَ ٱلَّذِي خَلَقَ ﴿١﴾ خَلَقَ ٱلۡإِنسَٰنَ مِنۡ عَلَقٍ ﴿٢﴾", "c25": "أَمَّنۡ هُوَ قَٰنِتٌ ءَانَآءَ ٱلَّيۡلِ سَاجِدٗا وَقَآئِمٗا يَحۡذَرُ ٱلۡأٓخِرَةَ وَيَرۡجُواْ رَحۡمَةَ رَبِّهِۦۗ قُلۡ هَلۡ يَسۡتَوِي ٱلَّذِينَ يَعۡلَمُونَ وَٱلَّذِينَ لَا يَعۡلَمُونَۗ إِنَّمَا يَتَذَكَّرُ أُوْلُواْ ٱلۡأَلۡبَٰبِ ﴿٩﴾", "c26": "كُتِبَ عَلَيۡكُمُ ٱلۡقِتَالُ وَهُوَ كُرۡهٞ لَّكُمۡۖ وَعَسَىٰٓ أَن تَكۡرَهُواْ شَيۡـٔٗا وَهُوَ خَيۡرٞ لَّكُمۡۖ وَعَسَىٰٓ أَن تُحِبُّواْ شَيۡـٔٗا وَهُوَ شَرّٞ لَّكُمۡۚ وَٱللَّهُ يَعۡلَمُ وَأَنتُمۡ لَا تَعۡلَمُونَ ﴿٢١٦﴾", "c27": "يَـٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُواْ ٱصۡبِرُواْ وَصَابِرُواْ وَرَابِطُواْ وَٱتَّقُواْ ٱللَّهَ لَعَلَّكُمۡ تُفۡلِحُونَ ﴿٢٠٠﴾", "c28": "وَأَطِيعُواْ ٱللَّهَ وَرَسُولَهُۥ وَلَا تَنَٰزَعُواْ فَتَفۡشَلُواْ وَتَذۡهَبَ رِيحُكُمۡۖ وَٱصۡبِرُوٓاْۚ إِنَّ ٱللَّهَ مَعَ ٱلصَّـٰبِرِينَ ﴿٤٦﴾", "c29": "وَلَا تُصَعِّرۡ خَدَّكَ لِلنَّاسِ وَلَا تَمۡشِ فِي ٱلۡأَرۡضِ مَرَحًاۖ إِنَّ ٱللَّهَ لَا يُحِبُّ كُلَّ مُخۡتَالٖ فَخُورٖ ﴿١٨﴾ وَٱقۡصِدۡ فِي مَشۡيِكَ وَٱغۡضُضۡ مِن صَوۡتِكَۚ إِنَّ أَنكَرَ ٱلۡأَصۡوَٰتِ لَصَوۡتُ ٱلۡحَمِيرِ ﴿١٩﴾", "c30": "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌۖ أُجِيبُ دَعۡوَةَ ٱلدَّاعِ إِذَا دَعَانِۖ فَلۡيَسۡتَجِيبُواْ لِي وَلۡيُؤۡمِنُواْ بِي لَعَلَّهُمۡ يَرۡشُدُونَ ﴿١٨٦﴾", "c31": "وَلَقَدۡ خَلَقۡنَا ٱلۡإِنسَٰنَ وَنَعۡلَمُ مَا تُوَسۡوِسُ بِهِۦ نَفۡسُهُۥۖ وَنَحۡنُ أَقۡرَبُ إِلَيۡهِ مِنۡ حَبۡلِ ٱلۡوَرِيدِ ﴿١٦﴾", "c32": "وَلَا تَقُولَنَّ لِشَاْيۡءٍ إِنِّي فَاعِلٞ ذَٰلِكَ غَدًا ﴿٢٣﴾ إِلَّآ أَن يَشَآءَ ٱللَّهُۚ وَٱذۡكُر رَّبَّكَ إِذَا نَسِيتَ وَقُلۡ عَسَىٰٓ أَن يَهۡدِيَنِ رَبِّي لِأَقۡرَبَ مِنۡ هَٰذَا رَشَدٗا ﴿٢٤﴾", "c33": "وَأَن لَّيۡسَ لِلۡإِنسَٰنِ إِلَّا مَا سَعَىٰ ﴿٣٩﴾", "c34": "يَـٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُواْ لِمَ تَقُولُونَ مَا لَا تَفۡعَلُونَ ﴿٢﴾ كَبُرَ مَقۡتًا عِندَ ٱللَّهِ أَن تَقُولُواْ مَا لَا تَفۡعَلُونَ ﴿٣﴾", "c35": "ٱلَّذِي خَلَقَ ٱلۡمَوۡتَ وَٱلۡحَيَوٰةَ لِيَبۡلُوَكُمۡ أَيُّكُمۡ أَحۡسَنُ عَمَلٗاۚ وَهُوَ ٱلۡعَزِيزُ ٱلۡغَفُورُ ﴿٢﴾", "c36": "إِنَّ فِي خَلۡقِ ٱلسَّمَٰوَٰتِ وَٱلۡأَرۡضِ وَٱخۡتِلَٰفِ ٱلَّيۡلِ وَٱلنَّهَارِ لَأٓيَٰتٖ لِّأُوْلِي ٱلۡأَلۡبَٰبِ ﴿١٩٠﴾ ٱلَّذِينَ يَذۡكُرُونَ ٱللَّهَ قِيَٰمٗا وَقُعُودٗا وَعَلَىٰ جُنُوبِهِمۡ وَيَتَفَكَّرُونَ فِي خَلۡقِ ٱلسَّمَٰوَٰتِ وَٱلۡأَرۡضِ رَبَّنَا مَا خَلَقۡتَ هَٰذَا بَٰطِلٗا سُبۡحَٰنَكَ فَقِنَا عَذَابَ ٱلنَّارِ ﴿١٩١﴾", "c37": "وَمِنۡهُم مَّن يَقُولُ رَبَّنَآ ءَاتِنَا فِي ٱلدُّنۡيَا حَسَنَةٗ وَفِي ٱلۡأٓخِرَةِ حَسَنَةٗ وَقِنَا عَذَابَ ٱلنَّارِ ﴿٢٠١﴾", "c38": "وَمِنۡ ءَايَٰتِهِۦٓ أَنۡ خَلَقَ لَكُم مِّنۡ أَنفُسِكُمۡ أَزۡوَٰجٗا لِّتَسۡكُنُوٓاْ إِلَيۡهَا وَجَعَلَ بَيۡنَكُم مَّوَدَّةٗ وَرَحۡمَةًۚ إِنَّ فِي ذَٰلِكَ لَأٓيَٰتٖ لِّقَوۡمٖ يَتَفَكَّرُونَ ﴿٢١﴾", "c39": "وَإِذۡ تَأَذَّنَ رَبُّكُمۡ لَئِن شَكَرۡتُمۡ لَأَزِيدَنَّكُمۡۖ وَلَئِن كَفَرۡتُمۡ إِنَّ عَذَابِي لَشَدِيدٞ ﴿٧﴾", "c40": "مَا وَدَّعَكَ رَبُّكَ وَمَا قَلَىٰ ﴿٣﴾ وَلَلۡأٓخِرَةُ خَيۡرٞ لَّكَ مِنَ ٱلۡأُولَىٰ ﴿٤﴾ وَلَسَوۡفَ يُعۡطِيكَ رَبُّكَ فَتَرۡضَىٰٓ ﴿٥﴾", "c41": "وَمَا خَلَقۡتُ ٱلۡجِنَّ وَٱلۡإِنسَ إِلَّا لِيَعۡبُدُونِ ﴿٥٦﴾", "c42": "أَفَلَا يَنظُرُونَ إِلَى ٱلۡإِبِلِ كَيۡفَ خُلِقَتۡ ﴿١٧﴾ وَإِلَى ٱلسَّمَآءِ كَيۡفَ رُفِعَتۡ ﴿١٨﴾ وَإِلَى ٱلۡجِبَالِ كَيۡفَ نُصِبَتۡ ﴿١٩﴾ وَإِلَى ٱلۡأَرۡضِ كَيۡفَ سُطِحَتۡ ﴿٢٠﴾", "c43": "أَوَلَمۡ يَرَ ٱلَّذِينَ كَفَرُوٓاْ أَنَّ ٱلسَّمَٰوَٰتِ وَٱلۡأَرۡضَ كَانَتَا رَتۡقٗا فَفَتَقۡنَٰهُمَاۖ وَجَعَلۡنَا مِنَ ٱلۡمَآءِ كُلَّ شَيۡءٍ حَيٍّۚ أَفَلَا يُؤۡمِنُونَ ﴿٣٠﴾", "c44": "وَٱلَّذِينَ يَقُولُونَ رَبَّنَا هَبۡ لَنَا مِنۡ أَزۡوَٰجِنَا وَذُرِّيَّـٰتِنَا قُرَّةَ أَعۡيُنٖ وَٱجۡعَلۡنَا لِلۡمُتَّقِينَ إِمَامًا ﴿٧٤﴾", "c45": "وَٱسۡتَعِينُواْ بِٱلصَّبۡرِ وَٱلصَّلَوٰةِۚ وَإِنَّهَا لَكَبِيرَةٌ إِلَّا عَلَى ٱلۡخَٰشِعِينَ ﴿٤٥﴾"};
+/* ----- Récits & sagesse (pilier Foi) ----- */
+/* Récits des prophètes et de la sîra : [id, personnage, titre, récit, leçon, source] */
+const FX_RECIT = [
+  ['r1', 'Yusuf', '« Pas de reproche contre vous aujourd\'hui »', 'Ses frères l\'avaient jeté dans un puits. Des années plus tard, devenu ministre d\'Égypte, il les voit arriver affamés, à sa merci. Il se fait reconnaître, et ses premiers mots sont : « Pas de reproche contre vous aujourd\'hui. Qu\'Allah vous pardonne. »', 'Le pardon au moment où l\'on a tout pouvoir est la forme la plus haute de la force.', 'Coran 12:92'],
+  ['r2', 'Ibrahim', 'Le feu devint fraîcheur', 'Pour avoir brisé les idoles, Ibrahim est jeté dans un immense brasier. Allah ordonne : « Ô feu, sois fraîcheur et salut pour Ibrahim. » Il en ressort indemne.', 'Celui qui se tient à la vérité quand tout le monde s\'y oppose n\'est jamais seul.', 'Coran 21:68-69'],
+  ['r3', 'Musa', '« Mon Seigneur est avec moi »', 'Devant eux la mer, derrière eux l\'armée de Pharaon. Ses compagnons s\'écrient : « Nous allons être rattrapés ! » Musa répond : « Jamais ! Mon Seigneur est avec moi, Il va me guider. » La mer s\'ouvre.', 'La certitude parle avant de voir la solution.', 'Coran 26:61-63'],
+  ['r4', 'Yunus', 'L\'invocation dans les ténèbres', 'Avalé par le poisson, dans trois ténèbres (la nuit, la mer, le ventre), Yunus invoque : « Il n\'y a de divinité que Toi. Gloire à Toi. J\'ai été parmi les injustes. » Il est sauvé.', 'Le Prophète ﷺ a dit qu\'aucun musulman n\'invoque par ces mots sans être exaucé (Tirmidhi 3505). Reconnaître sa faute ouvre la porte.', 'Coran 21:87-88'],
+  ['r5', 'Ayyub', 'La patience d\'Ayyub', 'Il perd ses biens, ses enfants, sa santé, pendant des années. Sa plainte tient en une phrase : « Le mal m\'a touché, et Tu es le plus miséricordieux des miséricordieux. » Allah lui rend tout, et le double.', 'Se plaindre à Allah n\'est pas un manque de patience. Se plaindre d\'Allah, si.', 'Coran 21:83-84'],
+  ['r6', 'Le Prophète ﷺ', 'À Taïf', 'Chassé de Taïf à coups de pierres, les pieds en sang, il reçoit la visite de l\'ange des montagnes, prêt à écraser la ville. Il refuse : « J\'espère qu\'Allah fera sortir de leurs descendants des gens qui adoreront Allah seul. »', 'Même blessé, il pense à l\'avenir de ceux qui l\'ont blessé.', 'Bukhari 3231'],
+  ['r7', 'Le Prophète ﷺ et Abu Bakr', 'La grotte de Thawr', 'Pendant l\'Hégire, les poursuivants arrivent devant la grotte. Abu Bakr murmure : « S\'ils regardent à leurs pieds, ils nous verront. » Le Prophète ﷺ répond : « Que penses-tu de deux dont Allah est le troisième ? »', 'La peur regarde les pieds de l\'ennemi. La foi regarde plus haut.', 'Bukhari 3653, Coran 9:40'],
+  ['r8', 'Le Prophète ﷺ', 'La Pierre noire et le manteau', 'Avant la prophétie, les tribus de La Mecque manquent de s\'entretuer pour l\'honneur de replacer la Pierre noire. Muhammad ﷺ, surnommé « al-Amin », pose la pierre sur un manteau et fait porter chaque coin par un chef de tribu.', 'Une solution où chacun gagne vaut mieux qu\'une victoire. De la négociation de haut niveau.', 'Sîra d\'Ibn Hisham'],
+  ['r9', 'Khadija', 'Une femme d\'affaires', 'Khadija dirigeait un commerce prospère entre La Mecque et le Cham. Elle confia une caravane à Muhammad ﷺ, et son honnêteté et ses résultats la convainquirent de lui proposer le mariage.', 'Sa réputation l\'a précédé : l\'honnêteté est le meilleur des CV.', 'Sîra d\'Ibn Hisham'],
+  ['r10', 'Sulayman', 'La fourmi qui prévient les siennes', 'Une fourmi voit arriver l\'armée de Sulayman : « Ô fourmis, entrez dans vos demeures, que Sulayman et ses armées ne vous écrasent pas sans s\'en rendre compte. » Sulayman sourit, et remercie Allah.', 'Une fourmi pense à son groupe et excuse d\'avance ceux qui pourraient l\'écraser. Et un roi l\'écoute.', 'Coran 27:18-19'],
+  ['r11', 'Nuh', '950 ans', 'Nuh appela son peuple pendant 950 ans, de jour comme de nuit, en public et en privé. Très peu le suivirent. Il ne cessa jamais.', 'On ne juge pas un effort à ses résultats immédiats. On te demande d\'appeler, pas de convaincre.', 'Coran 29:14, 71:5-9'],
+  ['r12', 'Maryam', 'Secoue le tronc', 'Seule, épuisée, en plein accouchement, Maryam reçoit cet ordre : « Secoue vers toi le tronc du palmier, il fera tomber sur toi des dattes fraîches. » Une femme épuisée ne peut pas secouer un palmier.', 'Les savants en tirent une leçon : Allah pouvait faire tomber les dattes sans elle, mais Il lui demande un geste. L\'effort, même symbolique, précède le secours.', 'Coran 19:25'],
+  ['r13', 'Musa et al-Khidr', 'Ce que tu ne comprends pas encore', 'Al-Khidr perce une barque, tue un garçon, répare un mur sans salaire. Musa proteste à chaque fois. Puis vient l\'explication : chaque acte cachait un bien que Musa ne pouvait pas voir.', 'Ce qui te semble une perte aujourd\'hui peut être une protection. La patience avec ce qu\'on ne comprend pas encore.', 'Coran 18:65-82'],
+  ['r14', 'Bilal', '« Ahad, Ahad »', 'Esclave torturé sous une pierre brûlante en plein soleil de La Mecque pour renier sa foi, Bilal ne répétait qu\'un mot : « Ahad, Ahad » (Un, Un). Il devint le premier muezzin de l\'islam.', 'Celui qu\'on voulait écraser est devenu la voix qui appelle à la prière depuis quatorze siècles.', 'Sîra'],
+  ['r15', 'Abd ar-Rahman ibn \'Awf', '« Indique-moi le marché »', 'Arrivé à Médine sans rien, on lui propose la moitié des biens d\'un Ansar. Il répond : « Qu\'Allah bénisse tes biens et ta famille. Indique-moi plutôt le marché. » Il devint l\'un des plus riches compagnons, et l\'un des plus généreux.', 'Refuser la facilité pour construire soi-même. L\'esprit d\'entreprise au cœur de la sunna.', 'Bukhari 2048'],
+  ['r16', '\'Uthman ibn \'Affan', 'Le puits de Ruma', 'À Médine, un puits appartenait à un homme qui vendait son eau. \'Uthman l\'acheta et le rendit gratuit pour tous les musulmans, après que le Prophète ﷺ eut promis le Paradis à celui qui le ferait.', 'L\'argent bien placé ne dort pas : il sert, et son effet continue après toi (sadaqa jariya).', 'Tirmidhi 3703'],
+  ['r17', 'Le Prophète ﷺ', 'Au service des siens', 'On demanda à Aïcha ce que faisait le Prophète ﷺ chez lui. Elle répondit : « Il était au service de sa famille, et quand venait l\'heure de la prière, il sortait prier. »', 'Le plus grand des hommes recousait ses vêtements et aidait à la maison.', 'Bukhari 676'],
+  ['r18', 'Le Prophète ﷺ', 'La conquête de La Mecque', 'Il entre victorieux dans la ville qui l\'avait chassé et persécuté, la tête baissée d\'humilité. Face à ses anciens ennemis, la sîra rapporte qu\'il déclara une amnistie générale.', 'Le vrai triomphe se fait sans revanche.', 'Sîra d\'Ibn Hisham']
+];
+/* Faits du Coran : [id, titre, texte] */
+const FX_FAIT = [
+  ['f1', 'La seule femme nommée', 'Maryam est la seule femme citée par son nom dans le Coran, plus souvent que dans l\'Évangile, et une sourate entière porte son nom.'],
+  ['f2', 'Sans basmala', 'At-Tawba est la seule sourate qui ne commence pas par « Bismillah ». Mais An-Naml en contient deux : au début, et dans la lettre de Sulayman (27:30). Le compte reste à 114.'],
+  ['f3', '23 ans', 'Le Coran n\'a pas été révélé d\'un coup, mais par passages, sur environ 23 ans, souvent en réponse à des événements précis.'],
+  ['f4', 'Le plus grand verset', 'Le Prophète ﷺ a désigné Ayat al-Kursi (2:255) comme le plus grand verset du Coran (Muslim 810).'],
+  ['f5', 'Le plus long verset parle… de contrats', 'Le plus long verset du Coran (2:282) explique comment mettre par écrit une dette, avec des témoins. La mise par écrit des engagements est un ordre divin.'],
+  ['f6', 'Un tiers du Coran', 'Le Prophète ﷺ a dit que la sourate Al-Ikhlas équivaut à un tiers du Coran (Bukhari 5013), car elle résume l\'unicité d\'Allah.'],
+  ['f7', 'Le prophète le plus cité', 'Musa est le prophète dont le nom revient le plus souvent dans le Coran, plus de 130 fois. Son histoire sert de modèle au Prophète ﷺ face aux épreuves.'],
+  ['f8', 'Muhammad, 4 fois', 'Le nom « Muhammad » n\'apparaît que 4 fois dans le Coran, et « Ahmad » une fois. Allah s\'adresse surtout à lui par « Ô Prophète » ou « Ô Messager ».'],
+  ['f9', 'De la mémoire au livre', 'Le Coran était mémorisé par des centaines de compagnons. Après la mort de nombreux mémorisateurs, Abu Bakr le fit réunir en un seul recueil ; \'Uthman en fit ensuite diffuser des copies de référence.'],
+  ['f10', '17 fois par jour, au minimum', 'Al-Fatiha est récitée au moins 17 fois par jour : une fois par rak\'a des cinq prières obligatoires.'],
+  ['f11', '30 parties pour 30 jours', 'Le Coran est divisé en 30 juz\', pour pouvoir le lire en entier en un mois, à raison d\'un juz\' par jour.'],
+  ['f12', 'Le premier et le dernier', 'Les premiers versets révélés sont « Lis ! » (96:1-5). Selon Ibn Abbas, le dernier est « Et craignez un jour où vous serez ramenés vers Allah… » (2:281).']
+];
+/* Paroles de savants : [id, auteur, parole, contexte] */
+const FX_SAVANT = [
+  ['w1', 'Ibn al-Qayyim', 'Repousse la pensée. Si tu ne le fais pas, elle deviendra une idée. Repousse l\'idée, sinon elle deviendra un désir. Combats le désir, sinon il deviendra une résolution. Si tu ne l\'arrêtes pas, elle deviendra un acte, et si tu ne le compenses pas par son contraire, il deviendra une habitude.', 'Tiré d\'al-Fawa\'id. Il décrit, sept siècles avant les neurosciences, comment une habitude se construit : il est plus facile de couper au début de la chaîne.'],
+  ['w2', 'Ibn al-Qayyim', 'Perdre son temps est pire que la mort, car la perte de temps te coupe d\'Allah et de l\'au-delà, tandis que la mort ne te coupe que de ce monde et de ses gens.', 'Al-Fawa\'id. À relire avant de se lancer dans un scroll sans fin.'],
+  ['w3', 'Hasan al-Basri', 'Ô fils d\'Adam, tu n\'es qu\'un ensemble de jours. Chaque fois qu\'un jour s\'en va, une partie de toi s\'en va.', 'Grand savant de Bassora, élevé dans la maison d\'Umm Salama, épouse du Prophète ﷺ.'],
+  ['w4', '\'Umar ibn al-Khattab', 'Faites votre propre bilan avant qu\'on ne vous le demande, et pesez vos actes avant qu\'ils ne soient pesés.', 'L\'origine du bilan quotidien (muhasaba). Ton bilan d\'hier, sur l\'orbite, en est une forme.'],
+  ['w5', '\'Ali ibn Abi Talib', 'Ce monde s\'en va en tournant le dos, et l\'au-delà arrive en faisant face. Chacun a ses enfants : soyez des enfants de l\'au-delà. Aujourd\'hui il y a des actes sans jugement, et demain un jugement sans actes.', 'Rapporté par Al-Bukhari, livre des cœurs attendris (ar-Riqaq).'],
+  ['w6', 'Ibn Taymiyya', 'Que peuvent me faire mes ennemis ? Mon paradis et mon jardin sont dans ma poitrine. Ma prison est une retraite, ma mise à mort un martyre, et mon exil un voyage.', 'Dit en prison, où il mourut. Rapporté par son élève Ibn al-Qayyim. La liberté intérieure ne dépend pas des murs.'],
+  ['w7', 'Ibn Taymiyya', 'Il y a dans ce monde un paradis : celui qui n\'y entre pas n\'entrera pas au paradis de l\'au-delà.', 'Il parlait de la douceur de la foi et du rappel d\'Allah, que l\'on goûte dès cette vie.'],
+  ['w8', 'Yahya ibn Abi Kathir', 'La science ne s\'acquiert pas avec le repos du corps.', 'Cité par l\'imam Muslim dans son Sahih, au milieu des hadiths sur les horaires de prière, comme pour s\'excuser de l\'effort demandé au lecteur.'],
+  ['w9', 'Imam Ahmad', 'Avec l\'encrier, jusqu\'à la tombe.', 'Réponse de l\'imam Ahmad, déjà célèbre et âgé, à qui l\'on demandait pourquoi il continuait à étudier. Apprendre ne s\'arrête jamais.'],
+  ['w10', 'Al-Ghazali', 'La science sans action est folie, et l\'action sans science est vaine.', 'Tiré de sa lettre « Ô mon enfant » (Ayyuha al-walad), écrite à un élève.'],
+  ['w11', 'Sufyan ath-Thawri', 'Je n\'ai jamais rien traité de plus difficile que mon intention, car elle se retourne sans cesse contre moi.', 'Même les plus grands savants devaient renouveler leur intention encore et encore.'],
+  ['w12', 'Abdullah ibn al-Mubarak', 'Combien de petites actions deviennent grandes par l\'intention, et combien de grandes actions deviennent petites par l\'intention.', 'Savant, commerçant et combattant, il finançait les études de nombreux savants avec ses bénéfices.'],
+  ['w13', '\'Umar ibn \'Abd al-\'Aziz', 'La nuit et le jour agissent sur toi : agis donc en eux.', 'Calife réputé pour sa justice, il réforma l\'État en deux ans et demi seulement.'],
+  ['w14', 'Fudayl ibn \'Iyad', 'Délaisser une action à cause des gens, c\'est de l\'ostentation. Agir pour les gens, c\'est de l\'association. La sincérité, c\'est qu\'Allah te préserve des deux.', 'Ancien brigand devenu l\'un des plus grands ascètes, après avoir entendu un verset en escaladant un mur.'],
+  ['w15', '\'Abdullah ibn Mas\'ud', 'Je déteste voir un homme oisif, qui ne travaille ni pour ce monde ni pour l\'au-delà.', 'L\'un des plus grands savants du Coran parmi les compagnons.']
+];
+/* Poèmes classiques : [id, auteur, arabe (vers séparés par |), sens, contexte] */
+const FX_POEME = [
+  ['o1', 'Imam Ash-Shafi\'i', 'شَكَوْتُ إِلَى وَكِيعٍ سُوءَ حِفْظِي … فَأَرْشَدَنِي إِلَى تَرْكِ المَعَاصِي|وَأَخْبَرَنِي بِأَنَّ العِلْمَ نُورٌ … وَنُورُ اللهِ لَا يُهْدَى لِعَاصِي', 'Je me suis plaint à Waki\' de ma mauvaise mémoire : il m\'a conseillé de délaisser les péchés. Il m\'a appris que la science est une lumière, et que la lumière d\'Allah n\'est pas offerte à celui qui désobéit.', 'Waki\' ibn al-Jarrah était l\'un de ses maîtres. La clarté de l\'esprit est liée à la pureté du cœur.'],
+  ['o2', 'Imam Ash-Shafi\'i', 'نَعِيبُ زَمَانَنَا وَالعَيْبُ فِينَا … وَمَا لِزَمَانِنَا عَيْبٌ سِوَانَا', 'Nous accusons notre époque, alors que le défaut est en nous. Notre époque n\'a d\'autre défaut que nous-mêmes.', 'Avant de blâmer les circonstances, regarder ce qu\'on peut changer en soi.'],
+  ['o3', 'Imam Ash-Shafi\'i', 'وَلَرُبَّ نَازِلَةٍ يَضِيقُ لَهَا الفَتَى … ذَرْعًا وَعِنْدَ اللهِ مِنْهَا المَخْرَجُ|ضَاقَتْ فَلَمَّا اسْتَحْكَمَتْ حَلَقَاتُهَا … فُرِجَتْ وَكُنْتُ أَظُنُّهَا لَا تُفْرَجُ', 'Que de malheurs face auxquels un jeune homme se sent à bout, alors qu\'auprès d\'Allah se trouve l\'issue. La situation s\'est resserrée, et quand ses anneaux se sont serrés au maximum, elle s\'est dénouée, alors que je la croyais sans issue.', 'Le moment le plus serré précède souvent le déblocage.'],
+  ['o4', 'Imam Ash-Shafi\'i', 'دَعِ الأَيَّامَ تَفْعَلُ مَا تَشَاءُ … وَطِبْ نَفْسًا إِذَا حَكَمَ القَضَاءُ', 'Laisse les jours faire ce qu\'ils veulent, et garde l\'âme sereine quand le décret s\'accomplit.', 'Début d\'un de ses poèmes les plus célèbres sur l\'acceptation du destin.'],
+  ['o5', 'Imam Ash-Shafi\'i', 'تَغَرَّبْ عَنِ الأَوْطَانِ فِي طَلَبِ العُلَا … وَسَافِرْ فَفِي الأَسْفَارِ خَمْسُ فَوَائِدِ', 'Éloigne-toi de ta terre natale en quête d\'élévation, et voyage : les voyages ont cinq bienfaits.', 'Il les énumère ensuite : chasser le souci, gagner sa vie, la science, les bonnes manières, et la compagnie d\'hommes de valeur.'],
+  ['o6', 'Al-Busiri, la Burda', 'وَالنَّفْسُ كَالطِّفْلِ إِنْ تُهْمِلْهُ شَبَّ عَلَى … حُبِّ الرَّضَاعِ وَإِنْ تَفْطِمْهُ يَنْفَطِمِ', 'L\'âme est comme l\'enfant : si tu la laisses faire, elle grandit en aimant la tétée ; mais si tu la sèvres, elle se sèvre.', 'Tiré du poème le plus récité à la louange du Prophète ﷺ (XIIIe siècle). Une habitude n\'est pas une fatalité : l\'âme s\'habitue aussi au sevrage.'],
+  ['o7', 'Attribué à \'Ali ibn Abi Talib', 'دَوَاؤُكَ فِيكَ وَمَا تُبْصِرُ … وَدَاؤُكَ مِنْكَ وَمَا تَشْعُرُ', 'Ton remède est en toi, et tu ne le vois pas. Ton mal vient de toi, et tu ne le sens pas.', 'Vers du diwan attribué à \'Ali. L\'attribution est discutée, le sens reste juste.'],
+  ['o8', 'Ibn al-Wardi', 'اطْلُبِ العِلْمَ وَلَا تَكْسَلْ فَمَا … أَبْعَدَ الخَيْرَ عَلَى أَهْلِ الكَسَلْ', 'Recherche la science et ne sois pas paresseux : que le bien est loin des gens de la paresse !', 'Tiré de sa Lamiyya, un long poème de conseils à son fils (XIVe siècle).']
+];
+/* Le Coran invite à observer : [id, référence, sourate, sens, ce qu'on sait aujourd'hui] */
+const FX_OBS = [
+  ['x1', '23:12-14', 'Al-Mu\'minun', 'Nous avons créé l\'homme d\'un extrait d\'argile, puis Nous en avons fait une goutte dans un reposoir solide, puis Nous avons fait de la goutte une adhérence, de l\'adhérence un morceau de chair, du morceau de chair des os, et Nous avons revêtu les os de chair…', 'L\'embryologie décrit elle aussi un développement par étapes successives. Beaucoup de lecteurs y voient une correspondance ; d\'autres rappellent que le verset parle d\'abord de la puissance créatrice, pas de manuel médical.'],
+  ['x2', '78:6-7', 'An-Naba\'', 'N\'avons-Nous pas fait de la terre une couche, et des montagnes des piquets ?', 'Les géologues savent que les montagnes ont des « racines » : la croûte y est plus épaisse et s\'enfonce profondément sous le relief (l\'isostasie). L\'image du piquet reste une invitation à observer, pas une thèse géologique.'],
+  ['x3', '24:45', 'An-Nur', 'Et Allah a créé d\'eau tout animal. Certains rampent sur le ventre, d\'autres marchent sur deux pattes, d\'autres sur quatre…', 'Toute vie connue dépend de l\'eau, qui compose la majeure partie des cellules. C\'est pour cela qu\'on cherche d\'abord de l\'eau quand on cherche la vie ailleurs.'],
+  ['x4', '51:47', 'Adh-Dhariyat', 'Le ciel, Nous l\'avons construit par Notre puissance, et Nous l\'étendons constamment.', 'Depuis les travaux de Hubble (1929), on sait que l\'univers est en expansion. Des savants anciens comprenaient le verset autrement (« Nous sommes largement capables »). Les deux lectures existent.'],
+  ['x5', '55:19-20', 'Ar-Rahman', 'Il a laissé les deux mers se rencontrer ; entre elles, une barrière qu\'elles ne dépassent pas.', 'Là où des eaux de salinité ou de température différentes se rencontrent (comme au détroit de Gibraltar), elles se mélangent très lentement et forment des zones de transition visibles.'],
+  ['x6', '36:40', 'Ya-Sin', 'Le soleil ne peut rattraper la lune, ni la nuit devancer le jour ; et chacun vogue dans une orbite.', 'Chaque astre suit une trajectoire précise, calculable des siècles à l\'avance : c\'est ce qui permet de prévoir les éclipses et les horaires de prière.'],
+  ['x7', '16:68-69', 'An-Nahl', 'Ton Seigneur a inspiré aux abeilles : « Prenez des demeures dans les montagnes, les arbres et ce que les hommes construisent… » De leur ventre sort une boisson aux couleurs variées, dans laquelle il y a une guérison pour les gens.', 'Le miel a des propriétés antibactériennes reconnues, et des miels médicaux sont utilisés à l\'hôpital pour soigner certaines plaies.'],
+  ['x8', '57:25', 'Al-Hadid', '… Et Nous avons fait descendre le fer, dans lequel il y a une force redoutable et des utilités pour les gens…', 'Le fer ne se forme pas sur Terre : il est fabriqué au cœur des étoiles massives et dispersé lors de leur explosion, avant d\'arriver sur les planètes. Le verset emploie le verbe « faire descendre ».']
+];
+FX_QUIZ.push(
+  ['q25', 'Quelle est la seule femme nommée dans le Coran ?', ['Khadija', 'Maryam', 'Asiya'], 1, 'Maryam, qui a même une sourate à son nom.'],
+  ['q26', 'Quelle sourate ne commence pas par « Bismillah » ?', ['At-Tawba', 'Al-Fatiha', 'Al-Kahf'], 0, 'At-Tawba. An-Naml, elle, en contient deux.'],
+  ['q27', 'Qui a dit « Indique-moi le marché » en arrivant à Médine ?', ['Abu Bakr', 'Abd ar-Rahman ibn \'Awf', 'Bilal'], 1, 'Abd ar-Rahman ibn \'Awf, qui refusa la moitié des biens qu\'on lui offrait pour commercer lui-même.'],
+  ['q28', 'Quel prophète est le plus cité dans le Coran ?', ['Ibrahim', 'Isa', 'Musa'], 2, 'Musa, plus de 130 fois.'],
+  ['q29', 'Que dit Yunus dans le ventre du poisson ?', ['« Hasbiya Allah »', '« Il n\'y a de divinité que Toi, gloire à Toi, j\'ai été parmi les injustes »', '« Rabbi zidni \'ilma »'], 1, 'L\'invocation de Yunus (21:87), qui ne laisse jamais sans réponse.'],
+  ['q30', 'Combien de fois au minimum récites-tu Al-Fatiha par jour ?', ['5', '17', '34'], 1, '17 : une fois par rak\'a des prières obligatoires.']
+);
+Object.assign(FX_AR, {"x1": "وَلَقَدۡ خَلَقۡنَا ٱلۡإِنسَٰنَ مِن سُلَٰلَةٖ مِّن طِينٖ ﴿١٢﴾ ثُمَّ جَعَلۡنَٰهُ نُطۡفَةٗ فِي قَرَارٖ مَّكِينٖ ﴿١٣﴾ ثُمَّ خَلَقۡنَا ٱلنُّطۡفَةَ عَلَقَةٗ فَخَلَقۡنَا ٱلۡعَلَقَةَ مُضۡغَةٗ فَخَلَقۡنَا ٱلۡمُضۡغَةَ عِظَٰمٗا فَكَسَوۡنَا ٱلۡعِظَٰمَ لَحۡمٗا ثُمَّ أَنشَأۡنَٰهُ خَلۡقًا ءَاخَرَۚ فَتَبَارَكَ ٱللَّهُ أَحۡسَنُ ٱلۡخَٰلِقِينَ ﴿١٤﴾", "x2": "أَلَمۡ نَجۡعَلِ ٱلۡأَرۡضَ مِهَٰدٗا ﴿٦﴾ وَٱلۡجِبَالَ أَوۡتَادٗا ﴿٧﴾", "x3": "وَٱللَّهُ خَلَقَ كُلَّ دَآبَّةٖ مِّن مَّآءٖۖ فَمِنۡهُم مَّن يَمۡشِي عَلَىٰ بَطۡنِهِۦ وَمِنۡهُم مَّن يَمۡشِي عَلَىٰ رِجۡلَيۡنِ وَمِنۡهُم مَّن يَمۡشِي عَلَىٰٓ أَرۡبَعٖۚ يَخۡلُقُ ٱللَّهُ مَا يَشَآءُۚ إِنَّ ٱللَّهَ عَلَىٰ كُلِّ شَيۡءٖ قَدِيرٞ ﴿٤٥﴾", "x4": "وَٱلسَّمَآءَ بَنَيۡنَٰهَا بِأَيۡيْدٖ وَإِنَّا لَمُوسِعُونَ ﴿٤٧﴾", "x5": "مَرَجَ ٱلۡبَحۡرَيۡنِ يَلۡتَقِيَانِ ﴿١٩﴾ بَيۡنَهُمَا بَرۡزَخٞ لَّا يَبۡغِيَانِ ﴿٢٠﴾", "x6": "لَا ٱلشَّمۡسُ يَنۢبَغِي لَهَآ أَن تُدۡرِكَ ٱلۡقَمَرَ وَلَا ٱلَّيۡلُ سَابِقُ ٱلنَّهَارِۚ وَكُلّٞ فِي فَلَكٖ يَسۡبَحُونَ ﴿٤٠﴾", "x7": "وَأَوۡحَىٰ رَبُّكَ إِلَى ٱلنَّحۡلِ أَنِ ٱتَّخِذِي مِنَ ٱلۡجِبَالِ بُيُوتٗا وَمِنَ ٱلشَّجَرِ وَمِمَّا يَعۡرِشُونَ ﴿٦٨﴾ ثُمَّ كُلِي مِن كُلِّ ٱلثَّمَرَٰتِ فَٱسۡلُكِي سُبُلَ رَبِّكِ ذُلُلٗاۚ يَخۡرُجُ مِنۢ بُطُونِهَا شَرَابٞ مُّخۡتَلِفٌ أَلۡوَٰنُهُۥ فِيهِ شِفَآءٞ لِّلنَّاسِۚ إِنَّ فِي ذَٰلِكَ لَأٓيَةٗ لِّقَوۡمٖ يَتَفَكَّرُونَ ﴿٦٩﴾", "x8": "لَقَدۡ أَرۡسَلۡنَا رُسُلَنَا بِٱلۡبَيِّنَٰتِ وَأَنزَلۡنَا مَعَهُمُ ٱلۡكِتَٰبَ وَٱلۡمِيزَانَ لِيَقُومَ ٱلنَّاسُ بِٱلۡقِسۡطِۖ وَأَنزَلۡنَا ٱلۡحَدِيدَ فِيهِ بَأۡسٞ شَدِيدٞ وَمَنَٰفِعُ لِلنَّاسِ وَلِيَعۡلَمَ ٱللَّهُ مَن يَنصُرُهُۥ وَرُسُلَهُۥ بِٱلۡغَيۡبِۚ إِنَّ ٱللَّهَ قَوِيٌّ عَزِيزٞ ﴿٢٥﴾"});
+
+/* ----- Flux : le fil qui remplace le scroll -----
+   Défilement plein écran aimanté, une carte à la fois. 4 piliers équilibrés (foi, business, savoir, psychologie),
+   une carte interactive toutes les 4 (quiz, vrai/faux, mot arabe), une carte « pause » toutes les 15.
+   Les cartes jamais vues passent en premier ; le business du mois en cours est favorisé. */
+const FXC = {
+  coran: { bg: ['#14402F', '#06110D'], ac: '#E9C46A', lbl: 'Coran', shape: 'star' },
+  hadith: { bg: ['#2A2A17', '#080C08'], ac: '#F0D9A0', lbl: 'Hadith', shape: 'orb' },
+  biz: { bg: ['#10263A', '#050A10'], ac: '#8CC4FF', lbl: 'Business', shape: 'node' },
+  sci: { bg: ['#141C3C', '#04060E'], ac: '#9DB8FF', lbl: 'Science', shape: 'atom' },
+  cult: { bg: ['#34230F', '#0B0805'], ac: '#EBB978', lbl: 'Culture', shape: 'spark' },
+  psy: { bg: ['#2B1734', '#09050B'], ac: '#D6A8F2', lbl: 'Psychologie', shape: 'ring' },
+  quiz: { bg: ['#0F3029', '#040C0A'], ac: '#5ED3A8', lbl: 'Quiz', shape: 'spark' },
+  vf: { bg: ['#12302E', '#040C0B'], ac: '#5ED3A8', lbl: 'Vrai ou faux', shape: 'ring' },
+  ar: { bg: ['#1C2E14', '#070B05'], ac: '#C9E08A', lbl: 'Arabe du Coran', shape: 'star' },
+  me: { bg: ['#123A2E', '#050F0B'], ac: '#E9C46A', lbl: 'Toi', shape: 'orb' },
+  pause: { bg: ['#33290E', '#0B0904'], ac: '#F5D98E', lbl: 'Pause', shape: 'orb' },
+  recit: { bg: ['#3A2912', '#0C0805'], ac: '#F2C98A', lbl: 'Récit', shape: 'spark' },
+  fait: { bg: ['#0F3A33', '#040D0B'], ac: '#7FE0C8', lbl: 'Le savais-tu ?', shape: 'star' },
+  savant: { bg: ['#1B2336', '#05070C'], ac: '#E6D3A3', lbl: 'Parole de savant', shape: 'orb' },
+  poeme: { bg: ['#381423', '#0C0508'], ac: '#F0B7C4', lbl: 'Poésie', shape: 'star' },
+  obs: { bg: ['#0E2E3A', '#03090C'], ac: '#8FD8E8', lbl: 'Le Coran invite à observer', shape: 'atom' }
+};
+const FX_ALL = {};
+FX_CORAN.forEach(([id, ref, sura, fr, ex]) => { FX_ALL[id] = { id, t: 'coran', ref, sura, fr, ex, ar: FX_AR[id] }; });
+FX_HADITH.forEach(([id, fr, src, ex]) => { FX_ALL[id] = { id, t: 'hadith', fr, src, ex }; });
+FX_BIZ.forEach(([id, book, m, title, text, act]) => { FX_ALL[id] = { id, t: 'biz', book, m, title, text, act }; });
+FX_SCI.forEach(([id, cat, title, text]) => { FX_ALL[id] = { id, t: cat, title, text }; });
+FX_PSY.forEach(([id, title, text, act]) => { FX_ALL[id] = { id, t: 'psy', title, text, act }; });
+FX_QUIZ.forEach(([id, q, opts, ok, ex]) => { FX_ALL[id] = { id, t: 'quiz', q, opts, ok, ex }; });
+FX_VF.forEach(([id, q, ok, ex]) => { FX_ALL[id] = { id, t: 'vf', q, ok, ex }; });
+FX_RECIT.forEach(([id, who, title, text, lesson, src]) => { FX_ALL[id] = { id, t: 'recit', who, title, text, lesson, src }; });
+FX_FAIT.forEach(([id, title, text]) => { FX_ALL[id] = { id, t: 'fait', title, text }; });
+FX_SAVANT.forEach(([id, by, q, ex]) => { FX_ALL[id] = { id, t: 'savant', by, q, ex }; });
+FX_POEME.forEach(([id, by, ar, fr, ex]) => { FX_ALL[id] = { id, t: 'poeme', by, ar, fr, ex }; });
+FX_OBS.forEach(([id, ref, sura, fr, sci]) => { FX_ALL[id] = { id, t: 'obs', ref, sura, fr, sci, ar: FX_AR[id] }; });
+const FOI_W = [['coran', .24], ['hadith', .18], ['recit', .2], ['savant', .14], ['fait', .1], ['poeme', .07], ['obs', .07]];
+function foiType() { let r = Math.random(); for (const [t, w] of FOI_W) { if ((r -= w) < 0) return t; } return 'coran'; }
+const FX_POOL = t => Object.values(FX_ALL).filter(c => c.t === t);
+const FXS = { n: 0, cards: [], order: [], io: null, cur: null, t0: 0, read: new Set(), tap: 0 };
+
+function fluxDay() { const k = todayISO(); if (S.flux.day.d !== k) S.flux.day = { d: k, n: 0, q: 0, r: 0 }; return S.flux.day; }
+function fxPick(type) {
+  const inSess = new Set(FXS.cards.map(c => c.id));
+  let pool = FX_POOL(type).filter(c => !inSess.has(c.id));
+  if (!pool.length) pool = FX_POOL(type);
+  const unseen = pool.filter(c => !S.flux.seen[c.id]);
+  let cands = unseen.length ? unseen : pool.slice().sort((a, b) => S.flux.seen[a.id] - S.flux.seen[b.id]).slice(0, Math.max(3, Math.ceil(pool.length * .3)));
+  if (type === 'biz') { const m = currentMonth(), w = cands.flatMap(c => (c.m === m || c.m === m + 1) ? [c, c, c] : [c]); cands = w; }
+  return cands[Math.floor(Math.random() * cands.length)];
+}
+function fxMe() {
+  const opts = [];
+  const cm = currentMonth(), cur = MONTHS[cm - 1], left = cur.acq.length - modDone(cur);
+  if (left) opts.push({ title: `Mois ${cm} · ${cur.title}`, text: `Il te reste ${left} acquis sur ${cur.acq.length} ce mois-ci. Une carte de moins, un acquis de plus ?`, go: 'parcours', btn: 'Ouvrir le parcours' });
+  const st = streak(); if (st >= 2) opts.push({ title: `${st} jours de routine d'affilée`, text: 'Chaque jour qui passe rend le suivant plus facile. Ne casse pas la chaîne ce soir.', go: 'routine', btn: 'Voir ma routine' });
+  const ph = phaseOf(S.body.phase), n = weekSessions().length; if (n < ph.perWeek) opts.push({ title: `${n}/${ph.perWeek} séances cette semaine`, text: `La prochaine, c'est la séance ${nextTpl(ph)} (${ph.name}). Le corps suit ce que l'esprit décide.`, go: 'entrainement', btn: 'Voir la séance' });
+  const pts = nourDay(); opts.push({ title: `✦ ${pts} de lumière aujourd'hui`, text: pts >= nourAvg() ? 'Tu es au-dessus de ta moyenne. Continue sur cette lancée.' : `Ta moyenne est de ✦ ${Math.round(nourAvg())}. Il reste de la journée pour allumer quelque chose.`, go: 'orbite', btn: 'Revenir à l\'orbite' });
+  const o = opts[Math.floor(Math.random() * opts.length)];
+  return { id: 'me' + uid(), t: 'me', ...o };
+}
+function fxPause() {
+  const k = todayISO(), n = S.faith.habits.length, dn = dayDone(k);
+  let a;
+  if (dn < n) a = { text: `Tu as coché ${dn} habitude${dn > 1 ? 's' : ''} de foi sur ${n} aujourd'hui.`, go: 'habitudes', btn: 'Ouvrir mes habitudes' };
+  else if (!S.days[k]) a = { text: `Ta routine en est à ${todayBlocks()}/4 blocs. Un bloc, maintenant ?`, go: 'routine', btn: 'Faire un bloc' };
+  else if (weekSessions().length < phaseOf(S.body.phase).perWeek && !isFastDay()) a = { text: 'Ta séance de la semaine t\'attend. 30 minutes suffisent.', go: 'entrainement', btn: 'Lancer la séance' };
+  else a = { text: 'Tout est fait pour aujourd\'hui. Pose le téléphone, marche 10 minutes ou parle à quelqu\'un.', go: 'orbite', btn: 'Retour à l\'orbite' };
+  return { id: 'pz' + uid(), t: 'pause', ...a };
+}
+function fxNext() {
+  FXS.n++;
+  const i = FXS.n;
+  if (i % 15 === 0) return fxPause();
+  if (i % 4 === 0) { const r = Math.random(); if (r < .25) { const w = Math.floor(Math.random() * WORDS.length); return { id: 'ar' + w + '-' + uid(), t: 'ar', w }; } return fxPick(r < .65 ? 'quiz' : 'vf'); }
+  if (i % 11 === 0) return fxMe();
+  if (!FXS.order.length) FXS.order = ['foi', 'biz', 'savoir', 'psy'].sort(() => Math.random() - .5);
+  const p = FXS.order.shift();
+  if (p === 'foi') return fxPick(foiType());
+  if (p === 'savoir') return fxPick(Math.random() < .5 ? 'sci' : 'cult');
+  return fxPick(p);
+}
+/* Éléments flottants, positions déterministes par carte */
+function fxFloat(c) {
+  const conf = FXC[c.t]; let seed = [...c.id].reduce((a, ch) => a + ch.charCodeAt(0) * 7, 13);
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const SH = {
+    star: '<svg viewBox="-10 -10 20 20"><rect x="-6" y="-6" width="12" height="12"/><rect x="-6" y="-6" width="12" height="12" transform="rotate(45)"/></svg>',
+    orb: '<i class="orb"></i>',
+    node: '<svg viewBox="-10 -10 20 20"><circle r="2.2"/><path d="M0 0L8 -5M0 0L-6 7"/><circle cx="8" cy="-5" r="1.4"/><circle cx="-6" cy="7" r="1.4"/></svg>',
+    atom: '<svg viewBox="-10 -10 20 20"><circle r="1.8"/><ellipse rx="8.5" ry="3.2"/><ellipse rx="8.5" ry="3.2" transform="rotate(60)"/><ellipse rx="8.5" ry="3.2" transform="rotate(-60)"/></svg>',
+    spark: '<svg viewBox="-10 -10 20 20"><path d="M0-9C.8-2 2-.8 9 0 2 .8.8 2 0 9-.8 2-2 .8-9 0-2-.8-.8-2 0-9Z"/></svg>',
+    ring: '<svg viewBox="-10 -10 20 20"><circle r="8"/><circle r="4.5"/></svg>'
+  };
+  let h = '';
+  for (let k = 0; k < 9; k++) {
+    const s = 14 + rnd() * 46, x = rnd() * 100, y = rnd() * 100, d = 14 + rnd() * 16, dl = -rnd() * 20, o = .1 + rnd() * .22, dx = (rnd() - .5) * 60, dy = -20 - rnd() * 50, rot = (rnd() - .5) * 180;
+    h += `<span style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%;width:${s.toFixed(0)}px;height:${s.toFixed(0)}px;opacity:${o.toFixed(2)};--dx:${dx.toFixed(0)}px;--dy:${dy.toFixed(0)}px;--r:${rot.toFixed(0)}deg;animation-duration:${d.toFixed(1)}s;animation-delay:${dl.toFixed(1)}s">${SH[conf.shape]}</span>`;
+  }
+  return `<div class="fl" aria-hidden="true">${h}</div>`;
+}
+const fxWords = (txt, base = 0, cap = 36) => esc(txt).split(/(\s+)/).map((w, i) => /^\s+$/.test(w) ? w : `<span class="fw" style="--i:${Math.min(cap, base + i / 2)}">${w}</span>`).join('');
+function fxCard(c) {
+  const conf = FXC[c.t], saved = S.flux.saved.includes(c.id), savable = !['me', 'pause', 'ar'].includes(c.t) && !/^(me|pz)/.test(c.id);
+  let body = '';
+  if (c.t === 'coran') {
+    const len = (c.ar || '').length, sz = len > 330 ? 's' : len > 180 ? 'm' : 'l';
+    body = `<p class="fk">Coran · ${esc(c.sura)} ${c.ref}</p>
+      <p class="far ${sz}" lang="ar" dir="rtl">${fxWords(c.ar || '', 0, 30)}</p>
+      <p class="ffr">${fxWords(c.fr, 8)}</p>
+      <button class="fexp" data-fexp>Comprendre</button><div class="fex"><p>${esc(c.ex)}</p></div>
+      <p class="fnote">Sens rendu en français, pas une traduction officielle.</p>`;
+  } else if (c.t === 'hadith') {
+    body = `<p class="fk">Hadith</p><p class="fq">« ${fxWords(c.fr)} »</p><p class="fsrc">${esc(c.src)}</p>
+      <button class="fexp" data-fexp>Méditer</button><div class="fex"><p>${esc(c.ex)}</p></div>`;
+  } else if (c.t === 'recit') {
+    body = `<p class="fk">Récit · ${esc(c.who)}</p><h2 class="ft">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p>
+      <div class="fdo"><small>Leçon</small>${esc(c.lesson)}</div><p class="fsrc">${esc(c.src)}</p>`;
+  } else if (c.t === 'fait') {
+    body = `<p class="fk">Le savais-tu ? · Coran</p><h2 class="ft big">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p>`;
+  } else if (c.t === 'savant') {
+    body = `<p class="fk">Parole de savant</p><p class="fq">« ${fxWords(c.q)} »</p><p class="fsrc">${esc(c.by)}</p>
+      <button class="fexp" data-fexp>Contexte</button><div class="fex"><p>${esc(c.ex)}</p></div>`;
+  } else if (c.t === 'poeme') {
+    body = `<p class="fk">Poésie · ${esc(c.by)}</p><div class="fpoem" lang="ar" dir="rtl">${c.ar.split('|').map(l => `<p>${l.split(' … ').map(h => `<span>${fxWords(h, 0, 20)}</span>`).join('')}</p>`).join('')}</div>
+      <p class="ffr">${fxWords(c.fr, 6)}</p><button class="fexp" data-fexp>Contexte</button><div class="fex"><p>${esc(c.ex)}</p></div>`;
+  } else if (c.t === 'obs') {
+    const len = (c.ar || '').length, sz = len > 330 ? 's' : len > 180 ? 'm' : 'l';
+    body = `<p class="fk">Le Coran invite à observer · ${esc(c.sura)} ${c.ref}</p><p class="far ${sz}" lang="ar" dir="rtl">${fxWords(c.ar || '', 0, 30)}</p>
+      <p class="ffr">${fxWords(c.fr, 8)}</p><div class="fdo"><small>Ce qu'on sait aujourd'hui</small>${esc(c.sci)}</div>
+      <p class="fnote">Le Coran est un livre de guidance : ces rapprochements sont des pistes de réflexion, pas des preuves.</p>`;
+  } else if (c.t === 'biz') {
+    body = `<p class="fk">Business · ${esc(c.book)}${c.m ? ` · mois ${c.m}` : ''}</p><h2 class="ft">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p>
+      <div class="fdo"><small>À faire</small>${esc(c.act)}</div>`;
+  } else if (c.t === 'sci' || c.t === 'cult') {
+    body = `<p class="fk">${conf.lbl}</p><h2 class="ft big">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p>`;
+  } else if (c.t === 'psy') {
+    body = `<p class="fk">Psychologie humaine</p><h2 class="ft">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p><div class="fdo"><small>Observe</small>${esc(c.act)}</div>`;
+  } else if (c.t === 'quiz') {
+    body = `<p class="fk">Quiz</p><h2 class="ft">${fxWords(c.q)}</h2><div class="fopts">${c.opts.map((o, i) => `<button class="fopt" data-fq="${i}">${esc(o)}</button>`).join('')}</div><div class="fans"></div>`;
+  } else if (c.t === 'vf') {
+    body = `<p class="fk">Vrai ou faux ?</p><h2 class="ft">${fxWords(c.q)}</h2><div class="fvf"><button class="fopt" data-fv="1">Vrai</button><button class="fopt" data-fv="0">Faux</button></div><div class="fans"></div>`;
+  } else if (c.t === 'ar') {
+    const w = WORDS[c.w], sc = Math.min(3, S.words[c.w] || 0);
+    body = `<p class="fk">Arabe du Coran · ${sc}/3</p><p class="farw" lang="ar" dir="rtl">${w[0]}</p><p class="fb" style="text-align:center">Tu connais le sens de ce mot ?</p>
+      <div class="fans ar" hidden><p class="ft" style="text-align:center">${esc(w[1])}</p><p class="fb" style="text-align:center">Racine <span lang="ar" dir="rtl" style="font-family:var(--ar);font-size:1.3em">${w[2]}</span></p></div>
+      <div class="fvf" data-fars><button class="fopt" data-far="reveal">Révéler</button></div>`;
+  } else if (c.t === 'me') {
+    body = `<p class="fk">Toi</p><h2 class="ft">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p><button class="btn" data-goto="${c.go}" style="margin-top:22px">${c.btn}</button>`;
+  } else if (c.t === 'pause') {
+    body = `<p class="fk">Pause · ${FXS.n} cartes</p><h2 class="ft big">${fxWords('Ton esprit est nourri. Et maintenant ?')}</h2><p class="fb">${esc(c.text)}</p>
+      <button class="btn block" data-goto="${c.go}" style="margin-top:22px">${c.btn}</button><button class="btn block fcont" data-fnext style="margin-top:10px">Continuer le fil</button>`;
+  }
+  return `<article class="fc fc-${c.t}" data-fid="${c.id}" style="--bg1:${conf.bg[0]};--bg2:${conf.bg[1]};--ac:${conf.ac}">
+    ${fxFloat(c)}<div class="fcin">${body}</div>
+    ${savable ? `<div class="frail"><button data-fsave aria-pressed="${saved}" aria-label="Garder">${ICON.fstar}<span>${saved ? 'Gardé' : 'Garder'}</span></button><button data-fcopy aria-label="Copier">${ICON.fcopy}<span>Copier</span></button></div>` : ''}
+  </article>`;
+}
+function vFlux() {
+  FXS.n = 0; FXS.cards = []; FXS.order = []; FXS.read = new Set();
+  for (let i = 0; i < 6; i++) FXS.cards.push(fxNext());
+  const first = !S.flux.used;
+  return `<div class="feed" id="feed">${FXS.cards.map(fxCard).join('')}</div>
+    <div class="fhead"><div><p class="fh-t">Flux</p><div class="fprog" id="fprog">${Array.from({ length: 15 }, () => '<i></i>').join('')}</div></div>
+      <div class="row" style="gap:2px"><button class="icon-btn" data-fsaved aria-label="Mes cartes gardées">${ICON.fstar}</button><button class="icon-btn" data-goto="orbite" aria-label="Fermer">${ICON.fclose}</button></div></div>
+    ${first ? '<div class="fhint" id="fhint"><span>Glisse vers le haut</span><small>Touche deux fois une carte pour la garder</small></div>' : ''}`;
+}
+function fxCardOf(el) { return FXS.cards.find(c => c.id === el.dataset.fid); }
+function bindFlux() {
+  const feed = $('#feed'); if (!feed) return;
+  if (FXS.io) FXS.io.disconnect();
+  FXS.io = new IntersectionObserver(ents => ents.forEach(en => {
+    const el = en.target;
+    if (en.isIntersecting && en.intersectionRatio >= .6) {
+      el.classList.add('in'); FXS.cur = el; FXS.t0 = performance.now();
+      const c = fxCardOf(el); if (c && FX_ALL[c.id]) { S.flux.seen[c.id] = Date.now(); }
+      const idx = [...feed.children].indexOf(el);
+      $$('#fprog i').forEach((b, k) => b.classList.toggle('on', k <= (idx % 15)));
+      if (idx >= feed.children.length - 3) fxAppend(5);
+      if (idx > 0) { const h = $('#fhint'); if (h) { h.remove(); S.flux.used = true; } }
+    } else if (!en.isIntersecting || en.intersectionRatio < .3) {
+      if (el === FXS.cur && performance.now() - FXS.t0 > 2500 && !FXS.read.has(el.dataset.fid)) fxRead(el.dataset.fid);
+      el.classList.remove('in');
+    }
+  }), { root: feed, threshold: [0, .3, .6] });
+  [...feed.children].forEach(el => FXS.io.observe(el));
+}
+function fxAppend(n) {
+  const feed = $('#feed'); if (!feed) return;
+  for (let i = 0; i < n; i++) { const c = fxNext(); FXS.cards.push(c); feed.insertAdjacentHTML('beforeend', fxCard(c)); FXS.io.observe(feed.lastElementChild); }
+}
+function fxRead(id) {
+  FXS.read.add(id); const d = fluxDay(); d.n++; save();
+  if (d.n === 5 && !d.r) { d.r = 1; lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(3, { noBonus: true, msg: ['Rituel du jour', '5 cartes pour nourrir ton esprit plutôt que le vider.'] }); }
+}
+function fxSave(el) {
+  const art = el.closest('.fc'), id = art.dataset.fid; if (!FX_ALL[id]) return;
+  const i = S.flux.saved.indexOf(id), b = $('[data-fsave]', art);
+  if (i >= 0) { S.flux.saved.splice(i, 1); if (b) { b.setAttribute('aria-pressed', 'false'); $('span', b).textContent = 'Garder'; } toast('Retiré de tes cartes'); }
+  else { S.flux.saved.push(id); if (b) { b.setAttribute('aria-pressed', 'true'); $('span', b).textContent = 'Gardé'; } burst(14, '✦', false); chime(false); haptic(); }
+  save();
+}
+function fxText(c) {
+  if (c.t === 'coran') return `${c.ar}\n\n${c.fr}\n— Coran, ${c.sura} ${c.ref}`;
+  if (c.t === 'hadith') return `« ${c.fr} »\n— ${c.src}`;
+  if (c.t === 'quiz' || c.t === 'vf') return `${c.q}\n${c.ex}`;
+  if (c.t === 'savant') return `« ${c.q} »\n— ${c.by}`;
+  if (c.t === 'poeme') return `${c.ar.replace(/\|/g, '\n')}\n\n${c.fr}\n— ${c.by}`;
+  if (c.t === 'obs') return `${c.ar}\n\n${c.fr}\n— Coran, ${c.sura} ${c.ref}\n\n${c.sci}`;
+  if (c.t === 'recit') return `${c.title}\n\n${c.text}\n\n${c.lesson}\n— ${c.src}`;
+  return `${c.title}\n\n${c.text}${c.book ? `\n— ${c.book}` : ''}`;
+}
+function openSaved() {
+  const list = S.flux.saved.map(id => FX_ALL[id]).filter(Boolean).reverse();
+  $('#ideasBody').innerHTML = `<div class="grab"></div><div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Gardées</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
+    ${list.length ? list.map(c => `<div class="idea"><p><span class="eyebrow" style="display:block;margin-bottom:4px">${FXC[c.t].lbl}${c.ref ? ' · ' + c.ref : c.src ? ' · ' + esc(c.src) : c.book ? ' · ' + esc(c.book) : c.by ? ' · ' + esc(c.by) : ''}</span>${esc(c.title || c.fr || c.q)}${c.text ? `<time>${esc(c.text)}</time>` : c.ex && c.t !== 'coran' && c.t !== 'hadith' ? '' : ''}</p><button class="icon-btn" data-funsave="${c.id}" aria-label="Retirer"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join('') : '<p class="empty">Touche deux fois une carte, ou ✦, pour la garder ici.</p>'}`;
+  const d = $('#ideasSheet'); if (!d.open) d.showModal();
+}
+function fxAnswer(btn) {
+  const art = btn.closest('.fc'), c = fxCardOf(art); if (!c || art.dataset.done) return;
+  art.dataset.done = '1';
+  const ok = c.t === 'quiz' ? Number(btn.dataset.fq) === c.ok : (btn.dataset.fv === '1') === c.ok;
+  $$('.fopt', art).forEach(b => { const good = c.t === 'quiz' ? Number(b.dataset.fq) === c.ok : (b.dataset.fv === '1') === c.ok; b.classList.add(good ? 'good' : b === btn ? 'bad' : 'dim'); b.disabled = true; });
+  const ans = $('.fans', art); ans.innerHTML = `<p class="fres">${ok ? 'Bien vu.' : 'Raté.'}</p><p class="fb">${esc(c.ex)}</p>`; ans.classList.add('on');
+  if (ok) { const d = fluxDay(); if (d.q < 6) { d.q++; reward(1, { noBonus: true }); } else { haptic(); burst(10, '', false); } }
+  else if (!reduceMotion()) btn.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-7px)' }, { transform: 'translateX(7px)' }, { transform: 'translateX(0)' }], { duration: 280 });
+}
+function fxArabic(btn) {
+  const art = btn.closest('.fc'), c = fxCardOf(art); if (!c) return;
+  const act = btn.dataset.far;
+  if (act === 'reveal') { $('.fans', art).hidden = false; $('.fans', art).classList.add('on'); $('[data-fars]', art).innerHTML = '<button class="fopt" data-far="knew">Je savais</button><button class="fopt" data-far="again">À revoir</button>'; return; }
+  const knew = act === 'knew';
+  S.words[c.w] = knew ? (S.words[c.w] || 0) + 1 : Math.max(0, (S.words[c.w] || 0) - 1); save();
+  $('[data-fars]', art).innerHTML = `<p class="fres" style="width:100%;text-align:center">${knew ? `Maîtrise ${Math.min(3, S.words[c.w])}/3` : 'Il reviendra bientôt.'}</p>`;
+  if (knew) { if (S.words[c.w] === 3) reward(2, { msg: ['Mot maîtrisé', `${WORDS[c.w][0]} · ${WORDS[c.w][1]}`] }); else { const d = fluxDay(); if (d.q < 6) { d.q++; reward(1, { noBonus: true }); } } }
+}
+
+/* =====================================================================
    13. RÉGLAGES, SAUVEGARDE, IMPORT
    ===================================================================== */
 function getPath(o, p) { return p.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
@@ -2610,7 +3194,7 @@ function openIdeas() {
 /* =====================================================================
    15. RENDU & NAVIGATION
    ===================================================================== */
-const TABS = ['orbite', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business'];
+const TABS = ['orbite', 'flux', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business'];
 const CVIEWS = ['entrainement', 'nutrition', 'soin'];
 let tab = 'orbite';
 function render(animate) {
@@ -2618,9 +3202,12 @@ function render(animate) {
   stopOrbit();
   app.className = animate ? 'view' : '';
   checkUnlocks();
-  app.innerHTML = { orbite: vOrbite, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
+  document.documentElement.classList.toggle('flux-on', tab === 'flux');
+  if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
+  app.innerHTML = { orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
   coreGlyph();
   if (tab === 'orbite') startOrbit();
+  if (tab === 'flux') bindFlux();
   if (tab === 'parcours') bindParcours();
   if (tab === 'foi' && F.view === 'arabe') { if (quiz && !quiz.answered) drawQuiz(); else nextQuiz(); }
   if (tab === 'argent' && A.view === 'heures') bindDial();
@@ -2646,7 +3233,7 @@ function go(t) {
    Toucher le noyau : la roue s'ouvre, on touche un module.
    Appuyer et glisser : on vise un module et on relâche pour y aller.
    Appui long, ou toucher le noyau quand la roue est ouverte : retour à l'orbite. */
-const NAV = [['foi', 'Foi'], ['corps', 'Corps'], ['routine', 'Routine'], ['parcours', 'Parcours'], ['argent', 'Argent'], ['business', 'Business']];
+const NAV = [['foi', 'Foi'], ['corps', 'Corps'], ['routine', 'Routine'], ['flux', 'Flux'], ['parcours', 'Parcours'], ['argent', 'Argent'], ['business', 'Business']];
 const NAV_A0 = -80, NAV_SPAN = 160;
 const W8 = { open: false, hi: null, press: null, lp: 0 };
 const navAngle = i => NAV_A0 + NAV_SPAN / (NAV.length - 1) * i;
@@ -2755,6 +3342,18 @@ document.addEventListener('click', e => {
   if (c('[data-invsetup]')) { openInvestSetup(); return; }
   if (c('[data-invadd]')) { S.money.investments.push({ id: 'inv-' + uid(), name: '', type: 'etf', start: '', value: '' }); save(); openInvestSetup(); return; }
   if ((el = c('[data-invdel]'))) { S.money.investments = S.money.investments.filter(i => i.id !== el.dataset.invdel); save(); openInvestSetup(); return; }
+  // Flux
+  if (tab === 'flux') {
+    if ((el = c('[data-fexp]'))) { const x = el.nextElementSibling; x.classList.toggle('on'); el.textContent = x.classList.contains('on') ? 'Refermer' : (el.closest('.fc-hadith') ? 'Méditer' : 'Comprendre'); return; }
+    if ((el = c('[data-fsave]'))) { lastPt = lastPt || null; fxSave(el); return; }
+    if ((el = c('[data-fcopy]'))) { const cc = fxCardOf(el.closest('.fc')); if (cc) (navigator.clipboard ? navigator.clipboard.writeText(fxText(cc)) : Promise.reject()).then(() => toast('Copié')).catch(() => toast('Copie impossible sur cet appareil.')); return; }
+    if (c('[data-fsaved]')) { openSaved(); return; }
+    if ((el = c('[data-fq],[data-fv]'))) { fxAnswer(el); return; }
+    if ((el = c('[data-far]'))) { fxArabic(el); return; }
+    if (c('[data-fnext]')) { const f = $('#feed'); f.scrollBy({ top: f.clientHeight, behavior: reduceMotion() ? 'auto' : 'smooth' }); return; }
+    if ((el = c('.fc')) && !c('button,a,input')) { const now = Date.now(); if (FXS.tap && now - FXS.tap < 330 && FXS.tapEl === el) { FXS.tap = 0; fxSave(el); } else { FXS.tap = now; FXS.tapEl = el; } return; }
+  }
+  if ((el = c('[data-funsave]'))) { S.flux.saved = S.flux.saved.filter(x => x !== el.dataset.funsave); save(); openSaved(); const b = $(`.fc[data-fid="${el.dataset.funsave}"] [data-fsave]`); if (b) { b.setAttribute('aria-pressed', 'false'); $('span', b).textContent = 'Garder'; } return; }
   // Corps
   if ((el = c('[data-cview]'))) { go(el.dataset.cview); return; }
   if ((el = c('[data-phase]'))) {
@@ -2904,8 +3503,9 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   const t = e.target;
-  if ((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-planet],[data-moon],.seg-arc,[data-phase]')) {
+  if ((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-planet],[data-moon],.seg-arc,[data-phase],[data-sun]')) {
     e.preventDefault();
+    if (t.hasAttribute('data-sun')) { go('flux'); return; }
     if (t.dataset.phase) { t.dispatchEvent(new MouseEvent('click', { bubbles: true })); return; }
     if (t.dataset.planet) go(t.dataset.planet); else if (t.dataset.moon) selectMonth(Number(t.dataset.moon)); else toggleBlock(Number(t.dataset.block));
   }
@@ -2992,6 +3592,14 @@ window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
 /* =====================================================================
    16. DÉMARRAGE
    ===================================================================== */
+(function intro() {
+  const el = document.getElementById('intro'); if (!el) return;
+  const done = () => { if (el.parentNode) el.remove(); };
+  el.addEventListener('click', () => { el.classList.add('skip'); setTimeout(done, 320); });
+  el.addEventListener('animationend', e => { if (e.animationName === 'iout') done(); });
+  setTimeout(done, 3200);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
+})();
 (async function boot() {
   S = await loadState();
   save(true);
