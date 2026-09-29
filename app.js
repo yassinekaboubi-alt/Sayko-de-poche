@@ -1,4 +1,4 @@
-/* Sayko de poche — v2.10
+/* Sayko de poche — v2.11
    App 100 % locale : aucune donnée ne quitte le téléphone. */
 'use strict';
 
@@ -1913,7 +1913,7 @@ function normalizeBody(sb) {
   const b = Object.assign(d, sb);
   b.profile = Object.assign(defaultBody().profile, sb.profile || {});
   b.care = { list: sb.care && Array.isArray(sb.care.list) && sb.care.list.length ? sb.care.list : d.care.list, log: sb.care && sb.care.log && typeof sb.care.log === 'object' ? sb.care.log : {} };
-  ['unlocks', 'level', 'food', 'fcount', 'sleep', 'fitra', 'ghusl'].forEach(k => { if (!b[k] || typeof b[k] !== 'object' || Array.isArray(b[k])) b[k] = {}; });
+  ['unlocks', 'level', 'food', 'fcount', 'sleep', 'nap', 'fitra', 'ghusl'].forEach(k => { if (!b[k] || typeof b[k] !== 'object' || Array.isArray(b[k])) b[k] = {}; });
   ['sessions', 'weights'].forEach(k => { if (!Array.isArray(b[k])) b[k] = []; });
   if (![1, 2, 3].includes(b.phase)) b.phase = 1;
   return b;
@@ -2299,13 +2299,14 @@ function addFood(label, g) {
 }
 
 /* ----- Soin & sommeil ----- */
+const sleepTot = k => (S.body.sleep[k] || 0) + ((S.body.nap || {})[k] || 0);
 function sleepBars() {
   const W = 320, H = 150, T = 18, B = 26, max = 600, bw = 30, L0 = 26, gap = (W - L0 - 7 * bw) / 6;
   const Y = m => T + (1 - Math.min(m, max) / max) * (H - T - B);
   let h = `<line x1="${L0 - 4}" y1="${Y(420)}" x2="${W}" y2="${Y(420)}" stroke="var(--mint)" stroke-dasharray="4 4" stroke-width="1.2"/><text x="0" y="${Y(420) + 3.5}" style="font-size:10px;font-weight:700;fill:var(--mint)">7 h</text>`;
   for (let i = 6; i >= 0; i--) {
-    const d = addDays(new Date(), -i), k = iso(d), m = S.body.sleep[k], x = L0 + (6 - i) * (bw + gap);
-    h += m ? `<rect x="${x.toFixed(1)}" y="${Y(m).toFixed(1)}" width="${bw}" height="${(H - B - Y(m)).toFixed(1)}" rx="8" fill="var(--${m >= 420 ? 'gold' : 'warn'})" opacity="${i ? .75 : 1}"/><text x="${(x + bw / 2).toFixed(1)}" y="${(Y(m) - 5).toFixed(1)}" text-anchor="middle" style="font-size:10px;font-weight:700;fill:var(--ink-2)">${Math.floor(m / 60)}h${m % 60 ? pad(m % 60) : ''}</text>`
+    const d = addDays(new Date(), -i), k = iso(d), n0 = S.body.sleep[k] || 0, nap = (S.body.nap || {})[k] || 0, m = n0 + nap, x = L0 + (6 - i) * (bw + gap);
+    h += m ? `${n0 ? `<rect x="${x.toFixed(1)}" y="${Y(n0).toFixed(1)}" width="${bw}" height="${(H - B - Y(n0)).toFixed(1)}" rx="8" fill="var(--${m >= 420 ? 'gold' : 'warn'})" opacity="${i ? .75 : 1}"/>` : ''}${nap ? `<rect x="${x.toFixed(1)}" y="${Y(m).toFixed(1)}" width="${bw}" height="${(Y(n0) - Y(m) - (n0 ? 2 : 0)).toFixed(1)}" rx="8" fill="var(--mint)" opacity="${i ? .75 : 1}"/>` : ''}<text x="${(x + bw / 2).toFixed(1)}" y="${(Y(m) - 5).toFixed(1)}" text-anchor="middle" style="font-size:10px;font-weight:700;fill:var(--ink-2)">${Math.floor(m / 60)}h${m % 60 ? pad(m % 60) : ''}</text>`
       : `<circle cx="${(x + bw / 2).toFixed(1)}" cy="${H - B - 6}" r="3" fill="var(--line)"/>`;
     h += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle" style="font-size:10px;font-weight:${i ? 600 : 800};fill:var(--${i ? 'muted' : 'gold'})">${i ? DAY_SHORT.format(d).replace('.', '') : 'nuit'}</text>`;
   }
@@ -2322,7 +2323,7 @@ function fitraRing(id, name) {
     ${name}<small>${days == null ? 'à noter' : days >= FITRA_MAX ? 'à faire' : `reste ${FITRA_MAX - days} j`}</small></button>`;
 }
 function vSoin() {
-  const k = todayISO(), m = S.body.sleep[k], logged = Array.from({ length: 7 }, (_, i) => S.body.sleep[iso(addDays(new Date(), -i))]).filter(Boolean);
+  const k = todayISO(), m = S.body.sleep[k], nap = (S.body.nap || {})[k] || 0, tot = sleepTot(k), logged = Array.from({ length: 7 }, (_, i) => sleepTot(iso(addDays(new Date(), -i)))).filter(Boolean);
   const avg = logged.length ? Math.round(logged.reduce((a, b) => a + b) / logged.length) : 0;
   const wake = toMin(S.body.wake || '04:30'), bed5 = wake - 450 - 15, bed4 = wake - 360 - 15;
   const care = S.body.care, cl = care.log[k] || {}, cn = care.list.filter(c => cl[c.id]).length;
@@ -2338,6 +2339,10 @@ function vSoin() {
       <button class="icon-btn" data-sleep="15" aria-label="Plus 15 minutes" style="background:var(--surface)">+</button>
     </div>
     <div class="chips" style="justify-content:center">${[300, 360, 420, 480, 540].map(v => `<button class="chip" data-sleep="=${v}" aria-pressed="${m === v}">${v / 60} h</button>`).join('')}</div>
+    <p class="eyebrow" style="margin-top:18px">Sieste aujourd'hui</p>
+    <div class="chips">${[[0, 'Aucune'], [20, '20 min'], [30, '30 min'], [60, '1 h'], [90, '1 h 30']].map(([v, l]) => `<button class="chip" data-nap="${v}" aria-pressed="${nap === v}">${l}</button>`).join('')}</div>
+    ${nap || m ? `<p class="small" style="margin:12px 0 0">Total sur la journée : <b class="num" style="color:var(--${tot >= 420 ? 'gold' : 'warn'})">${fmtDur(tot)}</b>${nap ? ` <span class="muted">(nuit ${m ? fmtDur(m) : '—'} + sieste ${fmtDur(nap)})</span>` : ''}</p>` : ''}
+    <p class="hint">Le matin, note ta nuit. Si tu fais une sieste dans la journée, ajoute-la : elle s'empile en vert sur la barre du jour. Soir de Mister Pizza puis gare ? Une sieste de 20 à 30 min, ou de 90 min (un cycle complet), évite de te réveiller en plein sommeil profond.</p>
     ${avg && avg < 420 ? `<div class="alert">${ICON.warn}<span>Moins de 7 h en moyenne : le muscle se construit surtout la nuit. Une seule nuit blanche fait chuter d'environ 18 % la fabrication de muscle le lendemain. Après la gare, une sieste de 20 min aide.</span></div>` : ''}
   </section>
   <section>
@@ -3390,10 +3395,16 @@ document.addEventListener('click', e => {
   if ((el = c('[data-kadj]'))) { const pr = S.body.profile; pr.adj = numv(pr.adj) + Number(el.dataset.kadj); pr.adjAt = todayISO(); save(); render(); toast(`Cible ajustée : ${bodyTargets().kcal.toLocaleString('fr-FR')} kcal`); return; }
   if ((el = c('[data-sleep]'))) {
     const k = todayISO(), v = el.dataset.sleep, cur = S.body.sleep[k] || 420;
-    const was = S.body.sleep[k] || 0;
+    const was = sleepTot(k);
     S.body.sleep[k] = v[0] === '=' ? Number(v.slice(1)) : Math.max(60, Math.min(720, cur + (S.body.sleep[k] ? Number(v) : 0)));
     save(); haptic();
-    if (was < 420 && S.body.sleep[k] >= 420) reward(2); else if (was >= 420 && S.body.sleep[k] < 420) unreward(2); const sy = window.scrollY; render(); window.scrollTo(0, sy); return;
+    const now = sleepTot(k); if (was < 420 && now >= 420) reward(2); else if (was >= 420 && now < 420) unreward(2); const sy = window.scrollY; render(); window.scrollTo(0, sy); return;
+  }
+  if ((el = c('[data-nap]'))) {
+    const k = todayISO(), was = sleepTot(k), v = Number(el.dataset.nap);
+    S.body.nap = S.body.nap || {}; if (v) S.body.nap[k] = v; else delete S.body.nap[k];
+    save(); haptic();
+    const now = sleepTot(k); if (was < 420 && now >= 420) reward(2); else if (was >= 420 && now < 420) unreward(2); const sy = window.scrollY; render(); window.scrollTo(0, sy); return;
   }
   if ((el = c('[data-wake]'))) { S.body.wake = el.dataset.wake; save(); const sy = window.scrollY; render(); window.scrollTo(0, sy); return; }
   if ((el = c('[data-fitra]'))) {
