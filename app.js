@@ -1,4 +1,4 @@
-/* Sayko de poche — v2.11
+/* Sayko de poche — v2.12
    App 100 % locale : aucune donnée ne quitte le téléphone. */
 'use strict';
 
@@ -333,7 +333,7 @@ function normalize(s) {
   if (out.money.life == null) out.money.life = '';
   out.money.pots.forEach(p => { if (p.safety && String(p.target || '').trim() === '') p.target = String(out.money.safetyGoal); });
   const df = defaultFaith(), sf = (s && s.faith) || {};
-  out.faith = { habits: Array.isArray(sf.habits) && sf.habits.length ? sf.habits : df.habits, log: sf.log && typeof sf.log === 'object' ? sf.log : {} };
+  out.faith = { habits: Array.isArray(sf.habits) && sf.habits.length ? sf.habits : df.habits, log: sf.log && typeof sf.log === 'object' ? sf.log : {}, pt: sf.pt && typeof sf.pt === 'object' ? sf.pt : undefined };
   out.unlocks = (s && s.unlocks && typeof s.unlocks === 'object') ? s.unlocks : {};
   out.biz = { projects: s && s.biz && Array.isArray(s.biz.projects) ? s.biz.projects : [] };
   out.body = normalizeBody(s && s.body);
@@ -655,7 +655,7 @@ function vOrbite() {
         const b = S.body.active ? 'Séance en cours' : n >= ph.perWeek ? 'Séances de la semaine faites' : isFastDay() ? 'Jour de jeûne · repos' : `Séance ${nextTpl(ph)} · ${ph.name}`;
         return `<button class="today-item" data-goto="corps">${miniOrb(n / ph.perWeek, 'corps')}<span><b>${b}</b><span class="s">${t ? `Protéines ${fd.p} / ${t.prot} g aujourd'hui` : `${n}/${ph.perWeek} séances cette semaine`}</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="parcours">${miniOrb(modPct(cur), 'parcours')}<span><b>Mois ${cm} · ${esc(cur.title)}</b><span class="s">${modDone(cur)} acquis sur ${cur.acq.length}</span></span>${ICON.chev}</button>
-      ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours</span></span>${ICON.chev}</button>`; })()}
+      ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">${(() => { const pn = prayerNow(), nx = nextPrayer(); return pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine : ${PNAMES[nx.id]} à ${hm(nx.start)}` : `Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours`; })()}</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="arabe">${miniOrb(wordsKnown() / WORDS.length, 'arabe', true)}<span><b>Réviser 5 mots</b><span class="s">${wordsKnown()} mots maîtrisés sur ${WORDS.length}</span></span>${ICON.chev}</button>
     </div>
   </section>`;
@@ -1632,15 +1632,16 @@ function defaultFaith() {
 const FAITH_GOAL = 0.9, FAITH_DAYS = 30;
 const F = { view: 'habitudes', day: todayISO() };
 try { const v = localStorage.getItem('sdp-foi-view'); if (v === 'habitudes' || v === 'arabe') F.view = v; } catch (e) {}
-const dayDone = k => { const d = S.faith.log[k] || {}; return S.faith.habits.filter(h => d[h.id]).length; };
+const dayDone = k => { const d = S.faith.log[k] || {}; return S.faith.habits.filter(h => d[h.id] && d[h.id] !== 'x').length; };
+const dayW = k => { const d = S.faith.log[k] || {}; return S.faith.habits.reduce((m, h) => m + (h.prayer ? pWeight(d[h.id]) : d[h.id] ? 1 : 0), 0); };
 /* Régularité sur 30 jours : la journée en cours ne compte que lorsqu'elle est complète. */
 function faithScore() {
   const hs = S.faith.habits, n = hs.length; if (!n) return { pct: 0, tracked: 0, done: 0, need: 0, total: 0 };
   const todayFull = dayDone(todayISO()) === n, off = todayFull ? 0 : 1;
   let done = 0, tracked = 0;
-  for (let i = off; i < off + FAITH_DAYS; i++) { const k = iso(addDays(new Date(), -i)), c = dayDone(k); done += c; if (c) tracked++; }
+  for (let i = off; i < off + FAITH_DAYS; i++) { const k = iso(addDays(new Date(), -i)), c = dayDone(k); done += dayW(k); if (c) tracked++; }
   const total = n * FAITH_DAYS;
-  return { pct: done / total, tracked, done, total, need: Math.max(0, Math.ceil(FAITH_GOAL * total) - done) };
+  return { pct: done / total, tracked, done, total, need: Math.max(0, Math.ceil(FAITH_GOAL * total - done)) };
 }
 
 const BIZ_DOMAINS = ['rel', 'psy', 'vente', 'nego', 'mkt', 'jur'];
@@ -1737,7 +1738,12 @@ function vHabits() {
   const ANG = { fajr: 196, dhuhr: 94, asr: 46, maghrib: 6, isha: -34 }, R = 136;
   const prayers = S.faith.habits.filter(h => h.prayer && ANG[h.id] != null);
   const nodes = prayers.map(h => { const a = ANG[h.id] * Math.PI / 180, x = R * Math.cos(a), y = -R * Math.sin(a), p = PRAYERS.find(q => q[0] === h.id);
-    return `<button class="prayer ${d[h.id] ? 'on' : ''}" data-habit="${h.id}" aria-pressed="${!!d[h.id]}" aria-label="${esc(h.name)}" style="left:${((x + 180) / 360 * 100).toFixed(2)}%;top:${((y + 160) / 250 * 100).toFixed(2)}%"><span class="ar" lang="ar">${p[2]}</span><small>${p[1]}</small></button>`; }).join('');
+    const v = pv(d[h.id]), pt = ptDay(k).win[h.id];
+    return `<button class="prayer ${v && v !== 'x' ? 'on' : ''} ${v ? 'w-' + v : ''}" data-prayer="${h.id}" aria-label="${esc(PNAMES[h.id])} ${hm(pt[0])}${v ? ', ' + PWAY[v][0] : ''}" style="left:${((x + 180) / 360 * 100).toFixed(2)}%;top:${((y + 160) / 250 * 100).toFixed(2)}%"><span class="ar" lang="ar">${p[2]}</span><small>${hm(pt[0]).replace(' h ', ':')}</small>${v ? `<i class="pbadge">${PICON(v, 12)}</i>` : ''}</button>`; }).join('');
+  const pn = isToday ? prayerNow() : null, nx = isToday && !pn ? nextPrayer() : null;
+  const pnLine = pn ? (d[pn.id] && pn.k === k ? `${PNAMES[pn.id]} validée · prochaine à ${hm(nextPrayer().start)}` : `<b>${PNAMES[pn.id]}</b> en cours · se termine à ${hm(pn.end)}, dans ${leftTxt(pn.end - new Date())}`) : nx ? `Prochaine prière : <b>${PNAMES[nx.id]}</b> à ${hm(nx.start)}` : '';
+  const ym = k.slice(0, 7); let cm = 0, cg = 0, cs = 0, cr = 0, cx = 0; Object.keys(S.faith.log).filter(x => x.startsWith(ym)).forEach(x => { const dd = S.faith.log[x]; ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].forEach(id => { const w = pv(dd[id]); if (w === 'm') cm++; else if (w === 'g') cg++; else if (w === 's') cs++; else if (w === 'r') cr++; else if (w === 'x') cx++; }); });
+  let fs = 0; for (let i = (pWeight((S.faith.log[todayISO()] || {}).fajr) === 1 ? 0 : 1); i < 400; i++) { if (pWeight((S.faith.log[iso(addDays(new Date(), -i))] || {}).fajr) === 1) fs++; else break; }
   const others = S.faith.habits.filter(h => !(h.prayer && ANG[h.id] != null));
   const nDone = dayDone(k), n = S.faith.habits.length;
   const start = addDays(new Date(), -(FAITH_DAYS - 1));
@@ -1748,6 +1754,7 @@ function vHabits() {
   <div class="month-nav" style="margin-top:24px"><p class="eyebrow" style="text-transform:uppercase">${dayLbl}</p><div class="row" style="gap:0">
     <button class="icon-btn" data-fstep="-1" aria-label="Jour précédent" ${k <= iso(start) ? 'disabled style="opacity:.3"' : ''}>${ICON.prev}</button>
     <button class="icon-btn" data-fstep="1" aria-label="Jour suivant" ${isToday ? 'disabled style="opacity:.3"' : ''}>${ICON.next}</button></div></div>
+  ${pnLine ? `<p class="pnow ${pn && !(d[pn.id] && pn.k === k) && pn.end - new Date() < 45 * 60000 ? 'hot' : ''}">${pnLine}</p>` : ''}
   <div class="sunpath">
     <svg viewBox="-180 -160 360 250" aria-hidden="true">
       <path d="M-170 0 L170 0" stroke="var(--line)" stroke-width="1"/><text x="-170" y="-6" style="font-size:8px;font-weight:700;letter-spacing:.14em;fill:var(--muted)">HORIZON</text>
@@ -1757,7 +1764,13 @@ function vHabits() {
     </svg>
     ${nodes}
   </div>
+  <p class="hint" style="text-align:center;margin-top:34px">Touche une prière pour dire comment tu l'as faite.</p>
   ${others.length ? `<div class="checks" style="margin-top:6px">${others.map(h => checkbox(h.id, esc(h.name), 'data-habitc', !!d[h.id])).join('')}</div>` : ''}
+  <section>
+    <p class="eyebrow">Tes prières · ${MONTH_FMT.format(parseDate(k))}</p>
+    <div class="pstats">${[['m', cm], ['g', cg], ['s', cs], ['r', cr], ['x', cx]].map(([w, c]) => `<div class="w-${w}"><i>${PICON(w, 16)}</i><b class="num">${c}</b><span>${PWAY[w][0]}</span></div>`).join('')}</div>
+    <p class="small" style="margin-top:12px">${fs ? `<b style="color:var(--gold)">${fs} jour${fs > 1 ? 's' : ''}</b> d'affilée avec Fajr à l'heure.` : 'Fajr à l\'heure demain : la série commence là.'}</p>
+  </section>
   <section>
     <div class="row between" style="align-items:flex-end"><div><p class="eyebrow">Régularité · 30 derniers jours</p><p class="num" style="font:400 3.25rem/1.05 var(--serif);color:var(--${ok ? 'mint' : 'gold'});margin-top:4px">${Math.round(sc.pct * 100)} %</p></div>
       <p class="small muted" style="text-align:right">objectif ${Math.round(FAITH_GOAL * 100)} %<br>${sc.tracked}/${FAITH_DAYS} jours suivis</p></div>
@@ -1772,9 +1785,148 @@ function openFaithSetup() {
   $('#ideasBody').innerHTML = `<div class="grab"></div><div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Mes habitudes</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
     <p class="small muted">Toutes ces habitudes comptent dans ta régularité. Les 5 prières restent sur le chemin du soleil.</p>
     <div style="margin-top:14px">${S.faith.habits.map(h => `<div class="srow"><input data-hset="${h.id}" value="${esc(h.name)}" aria-label="Nom de l'habitude" style="flex:1" ${h.prayer ? 'readonly' : ''}>${h.prayer ? '<span class="pill" style="flex:none">Prière</span>' : `<button class="icon-btn" data-hdel="${h.id}" aria-label="Supprimer"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`}</div>`).join('')}</div>
-    <div class="srow" style="margin-top:14px"><input id="hNew" placeholder="Ex. Adhkar du matin" aria-label="Nouvelle habitude" style="flex:1"><button class="btn sm" data-hadd>Ajouter</button></div>`;
+    <div class="srow" style="margin-top:14px"><input id="hNew" placeholder="Ex. Adhkar du matin" aria-label="Nouvelle habitude" style="flex:1"><button class="btn sm" data-hadd>Ajouter</button></div>
+    <p class="gt">Horaires de ta mosquée</p>
+    <p class="small muted" style="margin:0 4px 10px">Calculés pour Cannes. Ajuste chaque prière à la minute pour coller aux horaires de ta mosquée.</p>
+    <div class="group">${(() => { const t = ptDay(todayISO()), o = ptConf().off; return ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].map(id => `<div class="cell"><span class="lbl">${PNAMES[id]}</span><button class="icon-btn" data-poff="${id}.-1" aria-label="Une minute plus tôt">−</button><b class="num" style="min-width:4.2em;text-align:center">${hm(t[id])}</b><button class="icon-btn" data-poff="${id}.1" aria-label="Une minute plus tard">+</button><span class="small muted num" style="min-width:3em;text-align:right">${o[id] ? (o[id] > 0 ? '+' : '') + o[id] + ' min' : ''}</span></div>`).join(''); })()}</div>
+    <p class="hint">Fin de chaque prière : Fajr au lever du soleil, Dhuhr à Asr, Asr à Maghrib, Maghrib à Isha, Isha au milieu de la nuit (${hm(ptDay(todayISO()).midnight)} ce soir).</p>`;
   const d = $('#ideasSheet'); if (!d.open) d.showModal(); d.dataset.mode = 'bsetup';
 }
+/* ----- Prières : horaires, façon de prier, rappels -----
+   Horaires calculés dans le téléphone (formules de PrayTimes.org), réglés par défaut sur Cannes, angle 12°
+   pour Fajr et Isha, Asr standard, puis ajustés à la minute pour coller à la mosquée (S.faith.pt.off).
+   Fenêtres : Fajr → lever du soleil, Dhuhr → Asr, Asr → Maghrib, Maghrib → Isha, Isha → milieu de la nuit.
+   Journal : S.faith.log[date][prière] = 'm' mosquée · 'g' en groupe · 's' seul à l'heure · 'r' rattrapée · 'x' manquée
+   (true, l'ancien format, vaut 's'). Régularité : m/g/s = 1, r = 0,5, x = 0. */
+const PWAY = {
+  m: ['À la mosquée', '<path d="M4 20h16M6 20v-7a6 6 0 0 1 12 0v7M12 7V3.5M10 20v-3.5a2 2 0 0 1 4 0V20"/>'],
+  g: ['En groupe', '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6M15.5 14.3c3 0 5.5 2.2 5.5 5.7"/>'],
+  s: ['Seul, à l\'heure', '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-7 7-7s7 3 7 7"/>'],
+  r: ['Rattrapée', '<path d="M4.5 12a7.5 7.5 0 1 0 2.3-5.4"/><path d="M4 4v4.5h4.5"/>'],
+  x: ['Manquée', '<path d="M6 6l12 12M18 6L6 18"/>']
+};
+const PSHORT = { m: 'Mosquée', g: 'Groupe', s: 'Seul', r: 'Rattrapée' };
+const PICON = (k, sz = 20) => `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PWAY[k][1]}</svg>`;
+const pv = v => v === true ? 's' : v;
+const pWeight = v => { v = pv(v); return v === 'm' || v === 'g' || v === 's' ? 1 : v === 'r' ? 0.5 : 0; };
+const PNAMES = { fajr: 'Fajr', dhuhr: 'Dhuhr', asr: 'Asr', maghrib: 'Maghrib', isha: 'Isha' };
+function ptConf() { const p = S.faith.pt = S.faith.pt || {}; p.lat = p.lat ?? 43.5528; p.lon = p.lon ?? 7.0174; p.fa = p.fa ?? 12; p.ia = p.ia ?? 12; p.off = Object.assign({ fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 }, p.off || {}); if (!p.since) p.since = Date.now(); return p; }
+/* Calcul astronomique (PrayTimes.org, Hamid Zarrabi-Nezhad) */
+const PT = (() => {
+  const dtr = d => d * Math.PI / 180, rtd = r => r * 180 / Math.PI;
+  const sin = d => Math.sin(dtr(d)), cos = d => Math.cos(dtr(d)), tan = d => Math.tan(dtr(d));
+  const asin = x => rtd(Math.asin(x)), acos = x => rtd(Math.acos(x)), atan2 = (y, x) => rtd(Math.atan2(y, x)), acot = x => rtd(Math.atan(1 / x));
+  const fix = (a, b) => { a = a - b * Math.floor(a / b); return a < 0 ? a + b : a; };
+  function sun(jd) {
+    const D = jd - 2451545.0, g = fix(357.529 + 0.98560028 * D, 360), q = fix(280.459 + 0.98564736 * D, 360);
+    const L = fix(q + 1.915 * sin(g) + 0.020 * sin(2 * g), 360), e = 23.439 - 0.00000036 * D;
+    const RA = atan2(cos(e) * sin(L), cos(L)) / 15;
+    return { eqt: q / 15 - fix(RA, 24), decl: asin(sin(e) * sin(L)) };
+  }
+  function julian(y, m, d) { if (m <= 2) { y -= 1; m += 12; } const A = Math.floor(y / 100), B = 2 - A + Math.floor(A / 4); return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + d + B - 1524.5; }
+  return function (date, lat, lon, fa, ia) {
+    const y = date.getFullYear(), mo = date.getMonth() + 1, d = date.getDate();
+    const tz = -new Date(y, mo - 1, d, 12).getTimezoneOffset() / 60, jd = julian(y, mo, d) - lon / (15 * 24);
+    const noon = t => fix(12 - sun(jd + t).eqt, 24);
+    const angle = (a, t, ccw) => { const s = sun(jd + t), T = acos((-sin(a) - sin(s.decl) * sin(lat)) / (cos(s.decl) * cos(lat))) / 15, n = noon(t); return n + (ccw ? -T : T); };
+    const asr = (f, t) => { const s = sun(jd + t); return angle(-acot(f + tan(Math.abs(lat - s.decl))), t); };
+    let t = { fajr: 5, sunrise: 6, dhuhr: 12, asr: 13, sunset: 18, isha: 18 };
+    for (let i = 0; i < 2; i++) {
+      const p = k => t[k] / 24;
+      t = { fajr: angle(fa, p('fajr'), true), sunrise: angle(0.833, p('sunrise'), true), dhuhr: noon(p('dhuhr')), asr: asr(1, p('asr')), sunset: angle(0.833, p('sunset')), isha: angle(ia, p('isha')) };
+    }
+    const adj = h => h + tz - lon / 15;
+    return { fajr: adj(t.fajr), sunrise: adj(t.sunrise), dhuhr: adj(t.dhuhr), asr: adj(t.asr), maghrib: adj(t.sunset), isha: adj(t.isha) };
+  };
+})();
+const ptCache = {};
+/* Horaires d'un jour (objets Date), fenêtres comprises */
+function ptDay(k) {
+  const c = ptConf(), key = k + JSON.stringify(c.off) + c.fa + c.ia + c.lat;
+  if (ptCache[key]) return ptCache[key];
+  const d0 = parseDate(k), h = PT(d0, c.lat, c.lon, c.fa, c.ia), hn = PT(addDays(d0, 1), c.lat, c.lon, c.fa, c.ia);
+  const at = (hours, min = 0) => new Date(d0.getTime() + Math.round((hours * 60 + min)) * 60000);
+  const r = { fajr: at(h.fajr, c.off.fajr), sunrise: at(h.sunrise), dhuhr: at(h.dhuhr, c.off.dhuhr), asr: at(h.asr, c.off.asr), maghrib: at(h.maghrib, c.off.maghrib), isha: at(h.isha, c.off.isha) };
+  r.midnight = at(h.maghrib + ((hn.fajr + 24) - h.maghrib) / 2);
+  r.win = { fajr: [r.fajr, r.sunrise], dhuhr: [r.dhuhr, r.asr], asr: [r.asr, r.maghrib], maghrib: [r.maghrib, r.isha], isha: [r.isha, r.midnight] };
+  return (ptCache[key] = r);
+}
+const hm = d => `${d.getHours()} h ${pad(d.getMinutes())}`;
+const leftTxt = ms => { const m = Math.max(1, Math.round(ms / 60000)); return m >= 60 ? `${Math.floor(m / 60)} h ${pad(m % 60)}` : `${m} min`; };
+/* La prière en cours (aujourd'hui ou Isha d'hier après minuit) */
+function prayerNow(now = new Date()) {
+  for (const k of [todayISO(), iso(addDays(now, -1))]) {
+    const t = ptDay(k);
+    for (const id of Object.keys(t.win)) { const [a, b] = t.win[id]; if (now >= a && now < b) return { k, id, end: b, start: a }; }
+  }
+  return null;
+}
+function nextPrayer(now = new Date()) {
+  for (const k of [todayISO(), iso(addDays(now, 1))]) { const t = ptDay(k); for (const id of Object.keys(t.win)) if (t.win[id][0] > now) return { k, id, start: t.win[id][0] }; }
+  return null;
+}
+const prayerTracked = id => S.faith.habits.some(h => h.id === id && h.prayer);
+/* Prières dont le temps est passé sans validation (depuis l'activation du suivi) */
+function missedPrayers() {
+  const now = new Date(), since = ptConf().since, out = [];
+  for (const k of [iso(addDays(now, -1)), todayISO()]) {
+    const t = ptDay(k), d = S.faith.log[k] || {};
+    Object.keys(t.win).forEach(id => { const [a, b] = t.win[id]; if (prayerTracked(id) && b < now && a.getTime() >= since && !d[id]) out.push({ k, id, start: a }); });
+  }
+  return out;
+}
+function prayerPts(id, v) { v = pv(v); const late = id === 'fajr' || id === 'isha'; return v === 'm' ? (late ? 12 : 6) : v === 'g' ? (late ? 8 : 4) : v === 's' ? 2 : v === 'r' ? 1 : 0; }
+function setPrayer(k, id, v) {
+  const d = S.faith.log[k] = S.faith.log[k] || {}, prev = d[id], n = S.faith.habits.length;
+  const wasFull = dayDone(k) === n, today = k === todayISO() || k === iso(addDays(new Date(), -1));
+  if (v) d[id] = v; else delete d[id];
+  if (!Object.keys(d).length) delete S.faith.log[k];
+  const full = dayDone(k) === n;
+  save(); askPersist();
+  if (today && prev && pv(prev) !== 'x') unreward(prayerPts(id, prev) + (wasFull && !full ? 5 : 0));
+  if (today && prev === 'x') nourAdd(5);
+  if (!v) { render(); return; }
+  if (v === 'x') { nourAdd(-5); save(); refreshSun(); thud(); try { navigator.vibrate && navigator.vibrate(250); } catch (e) {} return; }
+  if (!today) { render(); return; }
+  const late = id === 'fajr' || id === 'isha', pts = prayerPts(id, v) + (full && !wasFull ? 5 : 0);
+  const msg = v === 'm' ? [late ? `${PNAMES[id]} à la mosquée` : 'À la mosquée', late ? 'Celui qui prie Isha en groupe, c\'est comme s\'il avait veillé la moitié de la nuit ; et s\'il prie aussi Fajr en groupe, comme s\'il avait prié toute la nuit.' : 'La prière en groupe vaut vingt-sept fois celle faite seul.', late ? 'Muslim' : 'Bukhari']
+    : v === 'g' ? ['En groupe', 'La prière en groupe vaut vingt-sept fois celle faite seul.', 'Bukhari']
+    : v === 'r' ? ['Rattrapée', 'Tu as tenu, c\'est ce qui compte. La prochaine, à l\'heure, in sha Allah.']
+    : full && !wasFull ? ['Journée de foi complète', 'Qu\'Allah l\'accepte. Les actes les plus aimés sont les plus réguliers.'] : null;
+  render();
+  reward(pts, { big: v === 'm' || (v === 'g' && late) || (full && !wasFull), msg, noBonus: v === 'r' });
+}
+/* Choix de la façon de prier : bulle au-dessus de la prière */
+function openPrayerPick(btn) {
+  closePrayerPick();
+  const id = btn.dataset.prayer, k = F.day, cur = (S.faith.log[k] || {})[id], t = ptDay(k), now = new Date();
+  if (k === todayISO() && t.win[id][0] > now) { toast(`Pas encore l'heure : ${PNAMES[id]} commence à ${hm(t.win[id][0])}.`); return; }
+  const wrap = btn.parentElement, pop = document.createElement('div');
+  pop.className = 'ppick'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', `${PNAMES[id]} : comment l'as-tu faite ?`);
+  pop.innerHTML = `<div class="ppick-o">${['m', 'g', 's', 'r'].map(v => `<button data-pway="${v}" data-pid="${id}" aria-pressed="${pv(cur) === v}">${PICON(v, 18).replace('stroke-width="1.8"', 'stroke-width="1.4"')}<span>${PSHORT[v]}</span></button>`).join('')}</div>${cur ? `<button class="ppick-x" data-pway="" data-pid="${id}">Retirer</button>` : ''}`;
+  wrap.appendChild(pop);
+  const W = wrap.clientWidth, bx = btn.offsetLeft, by = btn.offsetTop, pw = pop.offsetWidth, ph = pop.offsetHeight;
+  const left = Math.max(0, Math.min(W - pw, bx - pw / 2)), below = by - 40 - ph < -60;
+  pop.style.left = `${left}px`;
+  pop.style.top = `${below ? by + 40 : by - 40 - ph}px`;
+  pop.style.setProperty('--cx', `${Math.max(22, Math.min(pw - 22, bx - left))}px`);
+  if (below) pop.classList.add('below');
+  requestAnimationFrame(() => pop.classList.add('on'));
+}
+function closePrayerPick() { $$('.ppick').forEach(p => p.remove()); }
+/* Écran des prières non validées (le poids après) */
+function missedOverlay() {
+  if ($('#missed') || tab === 'z' || tab === 'flux') return;
+  const list = missedPrayers(); if (!list.length) return;
+  const el = document.createElement('div'); el.id = 'missed'; el.className = 'missed';
+  const day = k => k === todayISO() ? 'aujourd\'hui' : 'hier';
+  el.innerHTML = `<div class="in"><p class="eyebrow" style="color:#7E8F88">Prières non validées</p><h2>${list.length === 1 ? 'Une prière attend ta réponse.' : `${list.length} prières attendent ta réponse.`}</h2>
+    <p class="small" style="color:#9DB0A8">Leur temps est passé sans que tu les valides. Sois honnête : c'est toi que ça sert.</p>
+    ${list.map(p => `<div class="mrow" data-mk="${p.k}" data-mid="${p.id}"><p><b>${PNAMES[p.id]}</b> · ${day(p.k)}, ${hm(p.start)}</p><div class="mch">${['m', 'g', 's', 'r', 'x'].map(v => `<button data-mway="${v}">${PICON(v, 18)}<span>${PWAY[v][0]}</span></button>`).join('')}</div></div>`).join('')}
+    <button class="btn block" data-mdone style="margin-top:22px">Plus tard</button></div>`;
+  document.body.appendChild(el); thud();
+}
+
 function toggleHabit(id) {
   const k = F.day, d = S.faith.log[k] = S.faith.log[k] || {};
   const on = !d[id], h = S.faith.habits.find(x => x.id === id), pts = h && h.prayer ? 2 : 1;
@@ -2483,8 +2635,9 @@ function yesterdayCard() {
 }
 /* Tension du soir : ce qui s'éteint à minuit. */
 function atStake() {
-  const h = new Date().getHours(); if (h < 19) return '';
-  const k = todayISO(), items = [], st = streak();
+  const h = new Date().getHours(), k = todayISO(), items = [], st = streak();
+  const pn = prayerNow(); if (pn && prayerTracked(pn.id) && !(S.faith.log[pn.k] || {})[pn.id] && pn.end - new Date() < 60 * 60000) items.push(['habitudes', `${PNAMES[pn.id]} se termine à ${hm(pn.end)}`, `${leftTxt(pn.end - new Date())}`]);
+  if (h < 19) return items.length ? `<div class="stake"><p class="eyebrow" style="color:var(--warn)">Maintenant</p>${items.map(i => `<button class="stake-i" data-goto="${i[0]}"><span>${i[1]}</span><b class="num">${i[2]}</b></button>`).join('')}</div>` : '';
   if (!S.days[k] && st > 0) items.push(['routine', `Ta série de routine (${st} j) s'éteint à minuit`, `${todayBlocks()}/4 blocs`]);
   const n = S.faith.habits.length, dn = dayDone(k); if (dn < n) items.push(['habitudes', `Journée de foi incomplète`, `${dn}/${n}`]);
   const t = bodyTargets(); if (t && foodDay().p < t.prot) items.push(['nutrition', 'Protéines pas encore atteintes', `${foodDay().p}/${t.prot} g`]);
@@ -3138,7 +3291,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.6 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.12 · fonctionne hors ligne</p>`;
   $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -3201,7 +3354,7 @@ function openIdeas() {
    ===================================================================== */
 const TABS = ['orbite', 'flux', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business'];
 const CVIEWS = ['entrainement', 'nutrition', 'soin'];
-let tab = 'orbite';
+let tab = 'orbite', missedDismissed = false;
 function render(animate) {
   const app = $('#app');
   stopOrbit();
@@ -3212,6 +3365,7 @@ function render(animate) {
   app.innerHTML = { orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
   coreGlyph();
   if (tab === 'orbite') startOrbit();
+  if ((tab === 'orbite' || tab === 'foi') && !missedDismissed) setTimeout(missedOverlay, 700);
   if (tab === 'flux') bindFlux();
   if (tab === 'parcours') bindParcours();
   if (tab === 'foi' && F.view === 'arabe') { if (quiz && !quiz.answered) drawQuiz(); else nextQuiz(); }
@@ -3319,6 +3473,18 @@ document.addEventListener('click', e => {
   if ((el = c('[data-fstep]'))) { F.day = iso(addDays(parseDate(F.day), Number(el.dataset.fstep))); render(); return; }
   if ((el = c('[data-fday]'))) { F.day = el.dataset.fday; render(); return; }
   if ((el = c('[data-habit]'))) { toggleHabit(el.dataset.habit); return; }
+  if ((el = c('[data-prayer]'))) { if (c('.ppick')) return; openPrayerPick(el); return; }
+  if ((el = c('[data-pway]'))) { const id = el.dataset.pid, v = el.dataset.pway; closePrayerPick(); setPrayer(F.day, id, v || null); return; }
+  if (!c('.ppick') && $('.ppick')) closePrayerPick();
+  if ((el = c('[data-mway]'))) {
+    const row = el.closest('.mrow'), v = el.dataset.mway; if (row.dataset.done) return;
+    row.dataset.done = '1'; $$('button', row).forEach(b => { b.disabled = true; b.classList.toggle('on', b === el); });
+    setPrayer(row.dataset.mk, row.dataset.mid, v);
+    if ($$('.mrow').every(r => r.dataset.done)) { const b = $('[data-mdone]'); if (b) b.textContent = 'Continuer'; }
+    return;
+  }
+  if (c('[data-mdone]')) { const m = $('#missed'); if (m) { m.classList.add('out'); setTimeout(() => m.remove(), 300); } if ($$('.mrow').some(r => !r.dataset.done)) missedDismissed = true; return; }
+  if ((el = c('[data-poff]'))) { const [id, dlt] = el.dataset.poff.split('.'), o = ptConf().off; o[id] = (o[id] || 0) + Number(dlt === '-1' ? -1 : 1); save(); openFaithSetup(); return; }
   if (c('[data-fsetup]')) { openFaithSetup(); return; }
   if (c('[data-hadd]')) { const v = $('#hNew').value.trim(); if (!v) return; S.faith.habits.push({ id: 'h-' + uid(), name: v }); save(); openFaithSetup(); return; }
   if ((el = c('[data-hdel]'))) { S.faith.habits = S.faith.habits.filter(h => h.id !== el.dataset.hdel); save(); openFaithSetup(); return; }
@@ -3595,6 +3761,7 @@ $('#ideasSheet').addEventListener('close', () => { if ($('#ideasSheet').dataset.
 let lastDay = todayISO();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { stopOrbit(); if (tab === 'z') { zLock(); tab = 'orbite'; render(); } return; }
+  missedDismissed = false; if (tab === 'orbite' || tab === 'foi') setTimeout(missedOverlay, 700);
   if (todayISO() !== lastDay) { lastDay = todayISO(); H.form = null; H.month = todayISO().slice(0, 7); A.month = H.month; P.sel = null; render(); }
   else if (tab === 'orbite') startOrbit();
 });
