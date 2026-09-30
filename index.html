@@ -783,6 +783,34 @@ dialog.sheet[open]{animation:up .38s var(--ease)}
 
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.28s;animation-timing-function:cubic-bezier(.2,.8,.2,1)}
 
+
+/* ---------- Dhikr ---------- */
+.dkchips{display:flex;gap:8px;overflow-x:auto;margin:18px -20px 0;padding:2px 20px 6px;scrollbar-width:none}
+.dkchips::-webkit-scrollbar{display:none}
+.dkchips .chip{flex:none;white-space:nowrap}
+.dkform{display:grid;gap:8px;margin-top:12px}
+.dkform input{min-height:44px;border:0;border-radius:12px;background:var(--surface);padding:0 12px;color:var(--ink);font:inherit}
+.dkf{text-align:center;margin-top:20px}
+.dkf .ar{margin:0;font:400 2rem/1.6 var(--ar);color:var(--gold)}
+.dktr{margin:2px 0 0;font:400 1.35rem var(--serif)}
+.dktap{position:relative;display:grid;place-items:center;width:min(250px,68vw);aspect-ratio:1;margin:18px auto 0;border-radius:50%;background:radial-gradient(circle at 50% 40%,var(--raise),var(--surface));box-shadow:0 0 0 1px var(--line),0 18px 40px -18px rgba(0,0,0,.5);touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.dktap svg{position:absolute;inset:0;width:100%;height:100%}
+.dktap span{position:relative;display:flex;flex-direction:column;align-items:center;pointer-events:none}
+.dktap b{font:400 4.2rem/1 var(--serif);color:var(--ink)}
+.dktap small{margin-top:6px;font-size:.75rem;font-weight:600;color:var(--muted)}
+.dktap.hit{animation:dkhit .22s var(--ease)}
+@keyframes dkhit{40%{transform:scale(.965);box-shadow:0 0 0 1px var(--line),0 0 0 10px var(--glow)}}
+.dkstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px}
+.dkstats div{display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:14px;background:var(--surface)}
+.dkstats b{font:400 1.6rem/1.1 var(--serif)}.dkstats span{font-size:.6875rem;color:var(--muted);margin-top:2px}
+
+/* ---------- Cheveux ---------- */
+.hadv{border-bottom:1px solid var(--line)}
+.hadv summary{list-style:none;cursor:pointer;padding:14px 0;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.hadv summary::-webkit-details-marker{display:none}
+.hadv summary::after{content:"+";font:400 1.4rem/1 var(--serif);color:var(--muted);transition:transform .25s var(--ease)}
+.hadv[open] summary::after{transform:rotate(45deg)}
+.hadv p{margin:0 0 14px;line-height:1.55;color:var(--ink-2)}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
