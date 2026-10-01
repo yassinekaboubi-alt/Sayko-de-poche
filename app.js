@@ -1285,9 +1285,28 @@ function lifeBudget(ym) {
   if (!env && !hist) return { v: 0, src: 'inconnu' };
   return hist > env ? { v: Math.round(hist), src: 'historique' } : { v: env, src: 'enveloppes' };
 }
+/* Budget de vie laissé vide : l'app partage elle-même ce qui reste après les charges
+   en trois parts (toi, remboursement, épargne), selon la phase. Arrondi à 10 € ;
+   les arrondis et ce qui dépasse un plafond reviennent à la part « pour toi ». */
+const SPLIT = { 1: [.30, .35, .35], 2: [.30, .55, .15], 3: [.35, 0, .65], 4: [.40, 0, .60] };
+const partsMode = () => String(S.money.life).trim() === '';
+function splitPlan(ym, incTotal, fixTotal, carry) {
+  const M = S.money, others = M.pots.filter(p => !p.safety).reduce((a, p) => a + numv(p.monthly), 0);
+  const remDebt = Math.max(0, numv(M.debt.total) - debtRepaid(prevMonth(ym)));
+  const sp = M.pots.find(p => p.safety), safeBal = sp ? potBalance(sp, prevMonth(ym)) : 0;
+  const safeNeed = Math.max(0, (numv(M.safetyGoal) || 4000) - safeBal);
+  const avail = incTotal + carry - fixTotal - others;
+  const phase = remDebt > 0 && safeBal < STARTER_CUSHION ? 1 : remDebt > 0 ? 2 : safeNeed > 0 ? 3 : 4;
+  const [, rd, rs] = SPLIT[phase], base = Math.max(0, avail), r10 = v => Math.floor(v / 10) * 10;
+  let debt = Math.min(remDebt, r10(base * rd)), safety = Math.min(phase === 4 ? Infinity : safeNeed, r10(base * rs));
+  const spare = r10(base * rd) - debt; if (spare > 0 && safety < safeNeed) safety += Math.min(spare, safeNeed - safety);
+  const toi = Math.max(0, avail - debt - safety);
+  return { ok: true, auto: true, parts: true, avail, surplus: debt + safety, debt, safety, toi, extra: 0, phase: avail <= 0 ? 0 : phase, life: { v: toi, src: 'part' }, others, remDebt, safeBal };
+}
 function autoPlan(ym, incTotal, fixTotal, carry = 0) {
   const M = S.money, L = lifeBudget(ym);
   if (!(incTotal > 0)) return { ok: false, why: 'revenus', life: L };
+  if (partsMode()) return splitPlan(ym, incTotal, fixTotal, carry);
   if (!(L.v > 0)) return { ok: false, why: 'vie', life: L };
   const others = M.pots.filter(p => !p.safety).reduce((a, p) => a + numv(p.monthly), 0);
   const remDebt = Math.max(0, numv(M.debt.total) - debtRepaid(prevMonth(ym)));
@@ -1323,6 +1342,27 @@ function vPlanCard(b) {
   const P = b.plan, ym = A.month;
   if (!P.ok) return `<div class="plan-card"><p class="eyebrow">Plan du mois</p><p style="margin-top:8px">${P.why === 'revenus' ? 'Le plan se calcule dès que tu saisis un revenu reçu pour ce mois (dans « Revenus reçus », juste en dessous). Il se réajuste à chaque nouvelle rentrée.' : 'Indique ton <b>budget de vie</b> (courses, essence, sorties…) ou des plafonds d\'enveloppes : l\'app doit savoir ce qu\'il te faut pour vivre avant de répartir le reste.'}</p><button class="btn sm ghost" ${P.why === 'revenus' ? 'data-openinc' : 'data-bsetup'} style="margin-top:12px">${P.why === 'revenus' ? 'Saisir un revenu reçu' : 'Compléter mon mois type'}</button></div>`;
   const o = (S.money.months[ym] || {}).plan, edited = !P.auto;
+  if (P.parts) {
+    const pc = SPLIT[P.phase] || [0, 0, 0], toi = Math.max(0, P.avail - P.debt - P.safety);
+    const why = ['Tes revenus couvrent tout juste tes charges : rien n\'est réservé ce mois-ci. Chaque euro remboursé ou épargné est un bonus.',
+      'Tant que ton épargne est sous 1 000 €, l\'app garde 30 % pour toi et partage le reste moitié-moitié entre la dette et l\'épargne.',
+      'Premier coussin atteint : 30 % pour toi, 55 % pour la dette pour t\'en libérer vite, 15 % d\'épargne.',
+      'Dette soldée : 35 % pour toi, 65 % vers ton épargne de sécurité.',
+      'Fondations posées : 40 % pour toi, 60 % à épargner ou investir.'][P.phase];
+    return `<div class="plan-card">
+    <p class="eyebrow">Plan du mois · ${edited ? 'modifié par toi' : 'calculé par l\'app'}</p>
+    <p class="small muted" style="margin:6px 0 0">Après tes charges, il reste <b class="num" style="color:var(--ink)">${eur0(Math.max(0, P.avail))}</b> à partager.</p>
+    <div class="plan-split three">
+      <div><span>Pour toi</span><b class="num">${eur0(toi)}</b><small>${P.phase ? `${Math.round(toi / Math.max(1, P.avail) * 100)} %` : ''}</small></div>
+      <div><span>Remboursement</span><b class="num">${eur0(P.debt)}</b><small>${P.remDebt ? `reste ${eur0(P.remDebt)}` : 'soldé'}</small></div>
+      <div><span>Épargne</span><b class="num">${eur0(P.safety)}</b></div>
+    </div>
+    <p class="small" style="margin-top:8px">${why} « Pour toi » couvre tes sorties et tes achats : c'est ton reste à vivre ci-dessous. Le plan se réajuste à chaque revenu reçu.</p>
+    ${edited && P.debt + P.safety > Math.max(0, P.avail) ? `<div class="alert" style="margin-top:10px">${ICON.warn}<span>Ton plan dépasse ce qui reste après tes charges de ${eur0(P.debt + P.safety - Math.max(0, P.avail))}.</span></div>` : ''}
+    <div id="planEdit"></div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">${edited ? '<button class="btn sm quiet" data-planreset>Revenir au calcul auto</button>' : ''}<button class="btn sm ghost" data-planedit>Modifier ce mois</button></div>
+  </div>`;
+  }
   return `<div class="plan-card">
     <div class="row between"><p class="eyebrow">Plan du mois · ${edited ? 'modifié par toi' : 'calculé par l\'app'}</p></div>
     <div class="plan-split">
@@ -1596,7 +1636,7 @@ function openBudgetSetup() {
     <button class="btn sm quiet" data-madd="fixed">+ Ajouter une charge</button>
     <p class="gt">Plan automatique</p>
     <div class="group"><div class="cell"><label for="mAuto">Laisser l'app calculer la dette et l'épargne de sécurité chaque mois</label><span class="switch"><input type="checkbox" id="mAuto" ${M.auto ? 'checked' : ''}><span></span></span></div>
-      <div class="cell"><label for="mLife">Budget de vie mensuel<span class="small muted" style="display:block">courses, essence, sorties… ${(() => { const L = lifeBudget(A.month); return L.src === 'manuel' ? '' : L.v ? `(auto : ${eur0(L.v)})` : '(à renseigner)'; })()}</span></label><input class="r" id="mLife" inputmode="decimal" value="${esc(String(M.life || '').replace('.', ','))}" placeholder="auto"><span class="unit">€</span></div></div>
+      <div class="cell"><label for="mLife">Budget de vie mensuel<span class="small muted" style="display:block">${String(M.life || '').trim() === '' ? 'Laisse vide : l\'app partage elle-même ce qui reste entre toi, la dette et l\'épargne.' : 'Montant fixe pour vivre ; vide-le pour revenir au partage automatique.'}</span></label><input class="r" id="mLife" inputmode="decimal" value="${esc(String(M.life || '').replace('.', ','))}" placeholder="auto"><span class="unit">€</span></div></div>
     <p class="hint">Avec le plan automatique, l'app garde ton budget de vie, puis répartit 90 % du reste entre la dette et l'épargne selon tes priorités. Tu peux corriger chaque mois.</p>
     <p class="gt">Dette · montant total, déjà remboursé${M.auto ? '' : ', mensualité'}</p>
     <div class="srow"><input data-dset="total" inputmode="decimal" value="${esc(String(M.debt.total || '').replace('.', ','))}" placeholder="Total €" aria-label="Montant total de la dette" style="flex:1"><input data-dset="start" inputmode="decimal" value="${esc(String(M.debt.start || '').replace('.', ','))}" placeholder="Déjà remboursé €" aria-label="Déjà remboursé" style="flex:1">${M.auto ? '' : `<input data-dset="monthly" inputmode="decimal" value="${esc(String(M.debt.monthly || '').replace('.', ','))}" placeholder="€/mois" aria-label="Mensualité" style="flex:.8">`}</div>
@@ -3296,7 +3336,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.14 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.15 · fonctionne hors ligne</p>`;
   $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
