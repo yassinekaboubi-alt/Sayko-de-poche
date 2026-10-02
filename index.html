@@ -814,6 +814,58 @@ dialog.sheet[open]{animation:up .38s var(--ease)}
 .hadv summary::after{content:"+";font:400 1.4rem/1 var(--serif);color:var(--muted);transition:transform .25s var(--ease)}
 .hadv[open] summary::after{transform:rotate(45deg)}
 .hadv p{margin:0 0 14px;line-height:1.55;color:var(--ink-2)}
+
+/* ---------- Foi · Cœur ---------- */
+.hgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:18px}
+.hcell{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 2px 9px;border-radius:14px;background:var(--surface);min-height:0}
+.hcell .ar{font:400 1.05rem/1.5 var(--ar);color:var(--muted)}
+.hcell b{font-size:.75rem;font-weight:650}
+.hcell i{display:flex;gap:3px;margin-top:3px}.hcell em{width:6px;height:6px;border-radius:50%;background:var(--raise)}.hcell em.f{background:var(--gold)}
+.hcell small{position:absolute;top:-6px;right:-2px;padding:1px 6px;border-radius:99px;background:var(--gold);color:var(--gold-ink);font-size:.5625rem;font-weight:700;letter-spacing:.04em}
+.hcell.on{box-shadow:inset 0 0 0 1.5px var(--gold)}.hcell.on .ar{color:var(--gold)}
+.hcell.lv3{background:color-mix(in srgb,var(--gold) 14%,var(--surface))}
+.hcard{margin-top:18px;padding:18px 16px 4px;border-radius:var(--r);background:var(--surface)}
+.hbig{margin:0 0 8px;text-align:center;font:400 2.6rem/1.9 var(--ar);color:var(--gold)}
+.hsteps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px}
+.hsteps div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.6875rem;font-weight:600;color:var(--muted)}
+.hsteps i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;background:var(--raise);font-size:.75rem}
+.hsteps i svg{width:13px;height:13px;stroke:var(--gold-ink);stroke-width:3;fill:none}
+.hsteps .ok i{background:var(--gold)}.hsteps .now i{box-shadow:inset 0 0 0 2px var(--gold);color:var(--gold)}.hsteps .now{color:var(--ink)}
+.hq{margin:0 0 6px;padding:12px 14px;border-radius:14px;background:var(--gold-soft)}
+.hq p{margin:0;font:400 1.08rem/1.45 var(--serif)}.hq cite{display:block;margin-top:6px;font-style:normal;font-size:.6875rem;font-weight:600;color:var(--muted)}
+.hq.sm{margin:4px 0 12px}.hq.sm p{font-size:.98rem}
+.hcard textarea{width:100%;border:0;border-radius:12px;background:var(--raise);color:var(--ink);padding:10px 12px;font:inherit}
+.hcard .zlbl{display:block;margin:12px 0 6px;font-size:.8125rem;font-weight:600;color:var(--ink-2)}
+.hadv summary{gap:6px}
+
+/* ---------- Sadaqa & zakat ---------- */
+.sqcard,.zkcard{padding:16px;border-radius:var(--r);background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)}
+.zkcard{margin-top:18px}.zkcard p{margin:0;line-height:1.5}
+/* ---------- Duʿa ---------- */
+.hcell small.t2{background:var(--mint);color:var(--surface)}
+.dsteps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:4px 0 12px}
+.dsteps div{display:flex;flex-direction:column;gap:5px;font-size:.6875rem;font-weight:600;color:var(--muted);text-align:center}
+.dsteps i{height:5px;border-radius:3px;background:var(--raise)}
+.dsteps .ok i{background:var(--gold)}.dsteps .now i{background:linear-gradient(90deg,var(--gold),var(--raise))}.dsteps .now{color:var(--ink)}
+.dnow{padding:12px 14px;border-radius:14px;background:var(--gold-soft);margin-bottom:12px}
+.dstart{display:flex;gap:6px;overflow-x:auto;margin:0 -16px 8px;padding:2px 16px 4px;scrollbar-width:none}
+.dstart::-webkit-scrollbar{display:none}.dstart .chip{flex:none;white-space:nowrap}
+.djent{padding:12px 14px;border-radius:14px;background:var(--surface);margin-bottom:8px}
+.djent p{margin:0;font:400 1.05rem/1.5 var(--serif);white-space:pre-wrap}
+.djent time{display:block;margin-top:6px;font-size:.6875rem;color:var(--muted)}
+/* ---------- Journal de test ---------- */
+.tjcard{margin-top:18px;padding:16px;border-radius:var(--r);background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--gold)}
+.tjcard .zlbl{display:block;margin:14px 0 6px;font-size:.8125rem;font-weight:600;color:var(--ink-2)}
+.tjcard textarea{width:100%;border:0;border-radius:12px;background:var(--raise);color:var(--ink);padding:10px 12px;font:inherit}
+.tjnote{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}
+.tjnote button{aspect-ratio:1;min-height:0;padding:0;border-radius:10px;background:var(--raise);font-weight:600;font-size:.8125rem;color:var(--ink-2)}
+.tjnote button[aria-pressed="true"]{background:var(--gold);color:var(--gold-ink)}
+
+/* ---------- Thèmes ---------- */
+.thgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.thsw{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:12px;border-radius:14px;background:var(--surface);text-align:left;font-size:.8125rem;font-weight:600;min-height:0;box-shadow:inset 0 0 0 1px var(--line)}
+.thsw[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--gold)}
+.thdots{display:flex;gap:4px}.thdots i{width:18px;height:18px;border-radius:50%}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }

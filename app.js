@@ -533,6 +533,8 @@ const COACH = {
   arabe: ['Comprendre le sens de ce que tu récites', 'Quelques minutes de quiz par jour suffisent. Chaque étoile de la constellation est un mot : elle brille quand il est maîtrisé (3 bonnes réponses).'],
   routine: ['Ta 1 h 30 quotidienne', 'L\'anneau est découpé en 4 blocs. Touche un bloc quand il est fait : les 4 faits, la journée est validée et ta série continue.'],
   budget: ['Ta méthode', 'Elle tient en 3 temps :', ['Tu te paies d\'abord : ton épargne part en début de mois', 'Tes charges fixes sont mises de côté', 'Le reste est à toi, avec un budget par jour qui s\'ajuste à chaque dépense. Les enveloppes freinent les catégories où ça file vite.']],
+  zakat: ['Ta zakat', 'Renseigne le cours de l\'or (ou de l\'argent), ce que tu as sur tes comptes et en espèces : ton épargne et ta dette sont reprises du budget. L\'app compare ton patrimoine net au nisab, lance le compte de l\'année lunaire dès que tu le dépasses, et te dit quand ta zakat est due et combien.'],
+  coeur: ['Les compétences du cœur', 'La Duʿa avance marche par marche : une phrase à toi après une invocation connue, puis ta journée, puis tes demandes, puis le rendez-vous. Tu peux écrire dans ton carnet, avec des débuts de phrase pour t\'aider. Huit compétences du croyant : tawakkul, duʿa, ihsan, hilm, sabr, shukr, ikhlas, muhasaba. Choisis-en une, en commençant par le tawakkul. Trois paliers : Comprendre (la leçon et ses sources), Pratiquer (7 jours de pratique concrète), Ancrer (21 jours au total et deux réponses écrites). Une compétence ancrée s\'entretient : continue de la pratiquer.'],
   dhikr: ['Ton dhikr, librement', 'Choisis ta formule, ou ajoute la tienne, puis touche le cercle à chaque dhikr. Une vibration à chaque 33. Pas d\'objectif : ta régularité rapporte le plus (ton premier 33 de la journée, et ta série), puis la longueur d\'une séance, puis ton total. Compter trop vite ne compte pas plus.'],
   foi: ['Ta régularité', 'Coche chaque prière faite à l\'heure sur le chemin du soleil, et tes autres habitudes en dessous. Atteindre 90 % sur 30 jours est une des deux clés de l\'onglet Business.'],
   business: ['Pourquoi c\'est verrouillé', 'Pour que l\'app reflète honnêtement tes priorités : d\'abord les compétences et la constance, ensuite le business. Chaque volet affiche ce qu\'il te reste.'],
@@ -645,6 +647,7 @@ function vOrbite() {
     </svg>
   </div>
   ${yesterdayCard()}${atStake()}
+${tjCard()}
   <section style="margin-top:18px">
     <h2>Aujourd'hui</h2>
     <div class="today-list">
@@ -659,6 +662,7 @@ function vOrbite() {
       ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">${(() => { const pn = prayerNow(), nx = nextPrayer(); return pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine : ${PNAMES[nx.id]} à ${hm(nx.start)}` : `Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours`; })()}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const td = dkDay(), st = dkStreak(); return `<button class="today-item" data-goto="dhikr">${miniOrb(Math.min(1, td / 33), 'foi', true)}<span><b>${td >= 33 ? `Dhikr · ${td} aujourd'hui` : 'Dhikr · ton premier 33'}</b><span class="s">${st ? `${st} jour${st > 1 ? 's' : ''} d'affilée` : dkF(dk().cur)[2]}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const s = hairDays('soin'), c = hairDays('coupe'); const due = s != null && s >= 7 ? 'soin' : c != null && c >= 70 ? 'coupe' : null; if (!due) return ''; return `<button class="today-item" data-goto="soin">${miniOrb(0, 'corps')}<span><b>${due === 'soin' ? 'Jour de soin des cheveux' : 'Pointes à couper'}</b><span class="s">${due === 'soin' ? `Dernier soin il y a ${s} jours` : `Dernière coupe il y a ${Math.round(c / 7)} semaines`}</span></span>${ICON.chev}</button>`; })()}
+      ${(() => { const h = hrt(), x = HEART.find(y => y.k === h.cur) || HEART[0], l = hLevel(x.k), done = !!hc(x.k).days[todayISO()]; return `<button class="today-item" data-goto="coeur">${miniOrb(l / 3, 'foi', true)}<span><b>Cœur · ${x.n}</b><span class="s">${l === 0 ? 'Commence par la leçon' : l === 3 ? 'Ancrée : continue de la pratiquer' : done ? (x.k === 'dua' ? 'Tu Lui as parlé aujourd\'hui' : 'Pratiqué aujourd\'hui') : x.k === 'dua' ? 'Une phrase pour Allah aujourd\'hui' : `Pratique du jour · ${hDays(x.k)} jour${hDays(x.k) > 1 ? 's' : ''} sur 21`}</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="arabe">${miniOrb(wordsKnown() / WORDS.length, 'arabe', true)}<span><b>Réviser 5 mots</b><span class="s">${wordsKnown()} mots maîtrisés sur ${WORDS.length}</span></span>${ICON.chev}</button>
     </div>
   </section>`;
@@ -1263,7 +1267,7 @@ function defaultMoney() {
 }
 const eur2 = v => v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 const A = { open: new Set(), view: 'heures', month: todayISO().slice(0, 7), kind: 'exp', cat: 'courses', catFilter: 'all' };
-try { const v = localStorage.getItem('sdp-argent-view'); if (v === 'budget' || v === 'heures') A.view = v; } catch (e) {}
+try { const v = localStorage.getItem('sdp-argent-view'); if (v === 'budget' || v === 'heures' || v === 'zakat') A.view = v; } catch (e) {}
 const prevMonth = ym => { const d = parseDate(ym + '-01'); d.setMonth(d.getMonth() - 1); return iso(d).slice(0, 7); };
 const daysIn = ym => { const d = parseDate(ym + '-01'); return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); };
 
@@ -1295,7 +1299,7 @@ function splitPlan(ym, incTotal, fixTotal, carry) {
   const remDebt = Math.max(0, numv(M.debt.total) - debtRepaid(prevMonth(ym)));
   const sp = M.pots.find(p => p.safety), safeBal = sp ? potBalance(sp, prevMonth(ym)) : 0;
   const safeNeed = Math.max(0, (numv(M.safetyGoal) || 4000) - safeBal);
-  const avail = incTotal + carry - fixTotal - others;
+  const avail = incTotal + carry - fixTotal - others - sqPlan(incTotal);
   const phase = remDebt > 0 && safeBal < STARTER_CUSHION ? 1 : remDebt > 0 ? 2 : safeNeed > 0 ? 3 : 4;
   const [, rd, rs] = SPLIT[phase], base = Math.max(0, avail), r10 = v => Math.floor(v / 10) * 10;
   let debt = Math.min(remDebt, r10(base * rd)), safety = Math.min(phase === 4 ? Infinity : safeNeed, r10(base * rs));
@@ -1312,7 +1316,7 @@ function autoPlan(ym, incTotal, fixTotal, carry = 0) {
   const remDebt = Math.max(0, numv(M.debt.total) - debtRepaid(prevMonth(ym)));
   const sp = M.pots.find(p => p.safety), safeBal = sp ? potBalance(sp, prevMonth(ym)) : 0;
   const safeNeed = Math.max(0, (numv(M.safetyGoal) || 4000) - safeBal);
-  const avail = incTotal + carry - fixTotal - L.v - others;
+  const avail = incTotal + carry - fixTotal - L.v - others - sqPlan(incTotal);
   const surplus = Math.max(0, Math.floor(avail * (1 - PLAN_MARGIN) / 10) * 10);
   let phase, ratio;
   if (remDebt > 0 && safeBal < STARTER_CUSHION) { phase = 1; ratio = 0.5; }
@@ -1351,7 +1355,7 @@ function vPlanCard(b) {
       'Fondations posées : 40 % pour toi, 60 % à épargner ou investir.'][P.phase];
     return `<div class="plan-card">
     <p class="eyebrow">Plan du mois · ${edited ? 'modifié par toi' : 'calculé par l\'app'}</p>
-    <p class="small muted" style="margin:6px 0 0">Après tes charges, il reste <b class="num" style="color:var(--ink)">${eur0(Math.max(0, P.avail))}</b> à partager.</p>
+    <p class="small muted" style="margin:6px 0 0">Après tes charges${sqPlan(b.incTotal) ? ` et ta sadaqa (${eur0(sqPlan(b.incTotal))}, mise de côté d'abord)` : ''}, il reste <b class="num" style="color:var(--ink)">${eur0(Math.max(0, P.avail))}</b> à partager.</p>
     <div class="plan-split three">
       <div><span>Pour toi</span><b class="num">${eur0(toi)}</b><small>${P.phase ? `${Math.round(toi / Math.max(1, P.avail) * 100)} %` : ''}</small></div>
       <div><span>Remboursement</span><b class="num">${eur0(P.debt)}</b><small>${P.remDebt ? `reste ${eur0(P.remDebt)}` : 'soldé'}</small></div>
@@ -1391,23 +1395,25 @@ function budgetOf(ym) {
   const dTot = numv(M.debt.total), remStart = Math.max(0, dTot - debtRepaid(prevMonth(ym)));
   const dDone = txIn(ym, 'debt').reduce((a, t) => a + numv(t.amount), 0), dPlan = Math.min(P ? (P.ok ? P.debt : 0) : numv(M.debt.monthly), remStart);
   const debt = { plan: dPlan, done: dDone, val: Math.max(dPlan, dDone), remStart };
-  const free = carry + incTotal - fixTotal - saveTotal - debt.val;
+  const sq = sqOf(ym, incTotal);
+  const free = carry + incTotal - fixTotal - saveTotal - debt.val - sq.val;
   const exps = txIn(ym, 'exp'), spent = exps.reduce((a, t) => a + numv(t.amount), 0);
   const byCat = {}; exps.forEach(t => { byCat[t.cat] = (byCat[t.cat] || 0) + numv(t.amount); });
   const cur = todayISO().slice(0, 7), dim = daysIn(ym), today = new Date().getDate();
   const daysLeft = ym === cur ? dim - today + 1 : ym > cur ? dim : 0;
   const elapsed = ym === cur ? (today - 1) / dim : ym < cur ? 1 : 0;
   const reste = free - spent;
-  return { plan: P, carry, incomes, extraInc, fromPots, incTotal, fixed, fixTotal, pots, saveTotal, invested, debt, free, spent, byCat, reste, daysLeft, elapsed, dim, exps, envelopes: M.envelopes.map(e => ({ ...e, lim: numv(e.limit), sp: byCat[e.cat] || 0 })) };
+  return { plan: P, sq, carry, incomes, extraInc, fromPots, incTotal, fixed, fixTotal, pots, saveTotal, invested, debt, free, spent, byCat, reste, daysLeft, elapsed, dim, exps, envelopes: M.envelopes.map(e => ({ ...e, lim: numv(e.limit), sp: byCat[e.cat] || 0 })) };
 }
 const isSetUp = () => S.money.incomes.some(i => String(i.amount).trim() !== '') || S.money.fixed.some(f => numv(f.amount) > 0) || Object.values(S.money.months).some(m => m.inc && Object.keys(m.inc).length);
 
 function argentTop(view) {
-  const sub = view === 'budget' ? 'Tu te paies d\'abord, le reste est à toi.' : 'Chaque heure notée, chaque compteur à jour.';
-  return `${pageHead('Argent', sub, view === 'budget' ? 'budget' : 'heures')}
+  const sub = view === 'budget' ? 'Tu donnes et tu te paies d\'abord, le reste est à toi.' : view === 'zakat' ? 'Purifier ton bien, au bon moment.' : 'Chaque heure notée, chaque compteur à jour.';
+  return `${pageHead('Argent', sub, view === 'budget' ? 'budget' : view === 'zakat' ? 'zakat' : 'heures')}
   <div class="seg" role="group" aria-label="Section" style="margin-top:20px">
     <button data-aview="budget" aria-pressed="${view === 'budget'}"><span class="dot"></span>Budget</button>
     <button data-aview="heures" aria-pressed="${view === 'heures'}"><span class="dot"></span>Heures</button>
+    <button data-aview="zakat" aria-pressed="${view === 'zakat'}"><span class="dot"></span>Zakat</button>
   </div>`;
 }
 function budgetRing(b) {
@@ -1524,6 +1530,7 @@ function vBudget() {
   ${envRows ? `<section><h2>Enveloppes</h2><div class="envs">${envRows}</div>
     ${unalloc < 0 ? `<div class="alert">${ICON.warn}<span>Tes enveloppes (${eur0(b.free - unalloc)}) dépassent ton budget libre (${eur0(b.free)}). Baisse un plafond dans ton mois type.</span></div>` : `<p class="hint">Hors enveloppes, il te reste ${eur0(Math.max(0, unalloc - Object.keys(b.byCat).filter(c => !envs.some(e => e.cat === c)).reduce((a, c) => a + b.byCat[c], 0)))} pour tout le reste.</p>`}</section>` : ''}
 
+  ${vSadaqa(b, ym)}
   ${potRows ? `<section><h2>Épargne</h2><div class="pots">${potRows}</div><div id="potCustom"></div></section>` : ''}
 
   ${vFoundations(b)}
@@ -1608,7 +1615,7 @@ function openTx(id) {
   $('#shiftSheet').showModal();
 }
 function exportBudgetCSV() {
-  const ym = A.month, rows = S.money.tx.filter(t => t.date.startsWith(ym)).sort((a, b) => a.date.localeCompare(b.date));
+  const ym = A.month, rows = S.money.tx.filter(t => t.date.startsWith(ym) && t.kind !== 'sadaqa').sort((a, b) => a.date.localeCompare(b.date));
   const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
   const kindLbl = { exp: 'Dépense', inc: 'Rentrée', save: 'Épargne', withdraw: 'Retrait épargne', debt: 'Remboursement dette', invest: 'Investissement' };
   const lines = [['Date', 'Type', 'Catégorie', 'Montant', 'Note'].join(';')];
@@ -1636,6 +1643,7 @@ function openBudgetSetup() {
     <button class="btn sm quiet" data-madd="fixed">+ Ajouter une charge</button>
     <p class="gt">Plan automatique</p>
     <div class="group"><div class="cell"><label for="mAuto">Laisser l'app calculer la dette et l'épargne de sécurité chaque mois</label><span class="switch"><input type="checkbox" id="mAuto" ${M.auto ? 'checked' : ''}><span></span></span></div>
+      <div class="cell"><label for="mSq">Part de sadaqa<span class="small muted" style="display:block">en % de chaque revenu reçu, mise de côté avant le reste (0 pour désactiver)</span></label><input class="r" id="mSq" inputmode="decimal" value="${esc(String(sqConf().pct).replace('.', ','))}"><span class="unit">%</span></div>
       <div class="cell"><label for="mLife">Budget de vie mensuel<span class="small muted" style="display:block">${String(M.life || '').trim() === '' ? 'Laisse vide : l\'app partage elle-même ce qui reste entre toi, la dette et l\'épargne.' : 'Montant fixe pour vivre ; vide-le pour revenir au partage automatique.'}</span></label><input class="r" id="mLife" inputmode="decimal" value="${esc(String(M.life || '').replace('.', ','))}" placeholder="auto"><span class="unit">€</span></div></div>
     <p class="hint">Avec le plan automatique, l'app garde ton budget de vie, puis répartit 90 % du reste entre la dette et l'épargne selon tes priorités. Tu peux corriger chaque mois.</p>
     <p class="gt">Dette · montant total, déjà remboursé${M.auto ? '' : ', mensualité'}</p>
@@ -1674,7 +1682,7 @@ function defaultFaith() {
 }
 const FAITH_GOAL = 0.9, FAITH_DAYS = 30;
 const F = { view: 'habitudes', day: todayISO() };
-try { const v = localStorage.getItem('sdp-foi-view'); if (v === 'habitudes' || v === 'arabe' || v === 'dhikr') F.view = v; } catch (e) {}
+try { const v = localStorage.getItem('sdp-foi-view'); if (v === 'habitudes' || v === 'arabe' || v === 'dhikr' || v === 'coeur') F.view = v; } catch (e) {}
 const dayDone = k => { const d = S.faith.log[k] || {}; return S.faith.habits.filter(h => d[h.id] && d[h.id] !== 'x').length; };
 const dayW = k => { const d = S.faith.log[k] || {}; return S.faith.habits.reduce((m, h) => m + (h.prayer ? pWeight(d[h.id]) : d[h.id] ? 1 : 0), 0); };
 /* Régularité sur 30 jours : la journée en cours ne compte que lorsqu'elle est complète. */
@@ -1768,10 +1776,11 @@ function openInvestSetup() {
 
 /* ----- Onglet Foi : habitudes ----- */
 function foiTop(view) {
-  return `${pageHead('Foi', view === 'arabe' ? 'Le sens de ce que tu lis. Tajwid Institut s\'occupe de la lecture.' : view === 'dhikr' ? 'C\'est par l\'évocation d\'Allah que les cœurs s\'apaisent.' : 'La régularité avant tout. Chaque prière à l\'heure compte.', view === 'arabe' ? 'arabe' : view === 'dhikr' ? 'dhikr' : 'foi')}
+  return `${pageHead('Foi', view === 'arabe' ? 'Le sens de ce que tu lis. Tajwid Institut s\'occupe de la lecture.' : view === 'dhikr' ? 'C\'est par l\'évocation d\'Allah que les cœurs s\'apaisent.' : view === 'coeur' ? 'Les compétences du croyant, une à la fois, jusqu\'à ce qu\'elles s\'ancrent.' : 'La régularité avant tout. Chaque prière à l\'heure compte.', view === 'arabe' ? 'arabe' : view === 'dhikr' ? 'dhikr' : view === 'coeur' ? 'coeur' : 'foi')}
   <div class="seg" role="group" aria-label="Section" style="margin-top:20px">
-    <button data-fview="habitudes" aria-pressed="${view === 'habitudes'}"><span class="dot"></span>Habitudes</button>
+    <button data-fview="habitudes" aria-pressed="${view === 'habitudes'}"><span class="dot"></span>Pratique</button>
     <button data-fview="arabe" aria-pressed="${view === 'arabe'}"><span class="dot"></span>Arabe</button>
+    <button data-fview="coeur" aria-pressed="${view === 'coeur'}"><span class="dot"></span>Cœur</button>
     <button data-fview="dhikr" aria-pressed="${view === 'dhikr'}"><span class="dot"></span>Dhikr</button>
   </div>`;
 }
@@ -3318,9 +3327,11 @@ function openSettings() {
     <p class="hint">Chaque mois, tes heures au-delà de la base s'ajoutent au compteur, et celles en dessous (repos de rattrapage) se retirent. Mets en solde de départ celui de ta fiche de paie, avec un « - » s'il est négatif.</p>` : ''}`;
   $('#settingsBody').innerHTML = `<div class="grab"></div>
     <div class="sheet-top"><span style="width:60px"></span><h2 id="settingsTitle">Réglages</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
+    ${themeBlock()}
     <p class="gt">Sauvegarde</p>
     <div class="group">
       <button class="cell tap" data-export><span class="lbl">Exporter mes données</span><span class="small muted">${backup}</span>${ICON.chev}</button>
+      <button class="cell tap" data-tjexport><span class="lbl">Exporter le journal de test</span><span class="small muted">depuis le ${DAY_LONG.format(parseDate(tj().start))}</span>${ICON.chev}</button>
       <button class="cell tap" id="importBtn"><span class="lbl">Importer une sauvegarde</span>${ICON.chev}</button>
     </div>
     <p class="hint">Tout reste sur ce téléphone. Exporte une fois par semaine et range le fichier dans Fichiers ou iCloud Drive. <span id="persistInfo"></span></p>
@@ -3336,7 +3347,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.15 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.19 · fonctionne hors ligne</p>`;
   $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -3462,6 +3473,104 @@ function hairChange(t) {
 }
 
 /* =====================================================================
+   SADAQA & ZAKAT
+   Sadaqa : une part fixe de chaque revenu reçu est mise de côté d'abord,
+   comme une charge. On note le don sans montant affiché ailleurs, sans
+   lumière, sans série : décider une fois, donner discrètement.
+   Zakat al-mal : nisab (85 g d'or ou 595 g d'argent), année lunaire
+   complète (354 jours) au-dessus du nisab, 2,5 % du patrimoine net.
+   ===================================================================== */
+function sqConf() { const s = S.money.sadaqa = S.money.sadaqa && typeof S.money.sadaqa === 'object' ? S.money.sadaqa : {}; if (s.pct == null || s.pct === '') s.pct = 2; return s; }
+const sqPlan = inc => { const p = numv(sqConf().pct); return inc > 0 && p > 0 ? Math.max(5, Math.round(inc * p / 100 / 5) * 5) : 0; };
+function sqOf(ym, inc) { const plan = sqPlan(inc), done = txIn(ym, 'sadaqa').reduce((a, t) => a + numv(t.amount), 0); return { plan, done, val: Math.max(plan, done), left: Math.max(0, plan - done) }; }
+function vSadaqa(b, ym) {
+  const q = b.sq; if (!q.plan && !q.done) return '';
+  return `<section><div class="sqcard">
+    <p class="eyebrow" style="margin:0">Sadaqa · mise de côté d'abord</p>
+    <p class="big num" style="margin:6px 0 0">${q.left ? eur0(q.left) : 'Donnée'}</p>
+    <p class="small muted" style="margin:2px 0 12px">${q.left ? `reste à donner ce mois-ci, sur ${eur0(q.plan)} mis de côté (${numv(sqConf().pct)} % de tes revenus reçus)` : 'Ta part de ce mois est donnée. Qu\'Allah l\'accepte.'}</p>
+    <div class="row"><input id="sqAmt" inputmode="decimal" class="famt num" placeholder="${q.left ? String(q.left) : 'Montant'}" style="flex:1;text-align:left" aria-label="Montant donné"><button class="btn sm" data-sqgive>J'ai donné</button></div>
+    <p class="small" style="margin:12px 0 0;font:400 1rem/1.45 var(--serif)">« Si vous donnez ouvertement, c'est bien ; mais si vous le faites en secret aux pauvres, c'est meilleur pour vous. »</p><p class="small muted" style="margin:2px 0 0">Coran 2:271</p>
+    <p class="hint" style="margin-top:10px">Pas de lumière, pas de série, pas d'historique affiché : la sadaqa reste entre toi et Allah. La part se règle dans ton mois type.</p>
+  </div></section>`;
+}
+/* ---------- Zakat ---------- */
+function zkConf() { const z = S.money.zakat = S.money.zakat && typeof S.money.zakat === 'object' ? S.money.zakat : {}; z.basis = z.basis || 'or'; z.debts = z.debts || 'oui'; z.paid = Array.isArray(z.paid) ? z.paid : []; return z; }
+function zkCalc() {
+  const z = zkConf(), M = S.money;
+  const pots = M.pots.reduce((a, p) => a + Math.max(0, potBalance(p)), 0);
+  const inv = (M.investments || []).reduce((a, i) => a + numv(i.value), 0);
+  const cash = numv(z.cash), metal = numv(z.goldG) * numv(z.gold), cl = numv(z.claims);
+  const debt = z.debts === 'oui' ? Math.max(0, numv(M.debt.total) - debtRepaid(todayISO().slice(0, 7))) : 0;
+  const assets = pots + inv + cash + metal + cl, net = assets - debt;
+  const nisab = z.basis === 'argent' ? 595 * numv(z.silver) : 85 * numv(z.gold);
+  return { pots, inv, cash, metal, cl, debt, assets, net, nisab, priced: nisab > 0, due: Math.round(Math.max(0, net) * 0.025) };
+}
+function vZakat() {
+  const z = zkConf(), r = zkCalc(), k = todayISO(), above = r.priced && r.net >= r.nisab;
+  const end = z.start ? iso(addDays(parseDate(z.start), 354)) : null, left = end ? Math.round((parseDate(end) - parseDate(k)) / 864e5) : null;
+  let status;
+  if (!r.priced) status = `<p>Indique le prix du gramme ${z.basis === 'argent' ? 'd\'argent' : 'd\'or'} du jour, plus bas, pour calculer le nisab.</p>`;
+  else if (!above) {
+    const P = (budgetOf(todayISO().slice(0, 7)).plan) || {}, pace = (P.ok ? (P.safety || 0) + (P.debt || 0) : 0), miss = r.nisab - r.net, months = pace > 0 ? Math.ceil(miss / pace) : null;
+    status = `<p><b>Pas encore redevable.</b> Ton patrimoine net (${eur0(r.net)}) est sous le nisab (${eur0(r.nisab)}) : il te manque ${eur0(miss)}.</p>
+      <p class="small" style="margin-top:8px">${months ? `Au rythme de ton plan de ce mois (dette remboursée et épargne : ${eur0(pace)} par mois), tu atteindrais le nisab dans environ ${months} mois, vers ${new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(addDays(new Date(), months * 30.4))}. La zakat deviendrait due une année lunaire plus tard, si ton patrimoine reste au-dessus pendant toute cette année.` : 'Quand ton patrimoine net dépassera le nisab, l\'app lancera le compte de l\'année lunaire.'}</p>`;
+  } else if (left != null && left <= 0) status = `<p><b>Ta zakat est due : ${eur0(r.due)}</b>, soit 2,5 % de ton patrimoine net (${eur0(r.net)}).</p><button class="btn sm" data-zkpaid style="margin-top:12px">J'ai payé ma zakat</button>`;
+  else status = `<p><b>Année lunaire en cours.</b> Ton patrimoine net (${eur0(r.net)}) est au-dessus du nisab depuis le ${DAY_LONG.format(parseDate(z.start))}.</p><p class="small" style="margin-top:8px">Si rien ne change, ta zakat sera due le ${DAY_LONG.format(parseDate(end))} (dans ${left} jours) : environ ${eur0(r.due)} aujourd'hui.</p>`;
+  const drop = r.priced && z.start && !above;
+  const row = (l, v, id, ph) => `<div class="cell"><label for="${id}" class="lbl">${l}</label>${id ? `<input class="r" id="${id}" data-zk="${id}" inputmode="decimal" value="${esc(String(v || '').replace('.', ','))}" placeholder="${ph || '0'}">` : `<b class="num">${v}</b>`}</div>`;
+  return `${argentTop('zakat')}
+  <div class="zkcard"><p class="eyebrow" style="margin:0">Zakat al-mal</p><div style="margin-top:8px">${status}</div>
+    ${drop ? `<div class="alert" style="margin-top:12px">${ICON.warn}<span>Ton patrimoine est repassé sous le nisab pendant l'année. Pour la majorité des savants, le compte recommence quand tu repasses au-dessus ; pour l'école hanafite, seuls le début et la fin de l'année comptent.</span></div><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn sm ghost" data-zkreset>Recommencer le compte</button></div>` : ''}
+  </div>
+  <section><h2>Quand la zakat est-elle due ?</h2>
+    <p class="small">Trois conditions : posséder au moins le <b>nisab</b> (la valeur de 85 g d'or, ou de 595 g d'argent), le garder au-dessus pendant une <b>année lunaire complète</b> (354 jours), puis donner <b>2,5 %</b> de ton patrimoine net. Elle concerne l'épargne, l'argent sur tes comptes et en espèces, l'or et l'argent, les investissements et l'argent qu'on te doit et qui sera remboursé. Pas ta maison, ta voiture ni tes affaires personnelles.</p>
+  </section>
+  <section><h2>Ton patrimoine</h2>
+    <div class="group">
+      ${row('Épargne (tes cagnottes)', eur0(r.pots))}
+      ${r.inv ? row('Investissements', eur0(r.inv)) : ''}
+      ${row('Argent sur tes comptes et en espèces', z.cash, 'zkCash')}
+      ${row('Or possédé (grammes)', z.goldG, 'zkGoldG')}
+      ${row('Argent qu\'on te doit (et qui sera rendu)', z.claims, 'zkClaims')}
+      ${row(`Dette restante${z.debts === 'oui' ? ', déduite' : ', non déduite'}`, eur0(Math.max(0, numv(S.money.debt.total) - debtRepaid(todayISO().slice(0, 7)))))}
+      <div class="cell"><span class="lbl">Patrimoine net</span><b class="num" style="color:var(--gold)">${eur0(r.net)}</b></div>
+    </div>
+    <div class="seg" style="margin-top:12px" role="group" aria-label="Dettes"><button data-zkdebt="oui" aria-pressed="${z.debts === 'oui'}"><span class="dot"></span>Déduire ma dette</button><button data-zkdebt="non" aria-pressed="${z.debts === 'non'}"><span class="dot"></span>Ne pas la déduire</button></div>
+    <p class="hint">Les savants divergent : les hanafites et les hanbalites déduisent les dettes, les chafiʿites non. Beaucoup d'avis contemporains déduisent ce qui doit être remboursé dans l'année.</p>
+  </section>
+  <section><h2>Le nisab</h2>
+    <div class="group">
+      ${row('Prix du gramme d\'or (€)', z.gold, 'zkGold', 'cours du jour')}
+      ${row('Prix du gramme d\'argent (€)', z.silver, 'zkSilver', 'cours du jour')}
+    </div>
+    <div class="seg" style="margin-top:12px" role="group" aria-label="Nisab"><button data-zkbasis="or" aria-pressed="${z.basis === 'or'}"><span class="dot"></span>Or · 85 g</button><button data-zkbasis="argent" aria-pressed="${z.basis === 'argent'}"><span class="dot"></span>Argent · 595 g</button></div>
+    <p class="hint">${r.priced ? `Nisab actuel : ${eur0(r.nisab)}. ` : ''}Beaucoup de savants contemporains retiennent l'or pour l'argent épargné ; d'autres l'argent, plus bas et donc plus favorable aux pauvres. Mets à jour le cours de temps en temps, et demande à une personne de savoir en cas de doute.</p>
+  </section>
+  <section><h2>À qui la donner</h2><p class="small">Aux huit catégories du Coran (9:60), d'abord les pauvres et les nécessiteux, à commencer par ceux de ton entourage, ou par une association de confiance qui la redistribue. Elle ne se donne pas à ses parents, ses enfants ni sa femme, dont on a déjà la charge.</p>
+  ${z.paid.length ? `<p class="small muted" style="margin-top:10px">Dernière zakat payée le ${DAY_LONG.format(parseDate(z.paid[z.paid.length - 1].d))}.</p>` : ''}</section>`;
+}
+function zkTick() {
+  const z = zkConf(), r = zkCalc();
+  if (r.priced && r.net >= r.nisab && !z.start) { z.start = todayISO(); save(); }
+}
+function zkClick(t) {
+  const c = s => t.closest(s); let el; const z = zkConf();
+  if (c('[data-sqgive]')) { const v = numv(($('#sqAmt').value || '').replace(/\s/g, '').replace(',', '.')), b = budgetOf(A.month), amt = v > 0 ? v : b.sq.left; if (!(amt > 0)) { toast('Indique le montant donné.'); return true; } S.money.tx.push({ id: uid(), kind: 'sadaqa', amount: Math.round(amt * 100) / 100, cat: 'sadaqa', date: todayISO(), note: '', created: Date.now() }); save(); render(); toast('Qu\'Allah l\'accepte de toi.'); return true; }
+  if ((el = c('[data-zkdebt]'))) { z.debts = el.dataset.zkdebt; save(); render(); return true; }
+  if ((el = c('[data-zkbasis]'))) { z.basis = el.dataset.zkbasis; save(); render(); return true; }
+  if (c('[data-zkreset]')) { delete z.start; save(); zkTick(); render(); return true; }
+  if (c('[data-zkpaid]')) { const r = zkCalc(); z.paid.push({ d: todayISO(), a: r.due }); z.start = todayISO(); save(); render(); toast('Qu\'Allah purifie ton bien et le bénisse.', null, null, 4000); return true; }
+  return false;
+}
+function zkChange(t) {
+  const map = { zkCash: 'cash', zkGoldG: 'goldG', zkClaims: 'claims', zkGold: 'gold', zkSilver: 'silver' };
+  if (t.dataset.zk && map[t.dataset.zk]) { zkConf()[map[t.dataset.zk]] = t.value.trim().replace(/\s/g, '').replace(',', '.'); save(); zkTick(); render(); return true; }
+  if (t.id === 'mSq') { sqConf().pct = Math.max(0, Math.min(50, numv(t.value.replace(',', '.')) || 0)); save(); return true; }
+  return false;
+}
+
+/* =====================================================================
    DHIKR — compteur libre, sans objectif imposé
    Lumière : régularité d'abord (premier 33 du jour + série), puis longueur
    de la séance (100, 300, 1 000), puis total par formule (1 000, 10 000,
@@ -3546,6 +3655,223 @@ function dkClick(t) {
   return false;
 }
 
+const TJ_APP = 'sayko';
+/* =====================================================================
+   JOURNAL DE TEST — période de test de 6 mois
+   Relève seulement des comptages : jours d'ouverture et modules visités
+   (jamais l'espace privé, jamais de contenu), plus 4 questions le 1er
+   de chaque mois. Exportable depuis les réglages.
+   ===================================================================== */
+function tj() { const j = S.tj = S.tj && typeof S.tj === 'object' ? S.tj : {}; ['open', 'mods', 'survey'].forEach(k => { if (!j[k] || typeof j[k] !== 'object') j[k] = {}; }); j.start = j.start || todayISO(); return j; }
+let tjLast = 0;
+function tjOpen() { const now = Date.now(); if (now - tjLast < 10 * 60000) return; tjLast = now; const j = tj(), k = todayISO(); j.open[k] = (j.open[k] || 0) + 1; save(); }
+function tjMod(m) { if (!m || m === 'z') return; const j = tj(), k = todayISO(), d = j.mods[k] = j.mods[k] || {}; d[m] = (d[m] || 0) + 1; }
+const TJ = { q1: null, q2: null };
+const tjDue = () => { const j = tj(), ym = todayISO().slice(0, 7); return ym > j.start.slice(0, 7) && !j.survey[ym]; };
+function tjCard() {
+  if (!tjDue()) return '';
+  const prev = new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(addDays(new Date(new Date().getFullYear(), new Date().getMonth(), 1), -1));
+  return `<section class="tjcard"><p class="eyebrow" style="margin:0">Bilan du mois de test</p>
+    <p class="small" style="margin:6px 0 12px">Quatre questions sur ${prev}, une minute. Tes réponses restent sur ton téléphone jusqu'à ce que tu exportes le journal.</p>
+    <p class="zlbl">Si l'app disparaissait demain, tu serais…</p>
+    <div class="chips">${['Très déçu', 'Un peu déçu', 'Pas déçu'].map((l, i) => `<button class="chip" data-tjq1="${i}" aria-pressed="${TJ.q1 === i}">${l}</button>`).join('')}</div>
+    <p class="zlbl">Ta note sur 10</p>
+    <div class="tjnote">${Array.from({ length: 10 }, (_, i) => `<button data-tjq2="${i + 1}" aria-pressed="${TJ.q2 === i + 1}">${i + 1}</button>`).join('')}</div>
+    <label class="zlbl" for="tjQ3">Ce qui t'a le plus servi</label><textarea id="tjQ3" rows="2"></textarea>
+    <label class="zlbl" for="tjQ4">Ce qui t'a le plus agacé ou manqué</label><textarea id="tjQ4" rows="2"></textarea>
+    <button class="btn sm" data-tjsave style="margin-top:12px">Enregistrer mon bilan</button></section>`;
+}
+function tjClick(t) {
+  const c = s => t.closest(s); let el;
+  if ((el = c('[data-tjq1]'))) { TJ.q1 = Number(el.dataset.tjq1); $$('[data-tjq1]').forEach(b => b.setAttribute('aria-pressed', b === el)); return true; }
+  if ((el = c('[data-tjq2]'))) { TJ.q2 = Number(el.dataset.tjq2); $$('[data-tjq2]').forEach(b => b.setAttribute('aria-pressed', b === el)); return true; }
+  if (c('[data-tjsave]')) {
+    if (TJ.q1 == null || TJ.q2 == null) { toast('Réponds au moins aux deux premières questions.'); return true; }
+    const ym = todayISO().slice(0, 7); tj().survey[ym] = { at: todayISO(), deception: ['tres', 'peu', 'pas'][TJ.q1], note: TJ.q2, utile: ($('#tjQ3').value || '').trim(), agace: ($('#tjQ4').value || '').trim() };
+    save(); render(); reward(5, { msg: ['Bilan enregistré', 'Merci. C\'est avec ces réponses que l\'app va grandir.'] }); return true;
+  }
+  if (c('[data-tjexport]')) { tjExport(); return true; }
+  return false;
+}
+function tjExport() {
+  const j = tj(), days = Object.keys(j.open).sort(), weeks = {};
+  days.forEach(d => { const w = iso(addDays(parseDate(d), -((parseDate(d).getDay() + 6) % 7))); weeks[w] = (weeks[w] || 0) + 1; });
+  const mods = {}; Object.values(j.mods).forEach(d => Object.entries(d).forEach(([m, n]) => { mods[m] = (mods[m] || 0) + n; }));
+  const lastUse = {}; Object.keys(j.mods).sort().forEach(d => Object.keys(j.mods[d]).forEach(m => { lastUse[m] = d; }));
+  const out = { journal: 'test', app: TJ_APP, exportedAt: new Date().toISOString(), start: j.start, joursOuverts: days.length, joursParSemaine: weeks, visitesParModule: mods, derniereVisite: lastUse, bilans: j.survey, detailParJour: { ouvertures: j.open, modules: j.mods } };
+  deliverFile(`journal-test-${TJ_APP}-${todayISO()}.json`, JSON.stringify(out, null, 2), 'application/json');
+}
+
+/* =====================================================================
+   FOI · LE CŒUR — les compétences du croyant
+   8 compétences, chacune en 3 paliers : Comprendre (la leçon), Pratiquer
+   (7 jours de pratique), Ancrer (21 jours au total + une réflexion écrite).
+   Une compétence « en cours » à la fois ; le tawakkul est la priorité.
+   ===================================================================== */
+const HEART = [
+  { k: 'tawakkul', n: 'Tawakkul', ar: 'التَّوَكُّل', s: 'La confiance totale en Allah', prio: true,
+    learn: ['Le tawakkul, c\'est faire tout ce qui dépend de toi, puis remettre le résultat à Allah, le cœur tranquille. Ce n\'est ni la passivité ni l\'anxiété : c\'est l\'effort sans l\'angoisse.', 'Un homme demanda s\'il devait attacher sa chamelle ou s\'en remettre à Allah. Le Prophète ﷺ répondit : « Attache-la et remets-t\'en à Allah. » (Tirmidhi 2517)', 'Signe qu\'il grandit : tu travailles autant, mais tu dors mieux. Un refus, une perte, un retard ne te renversent plus.'],
+    src: ['« Quiconque place sa confiance en Allah, Il lui suffit. »', 'Coran 65:3'], extra: ['« Si vous placiez votre confiance en Allah comme il se doit, Il vous nourrirait comme Il nourrit les oiseaux : ils partent le matin le ventre vide et reviennent le soir rassasiés. »', 'Tirmidhi 2344'],
+    prac: 'Prends un souci du jour. Écris en une ligne ce qui dépend de toi, fais-le, puis dis « Hasbiyallahu wa niʿma al-wakil » (Coran 3:173) et lâche le reste.',
+    refl: ['Quel résultat cherches-tu à contrôler alors qu\'il ne dépend pas de toi ?', 'Qu\'est-ce qui change dans ta façon de travailler quand tu fais vraiment confiance ?'] },
+  { k: 'dua', n: 'Duʿa', ar: 'الدُّعَاء', s: 'Apprendre à parler à Allah, avec tes mots', tag: 'pour toi',
+    learn: ['Beaucoup de croyants qui pratiquent depuis l\'enfance connaissent des dizaines d\'invocations, mais n\'arrivent pas à parler à Allah avec leurs propres mots. Ce blocage n\'est pas un manque de foi, et la tristesse de ne pas sentir ce lien est déjà le signe d\'un cœur qui Le cherche.', 'Les prophètes Lui parlaient simplement de ce qu\'ils vivaient. Yaʿqub : « Je ne me plains qu\'à Allah de mon chagrin et de ma tristesse » (Coran 12:86). Mûsâ : « Seigneur, ouvre-moi ma poitrine, facilite-moi ma tâche » (20:25-26). Ni formule parfaite, ni langue imposée : Allah comprend toutes les langues et connaît même ce que tu n\'arrives pas à dire.', 'Tu n\'as pas à faire tout le chemin. « Je suis tel que Mon serviteur pense de Moi. S\'il s\'approche de Moi d\'un empan, Je M\'approche de lui d\'une coudée ; s\'il vient vers Moi en marchant, Je viens vers lui en courant. » (Bukhari 7405, Muslim 2675). Les invocations que tu connais ne sont pas un échec : ici, elles servent de pont vers les tiennes.'],
+    src: ['« Quand Mes serviteurs t\'interrogent sur Moi, Je suis tout proche. Je réponds à l\'appel de celui qui M\'invoque. »', 'Coran 2:186'], extra: ['« Votre Seigneur a dit : Invoquez-Moi, Je vous répondrai. »', 'Coran 40:60'],
+    prac: 'Avance marche par marche : l\'app te propose chaque jour l\'étape où tu en es. Tu peux parler à voix basse, ou écrire dans ton carnet.',
+    steps: [
+      { to: 5, t: 'Une phrase', d: 'Après une invocation que tu connais, ajoute une seule phrase à toi, en français, même maladroite. Si rien ne vient : « Ya Allah, je ne sais pas Te parler. Apprends-moi. »' },
+      { to: 10, t: 'Ta journée', d: 'Une minute pour Lui raconter ta journée : ce qui s\'est passé, ce qui t\'a pesé, ce qui t\'a fait du bien. Comme on parle à quelqu\'un qui écoute vraiment.' },
+      { to: 15, t: 'Demander, confier', d: 'Une demande précise, et une peine que tu Lui confies. Ce que tu n\'as dit à personne, tu peux le Lui dire.' },
+      { to: 21, t: 'Le rendez-vous', d: 'Cinq minutes, au même moment chaque jour. Et une fois dans la semaine, dans le dernier tiers de la nuit.' }
+    ],
+    starters: ['Ya Allah, aujourd\'hui…', 'Ya Allah, merci pour…', 'Ya Allah, j\'ai peur de…', 'Ya Allah, aide-moi à…', 'Ya Allah, pardonne-moi pour…', 'Ya Allah, je ne sais pas Te parler. Apprends-moi.'],
+    moments: [['En prosternation', 'Le serviteur n\'est jamais plus proche de son Seigneur (Muslim 482).'], ['Le dernier tiers de la nuit', 'Allah dit : « Qui M\'invoque, que Je lui réponde ? » (Bukhari 1145, Muslim 758)'], ['Entre l\'adhan et l\'iqama', 'L\'invocation à ce moment n\'est pas rejetée (Abu Dawud 521, Tirmidhi 212).'], ['Le vendredi', 'Il y a une heure où toute demande est exaucée (Bukhari 935, Muslim 852).']],
+    refl: ['Qu\'est-ce qui te bloque, au fond, quand tu veux Lui parler ?', 'Qu\'est-ce qui a changé en toi depuis ta première phrase ?'] },
+  { k: 'ihsan', n: 'Ihsan', ar: 'الإِحْسَان', s: 'Adorer Allah comme si tu Le voyais',
+    learn: ['L\'ihsan est le plus haut degré de la religion : « Que tu adores Allah comme si tu Le voyais ; et si tu ne Le vois pas, Lui te voit. » (Hadith de Jibril, Muslim 8)', 'Il se travaille d\'abord dans la prière : arriver avant, se poser, comprendre ce qu\'on récite, ralentir.', 'Signe qu\'il grandit : tu remarques quand ton esprit part pendant la prière, et tu le ramènes.'],
+    src: ['« Ceux qui sont humbles dans leur prière ont réussi. »', 'Coran 23:1-2'],
+    prac: 'Une prière par jour avec une présence totale : une minute de silence avant, une récitation lente, et dans une seule prosternation, une phrase personnelle à Allah, même courte.',
+    refl: ['Quelle prière de ta journée est la plus « absente », et pourquoi ?', 'Qu\'est-ce qui t\'aide à te sentir vu par Allah en dehors de la prière ?'] },
+  { k: 'hilm', n: 'Hilm', ar: 'الحِلْم', s: 'La douceur et la maîtrise de soi',
+    learn: ['Le hilm, c\'est rester doux et maître de toi quand tu aurais toutes les raisons de t\'emporter. Le rifq, c\'est la douceur dans chaque geste et chaque parole.', '« Allah est Doux et Il aime la douceur en toute chose. » (Bukhari 6927, Muslim 2593)', 'Face à la colère, le Prophète ﷺ a enseigné de changer de position : s\'asseoir si l\'on est debout, s\'allonger si l\'on est assis (Abu Dawud 4782).'],
+    src: ['« Le fort n\'est pas celui qui terrasse les autres. Le fort est celui qui se maîtrise au moment de la colère. »', 'Bukhari 6114, Muslim 2609'],
+    prac: 'Aujourd\'hui, une situation où tu aurais pu hausser le ton : réponds plus bas, plus lentement. Si la colère monte, change de position et tais-toi dix secondes.',
+    refl: ['Avec qui es-tu le moins doux ? Ta femme, ton équipe, toi-même ?', 'Que se passe-t-il chez l\'autre quand tu restes calme ?'] },
+  { k: 'sabr', n: 'Sabr', ar: 'الصَّبْر', s: 'La patience et la force mentale',
+    learn: ['Le sabr a trois faces : tenir dans l\'obéissance, se retenir de l\'interdit, et supporter l\'épreuve sans se révolter. C\'est la force mentale du croyant.', '« Le croyant fort est meilleur et plus aimé d\'Allah que le croyant faible, et en chacun il y a du bien. Attache-toi à ce qui t\'est utile, demande l\'aide d\'Allah et ne faiblis pas. » (Muslim 2664)', '« La patience, c\'est au premier choc. » (Bukhari 1283) : elle se joue dans la première réaction.'],
+    src: ['« Allah est avec les endurants. »', 'Coran 2:153'], extra: ['« Nul n\'a reçu de don meilleur et plus vaste que la patience. »', 'Bukhari 1469, Muslim 1053'],
+    prac: 'Un inconfort choisi chaque jour (ne pas te plaindre de la journée, finir une tâche pénible sans la repousser, jeûner lundi ou jeudi). Et au premier choc : « Inna lillahi wa inna ilayhi rajiʿun », puis attendre avant de réagir.',
+    refl: ['Quelle épreuve actuelle pourrait être une porte plutôt qu\'un mur ?', 'Dans quoi abandonnes-tu trop vite ?'] },
+  { k: 'shukr', n: 'Shukr', ar: 'الشُّكْر', s: 'La gratitude du cœur, de la langue et des actes',
+    learn: ['La gratitude se vit à trois niveaux : reconnaître le bienfait dans le cœur, le dire avec la langue, et l\'utiliser dans ce qui plaît à Allah.', '« Celui qui ne remercie pas les gens ne remercie pas Allah. » (Abu Dawud 4811, Tirmidhi 1954)', 'Signe qu\'elle grandit : tu te plains moins, tu remarques plus.'],
+    src: ['« Si vous êtes reconnaissants, très certainement J\'augmenterai pour vous. »', 'Coran 14:7'],
+    prac: 'Le soir, trois bienfaits précis de ta journée, et chaque jour un vrai merci à une personne : ta femme, un collègue, un client.',
+    refl: ['Quel bienfait as-tu cessé de voir parce qu\'il est toujours là ?', 'Comment utiliser un de tes bienfaits pour Allah cette semaine ?'] },
+  { k: 'ikhlas', n: 'Ikhlas', ar: 'الإِخْلَاص', s: 'La sincérité de l\'intention',
+    learn: ['L\'ikhlas, c\'est faire pour Allah seul, sans chercher le regard des gens. C\'est la racine de tout acte accepté.', '« Les actes ne valent que par les intentions, et chacun n\'aura que ce qu\'il a eu l\'intention de faire. » (Bukhari 1, Muslim 1907)', 'Un bon test : ferais-tu la même chose si personne ne le savait jamais ?'],
+    src: ['« Il ne leur a été commandé que d\'adorer Allah, en Lui vouant un culte sincère. »', 'Coran 98:5'],
+    prac: 'Avant trois actes de ta journée (travail, aide, adoration), renouvelle ton intention en silence. Et fais chaque jour un bien que personne ne saura.',
+    refl: ['Qu\'est-ce que tu fais surtout pour être vu ?', 'Quelle intention peux-tu placer derrière ton travail en gare et à la pizzeria ?'] },
+  { k: 'muhasaba', n: 'Muhasaba', ar: 'المُحَاسَبَة', s: 'Se juger soi-même et revenir vers Allah',
+    learn: ['La muhasaba, c\'est faire chaque soir ton propre bilan, sans te mentir, pour corriger demain. Elle est inséparable de la tawba, le retour vers Allah.', '« Tous les fils d\'Adam commettent des fautes, et les meilleurs de ceux qui fautent sont ceux qui se repentent. » (Tirmidhi 2499)', 'Le Prophète ﷺ demandait pardon à Allah cent fois par jour (Muslim 2702).'],
+    src: ['« Ô vous qui croyez, craignez Allah, et que chaque âme considère ce qu\'elle a avancé pour demain. »', 'Coran 59:18'],
+    prac: 'Trois minutes avant de dormir : une chose bien faite, une chose à corriger, une décision pour demain. Puis cent istighfar avec le compteur de dhikr.',
+    refl: ['Quelle faute revient le plus souvent dans tes bilans ?', 'Qu\'est-ce que tu as réellement changé depuis que tu fais ta muhasaba ?'] }
+];
+const HLV = ['Comprendre', 'Pratiquer', 'Ancrer'];
+function hrt() { const h = S.heart = S.heart && typeof S.heart === 'object' ? S.heart : {}; h.cur = h.cur || 'tawakkul'; ['c'].forEach(k => { if (!h[k] || typeof h[k] !== 'object') h[k] = {}; }); return h; }
+function hc(k) { const h = hrt(), c = h.c[k] = h.c[k] || {}; c.days = c.days || {}; c.refl = c.refl || {}; return c; }
+function hLevel(k) { const c = hc(k), n = Object.keys(c.days).length; if (c.anch) return 3; if (!c.read) return 0; return n >= 7 ? 2 : 1; }
+const hDays = k => Object.keys(hc(k).days).length;
+const hAnchored = () => HEART.filter(x => hc(x.k).anch).length;
+function vHeart() {
+  const h = hrt(), cur = HEART.find(x => x.k === h.cur) || HEART[0], c = hc(cur.k), lv = hLevel(cur.k), nd = hDays(cur.k), k = todayISO();
+  const pdone = !!c.days[k], canAnchor = nd >= 21 && cur.refl.every((_, i) => (c.refl[i] || '').trim().length >= 10);
+  return `${foiTop('coeur')}
+  <div class="hgrid">${HEART.map(x => { const l = hLevel(x.k); return `<button class="hcell ${x.k === cur.k ? 'on' : ''} lv${l}" data-hsel="${x.k}" aria-pressed="${x.k === cur.k}"><span class="ar" lang="ar">${x.ar}</span><b>${x.n}</b><i>${[0, 1, 2].map(j => `<em class="${j < l ? 'f' : ''}"></em>`).join('')}</i>${x.prio ? '<small>priorité</small>' : x.tag ? `<small class="t2">${x.tag}</small>` : ''}</button>`; }).join('')}</div>
+  <p class="hint" style="text-align:center;margin-top:6px">${hAnchored()} compétence${hAnchored() > 1 ? 's' : ''} ancrée${hAnchored() > 1 ? 's' : ''} sur ${HEART.length}. Une à la fois, dans l'ordre que tu veux.</p>
+  <section class="hcard">
+    <p class="ar hbig" lang="ar">${cur.ar}</p>
+    <h2 style="margin:0;text-align:center">${cur.n}</h2>
+    <p class="small muted" style="text-align:center;margin:4px 0 14px">${cur.s}</p>
+    <div class="hsteps">${HLV.map((t, j) => `<div class="${j < lv ? 'ok' : j === lv ? 'now' : ''}"><i>${j < lv ? ICON.tick : j + 1}</i><span>${t}</span></div>`).join('')}</div>
+    <blockquote class="hq"><p>${cur.src[0]}</p><cite>${cur.src[1]}</cite></blockquote>
+    <details class="hadv" ${lv === 0 ? 'open' : ''}><summary>1 · Comprendre</summary>${cur.learn.map(p => `<p class="small">${p}</p>`).join('')}${cur.extra ? `<blockquote class="hq sm"><p>${cur.extra[0]}</p><cite>${cur.extra[1]}</cite></blockquote>` : ''}
+      ${c.read ? '<p class="small" style="color:var(--mint)">Compris.</p>' : '<button class="btn sm" data-hread style="margin-bottom:14px">J\'ai compris</button>'}</details>
+    <details class="hadv" ${lv === 1 || lv === 2 ? 'open' : ''}><summary>2 · Pratiquer <span class="small muted num" style="margin-left:auto;margin-right:10px">${nd}/7</span></summary>
+      <p class="small">${cur.prac}</p>
+      ${cur.steps ? duaSteps(cur, c, nd) : ''}
+      ${c.read ? `<button class="btn sm ${pdone ? 'quiet' : ''}" data-hprac style="margin-bottom:14px">${pdone ? 'Pratiqué aujourd\'hui ✓' : 'Je l\'ai pratiqué aujourd\'hui'}</button>` : '<p class="small muted">S\'ouvre une fois la leçon comprise.</p>'}</details>
+    <details class="hadv" ${lv === 2 ? 'open' : ''}><summary>3 · Ancrer <span class="small muted num" style="margin-left:auto;margin-right:10px">${Math.min(nd, 21)}/21</span></summary>
+      <p class="small">Continue la pratique jusqu'à 21 jours, et réponds par écrit, honnêtement :</p>
+      ${cur.refl.map((q, i) => `<label class="zlbl" for="hr-${i}">${q}</label><textarea id="hr-${i}" data-hrefl="${i}" rows="2" ${lv < 1 ? 'disabled' : ''}>${esc(c.refl[i] || '')}</textarea>`).join('')}
+      ${c.anch ? `<p class="small" style="color:var(--mint);margin-top:10px">Ancrée le ${DAY_LONG.format(parseDate(c.anch))}. Continue de la pratiquer : une compétence ancrée s'entretient.</p>` : `<button class="btn sm" data-hanch style="margin:10px 0 14px" ${canAnchor ? '' : 'disabled'}>${canAnchor ? 'Ancrer cette compétence' : nd < 21 ? `Encore ${21 - nd} jour${21 - nd > 1 ? 's' : ''} de pratique` : 'Réponds aux deux questions'}</button>`}</details>
+  </section>
+  ${cur.moments ? `<section><h2>Les moments où l'invocation est exaucée</h2><div class="group">${cur.moments.map(([t, s]) => `<div class="cell" style="flex-direction:column;align-items:flex-start;gap:2px"><span class="lbl">${t}</span><span class="small muted">${s}</span></div>`).join('')}</div></section>` : ''}
+  ${cur.k === 'dua' && (c.journal || []).length ? `<section><h2>Mon carnet de duʿa</h2><p class="small muted" style="margin:-6px 0 10px">Tes mots à Allah, du plus récent au premier. Ils restent sur ton téléphone.</p>${c.journal.slice().reverse().slice(0, 30).map(e => `<div class="djent"><p>${esc(e.t)}</p><time>${DAY_LONG.format(parseDate(e.d))}</time></div>`).join('')}</section>` : ''}`;
+}
+/* Duʿa : 4 marches selon les jours de pratique, et le carnet. */
+function duaSteps(cur, c, nd) {
+  const si = cur.steps.findIndex(s => nd < s.to), st = cur.steps[si < 0 ? cur.steps.length - 1 : si];
+  return `<div class="dsteps">${cur.steps.map((s, i) => `<div class="${nd >= s.to ? 'ok' : s === st ? 'now' : ''}"><i></i><span>${s.t}</span></div>`).join('')}</div>
+    <div class="dnow"><p class="eyebrow" style="margin:0">Aujourd'hui · ${st.t}</p><p class="small" style="margin:6px 0 0">${st.d}</p></div>
+    ${c.read ? `<div class="dstart">${cur.starters.map(s => `<button class="chip" data-dstart="${esc(s)}">${esc(s)}</button>`).join('')}</div>
+    <textarea id="djT" rows="3" placeholder="Écris-Lui ici, si c'est plus simple que de parler. Ça reste sur ton téléphone."></textarea>
+    <button class="btn sm" data-djsave style="margin:8px 0 6px">Garder dans mon carnet</button>
+    <p class="small muted" style="margin:0 0 12px">Écrire compte comme ta pratique du jour. Si tu Lui as parlé à voix basse, touche plutôt le bouton en dessous.</p>` : ''}`;
+}
+function heartClick(t) {
+  const c = s => t.closest(s); let el; const h = hrt();
+  if ((el = c('[data-hsel]'))) { h.cur = el.dataset.hsel; save(); render(); return true; }
+  if (c('[data-hread]')) { hc(h.cur).read = todayISO(); save(); render(); reward(5, { msg: [HEART.find(x => x.k === h.cur).n, 'La leçon est comprise. Place à la pratique, sept jours.'] }); return true; }
+  if (c('[data-hprac]')) {
+    const cc = hc(h.cur), k = todayISO(); if (cc.days[k]) { delete cc.days[k]; save(); render(); unreward(3); return true; }
+    cc.days[k] = 1; save(); const n = hDays(h.cur); render();
+    if (n === 7) reward(12, { big: true, msg: ['Sept jours de pratique', `${HEART.find(x => x.k === h.cur).n} commence à devenir une habitude du cœur. Continue jusqu'à 21 jours pour l'ancrer.`] });
+    else reward(3); return true;
+  }
+  if ((el = c('[data-dstart]'))) { const ta = $('#djT'); if (ta) { const s = el.dataset.dstart; ta.value = ta.value.trim() ? ta.value.trim() + ' ' + s : s; ta.focus(); try { const n = ta.value.length; ta.setSelectionRange(n, n); } catch (e) {} } return true; }
+  if (c('[data-djsave]')) {
+    const v = ($('#djT').value || '').trim(); if (!v) { toast('Écris au moins une phrase, même courte.'); return true; }
+    const cc = hc('dua'), k = todayISO(), first = !(cc.journal || []).length, wasDay = !!cc.days[k];
+    cc.journal = cc.journal || []; cc.journal.push({ d: k, t: v.slice(0, 2000) }); cc.days[k] = 1; save(); const n = hDays('dua'); render();
+    if (first) reward(10, { big: true, noBonus: true, msg: ['Ta première invocation à toi', 'Allah l\'a entendue, mot pour mot. « Je suis tout proche. Je réponds à l\'appel de celui qui M\'invoque. »', 'Coran 2:186'] });
+    else if (!wasDay && n === 7) reward(12, { big: true, msg: ['Sept jours à Lui parler', 'Les mots viennent. Continue, marche après marche.'] });
+    else if (!wasDay) reward(3); else toast('Ajouté à ton carnet.');
+    return true;
+  }
+  if (c('[data-hanch]')) { const cc = hc(h.cur); cc.anch = todayISO(); save(); render(); const x = HEART.find(y => y.k === h.cur); reward(25, { big: true, noBonus: true, msg: [`${x.n} ancrée`, x.src[0], x.src[1]] }); return true; }
+  return false;
+}
+function heartChange(t) {
+  if (t.dataset.hrefl == null) return false;
+  hc(hrt().cur).refl[t.dataset.hrefl] = t.value; save();
+  const b = $('[data-hanch]'); if (b) { const cur = HEART.find(x => x.k === hrt().cur), ok = hDays(cur.k) >= 21 && cur.refl.every((_, i) => (hc(cur.k).refl[i] || '').trim().length >= 10); b.disabled = !ok; }
+  return true;
+}
+
+const THEME_DEFAULT = 'emeraude', THEME_EXTRA = null;
+/* =====================================================================
+   THÈMES — palettes au choix (clair et sombre), mode auto / clair / sombre.
+   Les couleurs sont posées en variables CSS sur <html> ; les couleurs
+   d'état (alertes) et propres à l'app suivent le mode choisi.
+   ===================================================================== */
+const TKEYS = ['bg', 'bg-2', 'surface', 'raise', 'ink', 'ink-2', 'muted', 'line', 'orbit', 'gold', 'gold-hi', 'gold-ink', 'gold-soft', 'glow', 'mint', 'mint-soft', 'seg-bg', 'seg-on'];
+const THEMES = {
+  emeraude: { n: 'Émeraude & or', l: '#EEF2EE #E4EBE6 #FFFFFF #E3EAE5 #0B1F19 #2E4A40 #5B7369 #D0DBD4 #B9C9BF #94700F #B8901F #FFFFFF #F3EAD2 rgba(184,144,31,.18) #187F5B #DDF0E7 #E3EAE5 #FFFFFF', d: '#08130F #0C1C17 #0F221C #163029 #EEF3EF #C3D3CB #86A197 #1D3A31 #27473D #E9C46A #F5D98E #1A1405 #2A2615 rgba(233,196,106,.22) #5ED3A8 #123328 #0F221C #23463C' },
+  nuit: { n: 'Nuit & bleu pastel', l: '#EEF2FA #E3E9F6 #FFFFFF #E4EAF6 #0D1733 #2E3C63 #5C6A8E #D4DCEE #BAC6E2 #3B6FD6 #5B8FF0 #FFFFFF #E1EAFC rgba(59,111,214,.16) #1E8468 #DCF1EA #E4EAF6 #FFFFFF', d: '#0A1024 #0D1530 #111A36 #18234A #EEF2FB #C5CFE8 #8A97B8 #212D52 #2B3A62 #74A7FF #A9C8FF #07122E #16244A rgba(116,167,255,.22) #7FD1B9 #12302E #111A36 #22305C' },
+  sable: { n: 'Sable & terracotta', l: '#F6F1EA #EDE5DA #FFFFFF #EEE6DB #2A1D14 #5A4535 #8A7360 #E2D6C6 #CDBBA6 #B4532F #CF6E47 #FFFFFF #F7E3D8 rgba(180,83,47,.16) #3E7D5A #E1EFE5 #EEE6DB #FFFFFF', d: '#17110C #1E1711 #251C15 #30251C #F4ECE3 #D6C7B6 #A08C78 #3A2D22 #4B3B2E #E4835C #F0A07F #1E0E06 #3A2218 rgba(228,131,92,.22) #7CC59C #14291D #251C15 #3E3024' },
+  rose: { n: 'Rose poudré & prune', l: '#F8F0F2 #F0E4E8 #FFFFFF #F1E5E9 #2A1420 #5B3A4B #8B6B7B #E8D5DC #D5BCC6 #8E3A63 #AE5481 #FFFFFF #F6E2EB rgba(142,58,99,.15) #2F7F68 #DFF0EA #F1E5E9 #FFFFFF', d: '#160C12 #1E1119 #26151F #331C2A #F6ECF1 #D9C3CE #A88A99 #3B2331 #4D2E40 #E59BC0 #F2BBD5 #2A0E1C #3A1D2C rgba(229,155,192,.22) #7FD1B9 #13302A #26151F #43283A' },
+  ardoise: { n: 'Ardoise & cuivre', l: '#F1F2F4 #E7E9EC #FFFFFF #E6E8EB #15191F #3B434E #6A7380 #D6DAE0 #BFC5CE #9A5B2E #B9733F #FFFFFF #F3E6DB rgba(154,91,46,.15) #2B7A62 #DEEFE8 #E6E8EB #FFFFFF', d: '#0E1013 #14171B #1A1E23 #232830 #EEF0F3 #C7CDD5 #8F98A5 #2A3039 #373E49 #D9925B #EAB083 #1E1006 #33251A rgba(217,146,91,.22) #6CC7A6 #13291F #1A1E23 #2E353F' },
+  lavande: { n: 'Lavande & menthe', l: '#F3F1FA #EAE6F5 #FFFFFF #EAE6F5 #1C1730 #443C63 #726A92 #DCD6EE #C5BDE2 #6A4FC4 #8670DC #FFFFFF #ECE6FB rgba(106,79,196,.15) #1F8A6B #DCF2EA #EAE6F5 #FFFFFF', d: '#100D1C #161226 #1C172F #26203E #F1EEFA #CEC8E6 #9A92BC #2C2547 #3A3260 #B7A4FF #CFC2FF #140B33 #2A2346 rgba(183,164,255,.22) #7FD9B8 #12302A #1C172F #352D55' }
+};
+const TSTATE = { l: { danger: '#B3372A', 'danger-soft': '#F7E3DF', warn: '#9A5600', 'warn-soft': '#F6E9D6' }, d: { danger: '#FF8A7A', 'danger-soft': '#3A1A16', warn: '#F4A259', 'warn-soft': '#33240F' } };
+const tMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+function thConf() { const t = S.theme = S.theme && typeof S.theme === 'object' ? S.theme : {}; if (!THEMES[t.id]) t.id = THEME_DEFAULT; if (!['auto', 'light', 'dark'].includes(t.mode)) t.mode = 'auto'; return t; }
+function applyTheme() {
+  const t = thConf(), dark = t.mode === 'dark' || (t.mode === 'auto' && tMQ && tMQ.matches), v = dark ? 'd' : 'l';
+  const vals = THEMES[t.id][v].split(' '), r = document.documentElement;
+  TKEYS.forEach((k, i) => r.style.setProperty('--' + k, vals[i]));
+  Object.entries(Object.assign({}, TSTATE[v], (THEME_EXTRA || {})[v] || {})).forEach(([k, x]) => r.style.setProperty('--' + k, x));
+  r.style.colorScheme = dark ? 'dark' : 'light'; r.dataset.mode = dark ? 'dark' : 'light';
+  $$('meta[name="theme-color"]').forEach(m => m.setAttribute('content', vals[0]));
+}
+if (tMQ && tMQ.addEventListener) tMQ.addEventListener('change', () => { if (thConf().mode === 'auto') applyTheme(); });
+function themeBlock() {
+  const t = thConf();
+  return `<p class="gt">Apparence</p>
+    <div class="thgrid">${Object.entries(THEMES).map(([id, x]) => { const l = x.l.split(' '), d = x.d.split(' '); return `<button class="thsw" data-theme="${id}" aria-pressed="${t.id === id}"><span class="thdots"><i style="background:${l[0]};box-shadow:inset 0 0 0 1px ${l[7]}"></i><i style="background:${l[9]}"></i><i style="background:${d[0]}"></i><i style="background:${d[9]}"></i></span><span>${x.n}</span></button>`; }).join('')}</div>
+    <div class="seg" role="group" aria-label="Mode" style="margin-top:10px">${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([m, l]) => `<button data-tmode="${m}" aria-pressed="${t.mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
+    <p class="hint">Auto suit le réglage clair ou sombre de ton téléphone.</p>`;
+}
+function themeClick(t) {
+  const el = t.closest('[data-theme],[data-tmode]'); if (!el) return false;
+  const c = thConf();
+  if (el.dataset.theme) { c.id = el.dataset.theme; $$('[data-theme]').forEach(b => b.setAttribute('aria-pressed', b === el)); }
+  else { c.mode = el.dataset.tmode; $$('[data-tmode]').forEach(b => b.setAttribute('aria-pressed', b === el)); }
+  save(); applyTheme(); haptic(); return true;
+}
+
 /* =====================================================================
    15. RENDU & NAVIGATION
    ===================================================================== */
@@ -3553,13 +3879,15 @@ const TABS = ['orbite', 'flux', 'parcours', 'foi', 'corps', 'routine', 'argent',
 const CVIEWS = ['entrainement', 'nutrition', 'soin'];
 let tab = 'orbite', missedDismissed = false;
 function render(animate) {
+  applyTheme();
+  if (!tjLast) tjOpen();
   const app = $('#app');
   stopOrbit();
   app.className = animate ? 'view' : '';
   checkUnlocks();
   document.documentElement.classList.toggle('flux-on', tab === 'flux');
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
-  app.innerHTML = { orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
+  app.innerHTML = { orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
   coreGlyph();
   if (tab === 'orbite') startOrbit();
   if ((tab === 'orbite' || tab === 'foi') && !missedDismissed) setTimeout(missedOverlay, 700);
@@ -3572,10 +3900,11 @@ function render(animate) {
 function setAView(v) { A.view = v; try { localStorage.setItem('sdp-argent-view', v); } catch (e) {} }
 function setFView(v) { F.view = v; try { localStorage.setItem('sdp-foi-view', v); } catch (e) {} }
 function go(t) {
+  tjMod(t);
   if (tab === 'z') zLock();
   if (CVIEWS.includes(t)) { setCView(t); if (tab === 'corps') { render(); window.scrollTo(0, 0); return; } t = 'corps'; }
-  if (t === 'arabe' || t === 'habitudes' || t === 'dhikr') { setFView(t); if (tab === 'foi') { render(); window.scrollTo(0, 0); return; } t = 'foi'; }
-  if (t === 'heures' || t === 'budget') { if (tab === 'argent' && A.view === 'heures' && $('#fDate')) readForm(); setAView(t); if (tab === 'argent') { render(); window.scrollTo(0, 0); return; } t = 'argent'; }
+  if (t === 'arabe' || t === 'habitudes' || t === 'dhikr' || t === 'coeur') { setFView(t); if (tab === 'foi') { render(); window.scrollTo(0, 0); return; } t = 'foi'; }
+  if (t === 'heures' || t === 'budget' || t === 'zakat') { if (tab === 'argent' && A.view === 'heures' && $('#fDate')) readForm(); setAView(t); if (tab === 'argent') { render(); window.scrollTo(0, 0); return; } t = 'argent'; }
   if (!TABS.includes(t)) return;
   if (t === tab) { window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); return; }
   if (tab === 'argent' && A.view === 'heures' && $('#fDate')) readForm();
@@ -3665,6 +3994,10 @@ setInterval(() => { const el = $('#sessEl'); if (el && S.body.active) el.textCon
 document.addEventListener('click', e => {
   const t = e.target, c = sel => t.closest(sel);
   let el;
+  if (tjClick(t)) return;
+  if (themeClick(t)) return;
+  if (heartClick(t)) return;
+  if (zkClick(t)) return;
   if (dkClick(t)) return;
   if (hairClick(t)) return;
   if ((el = c('[data-open]'))) { el.dataset.open === 'settings' ? openSettings() : openIdeas(); return; }
@@ -3892,6 +4225,8 @@ document.addEventListener('keydown', e => {
 document.addEventListener('change', e => {
   const t = e.target;
   if (hairChange(t)) return;
+  if (heartChange(t)) return;
+  if (zkChange(t)) return;
   if (t.dataset.chk) {
     if (t.checked) S.checks[t.dataset.chk] = true; else delete S.checks[t.dataset.chk];
     save(); askPersist(); refreshParcours(); if (t.checked) reward(3); else unreward(3); return;
@@ -3961,6 +4296,7 @@ document.addEventListener('toggle', e => { const d = e.target; if (d.dataset && 
 $('#ideasSheet').addEventListener('close', () => { if ($('#ideasSheet').dataset.mode === 'bsetup') { delete $('#ideasSheet').dataset.mode; render(); } });
 let lastDay = todayISO();
 document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') tjOpen();
   if (document.visibilityState === 'hidden') { stopOrbit(); if (tab === 'z') { zLock(); tab = 'orbite'; render(); } return; }
   missedDismissed = false; if (tab === 'orbite' || tab === 'foi') setTimeout(missedOverlay, 700);
   if (todayISO() !== lastDay) { lastDay = todayISO(); H.form = null; H.month = todayISO().slice(0, 7); A.month = H.month; P.sel = null; render(); }
@@ -3983,11 +4319,11 @@ window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
   S = await loadState();
   save(true);
   let t = location.hash.slice(1);
-  if (t === 'arabe' || t === 'habitudes' || t === 'dhikr') { setFView(t); t = 'foi'; }
-  if (t === 'heures' || t === 'budget') { setAView(t); t = 'argent'; }
+  if (t === 'arabe' || t === 'habitudes' || t === 'dhikr' || t === 'coeur') { setFView(t); t = 'foi'; }
+  if (t === 'heures' || t === 'budget' || t === 'zakat') { setAView(t); t = 'argent'; }
   if (CVIEWS.includes(t)) { setCView(t); t = 'corps'; }
   if (!TABS.includes(t)) { try { t = localStorage.getItem('sdp-tab'); } catch (e) {} }
-  if (t === 'heures' || t === 'budget') { setAView(t); t = 'argent'; }
+  if (t === 'heures' || t === 'budget' || t === 'zakat') { setAView(t); t = 'argent'; }
   tab = TABS.includes(t) ? t : 'orbite';
   render(true);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
