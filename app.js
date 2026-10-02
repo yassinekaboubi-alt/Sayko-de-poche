@@ -821,7 +821,7 @@ function constellation() {
 }
 function vArabe() {
   const t = S.tajwid, cq = currentQuarter(), nS = SOURATES.filter(s => S.sourates[s[1]]).length;
-  const fat = FATIHA.map((v, vi) => `<div class="verse"><span class="vn">Verset ${vi + 1}</span><div class="words">${v.map(w => `<button class="w" data-fw><span class="a" lang="ar">${w[0]}</span><span class="f">${esc(w[1])}</span></button>`).join('')}</div></div>`).join('');
+  const fat = FATIHA.map((v, vi) => `<div class="verse"><span class="vn">Verset ${vi + 1} <button class="say" data-say="${v.map(w => w[0]).join(' ')}" aria-label="Écouter le verset ${vi + 1}">${SPK} Écouter</button></span><div class="words">${v.map(w => `<button class="w" data-fw><span class="a" lang="ar">${w[0]}</span><span class="f">${esc(w[1])}</span></button>`).join('')}</div></div>`).join('');
   const steps = AR_STEPS.map((s, si) => `<div class="qtr ${si === cq ? 'cur' : ''}" style="margin-top:${si ? 18 : 0}px"><p class="eyebrow" ${si === cq ? 'style="color:var(--gold)"' : ''}>${si === cq ? 'Maintenant · ' : ''}${s.t}</p><div class="checks">${s.items.map((it, i) => checkbox(`ar${si}-${i}`, esc(it))).join('')}</div></div>`).join('');
   return `${foiTop('arabe')}
   <div class="constel">
@@ -869,11 +869,23 @@ function nextQuiz(anim) {
   if (anim && el && !reduceMotion()) { el.classList.add('out'); setTimeout(() => { el.classList.remove('out'); drawQuiz(); el.classList.remove('in'); void el.offsetWidth; el.classList.add('in'); }, 220); }
   else drawQuiz();
 }
+/* Prononciation : la voix arabe du téléphone (ar-SA). */
+const SPK = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
+try { window.speechSynthesis && speechSynthesis.getVoices(); } catch (e) {}
+function sayAr(txt) {
+  try {
+    if (!('speechSynthesis' in window)) { toast('La lecture à voix haute n\'est pas disponible sur cet appareil.'); return; }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt); u.lang = 'ar-SA'; u.rate = .72;
+    const v = speechSynthesis.getVoices().find(x => /^ar/i.test(x.lang)); if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
 function drawQuiz() {
   const el = $('#quiz'); if (!el || !quiz) return;
   const w = WORDS[quiz.idx], sc = Math.min(3, S.words[quiz.idx] || 0);
   el.innerHTML = `<div class="word" lang="ar">${w[0]}</div>
-    <div class="root">${w[2] ? `racine <span class="ar" lang="ar">${w[2]}</span>` : 'mot-outil'}</div>
+    <div class="root">${w[2] ? `racine <bdi class="ar" lang="ar">${w[2]}</bdi>` : 'mot-outil'}&ensp;<button class="say" data-say="${w[0]}" aria-label="Écouter la prononciation">${SPK} Écouter</button></div>
     <div class="opts">${quiz.opts.map(o => `<button class="opt" data-q="${o}">${esc(WORDS[o][1])}</button>`).join('')}</div>
     <div class="quiz-foot"><span class="num">Session ${session.ok}/${session.n}</span>
       <span class="mastery" aria-label="Maîtrise : ${sc} sur 3">${[0, 1, 2].map(i => `<i class="${i < sc ? 'on' : ''}"></i>`).join('')}</span>
@@ -900,7 +912,7 @@ function answerQuiz(btn) {
 }
 function showStar(i) {
   const w = WORDS[i], sc = Math.min(3, S.words[i] || 0);
-  $('#ctip').innerHTML = `<span class="ar" lang="ar" style="font-size:1.25rem">${w[0]}</span> · ${esc(w[1])} · <span class="num">${sc}/3</span>`;
+  $('#ctip').innerHTML = `<span class="ar" lang="ar" style="font-size:1.25rem">${w[0]}</span> · ${esc(w[1])} · <span class="num">${sc}/3</span> <button class="say" data-say="${w[0]}" aria-label="Écouter ${esc(w[1])}">${SPK}</button>`;
 }
 
 /* =====================================================================
@@ -3347,7 +3359,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.21 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.22 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -4203,7 +4215,8 @@ document.addEventListener('click', e => {
   if ((el = c('[data-q]'))) { answerQuiz(el); return; }
   if (c('#qgo')) { nextQuiz(true); return; }
   if ((el = c('[data-star]'))) { showStar(Number(el.dataset.star)); return; }
-  if ((el = c('[data-fw]'))) { if ($('#fatiha').classList.contains('hide')) { el.classList.toggle('shown'); haptic(); } return; }
+  if ((el = c('[data-say]'))) { sayAr(el.dataset.say); return; }
+  if ((el = c('[data-fw]'))) { sayAr(el.querySelector('.a').textContent); if ($('#fatiha').classList.contains('hide')) { el.classList.toggle('shown'); haptic(); } return; }
   if (c('#toggleFat')) { S.hideFatiha = !S.hideFatiha; save(); $('#fatiha').classList.toggle('hide', S.hideFatiha); $$('.w.shown').forEach(w => w.classList.remove('shown')); const b = $('#toggleFat'); b.textContent = S.hideFatiha ? 'Montrer le sens' : 'Cacher le sens'; b.setAttribute('aria-pressed', S.hideFatiha); $('#fatHint').textContent = S.hideFatiha ? 'Touche un mot pour révéler sa traduction.' : 'Mot à mot. Cache le sens pour te tester.'; return; }
   if ((el = c('[data-taj]'))) {
     const tj = S.tajwid; tj.done = Math.max(0, tj.done + Number(el.dataset.taj)); if (tj.total) tj.done = Math.min(tj.done, tj.total);
