@@ -2607,9 +2607,11 @@ function makePlan() {
   }
   mp().draft = { from, to, list }; save();
 }
-function shopFromIds(ids) {
+function shopFromIds(ids, gums) {
   const P = mp().portions, map = new Map();
-  ids.forEach(id => { const r = recOf(id); if (r) r.ing.forEach(([n, q, u, ray]) => { const key = n + '|' + u, o = map.get(key) || { n, u, q: 0, ray, cnt: 0 }; if (q !== '') o.q += q * P; o.cnt++; map.set(key, o); }); });
+  const add = ([n, q, u, ray], k) => { const key = n + '|' + u, o = map.get(key) || { n, u, q: 0, ray, cnt: 0 }; if (q !== '') o.q += q * k; o.cnt++; map.set(key, o); };
+  ids.forEach(id => { const r = recOf(id); if (r) r.ing.forEach(i => add(i, P)); });
+  Object.entries(gums || {}).forEach(([id, n]) => { const g = GUMMIES[id]; if (g && n > 0) g.ing.forEach(i => add(i, n)); });
   const fmt = o => { if (!o.q) return o.cnt > 1 ? `×${o.cnt}` : ''; if (o.u === 'g' || o.u === 'ml') return o.q >= 1000 ? `${String(Math.round(o.q / 100) / 10).replace('.', ',')} ${o.u === 'g' ? 'kg' : 'L'}` : `${Math.round(o.q / 10) * 10} ${o.u}`; const n = Math.ceil(o.q * 2) / 2; return `${String(n).replace('.', ',')}${o.u ? ' ' + o.u : ''}`; };
   const g = {}; [...map.values()].forEach(o => { (g[o.ray] = g[o.ray] || []).push({ n: o.n, key: o.n + '|' + o.u, txt: fmt(o) }); }); return g;
 }
@@ -2622,13 +2624,24 @@ function vPlanDraft() {
     <button class="btn block" data-plgo style="margin-top:14px">Valider ${kept} repas et faire la liste</button>
     <button class="link-btn small" data-plno style="display:block;margin:8px auto 0">Abandonner ce plan</button></section>`;
 }
+/* Liste de la période : repas prévus du premier au dernier jour (tels qu'ils sont maintenant dans la grille) + gummies des semaines concernées. */
+function shopItems(s) {
+  const ids = [], gums = {}, weeks = new Set();
+  for (let d = s.from; d <= s.to; d = iso(addDays(parseDate(d), 1))) {
+    const wk = iso(mondayOf(parseDate(d))), w = mp().wk[wk]; weeks.add(wk); if (!w || !w.s) continue;
+    const di = (parseDate(d).getDay() + 6) % 7; MOM.forEach(([mo]) => { const id = w.s[`${di}-${mo}`]; if (id) ids.push(id); });
+  }
+  weeks.forEach(wk => { const w = mp().wk[wk]; if (w && w.gum) Object.entries(w.gum).forEach(([id, n]) => { gums[id] = (gums[id] || 0) + n; }); });
+  return shopFromIds(ids, gums);
+}
 function vShopCard() {
-  const s = mp().shop, RAYS = ['Fruits et légumes', 'Frais', 'Épicerie', 'Surgelés'];
+  const s = mp().shop, RAYS = ['Fruits et légumes', 'Frais', 'Épicerie', 'Surgelés']; s.items = shopItems(s);
   const n = Object.values(s.items).reduce((a, l) => a + l.length, 0) + s.extra.length, got = Object.keys(s.got).length + s.extra.filter(x => x.got).length;
   return `<section class="plancard"><div class="row between" style="align-items:baseline"><p class="eyebrow" style="margin:0">Courses · ${DAY_MONTH.format(parseDate(s.from))} au ${DAY_MONTH.format(parseDate(s.to))}</p><span class="small muted num">${got} / ${n}</span></div>
     ${RAYS.filter(r => s.items[r]).map(r => `<p class="zlbl">${r}</p><div class="checks">${s.items[r].map(o => `<label class="check"><input type="checkbox" data-shgot="${esc(o.key)}" ${s.got[o.key] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(o.n)}${o.txt ? ` <span class="small muted num">· ${o.txt}</span>` : ''}</span></label>`).join('')}</div>`).join('')}
     ${s.extra.length ? `<p class="zlbl">En plus</p><div class="checks">${s.extra.map((x, i) => `<label class="check"><input type="checkbox" data-shx="${i}" ${x.got ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(x.t)}</span></label>`).join('')}</div>` : ''}
     <div class="row" style="margin-top:12px"><input id="shX" placeholder="Ajouter un article" style="flex:1;min-height:44px;border:0;border-radius:12px;background:var(--raise);padding:0 12px;color:var(--ink);font:inherit"><button class="btn sm" data-shxadd>Ajouter</button></div>
+    <div class="row" style="margin-top:12px;gap:8px;align-items:center"><button class="icon-btn" data-mpport="-1" aria-label="Moins de portions">−</button><span class="small num">${mp().portions} portions par repas</span><button class="icon-btn" data-mpport="1" aria-label="Plus de portions">+</button></div>
     <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><button class="btn sm ghost" data-shshare>Partager la liste</button><button class="btn sm quiet" data-shdone>Courses terminées</button></div></section>`;
 }
 function planClick(t) {
@@ -2637,14 +2650,14 @@ function planClick(t) {
   if (c('[data-plgo]')) {
     const kept = m.draft.list.filter(x => x.ok);
     kept.forEach(x => { const wk = iso(mondayOf(parseDate(x.d))), w = mpWeek(wk), di = (parseDate(x.d).getDay() + 6) % 7; w.s[`${di}-${x.mo}`] = x.id; });
-    m.shop = { from: m.draft.from, to: m.draft.to, items: shopFromIds(kept.map(x => x.id)), got: {}, extra: [] }; m.draft = null; save(); render(); window.scrollTo(0, 0);
+    m.shop = { from: m.draft.from, to: m.draft.to, items: {}, got: {}, extra: [] }; m.draft = null; save(); render(); window.scrollTo(0, 0);
     reward(3, { msg: ['Ta liste est prête', `${kept.length} repas prévus, ingrédients comptés pour ${m.portions}. Bonnes courses.`] }); return true;
   }
   if (c('[data-plno]')) { m.draft = null; save(); render(); return true; }
   if (c('[data-plnew]')) { makePlan(); render(); window.scrollTo(0, 0); return true; }
   if (c('[data-shxadd]')) { const v = ($('#shX').value || '').trim(); if (v) { m.shop.extra.push({ t: v.slice(0, 80), got: false }); save(); render(); } return true; }
   if (c('[data-shdone]')) { m.shop = null; save(); render(); toast('Courses terminées. Bon appétit !'); return true; }
-  if (c('[data-shshare]')) { const s = m.shop, txt = `Courses du ${DAY_MONTH.format(parseDate(s.from))} au ${DAY_MONTH.format(parseDate(s.to))}\n` + Object.entries(s.items).map(([r, l]) => `\n${r}\n` + l.map(o => `- ${o.n}${o.txt ? ' (' + o.txt + ')' : ''}`).join('\n')).join('\n') + (s.extra.length ? '\n\nEn plus\n' + s.extra.map(x => '- ' + x.t).join('\n') : ''); if (navigator.share) navigator.share({ text: txt }).catch(() => {}); else { try { navigator.clipboard.writeText(txt); toast('Liste copiée'); } catch (e) {} } return true; }
+  if (c('[data-shshare]')) { const s = m.shop; s.items = shopItems(s); const txt = `Courses du ${DAY_MONTH.format(parseDate(s.from))} au ${DAY_MONTH.format(parseDate(s.to))}\n` + Object.entries(s.items).map(([r, l]) => `\n${r}\n` + l.map(o => `- ${o.n}${o.txt ? ' (' + o.txt + ')' : ''}`).join('\n')).join('\n') + (s.extra.length ? '\n\nEn plus\n' + s.extra.map(x => '- ' + x.t).join('\n') : ''); if (navigator.share) navigator.share({ text: txt }).catch(() => {}); else { try { navigator.clipboard.writeText(txt); toast('Liste copiée'); } catch (e) {} } return true; }
   return false;
 }
 function planChange(t) {
@@ -2655,36 +2668,112 @@ function planChange(t) {
   return false;
 }
 
+/* ---------- Recettes : étapes de chaque plat ---------- */
+const STEPS = {
+  tacos: ['Cuis les frites au four.', 'Fais revenir le haché végétal 5 minutes avec un peu d\'oignon, du paprika et du cumin.', 'Sauce fromagère : chauffe la crème et fais-y fondre le cheddar.', 'Garnis la tortilla (haché, frites, sauce, tomate, salade), plie-la en carré et dore-la 2 minutes de chaque côté à la poêle.'],
+  smash: ['Forme 2 boules de haché par burger.', 'Dans une poêle très chaude, écrase chaque boule très finement avec une spatule, sale, cuis 2 minutes, retourne et pose le cheddar.', 'Toaste les pains.', 'Monte : sauce, salade, tomate, steaks, oignon, cornichons.'],
+  nuggets: ['Four à 200 °C : potatoes 25 minutes, nuggets les 12 dernières minutes.', 'Coleslaw : râpe le chou et la carotte, mélange avec le yaourt, sel, poivre et un trait de citron.', 'Sers avec la sauce barbecue.'],
+  wrap: ['Cuis les nuggets au four ou à la poêle et coupe-les.', 'Sauce ranch : yaourt, ail, ciboulette, sel, poivre.', 'Garnis la tortilla (salade, tomate, nuggets, cheddar, sauce), roule serré et toaste 1 minute si tu veux.'],
+  kebab: ['Fais mariner les émincés 10 minutes : paprika, cumin, ail, huile, sel.', 'Saisis-les 6 à 8 minutes à feu vif.', 'Sauce blanche : yaourt, ail, sel, persil ou menthe.', 'Garnis les pitas chauds : salade, tomate, oignon rouge, émincés, sauce.'],
+  fajitas: ['Émince le poivron, l\'oignon et la courgette, fais-les sauter 5 minutes.', 'Ajoute les émincés et les épices fajitas, 6 minutes.', 'Chauffe les tortillas et garnis.'],
+  chili: ['Fais revenir l\'oignon et le poivron 5 minutes.', 'Ajoute le haché végétal 3 minutes, puis les tomates, les haricots, du cumin, du paprika et un peu de piment.', 'Laisse mijoter 15 minutes et sers avec le riz.'],
+  bolo: ['Fais revenir la carotte et la courgette en dés 5 minutes.', 'Ajoute le haché 3 minutes, puis la sauce tomate, 10 minutes.', 'Cuis les pâtes, mélange et mets le parmesan dessus.'],
+  thon: ['Cuis les pâtes.', 'Poêle la courgette en dés 5 minutes, ajoute la sauce tomate et le thon égoutté, 5 minutes.', 'Mélange aux pâtes.'],
+  pizza: ['Four à 240 °C.', 'Étale la pâte : sauce tomate, haché végétal émietté, poivron, champignons, mozzarella.', 'Cuis 12 à 15 minutes et ajoute les tomates cerises à la sortie.'],
+  keftas: ['Mélange le haché avec le persil, le cumin, sel et poivre, puis forme des boulettes.', 'Dore-les 5 minutes.', 'Ajoute la sauce tomate et la courgette en dés, laisse mijoter 10 minutes.', 'Casse l\'œuf au milieu et couvre 5 minutes, jusqu\'à ce qu\'il soit pris.'],
+  couscous: ['Cuis la courgette, la carotte et le poivron en morceaux 20 minutes dans un bouillon au ras el hanout.', 'Fais griller les merguez.', 'Semoule : autant d\'eau bouillante salée que de semoule, couvre 5 minutes, puis égraine à la fourchette.'],
+  hachis: ['Fais revenir la carotte râpée et le haché 5 minutes, sel et poivre.', 'Prépare la purée avec le lait chaud.', 'Dans un plat : le haché, la purée, l\'emmental.', 'Four à 200 °C, 15 minutes, jusqu\'à ce que ce soit doré.'],
+  quesa: ['Écrase grossièrement les haricots avec la salsa.', 'Sur une tortilla : haricots, poivron et tomate en dés, cheddar, puis referme avec la deuxième.', 'Dore à la poêle 3 minutes de chaque côté et coupe en parts.'],
+  shak: ['Fais revenir l\'oignon, le poivron et la courgette 8 minutes.', 'Ajoute la sauce tomate, du cumin et du paprika, 5 minutes.', 'Creuse des puits, casse les œufs, couvre 6 à 8 minutes.', 'Émiette la feta et sers avec le pain.'],
+  omelette: ['Cuis les pommes de terre en dés à la poêle 15 minutes avec l\'oignon et le poivron.', 'Bats les œufs avec l\'emmental, sel et poivre, puis verse.', 'Cuis à feu doux, couvert, 8 minutes.'],
+  brouille: ['Bats les œufs et cuis-les à feu doux en remuant.', 'Hors du feu, ajoute le cottage cheese.', 'Sers sur le pain grillé.'],
+  skyrbol: ['Dans un bol : le skyr, la banane en rondelles, le granola et le beurre de cacahuète.'],
+  mousse: ['Fouette le skyr, le cacao et le miel, puis laisse 10 minutes au frais.'],
+  macncheese: ['Cuis les pâtes.', 'Fais revenir le haché et le brocoli en petits bouquets 5 minutes.', 'Chauffe le lait et la crème, fais-y fondre le cheddar.', 'Mélange le tout, et passe 10 minutes au four si tu veux gratiner.'],
+  gratin: ['Cuis les pâtes un peu fermes.', 'Poêle la courgette en dés et le haché 5 minutes.', 'Mélange avec la crème, verse dans un plat et couvre d\'emmental.', 'Four à 200 °C, 15 minutes.'],
+  carbo: ['Cuis les pâtes.', 'Dore les lardons végétaux et les champignons.', 'Mélange l\'œuf, la crème et le parmesan.', 'Hors du feu, mélange les pâtes chaudes, les lardons et la sauce : l\'œuf nappe sans cuire.'],
+  alfredo: ['Saisis les émincés 6 minutes et réserve-les.', 'Fais revenir l\'ail et les champignons, ajoute les épinards.', 'Ajoute la crème et le parmesan, laisse épaissir 2 minutes.', 'Mélange avec les pâtes et les émincés.'],
+  champi: ['Cuis le riz et les haricots verts.', 'Saisis les émincés 6 minutes, ajoute les champignons 5 minutes.', 'Verse la crème, sel et poivre, 3 minutes.'],
+  lasagnes: ['Bolognaise : haché, courgette et aubergine en dés, sauce tomate, 10 minutes.', 'Béchamel : fais fondre un peu de beurre, ajoute la farine, puis le lait en fouettant jusqu\'à ce que ça épaississe.', 'Alterne feuilles, bolognaise et béchamel, et finis par la mozzarella.', 'Four à 180 °C, 35 minutes.'],
+  tartif: ['Cuis les pommes de terre 15 minutes à l\'eau et coupe-les en rondelles.', 'Dore l\'oignon et les lardons végétaux.', 'Dans un plat : pommes de terre, lardons, crème, et le reblochon coupé en deux par-dessus.', 'Four à 200 °C, 20 minutes. Avec la salade.'],
+  raclette: ['Cuis les pommes de terre en robe des champs 20 minutes.', 'Coupe-les en deux dans un plat et couvre de tranches de raclette.', 'Four à 220 °C, 8 à 10 minutes. Avec les cornichons et la salade.'],
+  quiche: ['Four à 180 °C.', 'Étale la pâte dans un moule.', 'Bats les œufs, la crème, l\'emmental et les épinards égouttés, avec sel, poivre et muscade.', 'Verse et cuis 35 minutes. Avec la salade.'],
+  burrito: ['Cuis le riz.', 'Fais revenir le haché, le poivron et le maïs 5 minutes avec du cumin et du paprika.', 'Garnis les tortillas (riz, haché, salsa) et roule-les.', 'Cheddar dessus, four à 200 °C, 10 minutes.'],
+  croque: ['Tartine un peu de crème sur le pain, mets l\'emmental entre les tranches et dessus.', 'Four à 200 °C, 10 minutes.', 'Pose un œuf au plat dessus. Avec la salade et la tomate.'],
+  saumoncreme: ['Cuis les pâtes.', 'Poêle la courgette, ajoute le saumon en dés, 3 minutes.', 'Ajoute la crème, le zeste et le jus du citron, 2 minutes, et mélange aux pâtes.'],
+  salriz: ['Cuis le riz et l\'œuf (10 minutes pour un œuf dur), puis laisse refroidir.', 'Mélange le riz, le maïs, la tomate, le poivron, l\'emmental, les olives et l\'œuf en quartiers.', 'Vinaigrette : huile d\'olive, vinaigre, moutarde.'],
+  salpates: ['Cuis les pâtes et rince-les à l\'eau froide.', 'Mélange avec le pesto, les tomates cerises coupées, la mozzarella et la roquette.'],
+  nicoise: ['Cuis les pommes de terre (15 min), les haricots verts (8 min) et les œufs durs (10 min), puis refroidis.', 'Dispose-les sur la salade avec la tomate, le poivron et les olives.', 'Vinaigrette à l\'huile d\'olive.'],
+  nicoisethon: ['Cuis les pommes de terre (15 min), les haricots verts (8 min) et les œufs durs (10 min), puis refroidis.', 'Dispose-les sur la salade avec la tomate, les olives et le thon égoutté.', 'Vinaigrette à l\'huile d\'olive.'],
+  grecque: ['Coupe le concombre, la tomate, le poivron et l\'oignon rouge.', 'Ajoute les olives et la feta en gros morceaux.', 'Huile d\'olive et origan. Avec le pain pita.'],
+  cesar: ['Cuis les nuggets et coupe-les.', 'Sauce : yaourt, parmesan râpé, ail, citron, un peu de moutarde.', 'Romaine, tomates cerises, croûtons, nuggets, sauce et copeaux de parmesan.'],
+  sallent: ['Mélange les lentilles, le poivron, la tomate, l\'oignon rouge et la feta.', 'Vinaigrette moutarde et huile d\'olive. Encore meilleure après un passage au frais.'],
+  mexicaine: ['Mélange les haricots égouttés, le maïs, la tomate, le poivron, l\'avocat et le cheddar.', 'Assaisonne : citron vert, huile, cumin, sel.'],
+  piemontaise: ['Cuis les pommes de terre (15 min) et les œufs durs (10 min), puis refroidis.', 'Coupe et mélange avec les cornichons, la tomate et l\'emmental.', 'Sauce : crème, moutarde, sel, poivre.']
+};
+const MPR = { view: null };
+function ingTxt(n, q, u, P) {
+  if (q === '' || q == null) return n;
+  const v = q * P, nm = n.charAt(0).toLowerCase() + n.slice(1);
+  if (u === 'g' || u === 'ml') return `${v >= 1000 ? String(Math.round(v / 100) / 10).replace('.', ',') + (u === 'g' ? ' kg' : ' L') : Math.round(v / 5) * 5 + ' ' + u} ${/^[aeiouyéèêhœ]/i.test(nm) ? 'd\'' : 'de '}${nm}`;
+  const qt = v === .5 ? '1/2' : v === .25 ? '1/4' : v === .75 ? '3/4' : String(Math.round(v * 4) / 4).replace('.', ',');
+  return u ? `${qt} ${u} ${/^[aeiouyéèêhœ]/i.test(nm) ? 'd\'' : 'de '}${nm}` : `${qt} ${nm}`;
+}
+function vRecipe(slot, w) {
+  const id = w.s[slot], r = recOf(id); if (!r) return '';
+  const P = mp().portions, [di, mo] = slot.split('-'), day = addDays(parseDate(mpWeekKey()), Number(di)), st = STEPS[id];
+  return `<section class="mprecipe"><div class="row between" style="align-items:flex-start"><div><p class="eyebrow" style="margin:0;text-transform:capitalize">${DAY_LONG.format(day)} · ${MOM.find(x => x[0] === mo)[1]}</p><h2 style="margin:6px 0 0">${esc(r.n)}</h2></div><button class="icon-btn" data-mprclose aria-label="Fermer">×</button></div>
+    <p class="small muted" style="margin:4px 0 12px">${r.p ? `${r.p} g de protéines par portion · ` : ''}pour ${P} portion${P > 1 ? 's' : ''}</p>
+    <p class="zlbl">Ingrédients</p><ul class="mping">${r.ing.map(([n, q, u]) => `<li>${esc(ingTxt(n, q, u, P))}</li>`).join('')}</ul>
+    ${st ? `<p class="zlbl">Préparation</p><ol class="mpsteps">${st.map(s => `<li>${s}</li>`).join('')}</ol>` : ''}
+    <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm ghost" data-mprchange="${slot}">Changer ce repas</button><button class="btn sm quiet" data-mprclear="${slot}">Retirer</button></div></section>`;
+}
+function vTodayMenu() {
+  const k = todayISO(), wk = iso(mondayOf(new Date())), w = mp().wk[wk]; if (!w || !w.s) return '';
+  const di = (new Date().getDay() + 6) % 7, items = MOM.map(([mo, ml]) => { const id = w.s[`${di}-${mo}`], r = id && recOf(id); return r ? [mo, ml, r] : null; }).filter(Boolean);
+  if (!items.length) return '';
+  return `<section class="mptoday"><p class="eyebrow" style="margin:0">Au menu aujourd'hui</p>${items.map(([mo, ml, r]) => `<button class="mptd" data-mprtoday="${di}-${mo}"><small>${ml}</small><span>${esc(r.n)}</span><b class="say">Recette ›</b></button>`).join('')}</section>`;
+}
+
+function VWLIST(w, m, groups, RAYS) {
+  return `<section><div class="row between" style="align-items:flex-end"><h2 style="margin:0">Liste de courses</h2><div class="row" style="gap:6px;align-items:center"><button class="icon-btn" data-mpport="-1" aria-label="Moins de portions">−</button><span class="small num">${m.portions} portion${m.portions > 1 ? 's' : ''}</span><button class="icon-btn" data-mpport="1" aria-label="Plus de portions">+</button></div></div>
+    ${Object.keys(groups).length || w.extra.length ? RAYS.filter(r => groups[r]).map(r => `<p class="zlbl">${r}</p><div class="checks">${groups[r].map(o => { const key = o.n + '|' + o.u; return `<label class="check"><input type="checkbox" data-mpgot="${esc(key)}" ${w.got[key] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(o.n)}${o.txt ? ` <span class="small muted num">· ${o.txt}</span>` : ''}</span></label>`; }).join('')}</div>`).join('') + (w.extra.length ? `<p class="zlbl">En plus</p><div class="checks">${w.extra.map((x, i) => `<label class="check"><input type="checkbox" data-mpxgot="${i}" ${x.got ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(x.t)}</span></label>`).join('')}</div>` : '') : '<p class="small muted">La liste se remplit toute seule avec les repas de la semaine.</p>'}
+    <div class="row" style="margin-top:12px"><input id="mpX" placeholder="Ajouter un article (eau, fruits…)" style="flex:1;min-height:44px;border:0;border-radius:12px;background:var(--surface);padding:0 12px;color:var(--ink);font:inherit"><button class="btn sm" data-mpxadd>Ajouter</button></div>
+    ${Object.keys(groups).length ? '<button class="btn sm ghost" data-mpshare style="margin-top:10px">Partager la liste</button>' : ''}
+  </section>`;
+}
 function vMealWeek(t) {
   const k = mpWeekKey(), w = mpWeek(k), m0 = parseDate(k), m = mp(), groups = mpShopping(w), RAYS = ['Fruits et légumes', 'Frais', 'Épicerie', 'Surgelés', 'Mes idées'];
   const lbl = MP.off === 0 ? 'Cette semaine' : MP.off === 1 ? 'Semaine prochaine' : MP.off === -1 ? 'Semaine dernière' : `Semaine du ${DAY_MONTH.format(m0)}`;
   const days = Array.from({ length: 7 }, (_, i) => addDays(m0, i));
   const list = Object.entries(RECIPES).filter(([, r]) => recOk(r)).sort((a, b) => b[1].p - a[1].p);
   if (!m.draft && !m.shop && !m.auto1) { m.auto1 = 1; makePlan(); }
-  return `${m.draft ? vPlanDraft() : ''}${m.shop ? vShopCard() : ''}${!m.draft && !m.shop ? '<button class="btn sm ghost" data-plnew style="margin-top:14px">Préparer mes repas jusqu\'à dimanche prochain</button>' : ''}<div class="row between" style="margin-top:18px;align-items:center"><button class="icon-btn" data-mpw="-1" aria-label="Semaine précédente">‹</button><b>${lbl}</b><button class="icon-btn" data-mpw="1" aria-label="Semaine suivante">›</button></div>
+  return `${MP.off === 0 && !m.draft ? vTodayMenu() : ''}${m.draft ? vPlanDraft() : ''}${m.shop ? vShopCard() : ''}${!m.draft && !m.shop ? '<button class="btn sm ghost" data-plnew style="margin-top:14px">Préparer mes repas jusqu\'à dimanche prochain</button>' : ''}<div class="row between" style="margin-top:18px;align-items:center"><button class="icon-btn" data-mpw="-1" aria-label="Semaine précédente">‹</button><b>${lbl}</b><button class="icon-btn" data-mpw="1" aria-label="Semaine suivante">›</button></div>
   <div class="mpgrid">${days.map((d, i) => `<div class="mpday ${iso(d) === todayISO() ? 'today' : ''}"><p>${DAY_SHORT.format(d)} ${d.getDate()}</p>${MOM.map(([mo, ml]) => { const id = w.s[`${i}-${mo}`], r = id && recOf(id), on = MP.pick === `${i}-${mo}`; return `<button class="mpslot ${r ? 'full' : ''} ${on ? 'on' : ''}" data-mps="${i}-${mo}"><small>${ml}</small>${r ? `<span>${esc(r.n)}</span>${r.p ? `<b class="num">${r.p} g</b>` : ''}` : '<span class="muted">+</span>'}</button>`; }).join('')}</div>`).join('')}</div>
+  ${MPR.view && w.s[MPR.view] ? vRecipe(MPR.view, w) : ''}
   ${MP.pick ? `<section class="mppick"><div class="row between"><h3 style="margin:0">${MOM.find(x => x[0] === MP.pick.split('-')[1])[1]}, ${DAY_LONG.format(days[Number(MP.pick.split('-')[0])])}</h3><button class="icon-btn" data-mpclose aria-label="Fermer">×</button></div>
     ${w.s[MP.pick] ? '<button class="btn sm quiet" data-mpclear style="margin-top:8px">Vider cette case</button>' : ''}
     ${m.custom.length ? `<p class="zlbl">Mes idées</p>${m.custom.map(c => `<button class="mprec" data-mprec="${c.id}"><span>${esc(c.n)}</span>${c.p ? `<b class="num">${c.p} g</b>` : ''}</button>`).join('')}` : ''}
     <p class="zlbl">Idées gourmandes et rapides, sans viande (protéines par portion)</p>
     ${list.map(([id, r]) => `<button class="mprec" data-mprec="${id}"><span>${r.n}<small>${r.fam.map(f => FAML[f]).join(' · ')}</small></span><b class="num">${r.p} g</b></button>`).join('')}
     ${MP.form ? `<div class="mpform"><input id="mpN" placeholder="Nom du plat"><textarea id="mpI" rows="3" placeholder="Ingrédients, un par ligne"></textarea><input id="mpP" inputmode="numeric" placeholder="Protéines par portion, en g (facultatif)"><button class="btn sm" data-mpsave>Ajouter à mes idées et à cette case</button></div>` : '<button class="btn sm ghost" data-mpform style="margin-top:10px">Écrire ma propre idée</button>'}
-  </section>` : '<p class="hint">Touche une case pour y mettre une idée de repas.</p>'}
+  </section>` : '<p class="hint">Touche un repas pour voir sa recette, ou une case vide pour en ajouter un.</p>'}
   ${gumBlock(w)}
   <section><h2>Les conseils de la semaine</h2>${mpAdvice(w, t).map(a => `<p class="small mpadv">${a}</p>`).join('')}</section>
-  <section><div class="row between" style="align-items:flex-end"><h2 style="margin:0">Liste de courses</h2><div class="row" style="gap:6px;align-items:center"><button class="icon-btn" data-mpport="-1" aria-label="Moins de portions">−</button><span class="small num">${m.portions} portion${m.portions > 1 ? 's' : ''}</span><button class="icon-btn" data-mpport="1" aria-label="Plus de portions">+</button></div></div>
-    ${Object.keys(groups).length || w.extra.length ? RAYS.filter(r => groups[r]).map(r => `<p class="zlbl">${r}</p><div class="checks">${groups[r].map(o => { const key = o.n + '|' + o.u; return `<label class="check"><input type="checkbox" data-mpgot="${esc(key)}" ${w.got[key] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(o.n)}${o.txt ? ` <span class="small muted num">· ${o.txt}</span>` : ''}</span></label>`; }).join('')}</div>`).join('') + (w.extra.length ? `<p class="zlbl">En plus</p><div class="checks">${w.extra.map((x, i) => `<label class="check"><input type="checkbox" data-mpxgot="${i}" ${x.got ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(x.t)}</span></label>`).join('')}</div>` : '') : '<p class="small muted">La liste se remplit toute seule avec les repas de la semaine.</p>'}
-    <div class="row" style="margin-top:12px"><input id="mpX" placeholder="Ajouter un article (eau, fruits…)" style="flex:1;min-height:44px;border:0;border-radius:12px;background:var(--surface);padding:0 12px;color:var(--ink);font:inherit"><button class="btn sm" data-mpxadd>Ajouter</button></div>
-    ${Object.keys(groups).length ? '<button class="btn sm ghost" data-mpshare style="margin-top:10px">Partager la liste</button>' : ''}
-  </section>`;
+  ${m.shop ? `<section><h2>Liste de courses</h2><p class="small muted" style="margin:-6px 0 0">Ta liste du ${DAY_MONTH.format(parseDate(m.shop.from))} au ${DAY_MONTH.format(parseDate(m.shop.to))} est en haut de la page : elle compte tous tes repas de la période et tes gummies.</p></section>` : VWLIST(w, m, groups, RAYS)}`;
 }
 function mealClick(t) {
   const c = s => t.closest(s); let el; const w = () => mpWeek(), m = mp();
   if ((el = c('[data-diet]'))) { const d = diet(), k = el.dataset.diet; d[k] = !d[k]; save(); const sy = window.scrollY; render(); window.scrollTo(0, sy); return true; }
   if ((el = c('[data-fcombo]'))) { const names = el.dataset.fcombo.split('|'); addFoods(names.map(n => FOODS.find(f => f[0] === n)).filter(Boolean)); return true; }
   if ((el = c('[data-nview]'))) { C.nv = el.dataset.nview; try { localStorage.setItem('sdp-nv', C.nv); } catch (e) {} render(); return true; }
-  if ((el = c('[data-mpw]'))) { MP.off += Number(el.dataset.mpw); MP.pick = null; render(); return true; }
-  if ((el = c('[data-mps]'))) { MP.pick = MP.pick === el.dataset.mps ? null : el.dataset.mps; MP.form = false; const sy = window.scrollY; render(); window.scrollTo(0, sy); setTimeout(() => { const p = $('.mppick'); p && p.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }); }, 30); return true; }
+  if ((el = c('[data-mpw]'))) { MP.off += Number(el.dataset.mpw); MP.pick = null; MPR.view = null; render(); return true; }
+  if ((el = c('[data-mprtoday]'))) { MP.off = 0; MPR.view = el.dataset.mprtoday; MP.pick = null; render(); setTimeout(() => { const p = $('.mprecipe'); p && p.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }); }, 30); return true; }
+  if (c('[data-mprclose]')) { MPR.view = null; const sy = window.scrollY; render(); window.scrollTo(0, sy); return true; }
+  if ((el = c('[data-mprchange]'))) { MP.pick = el.dataset.mprchange; MPR.view = null; MP.form = false; render(); setTimeout(() => { const p = $('.mppick'); p && p.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }); }, 30); return true; }
+  if ((el = c('[data-mprclear]'))) { delete w().s[el.dataset.mprclear]; MPR.view = null; save(); render(); return true; }
+  if ((el = c('[data-mps]')) && w().s[el.dataset.mps] && MP.pick !== el.dataset.mps) { MPR.view = MPR.view === el.dataset.mps ? null : el.dataset.mps; MP.pick = null; const sy = window.scrollY; render(); window.scrollTo(0, sy); setTimeout(() => { const p = $('.mprecipe'); p && p.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }); }, 30); return true; }
+  if ((el = c('[data-mps]'))) { MPR.view = null; MP.pick = MP.pick === el.dataset.mps ? null : el.dataset.mps; MP.form = false; const sy = window.scrollY; render(); window.scrollTo(0, sy); setTimeout(() => { const p = $('.mppick'); p && p.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' }); }, 30); return true; }
   if (c('[data-mpclose]')) { MP.pick = null; render(); return true; }
   if (c('[data-mpclear]')) { delete w().s[MP.pick]; MP.pick = null; save(); render(); return true; }
   if ((el = c('[data-mprec]'))) { w().s[MP.pick] = el.dataset.mprec; MP.pick = null; save(); render(); haptic(); return true; }
@@ -3638,7 +3727,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.29 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.31 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
