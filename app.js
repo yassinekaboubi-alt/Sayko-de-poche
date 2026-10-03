@@ -2477,28 +2477,51 @@ function dietBlock(t, p) {
 /* ---------- Ma semaine de repas ---------- */
 const R_ = (n, p, fam, need, ing) => ({ n, p, fam, need, ing });
 const RECIPES = {
-  dahl: R_('Dahl de lentilles corail et riz', 26, ['leg'], [], [['Lentilles corail', 80, 'g', 'Épicerie'], ['Riz basmati', 60, 'g', 'Épicerie'], ['Lait de coco', 50, 'ml', 'Épicerie'], ['Tomates concassées', 100, 'g', 'Épicerie'], ['Oignon', .5, '', 'Fruits et légumes'], ['Épinards', 60, 'g', 'Fruits et légumes']]),
-  chili: R_('Chili sin carne', 33, ['leg', 'soja'], [], [['Haricots rouges cuits', 150, 'g', 'Épicerie'], ['Protéines de soja texturées', 30, 'g', 'Épicerie'], ['Tomates concassées', 150, 'g', 'Épicerie'], ['Poivron', .5, '', 'Fruits et légumes'], ['Oignon', .5, '', 'Fruits et légumes'], ['Maïs', 50, 'g', 'Épicerie'], ['Riz basmati', 60, 'g', 'Épicerie']]),
-  tofu: R_('Bowl tofu sauté, riz et brocoli', 31, ['soja'], [], [['Tofu ferme', 150, 'g', 'Frais'], ['Riz basmati', 60, 'g', 'Épicerie'], ['Brocoli', 150, 'g', 'Fruits et légumes'], ['Sauce soja', 15, 'ml', 'Épicerie'], ['Graines de sésame', 10, 'g', 'Épicerie']]),
-  omelette: R_('Omelette épinards-feta et pain complet', 32, ['oeuf', 'laitier'], ['egg', 'dairy'], [['Œufs', 3, '', 'Frais'], ['Feta', 30, 'g', 'Frais'], ['Épinards', 80, 'g', 'Fruits et légumes'], ['Pain complet', 2, 'tranches', 'Épicerie']]),
-  chakchouka: R_('Chakchouka aux pois chiches', 31, ['oeuf', 'leg'], ['egg'], [['Œufs', 3, '', 'Frais'], ['Pois chiches cuits', 100, 'g', 'Épicerie'], ['Poivron', 1, '', 'Fruits et légumes'], ['Tomates concassées', 200, 'g', 'Épicerie'], ['Oignon', .5, '', 'Fruits et légumes'], ['Pain complet', 1, 'tranches', 'Épicerie']]),
-  bolo: R_('Pâtes complètes, bolognaise de lentilles', 32, ['leg', 'cereale'], ['dairy'], [['Pâtes complètes', 90, 'g', 'Épicerie'], ['Lentilles vertes cuites', 150, 'g', 'Épicerie'], ['Tomates concassées', 200, 'g', 'Épicerie'], ['Carotte', 1, '', 'Fruits et légumes'], ['Parmesan', 15, 'g', 'Frais']]),
-  curry: R_('Curry de pois chiches aux épinards', 26, ['leg'], ['dairy'], [['Pois chiches cuits', 200, 'g', 'Épicerie'], ['Riz basmati', 60, 'g', 'Épicerie'], ['Épinards', 80, 'g', 'Fruits et légumes'], ['Yaourt nature', 100, 'g', 'Frais'], ['Tomates concassées', 100, 'g', 'Épicerie'], ['Oignon', .5, '', 'Fruits et légumes']]),
-  falafel: R_('Bowl falafels, houmous et crudités', 30, ['leg'], [], [['Falafels', 150, 'g', 'Surgelés'], ['Houmous', 50, 'g', 'Frais'], ['Pain pita', 1, '', 'Épicerie'], ['Concombre', .5, '', 'Fruits et légumes'], ['Tomate', 1, '', 'Fruits et légumes']]),
-  quinoa: R_('Salade quinoa, edamame et feta', 31, ['soja', 'laitier'], ['dairy'], [['Quinoa', 70, 'g', 'Épicerie'], ['Edamame', 150, 'g', 'Surgelés'], ['Feta', 30, 'g', 'Frais'], ['Concombre', .5, '', 'Fruits et légumes'], ['Poivron', .5, '', 'Fruits et légumes']]),
-  tempeh: R_('Wok de tempeh et nouilles', 35, ['soja'], [], [['Tempeh', 120, 'g', 'Frais'], ['Nouilles de blé', 70, 'g', 'Épicerie'], ['Légumes pour wok', 200, 'g', 'Surgelés'], ['Sauce soja', 15, 'ml', 'Épicerie']]),
-  seitan: R_('Seitan sauté aux poivrons et riz', 36, ['ble'], [], [['Seitan', 120, 'g', 'Frais'], ['Riz basmati', 60, 'g', 'Épicerie'], ['Poivron', 1, '', 'Fruits et légumes'], ['Oignon', .5, '', 'Fruits et légumes']]),
-  taboule: R_('Taboulé de boulgour, pois chiches et skyr-concombre', 34, ['leg', 'laitier'], ['dairy'], [['Boulgour', 70, 'g', 'Épicerie'], ['Pois chiches cuits', 120, 'g', 'Épicerie'], ['Skyr', 150, 'g', 'Frais'], ['Concombre', .5, '', 'Fruits et légumes'], ['Tomate', 1, '', 'Fruits et légumes'], ['Persil', .25, 'bouquet', 'Fruits et légumes']]),
-  pois: R_('Soupe de pois cassés et pain complet', 26, ['leg'], [], [['Pois cassés', 80, 'g', 'Épicerie'], ['Carotte', 1, '', 'Fruits et légumes'], ['Oignon', .5, '', 'Fruits et légumes'], ['Pain complet', 2, 'tranches', 'Épicerie']]),
-  oats: R_('Overnight oats au skyr', 30, ['laitier', 'cereale'], ['dairy'], [['Flocons d\'avoine', 60, 'g', 'Épicerie'], ['Skyr', 150, 'g', 'Frais'], ['Lait', 150, 'ml', 'Frais'], ['Graines de chia', 10, 'g', 'Épicerie'], ['Fruits rouges', 80, 'g', 'Surgelés']]),
-  pancakes: R_('Pancakes protéinés', 28, ['oeuf', 'laitier'], ['egg', 'dairy'], [['Flocons d\'avoine', 50, 'g', 'Épicerie'], ['Œufs', 2, '', 'Frais'], ['Fromage blanc', 100, 'g', 'Frais'], ['Banane', 1, '', 'Fruits et légumes']]),
-  saumon: R_('Saumon, riz et haricots verts', 32, ['poisson'], ['fish'], [['Saumon', 125, 'g', 'Frais'], ['Riz basmati', 60, 'g', 'Épicerie'], ['Haricots verts', 150, 'g', 'Surgelés']]),
-  thon: R_('Pâtes complètes au thon et à la tomate', 40, ['poisson', 'cereale'], ['fish'], [['Pâtes complètes', 90, 'g', 'Épicerie'], ['Thon en boîte', 1, 'boîte', 'Épicerie'], ['Tomates concassées', 150, 'g', 'Épicerie']])
+  tacos: R_('Tacos français au haché végétal', 38, ['simili', 'laitier'], ['dairy'], [['Grandes tortillas', 1, '', 'Épicerie'], ['Haché végétal', 120, 'g', 'Frais'], ['Frites au four', 150, 'g', 'Surgelés'], ['Cheddar râpé', 30, 'g', 'Frais'], ['Crème fraîche', 30, 'g', 'Frais'], ['Tomate', 1, '', 'Fruits et légumes'], ['Salade', 30, 'g', 'Fruits et légumes']]),
+  smash: R_('Smash burger végétal', 32, ['simili', 'laitier'], ['dairy'], [['Pains burger', 1, '', 'Épicerie'], ['Haché végétal', 120, 'g', 'Frais'], ['Cheddar en tranches', 1, 'tranche', 'Frais'], ['Oignon', 0.25, '', 'Fruits et légumes'], ['Cornichons', 2, '', 'Épicerie'], ['Sauce burger', 1, 'c. à s.', 'Épicerie'], ['Tomate', 0.5, '', 'Fruits et légumes'], ['Salade', 20, 'g', 'Fruits et légumes']]),
+  nuggets: R_('Bucket nuggets veggie et potatoes', 27, ['simili', 'laitier'], ['dairy'], [['Nuggets végétaux', 150, 'g', 'Surgelés'], ['Potatoes', 200, 'g', 'Surgelés'], ['Chou blanc', 100, 'g', 'Fruits et légumes'], ['Yaourt nature', 50, 'g', 'Frais'], ['Sauce barbecue', 1, 'c. à s.', 'Épicerie'], ['Carotte', 1, '', 'Fruits et légumes']]),
+  wrap: R_('Wrap nuggets, sauce ranch', 28, ['simili', 'laitier'], ['dairy'], [['Grandes tortillas', 1, '', 'Épicerie'], ['Nuggets végétaux', 120, 'g', 'Surgelés'], ['Cheddar râpé', 20, 'g', 'Frais'], ['Salade', 30, 'g', 'Fruits et légumes'], ['Tomate', 1, '', 'Fruits et légumes'], ['Yaourt nature', 50, 'g', 'Frais']]),
+  kebab: R_('Kebab d\'émincés végétaux, sauce blanche', 35, ['simili', 'laitier'], ['dairy'], [['Pains pita', 1, '', 'Épicerie'], ['Émincés végétaux', 150, 'g', 'Frais'], ['Yaourt nature', 60, 'g', 'Frais'], ['Oignon rouge', 0.25, '', 'Fruits et légumes'], ['Tomate', 1, '', 'Fruits et légumes'], ['Salade', 30, 'g', 'Fruits et légumes']]),
+  fajitas: R_('Fajitas aux émincés végétaux', 34, ['simili'], [], [['Tortillas', 2, '', 'Épicerie'], ['Émincés végétaux', 130, 'g', 'Frais'], ['Poivron', 1, '', 'Fruits et légumes'], ['Oignon', 0.5, '', 'Fruits et légumes'], ['Épices fajitas', 1, 'c. à c.', 'Épicerie'], ['Courgette', 0.5, '', 'Fruits et légumes']]),
+  chili: R_('Chili sin carne express', 34, ['simili', 'leg'], [], [['Haché végétal', 100, 'g', 'Frais'], ['Haricots rouges cuits', 150, 'g', 'Épicerie'], ['Tomates concassées', 200, 'g', 'Épicerie'], ['Riz', 60, 'g', 'Épicerie'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Oignon', 0.5, '', 'Fruits et légumes']]),
+  bolo: R_('Pâtes bolognaise végétale', 34, ['simili', 'cereale'], ['dairy'], [['Pâtes', 100, 'g', 'Épicerie'], ['Haché végétal', 100, 'g', 'Frais'], ['Sauce tomate', 150, 'g', 'Épicerie'], ['Parmesan', 15, 'g', 'Frais'], ['Courgette', 0.5, '', 'Fruits et légumes'], ['Carotte', 0.5, '', 'Fruits et légumes']]),
+  thon: R_('Pâtes au thon et à la tomate', 40, ['poisson', 'cereale'], ['fish'], [['Pâtes', 100, 'g', 'Épicerie'], ['Thon en boîte', 1, 'boîte', 'Épicerie'], ['Sauce tomate', 150, 'g', 'Épicerie'], ['Courgette', 0.5, '', 'Fruits et légumes']]),
+  pizza: R_('Pizza maison au haché végétal', 31, ['simili', 'laitier'], ['dairy'], [['Pâte à pizza', 0.5, '', 'Frais'], ['Mozzarella', 60, 'g', 'Frais'], ['Haché végétal', 60, 'g', 'Frais'], ['Sauce tomate', 60, 'g', 'Épicerie'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Champignons', 50, 'g', 'Fruits et légumes'], ['Tomates cerises', 50, 'g', 'Fruits et légumes']]),
+  keftas: R_('Keftas végétales en sauce tomate et œuf', 32, ['simili', 'oeuf'], ['egg'], [['Haché végétal', 120, 'g', 'Frais'], ['Sauce tomate', 150, 'g', 'Épicerie'], ['Œufs', 1, '', 'Frais'], ['Persil', 0.25, 'bouquet', 'Fruits et légumes'], ['Cumin', 1, 'c. à c.', 'Épicerie'], ['Courgette', 0.5, '', 'Fruits et légumes']]),
+  couscous: R_('Couscous aux merguez végétales', 26, ['simili'], [], [['Merguez végétales', 2, '', 'Frais'], ['Semoule', 70, 'g', 'Épicerie'], ['Courgette', 0.5, '', 'Fruits et légumes'], ['Carotte', 1, '', 'Fruits et légumes'], ['Poivron', 0.5, '', 'Fruits et légumes']]),
+  hachis: R_('Hachis parmentier végétal', 32, ['simili', 'laitier'], ['dairy'], [['Haché végétal', 120, 'g', 'Frais'], ['Purée en flocons', 50, 'g', 'Épicerie'], ['Lait', 150, 'ml', 'Frais'], ['Emmental râpé', 30, 'g', 'Frais'], ['Carotte', 1, '', 'Fruits et légumes']]),
+  quesa: R_('Quesadillas haricots noirs et cheddar', 33, ['leg', 'laitier'], ['dairy'], [['Tortillas', 2, '', 'Épicerie'], ['Haricots noirs cuits', 150, 'g', 'Épicerie'], ['Cheddar râpé', 40, 'g', 'Frais'], ['Salsa', 2, 'c. à s.', 'Épicerie'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Tomate', 0.5, '', 'Fruits et légumes']]),
+  shak: R_('Shakshuka à la feta', 31, ['oeuf', 'laitier'], ['egg', 'dairy'], [['Œufs', 3, '', 'Frais'], ['Sauce tomate', 200, 'g', 'Épicerie'], ['Poivron', 1, '', 'Fruits et légumes'], ['Feta', 30, 'g', 'Frais'], ['Pain', 2, 'tranches', 'Épicerie'], ['Oignon', 0.5, '', 'Fruits et légumes'], ['Courgette', 0.5, '', 'Fruits et légumes']]),
+  omelette: R_('Omelette pommes de terre et fromage', 30, ['oeuf', 'laitier'], ['egg', 'dairy'], [['Œufs', 3, '', 'Frais'], ['Pommes de terre', 150, 'g', 'Fruits et légumes'], ['Emmental râpé', 30, 'g', 'Frais'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Oignon', 0.25, '', 'Fruits et légumes']]),
+  brouille: R_('Œufs brouillés au cottage cheese sur toast', 37, ['oeuf', 'laitier'], ['egg', 'dairy'], [['Œufs', 3, '', 'Frais'], ['Cottage cheese', 100, 'g', 'Frais'], ['Pain complet', 2, 'tranches', 'Épicerie']]),
+  skyrbol: R_('Bol skyr, granola et beurre de cacahuète', 30, ['laitier'], ['dairy'], [['Skyr', 200, 'g', 'Frais'], ['Granola', 40, 'g', 'Épicerie'], ['Beurre de cacahuète', 20, 'g', 'Épicerie'], ['Banane', 1, '', 'Fruits et légumes']]),
+  mousse: R_('Mousse chocolat au skyr', 21, ['laitier'], ['dairy'], [['Skyr', 200, 'g', 'Frais'], ['Cacao en poudre', 1, 'c. à s.', 'Épicerie'], ['Miel', 1, 'c. à s.', 'Épicerie']]),
+  macncheese: R_('Mac and cheese au haché végétal', 38, ['simili', 'laitier'], ['dairy'], [['Pâtes coudes', 100, 'g', 'Épicerie'], ['Cheddar râpé', 50, 'g', 'Frais'], ['Lait', 100, 'ml', 'Frais'], ['Crème fraîche', 30, 'g', 'Frais'], ['Haché végétal', 60, 'g', 'Frais'], ['Brocoli', 100, 'g', 'Surgelés']]),
+  gratin: R_('Gratin de pâtes crème-fromage au haché végétal', 37, ['simili', 'laitier'], ['dairy'], [['Pâtes', 100, 'g', 'Épicerie'], ['Haché végétal', 80, 'g', 'Frais'], ['Crème fraîche', 40, 'g', 'Frais'], ['Emmental râpé', 40, 'g', 'Frais'], ['Courgette', 1, '', 'Fruits et légumes']]),
+  carbo: R_('Carbonara végétale (crème, œuf, parmesan)', 33, ['simili', 'oeuf', 'laitier'], ['egg', 'dairy'], [['Pâtes', 100, 'g', 'Épicerie'], ['Lardons végétaux', 50, 'g', 'Frais'], ['Œufs', 1, '', 'Frais'], ['Parmesan', 20, 'g', 'Frais'], ['Crème fraîche', 30, 'g', 'Frais'], ['Champignons', 60, 'g', 'Fruits et légumes']]),
+  alfredo: R_('Pâtes Alfredo aux émincés végétaux', 38, ['simili', 'laitier'], ['dairy'], [['Pâtes', 100, 'g', 'Épicerie'], ['Émincés végétaux', 100, 'g', 'Frais'], ['Crème fraîche', 50, 'g', 'Frais'], ['Parmesan', 20, 'g', 'Frais'], ['Ail', 1, 'gousse', 'Fruits et légumes'], ['Épinards', 50, 'g', 'Surgelés'], ['Champignons', 50, 'g', 'Fruits et légumes']]),
+  champi: R_('Émincés végétaux à la crème et aux champignons, riz', 34, ['simili', 'laitier'], ['dairy'], [['Émincés végétaux', 150, 'g', 'Frais'], ['Crème fraîche', 50, 'g', 'Frais'], ['Champignons', 100, 'g', 'Fruits et légumes'], ['Riz', 60, 'g', 'Épicerie'], ['Haricots verts', 100, 'g', 'Surgelés']]),
+  lasagnes: R_('Lasagnes végétales à la béchamel', 33, ['simili', 'laitier'], ['dairy'], [['Feuilles de lasagne', 60, 'g', 'Épicerie'], ['Haché végétal', 100, 'g', 'Frais'], ['Sauce tomate', 120, 'g', 'Épicerie'], ['Lait', 100, 'ml', 'Frais'], ['Farine', 10, 'g', 'Épicerie'], ['Mozzarella', 40, 'g', 'Frais'], ['Courgette', 0.5, '', 'Fruits et légumes'], ['Aubergine', 0.5, '', 'Fruits et légumes']]),
+  tartif: R_('Tartiflette aux lardons végétaux', 26, ['simili', 'laitier'], ['dairy'], [['Pommes de terre', 250, 'g', 'Fruits et légumes'], ['Reblochon', 60, 'g', 'Frais'], ['Crème fraîche', 40, 'g', 'Frais'], ['Lardons végétaux', 50, 'g', 'Frais'], ['Oignon', 0.5, '', 'Fruits et légumes'], ['Salade', 40, 'g', 'Fruits et légumes']]),
+  raclette: R_('Raclette au four, pommes de terre', 27, ['laitier'], ['dairy'], [['Pommes de terre', 250, 'g', 'Fruits et légumes'], ['Fromage à raclette', 100, 'g', 'Frais'], ['Cornichons', 4, '', 'Épicerie'], ['Salade', 40, 'g', 'Fruits et légumes']]),
+  quiche: R_('Quiche fromage et épinards', 28, ['oeuf', 'laitier'], ['egg', 'dairy'], [['Pâte brisée', 0.25, '', 'Frais'], ['Œufs', 2, '', 'Frais'], ['Crème fraîche', 50, 'g', 'Frais'], ['Emmental râpé', 40, 'g', 'Frais'], ['Épinards', 60, 'g', 'Surgelés'], ['Salade', 40, 'g', 'Fruits et légumes']]),
+  burrito: R_('Burritos gratinés au cheddar', 35, ['simili', 'laitier'], ['dairy'], [['Grandes tortillas', 1, '', 'Épicerie'], ['Haché végétal', 100, 'g', 'Frais'], ['Riz', 40, 'g', 'Épicerie'], ['Cheddar râpé', 40, 'g', 'Frais'], ['Salsa', 2, 'c. à s.', 'Épicerie'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Maïs', 40, 'g', 'Épicerie']]),
+  croque: R_('Croque-madame gratiné', 26, ['oeuf', 'laitier'], ['egg', 'dairy'], [['Pain de mie', 2, 'tranches', 'Épicerie'], ['Emmental râpé', 40, 'g', 'Frais'], ['Œufs', 1, '', 'Frais'], ['Crème fraîche', 20, 'g', 'Frais'], ['Salade', 40, 'g', 'Fruits et légumes'], ['Tomate', 1, '', 'Fruits et légumes']]),
+  saumoncreme: R_('Pâtes au saumon et à la crème', 33, ['poisson', 'laitier'], ['fish', 'dairy'], [['Pâtes', 100, 'g', 'Épicerie'], ['Saumon', 100, 'g', 'Frais'], ['Crème fraîche', 40, 'g', 'Frais'], ['Citron', 0.25, '', 'Fruits et légumes'], ['Courgette', 0.5, '', 'Fruits et légumes']]),
+  salriz: R_('Salade de riz, œufs et emmental', 24, ['salade', 'oeuf', 'laitier'], ['egg', 'dairy'], [['Riz', 70, 'g', 'Épicerie'], ['Œufs', 1, '', 'Frais'], ['Emmental en dés', 40, 'g', 'Frais'], ['Maïs', 50, 'g', 'Épicerie'], ['Tomate', 1, '', 'Fruits et légumes'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Olives', 20, 'g', 'Épicerie']]),
+  salpates: R_('Salade de pâtes pesto, mozzarella et tomates cerises', 27, ['salade', 'laitier'], ['dairy'], [['Pâtes', 90, 'g', 'Épicerie'], ['Mozzarella', 80, 'g', 'Frais'], ['Tomates cerises', 100, 'g', 'Fruits et légumes'], ['Pesto', 1, 'c. à s.', 'Épicerie'], ['Roquette', 20, 'g', 'Fruits et légumes']]),
+  nicoise: R_('Salade niçoise aux œufs', 25, ['salade', 'oeuf'], ['egg'], [['Œufs', 3, '', 'Frais'], ['Pommes de terre', 150, 'g', 'Fruits et légumes'], ['Haricots verts', 100, 'g', 'Surgelés'], ['Tomate', 1, '', 'Fruits et légumes'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Olives', 20, 'g', 'Épicerie'], ['Salade', 40, 'g', 'Fruits et légumes']]),
+  nicoisethon: R_('Salade niçoise au thon', 45, ['salade', 'poisson', 'oeuf'], ['fish', 'egg'], [['Thon en boîte', 1, 'boîte', 'Épicerie'], ['Œufs', 2, '', 'Frais'], ['Pommes de terre', 150, 'g', 'Fruits et légumes'], ['Haricots verts', 100, 'g', 'Surgelés'], ['Tomate', 1, '', 'Fruits et légumes'], ['Olives', 20, 'g', 'Épicerie'], ['Salade', 40, 'g', 'Fruits et légumes']]),
+  grecque: R_('Salade grecque à la feta, pain pita', 22, ['salade', 'laitier'], ['dairy'], [['Feta', 80, 'g', 'Frais'], ['Concombre', 0.5, '', 'Fruits et légumes'], ['Tomate', 1, '', 'Fruits et légumes'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Oignon rouge', 0.25, '', 'Fruits et légumes'], ['Olives', 20, 'g', 'Épicerie'], ['Pains pita', 1, '', 'Épicerie']]),
+  cesar: R_('Salade César aux nuggets veggie', 27, ['salade', 'simili', 'laitier'], ['dairy'], [['Nuggets végétaux', 120, 'g', 'Surgelés'], ['Salade romaine', 80, 'g', 'Fruits et légumes'], ['Parmesan', 20, 'g', 'Frais'], ['Croûtons', 20, 'g', 'Épicerie'], ['Yaourt nature', 40, 'g', 'Frais'], ['Tomates cerises', 60, 'g', 'Fruits et légumes']]),
+  sallent: R_('Salade de lentilles, feta et poivrons', 24, ['salade', 'leg', 'laitier'], ['dairy'], [['Lentilles vertes cuites', 200, 'g', 'Épicerie'], ['Feta', 40, 'g', 'Frais'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Tomate', 1, '', 'Fruits et légumes'], ['Oignon rouge', 0.25, '', 'Fruits et légumes']]),
+  mexicaine: R_('Salade mexicaine haricots rouges, maïs et cheddar', 22, ['salade', 'leg', 'laitier'], ['dairy'], [['Haricots rouges cuits', 150, 'g', 'Épicerie'], ['Maïs', 60, 'g', 'Épicerie'], ['Cheddar râpé', 30, 'g', 'Frais'], ['Tomate', 1, '', 'Fruits et légumes'], ['Poivron', 0.5, '', 'Fruits et légumes'], ['Avocat', 0.5, '', 'Fruits et légumes']]),
+  piemontaise: R_('Piémontaise aux œufs et fromage', 26, ['salade', 'oeuf', 'laitier'], ['egg', 'dairy'], [['Pommes de terre', 150, 'g', 'Fruits et légumes'], ['Œufs', 2, '', 'Frais'], ['Emmental en dés', 40, 'g', 'Frais'], ['Cornichons', 3, '', 'Épicerie'], ['Tomate', 1, '', 'Fruits et légumes'], ['Crème fraîche', 20, 'g', 'Frais']])
 };
-const FAML = { leg: 'légumineuses', soja: 'soja', oeuf: 'œufs', laitier: 'laitages', poisson: 'poisson', cereale: 'céréales complètes', ble: 'seitan' };
+const FAML = { salade: 'salades', simili: 'simili-carné', leg: 'légumineuses', soja: 'soja', oeuf: 'œufs', laitier: 'laitages', poisson: 'poisson', cereale: 'céréales complètes', ble: 'seitan' };
 const MOM = [['m', 'Matin'], ['d', 'Midi'], ['s', 'Soir']];
 const MP = { off: 0, pick: null, form: false };
-function mp() { const m = S.body.mp = S.body.mp && typeof S.body.mp === 'object' ? S.body.mp : {}; m.portions = m.portions || 1; m.custom = Array.isArray(m.custom) ? m.custom : []; m.wk = m.wk || {}; return m; }
+function mp() { const m = S.body.mp = S.body.mp && typeof S.body.mp === 'object' ? S.body.mp : {}; if (!m.nv1) { m.nv1 = 1; C.nv = 'semaine'; try { localStorage.setItem('sdp-nv', 'semaine'); } catch (e) {} } if (!m.p2) { m.portions = 2; m.p2 = 1; } m.portions = m.portions || 2; m.custom = Array.isArray(m.custom) ? m.custom : []; m.wk = m.wk || {}; return m; }
 const mpWeekKey = () => iso(addDays(mondayOf(new Date()), MP.off * 7));
 function mpWeek(k = mpWeekKey()) { const w = mp().wk[k] = mp().wk[k] || {}; w.s = w.s || {}; w.extra = w.extra || []; w.got = w.got || {}; w.gum = w.gum || {}; return w; }
 const recOk = r => r.need.every(n => diet()[n]);
@@ -2519,7 +2542,8 @@ function mpAdvice(w, t) {
   if (t) out.push(`Les jours où tu as prévu des repas, ils apportent environ <b>${perDay} g</b> de protéines, sur ${t.prot} g. ${perDay < t.prot ? `Complète avec environ ${t.prot - perDay} g au petit-déjeuner et en collation (skyr, œufs, whey, cottage cheese).` : 'Ton quota est couvert par tes repas.'}`);
   const fam = new Set(recs.flatMap(r => r.fam)), leg = recs.filter(r => r.fam.includes('leg')).length;
   out.push(fam.size >= 4 ? `Belle diversité : ${[...fam].map(f => FAML[f]).join(', ')}.` : `Peu de sources différentes (${[...fam].map(f => FAML[f]).join(', ') || 'aucune'}). Vise au moins 4 familles dans la semaine pour couvrir tous les acides aminés et minéraux.`);
-  out.push(leg >= 4 ? `${leg} repas avec des légumineuses : parfait pour les fibres et le fer.` : `Seulement ${leg} repas avec des légumineuses : vise au moins 4 dans la semaine.`);
+  out.push(leg >= 3 ? `${leg} repas avec des légumineuses : parfait pour les fibres et le fer.` : `Seulement ${leg} repas avec des légumineuses : vise au moins 3 dans la semaine (chili, quesadillas…).`);
+  const sim = recs.filter(r => r.fam.includes('simili')).length; if (sim > 5) out.push(`${sim} repas avec des simili-carnés : très pratiques, mais transformés et salés. Alterne avec du tofu, des œufs ou des légumineuses.`);
   const veg = new Set(recs.flatMap(r => r.ing.filter(i => i[3] === 'Fruits et légumes').map(i => i[0])));
   out.push(veg.size >= 8 ? `${veg.size} fruits et légumes différents : bien varié.` : `${veg.size} fruits et légumes différents seulement : ajoute des couleurs (au moins 8 dans la semaine).`);
   const cnt = {}; ids.forEach(id => { cnt[id] = (cnt[id] || 0) + 1; }); const rep = Object.entries(cnt).filter(([, n]) => n > 2);
@@ -2567,17 +2591,82 @@ function gumBlock(w) {
   </section>`;
 }
 
+/* ---------- Plan pré-rempli jusqu'à dimanche, à valider repas par repas ---------- */
+const BREAKF = ['brouille', 'skyrbol', 'mousse'];
+function planRange() { const now = new Date(), from = todayISO(), d = now.getDay(), to = iso(addDays(now, d === 0 ? 7 : 7 - d + 7)); return { from, to, evening: now.getHours() >= 14 }; }
+function planPick(mo, recent, used) {
+  const pool = Object.entries(RECIPES).filter(([id, r]) => recOk(r) && !BREAKF.includes(id) && (used[id] || 0) < 2 && !recent.includes(id));
+  const sal = pool.filter(([, r]) => r.fam.includes('salade')), hot = pool.filter(([, r]) => !r.fam.includes('salade'));
+  const src = mo === 'd' ? (Math.random() < .6 && sal.length ? sal : hot) : (hot.length ? hot : sal);
+  const L = src.length ? src : pool; return L.length ? L[Math.floor(Math.random() * L.length)][0] : 'chili';
+}
+function makePlan() {
+  const { from, to, evening } = planRange(), list = [], used = {}, recent = [];
+  for (let d = from; d <= to; d = iso(addDays(parseDate(d), 1))) {
+    (d === from && evening ? ['s'] : ['d', 's']).forEach(mo => { const id = planPick(mo, recent, used); used[id] = (used[id] || 0) + 1; recent.push(id); if (recent.length > 4) recent.shift(); list.push({ d, mo, id, ok: true }); });
+  }
+  mp().draft = { from, to, list }; save();
+}
+function shopFromIds(ids) {
+  const P = mp().portions, map = new Map();
+  ids.forEach(id => { const r = recOf(id); if (r) r.ing.forEach(([n, q, u, ray]) => { const key = n + '|' + u, o = map.get(key) || { n, u, q: 0, ray, cnt: 0 }; if (q !== '') o.q += q * P; o.cnt++; map.set(key, o); }); });
+  const fmt = o => { if (!o.q) return o.cnt > 1 ? `×${o.cnt}` : ''; if (o.u === 'g' || o.u === 'ml') return o.q >= 1000 ? `${String(Math.round(o.q / 100) / 10).replace('.', ',')} ${o.u === 'g' ? 'kg' : 'L'}` : `${Math.round(o.q / 10) * 10} ${o.u}`; const n = Math.ceil(o.q * 2) / 2; return `${String(n).replace('.', ',')}${o.u ? ' ' + o.u : ''}`; };
+  const g = {}; [...map.values()].forEach(o => { (g[o.ray] = g[o.ray] || []).push({ n: o.n, key: o.n + '|' + o.u, txt: fmt(o) }); }); return g;
+}
+function vPlanDraft() {
+  const m = mp(), dr = m.draft, kept = dr.list.filter(x => x.ok).length, ML = { m: 'Matin', d: 'Midi', s: 'Soir' };
+  const days = [...new Set(dr.list.map(x => x.d))];
+  return `<section class="plancard"><p class="eyebrow" style="margin:0">Ton plan jusqu'à ${DAY_LONG.format(parseDate(dr.to))}</p>
+    <p class="small" style="margin:6px 0 10px">Décoche ce que tu ne veux pas, touche ↻ pour changer un plat, puis valide : la liste de courses se fera avec les repas gardés (${m.portions} portions).</p>
+    ${days.map(d => `<p class="zlbl" style="text-transform:capitalize">${DAY_LONG.format(parseDate(d))}</p>${dr.list.map((x, i) => x.d !== d ? '' : `<div class="plrow ${x.ok ? '' : 'off'}"><label class="check" style="flex:1;border:0;padding:6px 0"><input type="checkbox" data-plok="${i}" ${x.ok ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt"><small class="muted">${ML[x.mo]}</small> ${esc(recOf(x.id).n)} <span class="small muted num">· ${recOf(x.id).p} g</span></span></label><button class="icon-btn" data-plswap="${i}" aria-label="Changer ce plat">↻</button></div>`).join('')}`).join('')}
+    <button class="btn block" data-plgo style="margin-top:14px">Valider ${kept} repas et faire la liste</button>
+    <button class="link-btn small" data-plno style="display:block;margin:8px auto 0">Abandonner ce plan</button></section>`;
+}
+function vShopCard() {
+  const s = mp().shop, RAYS = ['Fruits et légumes', 'Frais', 'Épicerie', 'Surgelés'];
+  const n = Object.values(s.items).reduce((a, l) => a + l.length, 0) + s.extra.length, got = Object.keys(s.got).length + s.extra.filter(x => x.got).length;
+  return `<section class="plancard"><div class="row between" style="align-items:baseline"><p class="eyebrow" style="margin:0">Courses · ${DAY_MONTH.format(parseDate(s.from))} au ${DAY_MONTH.format(parseDate(s.to))}</p><span class="small muted num">${got} / ${n}</span></div>
+    ${RAYS.filter(r => s.items[r]).map(r => `<p class="zlbl">${r}</p><div class="checks">${s.items[r].map(o => `<label class="check"><input type="checkbox" data-shgot="${esc(o.key)}" ${s.got[o.key] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(o.n)}${o.txt ? ` <span class="small muted num">· ${o.txt}</span>` : ''}</span></label>`).join('')}</div>`).join('')}
+    ${s.extra.length ? `<p class="zlbl">En plus</p><div class="checks">${s.extra.map((x, i) => `<label class="check"><input type="checkbox" data-shx="${i}" ${x.got ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${esc(x.t)}</span></label>`).join('')}</div>` : ''}
+    <div class="row" style="margin-top:12px"><input id="shX" placeholder="Ajouter un article" style="flex:1;min-height:44px;border:0;border-radius:12px;background:var(--raise);padding:0 12px;color:var(--ink);font:inherit"><button class="btn sm" data-shxadd>Ajouter</button></div>
+    <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><button class="btn sm ghost" data-shshare>Partager la liste</button><button class="btn sm quiet" data-shdone>Courses terminées</button></div></section>`;
+}
+function planClick(t) {
+  const c = s => t.closest(s); let el; const m = mp();
+  if ((el = c('[data-plswap]'))) { const x = m.draft.list[Number(el.dataset.plswap)], used = {}; m.draft.list.forEach(y => { used[y.id] = (used[y.id] || 0) + 1; }); x.id = planPick(x.mo, [x.id], used); save(); const sy = window.scrollY; render(); window.scrollTo(0, sy); return true; }
+  if (c('[data-plgo]')) {
+    const kept = m.draft.list.filter(x => x.ok);
+    kept.forEach(x => { const wk = iso(mondayOf(parseDate(x.d))), w = mpWeek(wk), di = (parseDate(x.d).getDay() + 6) % 7; w.s[`${di}-${x.mo}`] = x.id; });
+    m.shop = { from: m.draft.from, to: m.draft.to, items: shopFromIds(kept.map(x => x.id)), got: {}, extra: [] }; m.draft = null; save(); render(); window.scrollTo(0, 0);
+    reward(3, { msg: ['Ta liste est prête', `${kept.length} repas prévus, ingrédients comptés pour ${m.portions}. Bonnes courses.`] }); return true;
+  }
+  if (c('[data-plno]')) { m.draft = null; save(); render(); return true; }
+  if (c('[data-plnew]')) { makePlan(); render(); window.scrollTo(0, 0); return true; }
+  if (c('[data-shxadd]')) { const v = ($('#shX').value || '').trim(); if (v) { m.shop.extra.push({ t: v.slice(0, 80), got: false }); save(); render(); } return true; }
+  if (c('[data-shdone]')) { m.shop = null; save(); render(); toast('Courses terminées. Bon appétit !'); return true; }
+  if (c('[data-shshare]')) { const s = m.shop, txt = `Courses du ${DAY_MONTH.format(parseDate(s.from))} au ${DAY_MONTH.format(parseDate(s.to))}\n` + Object.entries(s.items).map(([r, l]) => `\n${r}\n` + l.map(o => `- ${o.n}${o.txt ? ' (' + o.txt + ')' : ''}`).join('\n')).join('\n') + (s.extra.length ? '\n\nEn plus\n' + s.extra.map(x => '- ' + x.t).join('\n') : ''); if (navigator.share) navigator.share({ text: txt }).catch(() => {}); else { try { navigator.clipboard.writeText(txt); toast('Liste copiée'); } catch (e) {} } return true; }
+  return false;
+}
+function planChange(t) {
+  const m = mp();
+  if (t.dataset.plok != null) { m.draft.list[Number(t.dataset.plok)].ok = t.checked; save(); const sy = window.scrollY; render(); window.scrollTo(0, sy); return true; }
+  if (t.dataset.shgot) { if (t.checked) m.shop.got[t.dataset.shgot] = true; else delete m.shop.got[t.dataset.shgot]; save(); return true; }
+  if (t.dataset.shx != null) { const x = m.shop.extra[Number(t.dataset.shx)]; if (x) { x.got = t.checked; save(); } return true; }
+  return false;
+}
+
 function vMealWeek(t) {
   const k = mpWeekKey(), w = mpWeek(k), m0 = parseDate(k), m = mp(), groups = mpShopping(w), RAYS = ['Fruits et légumes', 'Frais', 'Épicerie', 'Surgelés', 'Mes idées'];
   const lbl = MP.off === 0 ? 'Cette semaine' : MP.off === 1 ? 'Semaine prochaine' : MP.off === -1 ? 'Semaine dernière' : `Semaine du ${DAY_MONTH.format(m0)}`;
   const days = Array.from({ length: 7 }, (_, i) => addDays(m0, i));
   const list = Object.entries(RECIPES).filter(([, r]) => recOk(r)).sort((a, b) => b[1].p - a[1].p);
-  return `<div class="row between" style="margin-top:18px;align-items:center"><button class="icon-btn" data-mpw="-1" aria-label="Semaine précédente">‹</button><b>${lbl}</b><button class="icon-btn" data-mpw="1" aria-label="Semaine suivante">›</button></div>
+  if (!m.draft && !m.shop && !m.auto1) { m.auto1 = 1; makePlan(); }
+  return `${m.draft ? vPlanDraft() : ''}${m.shop ? vShopCard() : ''}${!m.draft && !m.shop ? '<button class="btn sm ghost" data-plnew style="margin-top:14px">Préparer mes repas jusqu\'à dimanche prochain</button>' : ''}<div class="row between" style="margin-top:18px;align-items:center"><button class="icon-btn" data-mpw="-1" aria-label="Semaine précédente">‹</button><b>${lbl}</b><button class="icon-btn" data-mpw="1" aria-label="Semaine suivante">›</button></div>
   <div class="mpgrid">${days.map((d, i) => `<div class="mpday ${iso(d) === todayISO() ? 'today' : ''}"><p>${DAY_SHORT.format(d)} ${d.getDate()}</p>${MOM.map(([mo, ml]) => { const id = w.s[`${i}-${mo}`], r = id && recOf(id), on = MP.pick === `${i}-${mo}`; return `<button class="mpslot ${r ? 'full' : ''} ${on ? 'on' : ''}" data-mps="${i}-${mo}"><small>${ml}</small>${r ? `<span>${esc(r.n)}</span>${r.p ? `<b class="num">${r.p} g</b>` : ''}` : '<span class="muted">+</span>'}</button>`; }).join('')}</div>`).join('')}</div>
   ${MP.pick ? `<section class="mppick"><div class="row between"><h3 style="margin:0">${MOM.find(x => x[0] === MP.pick.split('-')[1])[1]}, ${DAY_LONG.format(days[Number(MP.pick.split('-')[0])])}</h3><button class="icon-btn" data-mpclose aria-label="Fermer">×</button></div>
     ${w.s[MP.pick] ? '<button class="btn sm quiet" data-mpclear style="margin-top:8px">Vider cette case</button>' : ''}
     ${m.custom.length ? `<p class="zlbl">Mes idées</p>${m.custom.map(c => `<button class="mprec" data-mprec="${c.id}"><span>${esc(c.n)}</span>${c.p ? `<b class="num">${c.p} g</b>` : ''}</button>`).join('')}` : ''}
-    <p class="zlbl">Idées sans viande, riches en protéines (par portion)</p>
+    <p class="zlbl">Idées gourmandes et rapides, sans viande (protéines par portion)</p>
     ${list.map(([id, r]) => `<button class="mprec" data-mprec="${id}"><span>${r.n}<small>${r.fam.map(f => FAML[f]).join(' · ')}</small></span><b class="num">${r.p} g</b></button>`).join('')}
     ${MP.form ? `<div class="mpform"><input id="mpN" placeholder="Nom du plat"><textarea id="mpI" rows="3" placeholder="Ingrédients, un par ligne"></textarea><input id="mpP" inputmode="numeric" placeholder="Protéines par portion, en g (facultatif)"><button class="btn sm" data-mpsave>Ajouter à mes idées et à cette case</button></div>` : '<button class="btn sm ghost" data-mpform style="margin-top:10px">Écrire ma propre idée</button>'}
   </section>` : '<p class="hint">Touche une case pour y mettre une idée de repas.</p>'}
@@ -2623,6 +2712,7 @@ function mealChange(t) {
 function vNutrition() {
   const t = bodyTargets();
   if (!t || C.edit) return `${corpsTop('nutrition')}${calibForm()}`;
+  mp();
   const nseg = `<div class="seg" role="group" aria-label="Nutrition" style="margin-top:12px"><button data-nview="jour" aria-pressed="${C.nv !== 'semaine'}"><span class="dot"></span>Aujourd'hui</button><button data-nview="semaine" aria-pressed="${C.nv === 'semaine'}"><span class="dot"></span>Ma semaine de repas</button></div>`;
   if (C.nv === 'semaine') return `${corpsTop('nutrition')}${nseg}${vMealWeek(t)}`;
   const day = foodDay(), p = day.p, pr = S.body.profile, R = 100, circ = 2 * Math.PI * R, full = p >= t.prot;
@@ -3548,7 +3638,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.26 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.29 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -4230,6 +4320,7 @@ document.addEventListener('click', e => {
   if (themeClick(t)) return;
   if (heartClick(t)) return;
   if (zkClick(t)) return;
+  if (planClick(t)) return;
   if (mealClick(t)) return;
   if (dkClick(t)) return;
   if (hairClick(t)) return;
@@ -4461,6 +4552,7 @@ document.addEventListener('change', e => {
   if (hairChange(t)) return;
   if (heartChange(t)) return;
   if (zkChange(t)) return;
+  if (planChange(t)) return;
   if (mealChange(t)) return;
   if (t.dataset.chk) {
     if (t.checked) S.checks[t.dataset.chk] = true; else delete S.checks[t.dataset.chk];
