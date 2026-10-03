@@ -686,16 +686,16 @@ html.flux-on main{padding:0;max-width:none}
 html.flux-on .core{box-shadow:0 0 0 5px rgba(5,10,8,.6),0 10px 28px rgba(0,0,0,.4),0 0 26px rgba(233,196,106,.3)}
 
 /* ---------- Animation d'entrée ---------- */
-.intro{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:radial-gradient(90% 60% at 50% 45%,#0F2A21,#030806 70%);color:#E9C46A;animation:iout .6s var(--ease) 2.05s forwards;cursor:pointer}
-.intro svg{width:min(320px,80vw);height:auto;overflow:visible}
+.intro{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:radial-gradient(90% 60% at 50% 45%,#0F2A21,#030806 70%);color:#E9C46A;animation:iout .6s var(--ease) 3.05s forwards;cursor:pointer}
+.intro>.intro-wrap>svg{width:min(320px,80vw);height:auto;overflow:visible}
 .intro .ir{fill:none;stroke:#27473D;stroke-width:1;stroke-dasharray:1100;stroke-dashoffset:1100;animation:idraw 1.3s var(--ease) forwards}
 .intro .ir:nth-of-type(2){animation-delay:.12s}.intro .ir:nth-of-type(3){animation-delay:.24s}.intro .ir:nth-of-type(4){animation-delay:.36s}
 .intro .isun{transform-origin:center;transform-box:fill-box;animation:isun .9s var(--spring) .1s both}
 .intro .iglow{transform-origin:center;transform-box:fill-box;animation:iglow 2s ease-out .2s both}
 .intro .ip{opacity:0;transform-origin:center;transform-box:fill-box;animation:ipl .6s var(--spring) both}
 .intro .it{text-align:center;margin-top:10px}
-.intro .it b{display:block;font:400 2.6rem/1 var(--serif);color:#EEF3EF;letter-spacing:.2em;opacity:0;animation:itxt 1s var(--ease) .8s forwards}
-.intro .it span{display:block;margin-top:10px;font:400 1.3rem/1.5 var(--ar);color:#E9C46A;opacity:0;animation:ifade .8s ease 1.2s forwards}
+.intro .it b{display:block;font:400 2.6rem/1 var(--serif);color:#EEF3EF;letter-spacing:.2em;opacity:0;animation:itxt 1s var(--ease) 1.65s forwards}
+.intro .it span{display:block;margin-top:10px;font:400 1.3rem/1.5 var(--ar);color:#E9C46A;opacity:0;animation:ifade .8s ease 2.05s forwards}
 .intro-wrap{display:flex;flex-direction:column;align-items:center}
 @keyframes idraw{to{stroke-dashoffset:0}}
 @keyframes isun{from{transform:scale(0)}}
@@ -868,6 +868,33 @@ dialog.sheet[open]{animation:up .38s var(--ease)}
 /* ---------- Prononciation ---------- */
 .say{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:0 6px;border-radius:99px;background:transparent;color:var(--gold);font-size:.75rem;font-weight:600;vertical-align:middle}
 .say:active{background:var(--gold-soft)}
+/* ---------- Nutrition sans viande & semaine ---------- */
+.pcombo{display:grid;gap:6px}
+.pcombo button{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--surface);text-align:left;font-size:.875rem;font-weight:550;min-height:0}
+.pcombo b{color:var(--mint);flex:none}
+.mpgrid{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.mpday{display:grid;grid-template-columns:52px repeat(3,minmax(0,1fr));gap:5px;align-items:stretch}
+.mpday>p{margin:0;align-self:center;font-size:.75rem;font-weight:650;color:var(--muted);text-transform:capitalize}
+.mpday.today>p{color:var(--gold)}
+.mpslot{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 8px;min-height:58px;border-radius:12px;background:var(--surface);text-align:left;font-size:.6875rem;line-height:1.25;box-shadow:inset 0 0 0 1px var(--line)}
+.mpslot small{font-size:.5625rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mpslot span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600}
+.mpslot b{font-size:.625rem;color:var(--mint)}
+.mpslot.full{background:var(--raise)}.mpslot.on{box-shadow:inset 0 0 0 2px var(--gold)}
+.mppick{margin-top:14px;padding:14px;border-radius:var(--r);background:var(--surface)}
+.mprec{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:11px 12px;margin-top:6px;border-radius:12px;background:var(--raise);text-align:left;font-weight:600;font-size:.875rem;min-height:0}
+.mprec small{display:block;font-weight:500;font-size:.6875rem;color:var(--muted)}
+.mprec b{color:var(--mint);flex:none}
+.mpform{display:grid;gap:8px;margin-top:12px}
+.mpform input,.mpform textarea{min-height:44px;border:0;border-radius:12px;background:var(--raise);padding:10px 12px;color:var(--ink);font:inherit}
+.mpadv{margin:0 0 8px;padding:10px 12px;border-radius:12px;background:var(--surface);line-height:1.5}
+.mppick .zlbl{display:block;margin:12px 0 2px;font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+/* ---------- Gummies ---------- */
+.gumgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px}
+.gum{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:14px;background:var(--surface);text-align:left;font-weight:600;font-size:.8125rem;min-height:0;box-shadow:inset 0 0 0 1px var(--line)}
+.gum small{font-weight:500;font-size:.6875rem;color:var(--muted)}
+.gum.in{background:var(--gold-soft)}.gum.in small{color:var(--gold)}.gum.on{box-shadow:inset 0 0 0 2px var(--gold)}
+.gumcard{margin-top:12px;padding:14px;border-radius:var(--r);background:var(--surface)}
 /* ---------- Thèmes ---------- */
 .thgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .thsw{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:12px;border-radius:14px;background:var(--surface);text-align:left;font-size:.8125rem;font-weight:600;min-height:0;box-shadow:inset 0 0 0 1px var(--line)}
@@ -891,11 +918,30 @@ dialog.sheet[open]{animation:up .38s var(--ease)}
       <circle class="iglow" r="90" fill="url(#iG)"/>
       <circle class="ir" r="56"/><circle class="ir" r="84"/><circle class="ir" r="112"/><circle class="ir" r="138"/>
       <circle class="isun" r="28" fill="#E9C46A"/>
-      <circle class="ip" cx="-48" cy="-29" r="6" fill="#EEF3EF" style="animation-delay:.55s"/>
-      <circle class="ip" cx="68" cy="49" r="7" fill="#5ED3A8" style="animation-delay:.68s"/>
-      <circle class="ip" cx="-78" cy="80" r="6" fill="#EEF3EF" style="animation-delay:.8s"/>
-      <circle class="ip" cx="112" cy="-6" r="7" fill="#E9C46A" style="animation-delay:.92s"/>
-      <circle class="ip" cx="-40" cy="-132" r="5" fill="#EEF3EF" style="animation-delay:1.04s"/>
+      <g><animateTransform attributeName="transform" type="rotate" from="200 0 0" to="560 0 0" dur="7s" repeatCount="indefinite"/>
+        <g transform="translate(430 0)" opacity="0"><animateTransform attributeName="transform" type="translate" values="430 0;56 0" keyTimes="0;1" calcMode="spline" keySplines=".15 .75 .25 1" dur="1.15s" begin="0.35s" fill="freeze"/><animate attributeName="opacity" values="0;1" dur=".25s" begin="0.35s" fill="freeze"/>
+          <g><animateTransform attributeName="transform" type="rotate" from="-200 0 0" to="-560 0 0" dur="7s" repeatCount="indefinite"/>
+            <circle r="15" fill="#0F221C" stroke="#E9C46A" stroke-opacity=".55" stroke-width="1.2"/><svg x="-9" y="-9" width="18" height="18" viewBox="0 0 24 24" color="#E9C46A"><path d="M12 3.5a8.5 8.5 0 1 1-8.5 8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></g></g></g>
+      <g><animateTransform attributeName="transform" type="rotate" from="320 0 0" to="680 0 0" dur="10s" repeatCount="indefinite"/>
+        <g transform="translate(430 0)" opacity="0"><animateTransform attributeName="transform" type="translate" values="430 0;84 0" keyTimes="0;1" calcMode="spline" keySplines=".15 .75 .25 1" dur="1.15s" begin="0.5s" fill="freeze"/><animate attributeName="opacity" values="0;1" dur=".25s" begin="0.5s" fill="freeze"/>
+          <g><animateTransform attributeName="transform" type="rotate" from="-320 0 0" to="-680 0 0" dur="10s" repeatCount="indefinite"/>
+            <circle r="15" fill="#0F221C" stroke="#5ED3A8" stroke-opacity=".55" stroke-width="1.2"/><svg x="-9" y="-9" width="18" height="18" viewBox="0 0 24 24" color="#5ED3A8"><path d="M15.5 4.5a8 8 0 1 0 4 12.5 6.5 6.5 0 1 1-4-12.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></g></g></g>
+      <g><animateTransform attributeName="transform" type="rotate" from="140 0 0" to="500 0 0" dur="10s" repeatCount="indefinite"/>
+        <g transform="translate(430 0)" opacity="0"><animateTransform attributeName="transform" type="translate" values="430 0;84 0" keyTimes="0;1" calcMode="spline" keySplines=".15 .75 .25 1" dur="1.15s" begin="0.62s" fill="freeze"/><animate attributeName="opacity" values="0;1" dur=".25s" begin="0.62s" fill="freeze"/>
+          <g><animateTransform attributeName="transform" type="rotate" from="-140 0 0" to="-500 0 0" dur="10s" repeatCount="indefinite"/>
+            <circle r="15" fill="#0F221C" stroke="#E9C46A" stroke-opacity=".55" stroke-width="1.2"/><svg x="-9" y="-9" width="18" height="18" viewBox="0 0 24 24" color="#E9C46A"><path d="M6.5 12h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3.8" y="7.8" width="3.2" height="8.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="7.8" width="3.2" height="8.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2 10.5v3M22 10.5v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></g></g></g>
+      <g><animateTransform attributeName="transform" type="rotate" from="60 0 0" to="420 0 0" dur="14s" repeatCount="indefinite"/>
+        <g transform="translate(430 0)" opacity="0"><animateTransform attributeName="transform" type="translate" values="430 0;112 0" keyTimes="0;1" calcMode="spline" keySplines=".15 .75 .25 1" dur="1.15s" begin="0.75s" fill="freeze"/><animate attributeName="opacity" values="0;1" dur=".25s" begin="0.75s" fill="freeze"/>
+          <g><animateTransform attributeName="transform" type="rotate" from="-60 0 0" to="-420 0 0" dur="14s" repeatCount="indefinite"/>
+            <circle r="15" fill="#0F221C" stroke="#E9C46A" stroke-opacity=".55" stroke-width="1.2"/><svg x="-9" y="-9" width="18" height="18" viewBox="0 0 24 24" color="#E9C46A"><rect x="3.5" y="6" width="17" height="12.5" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 12.25h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 6l8.5-2.5 1 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></g></g></g>
+      <g><animateTransform attributeName="transform" type="rotate" from="160 0 0" to="520 0 0" dur="20s" repeatCount="indefinite"/>
+        <g transform="translate(430 0)" opacity="0"><animateTransform attributeName="transform" type="translate" values="430 0;138 0" keyTimes="0;1" calcMode="spline" keySplines=".15 .75 .25 1" dur="1.15s" begin="0.9s" fill="freeze"/><animate attributeName="opacity" values="0;1" dur=".25s" begin="0.9s" fill="freeze"/>
+          <g><animateTransform attributeName="transform" type="rotate" from="-160 0 0" to="-520 0 0" dur="20s" repeatCount="indefinite"/>
+            <circle r="15" fill="#0F221C" stroke="#E9C46A" stroke-opacity=".55" stroke-width="1.2"/><svg x="-9" y="-9" width="18" height="18" viewBox="0 0 24 24" color="#E9C46A"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 2.4"/><circle cx="12" cy="4" r="2.4" fill="currentColor"/></svg></g></g></g>
+      <g><animateTransform attributeName="transform" type="rotate" from="340 0 0" to="700 0 0" dur="20s" repeatCount="indefinite"/>
+        <g transform="translate(430 0)" opacity="0"><animateTransform attributeName="transform" type="translate" values="430 0;138 0" keyTimes="0;1" calcMode="spline" keySplines=".15 .75 .25 1" dur="1.15s" begin="1.02s" fill="freeze"/><animate attributeName="opacity" values="0;1" dur=".25s" begin="1.02s" fill="freeze"/>
+          <g><animateTransform attributeName="transform" type="rotate" from="-340 0 0" to="-700 0 0" dur="20s" repeatCount="indefinite"/>
+            <circle r="15" fill="#0F221C" stroke="#E9C46A" stroke-opacity=".55" stroke-width="1.2"/><svg x="-9" y="-9" width="18" height="18" viewBox="0 0 24 24" color="#E9C46A"><rect x="3.5" y="7.5" width="17" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 7.5V6a3 3 0 0 1 6 0v1.5M3.5 12.5h17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></g></g></g>
     </svg>
     <div class="it"><b>SAYKO</b><span lang="ar" dir="rtl">بِسْمِ ٱللَّهِ</span></div>
   </div>
