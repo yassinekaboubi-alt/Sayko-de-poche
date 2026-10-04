@@ -587,6 +587,7 @@ const miniOrb = (p, key, mint) => `<svg class="mini-orb" viewBox="-20 -20 40 40"
    ===================================================================== */
 const PLANETS = [
   { key: 'routine', name: 'Routine', r: 66, speed: 9, phase: 210 },
+  { key: 'arabe', name: 'Arabe', r: 66, speed: 9, phase: 30 },
   { key: 'foi', name: 'Foi', r: 98, speed: 6, phase: 330, mint: true },
   { key: 'corps', name: 'Corps', r: 98, speed: 6, phase: 150 },
   { key: 'argent', name: 'Argent', r: 130, speed: 4, phase: 70 },
@@ -620,13 +621,28 @@ function planetValue(k) {
    fois dans #galaxy, fixe derrière toute l'app.
    ===================================================================== */
 const GSTAGE = ['Roche', 'Eau', 'Océans', 'Vie', 'Civilisation'];
-const GGROW = { routine: [3, 20, 60, 150], corps: [1, 10, 30, 80], argent: [5, 40, 120, 300], parcours: [5, 25, 50, 90] };
+/* Chaque planète porte le nom d'une étoile au nom arabe, révélé lettre par lettre à mesure qu'elle s'éveille. */
+const GNAME = { foi: ['Suhail', 'Canopus, l\'étoile qui guidait les voyageurs arabes dans le désert'], business: ['Altaïr', 'de an-nasr at-tâ\'ir, l\'aigle qui vole'], corps: ['Hamal', 'de al-ḥamal, le bélier : la force'], argent: ['Alnilam', 'de an-nizâm, le collier de perles'], parcours: ['Achernar', 'de âkhir an-nahr, la fin du fleuve'], arabe: ['Fomalhaut', 'de fam al-hût, la bouche du poisson'], routine: ['Deneb', 'de dhanab, la queue du cygne'] };
+const GSIZE = { foi: 30, business: 26, corps: 24, argent: 24, parcours: 22, arabe: 20, routine: 19 };
+const GPAL = { foi: ['#C6F7E0', '#1F9E6E', '#04261A'], business: ['#F6E2B0', '#C08A3E', '#2A1606'], corps: ['#F7B79A', '#B9472E', '#2A0A05'], argent: ['#FFF1C8', '#D4A84A', '#2E1E06'], parcours: ['#E6F6FF', '#6FA8D6', '#0B1E33'], arabe: ['#E2D6FF', '#6A57C9', '#120A2E'], routine: ['#B5EAF2', '#22709A', '#03111C'] };
+const GGROW = { foi: [9, 90, 300, 800], arabe: [5, 30, 80, 150], routine: [3, 20, 60, 150], corps: [1, 10, 30, 80], argent: [5, 40, 120, 300], parcours: [5, 25, 50, 90] };
 function gValue(k) {
+  if (k === 'arabe') return wordsKnown();
+  if (k === 'foi') { let n = 0; Object.values(S.faith.log || {}).forEach(d => Object.values(d || {}).forEach(v => { if (v && v !== 'x') n++; })); return n; }
   if (k === 'routine') return Object.keys(S.days || {}).length;
   if (k === 'corps') return S.body.sessions.length;
   if (k === 'argent') return S.money.tx.length;
   if (k === 'parcours') return globalPct();
   return 0;
+}
+function gFrac(k) {
+  if (k === 'business') return S.unlocks.business ? Math.min(1, .5 + (S.biz.projects || []).length / 12) : 0;
+  const t = GGROW[k], v = gValue(k); let st = 0; while (st < 4 && v >= t[st]) st++;
+  const lo = st ? t[st - 1] : 0, hi = st < 4 ? t[st] : null; return st >= 4 ? 1 : (st + (v - lo) / (hi - lo)) / 4;
+}
+function gNameSvg(k, y) {
+  const [nm] = GNAME[k], f = gFrac(k), n = f >= 1 ? nm.length : Math.max(1, Math.floor(nm.length * f));
+  return `<text class="gval" y="${y}"><tspan>${nm.slice(0, n)}</tspan><tspan class="ghid">${'·'.repeat(nm.length - n)}</tspan></text>`;
 }
 function gStage(k) {
   if (k === 'business') return S.unlocks.business ? Math.min(4, 2 + Math.floor((S.biz.projects || []).length / 3)) : 0;
@@ -634,14 +650,23 @@ function gStage(k) {
 }
 const faithToday = () => { const n = S.faith.habits.length; return n ? dayDone(todayISO()) / n : 0; };
 function planetSvg(k, st, R) {
-  const id = `pg${st}`;
-  let s = `<circle r="${R + 7}" fill="url(#atm${st})" opacity="${st >= 2 ? .9 : .35}"/><circle r="${R}" fill="url(#${id})"/>`;
+  const pal = GPAL[k] || GPAL.routine, id = st >= 2 ? `gp-${k}` : `pg${st}`;
+  let s = `<circle r="${R + 8}" fill="url(#gatm-${k})" opacity="${st >= 2 ? .95 : .3}"/><circle r="${R}" fill="url(#${id})"/>`;
   if (st <= 1) s += `<g fill="#000" opacity=".22"><circle cx="${-R * .3}" cy="${-R * .2}" r="${R * .18}"/><circle cx="${R * .25}" cy="${R * .3}" r="${R * .12}"/><circle cx="${R * .35}" cy="${-R * .35}" r="${R * .08}"/></g>`;
-  if (st === 1) s += `<g fill="#3E7FC2" opacity=".75"><ellipse cx="${-R * .2}" cy="${R * .35}" rx="${R * .35}" ry="${R * .16}"/><ellipse cx="${R * .3}" cy="${-R * .1}" rx="${R * .2}" ry="${R * .1}"/></g>`;
-  if (st >= 3) s += `<g fill="#3FA36A" opacity=".9"><path d="M${-R * .6} ${-R * .2}q${R * .3} ${-R * .4} ${R * .6} ${-R * .1}q${R * .1} ${R * .3} ${-R * .2} ${R * .4}q${-R * .3} ${R * .1} ${-R * .4} ${-R * .3}z"/><path d="M${R * .1} ${R * .2}q${R * .3} ${-R * .2} ${R * .5} 0q0 ${R * .3} ${-R * .3} ${R * .4}q${-R * .2} 0 ${-R * .2} ${-R * .4}z"/></g>`;
-  if (st >= 2) s += `<g fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="${(R * .09).toFixed(1)}" stroke-linecap="round"><path d="M${-R * .7} ${-R * .45}q${R * .4} ${-R * .15} ${R * .8} 0"/><path d="M${-R * .2} ${R * .55}q${R * .4} ${-R * .12} ${R * .75} ${-R * .05}"/></g>`;
+  if (st === 1) s += `<g fill="${pal[1]}" opacity=".7"><ellipse cx="${-R * .2}" cy="${R * .35}" rx="${R * .35}" ry="${R * .16}"/><ellipse cx="${R * .3}" cy="${-R * .1}" rx="${R * .2}" ry="${R * .1}"/></g>`;
+  if (st >= 2 && (k === 'business' || k === 'argent')) s += `<g fill="none" stroke="${pal[0]}" stroke-opacity=".35" stroke-width="${(R * .12).toFixed(1)}">${[-.5, -.15, .2, .5].map(t => `<path d="M${-R} ${(R * t).toFixed(1)}q${R} ${(R * .12).toFixed(1)} ${2 * R} 0"/>`).join('')}</g>`;
+  if (st >= 3) { const land = k === 'corps' ? '#D9894E' : k === 'argent' ? '#F3D9A4' : k === 'arabe' ? '#9F8CF0' : k === 'parcours' ? '#FFFFFF' : '#3FA36A';
+    s += `<g fill="${land}" opacity=".88"><path d="M${-R * .6} ${-R * .2}q${R * .3} ${-R * .4} ${R * .6} ${-R * .1}q${R * .1} ${R * .3} ${-R * .2} ${R * .4}q${-R * .3} ${R * .1} ${-R * .4} ${-R * .3}z"/><path d="M${R * .1} ${R * .2}q${R * .3} ${-R * .2} ${R * .5} 0q0 ${R * .3} ${-R * .3} ${R * .4}q${-R * .2} 0 ${-R * .2} ${-R * .4}z"/></g>`; }
+  if (st >= 2 && k !== 'business') s += `<g fill="none" stroke="#FFFFFF" stroke-opacity=".5" stroke-width="${(R * .08).toFixed(1)}" stroke-linecap="round"><path d="M${-R * .7} ${-R * .45}q${R * .4} ${-R * .15} ${R * .8} 0"/><path d="M${-R * .2} ${R * .55}q${R * .4} ${-R * .12} ${R * .75} ${-R * .05}"/></g>`;
   s += `<circle r="${R}" fill="url(#term)"/>`;
-  if (st >= 4) s += `<g fill="#FFD27A">${[[.45, .3], [.55, .05], [.3, .5], [.6, .38], [.42, .62], [.2, .7]].map(([a, b]) => `<circle cx="${(R * a).toFixed(1)}" cy="${(R * b).toFixed(1)}" r="${(R * .06).toFixed(1)}"/>`).join('')}</g><ellipse rx="${R * 1.75}" ry="${R * .42}" fill="none" stroke="#E8C27A" stroke-width="${(R * .14).toFixed(1)}" opacity=".85" transform="rotate(-14)"/><ellipse rx="${R * 1.75}" ry="${R * .42}" fill="none" stroke="#FFF4D6" stroke-width="${(R * .04).toFixed(1)}" opacity=".7" transform="rotate(-14)"/>`;
+  if (st >= 4) {
+    s += `<g fill="#FFD27A">${[[.45, .3], [.55, .05], [.3, .5], [.6, .38], [.42, .62], [.2, .7]].map(([x, y]) => `<circle cx="${(R * x).toFixed(1)}" cy="${(R * y).toFixed(1)}" r="${(R * .055).toFixed(1)}"/>`).join('')}</g>`;
+    if (k === 'foi') s += `<ellipse rx="${R * 1.6}" ry="${R * .4}" fill="none" stroke="#E8C27A" stroke-width="${(R * .1).toFixed(1)}" opacity=".9" transform="rotate(-18)"/><ellipse rx="${R * 1.85}" ry="${R * .48}" fill="none" stroke="#7FE6C0" stroke-width="${(R * .04).toFixed(1)}" opacity=".7" transform="rotate(-18)"/>`;
+    else if (k === 'business' || k === 'argent') s += `<ellipse rx="${R * 1.75}" ry="${R * .42}" fill="none" stroke="#E8C27A" stroke-width="${(R * .14).toFixed(1)}" opacity=".85" transform="rotate(-14)"/><ellipse rx="${R * 1.75}" ry="${R * .42}" fill="none" stroke="#FFF4D6" stroke-width="${(R * .04).toFixed(1)}" opacity=".7" transform="rotate(-14)"/>`;
+    else if (k === 'corps') s += `<circle cx="${R * 1.5}" cy="${-R * .6}" r="${R * .18}" fill="#C9B9A6"/><circle cx="${-R * 1.4}" cy="${R * .5}" r="${R * .12}" fill="#A89A88"/>`;
+    else if (k === 'arabe') s += `<path d="M${R * 1.3} ${-R * 1.1}a${R * .32} ${R * .32} 0 1 0 ${R * .24} ${R * .5}a${R * .26} ${R * .26} 0 1 1 ${-R * .24} ${-R * .5}z" fill="#F3D9A4"/>`;
+    else if (k === 'parcours') s += `<ellipse rx="${R * 1.6}" ry="${R * .36}" fill="none" stroke="#E6F6FF" stroke-width="${(R * .08).toFixed(1)}" opacity=".7" transform="rotate(10)"/>`;
+  }
   return s;
 }
 const GDEFS = `<defs>
@@ -652,28 +677,30 @@ const GDEFS = `<defs>
   <radialGradient id="pg4" cx=".35" cy=".35"><stop offset="0" stop-color="#B5EAF2"/><stop offset=".55" stop-color="#22709A"/><stop offset="1" stop-color="#03111C"/></radialGradient>
   <radialGradient id="term" cx=".25" cy=".25" r=".95"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".75"/></radialGradient>
   ${[0, 1, 2, 3, 4].map(i => `<radialGradient id="atm${i}"><stop offset=".72" stop-color="${i >= 2 ? '#7FD6FF' : '#C9B9A6'}" stop-opacity="${i >= 2 ? .45 : .2}"/><stop offset="1" stop-color="${i >= 2 ? '#7FD6FF' : '#C9B9A6'}" stop-opacity="0"/></radialGradient>`).join('')}
+  ${Object.entries(GPAL).map(([k, p]) => `<radialGradient id="gp-${k}" cx=".35" cy=".35"><stop offset="0" stop-color="${p[0]}"/><stop offset=".55" stop-color="${p[1]}"/><stop offset="1" stop-color="${p[2]}"/></radialGradient><radialGradient id="gatm-${k}"><stop offset=".7" stop-color="${p[0]}" stop-opacity=".45"/><stop offset="1" stop-color="${p[0]}" stop-opacity="0"/></radialGradient>`).join('')}
   <radialGradient id="gSun"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".18" stop-color="#FFF4D6"/><stop offset=".4" stop-color="#F3D9A4" stop-opacity=".7"/><stop offset=".7" stop-color="#E8C27A" stop-opacity=".18"/><stop offset="1" stop-color="#E8C27A" stop-opacity="0"/></radialGradient>
 </defs>`;
-const GPL = { routine: 21, corps: 24, argent: 26, parcours: 22, business: 25 };
+const GPL = { arabe: 20, routine: 21, corps: 24, argent: 26, parcours: 22, business: 25 };
 function vGalaxy(hello, now) {
-  const f = faithToday(), sunR = 22 + 12 * f, glow = 80 + 70 * f;
-  const planets = PLANETS.filter(p => p.key !== 'foi').map(p => {
-    const [v, lbl] = planetValue(p.key), st = gStage(p.key), locked = p.key === 'business' && !S.unlocks.business, R = GPL[p.key] || 16;
-    return `<g class="gplanet ${locked ? 'locked' : ''}" data-planet="${p.key}" role="button" tabindex="0" aria-label="${p.name} : ${GSTAGE[st]}, ${lbl}">
-      <circle r="${R + 16}" fill="transparent"/>${planetSvg(p.key, st, R)}
-      <circle class="gprog" r="${R + 5}" transform="rotate(-90)" ${ringDash(R + 5, v)}/>
-      ${locked ? `<svg x="-7" y="-7" width="14" height="14" viewBox="0 0 24 24" style="color:#E8C27A">${GLYPH.lock}</svg>` : ''}
-      <text class="glbl" y="${R + 22}">${p.name}</text><text class="gval" y="${R + 34}">${locked ? 'Verrouillé' : GSTAGE[st]}</text></g>`;
+  const L = sunLevel(), sunR = 26 + 10 * L, glow = 100 + 70 * L, K = 1.08, RY = .74;
+  const planets = PLANETS.map(p => {
+    const v = p.key === 'arabe' ? wordsKnown() / WORDS.length : planetValue(p.key)[0], st = gStage(p.key), locked = p.key === 'business' && !S.unlocks.business, R = GSIZE[p.key] || 20;
+    return `<g class="gplanet ${locked ? 'locked' : ''}" data-planet="${p.key}" role="button" tabindex="0" aria-label="${p.name} : ${GNAME[p.key][0]}, ${GSTAGE[st]}">
+      <circle r="${R + 18}" fill="transparent"/>${planetSvg(p.key, st, R)}
+      <circle class="gprog" r="${R + 6}" transform="rotate(-90)" ${ringDash(R + 6, v)}/>
+      ${locked ? `<svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" style="color:#E8C27A">${GLYPH.lock}</svg>` : ''}
+      <text class="glbl" y="${R + 22}">${p.name}</text>${locked ? `<text class="gval" y="${R + 35}">Verrouillé</text>` : gNameSvg(p.key, R + 35)}</g>`;
   }).join('');
+  const radii = [...new Set(PLANETS.map(p => p.r))];
   return `${pageHead(`${hello}, <em>Yassine</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite')}
-  <div class="orbit-stage gal" id="stage"><svg viewBox="-215 -135 430 270" aria-label="Ta galaxie : le soleil est ta foi, chaque planète un module">
+  <div class="orbit-stage gal" id="stage"><svg viewBox="-205 -205 410 410" aria-label="Ta galaxie : chaque planète est un module, le soleil ouvre le Flux">
     ${GDEFS}
-    ${PLANETS.filter(p => p.key !== 'foi').map(p => `<ellipse class="gorb" rx="${p.r + 18}" ry="${((p.r + 18) * .48).toFixed(0)}"/>`).join('')}
-    <circle r="${glow.toFixed(0)}" fill="url(#gSun)" class="gsunglow" style="transition:r .8s"/>
+    ${radii.map(r => `<ellipse class="gorb" rx="${((r + 18) * K).toFixed(0)}" ry="${((r + 18) * K * RY).toFixed(0)}"/>`).join('')}
+    <g id="planetsBack"></g>
+    <circle r="${glow.toFixed(0)}" fill="url(#gSun)" class="gsunglow"/>
     <circle r="${sunR.toFixed(1)}" fill="#FFF8E6" class="gsun"/>
-    <circle data-sun r="34" fill="transparent" role="button" tabindex="0" aria-label="Ta foi : ouvrir tes habitudes" style="cursor:pointer"/>
-    <text y="${(-sunR - 22).toFixed(0)}" class="glbl" style="fill:#FFE6A8">Foi · ${Math.round(f * 100)} %</text>
-    <text id="sunNour" y="${(-sunR - 10).toFixed(0)}" text-anchor="middle" style="font-size:10px;font-weight:700;letter-spacing:.06em;fill:#E8C27A">✦ ${nourDay()}</text>
+    <circle data-sun r="40" fill="transparent" role="button" tabindex="0" aria-label="Ouvrir le Flux" style="cursor:pointer"/>
+    <text id="sunNour" y="${(sunR + 16).toFixed(0)}" text-anchor="middle" style="font-size:10.5px;font-weight:700;letter-spacing:.06em;fill:#E8C27A" pointer-events="none">✦ ${nourDay()}</text>
     <g id="planets">${planets}</g>
   </svg></div>`;
 }
@@ -712,8 +739,8 @@ function paintGalaxy(force) {
 }
 function checkGalaxy() {
   const g = S.galaxy = S.galaxy && typeof S.galaxy === 'object' ? S.galaxy : {}; let up = null;
-  PLANETS.filter(p => p.key !== 'foi').forEach(p => { const st = gStage(p.key); if (g[p.key] == null) { g[p.key] = st; return; } if (st > g[p.key]) { up = [p, st]; } g[p.key] = st; });
-  if (up) { save(); setTimeout(() => { chime(true); burst(46, GSTAGE[up[1]], true); gemCard(`${up[0].name} · ${GSTAGE[up[1]]}`, ['', 'De l\'eau apparaît sur ta planète. La vie peut commencer.', 'Des océans couvrent ta planète, les nuages se forment.', 'La vie s\'installe : des continents verts apparaissent.', 'Ta planète s\'illumine de villes et reçoit son anneau d\'or. Tu l\'as bâtie, acte après acte.'][up[1]], ''); try { navigator.vibrate && navigator.vibrate([14, 50, 20, 50, 30]); } catch (e) {} }, 700); }
+  PLANETS.forEach(p => { const st = gStage(p.key); if (g[p.key] == null) { g[p.key] = st; return; } if (st > g[p.key]) { up = [p, st]; } g[p.key] = st; });
+  if (up) { save(); setTimeout(() => { chime(true); burst(46, GSTAGE[up[1]], true); gemCard(`${GNAME[up[0].key][0]} · ${GSTAGE[up[1]]}`, (up[1] === 4 ? `${GNAME[up[0].key][0]}, ${GNAME[up[0].key][1]}. ` : '') + ['', 'De l\'eau apparaît sur ta planète. La vie peut commencer.', 'Des océans couvrent ta planète, les nuages se forment.', 'La vie s\'installe : des continents verts apparaissent.', 'Ta planète s\'illumine de villes et reçoit son anneau d\'or. Tu l\'as bâtie, acte après acte.'][up[1]], ''); try { navigator.vibrate && navigator.vibrate([14, 50, 20, 50, 30]); } catch (e) {} }, 700); }
 }
 
 function vOrbite() {
@@ -761,7 +788,7 @@ const orb = { raf: 0, t0: 0, spin: 0, vel: 0, drag: null, last: 0 };
 function startOrbit() {
   stopOrbit();
   const g = $('#planets'); if (!g) return;
-  const nodes = PLANETS.map(p => $(`[data-planet="${p.key}"]`, g));
+  const st0 = $('#stage'), back = $('#planetsBack'), nodes = PLANETS.map(p => $(`[data-planet="${p.key}"]`, st0));
   const still = reduceMotion();
   orb.t0 = performance.now() - (orb.elapsed || 0); orb.last = performance.now();
   const frame = now => {
@@ -772,8 +799,9 @@ function startOrbit() {
     PLANETS.forEach((p, i) => {
       const a = p.phase + (still ? 0 : p.speed * t) + orb.spin * (70 / p.r);
       if (!nodes[i]) return;
-      const [x, y] = polar(p.r + 18, a), yy = y * .48, sc = .72 + .36 * ((yy / ((p.r + 18) * .48)) + 1) / 2;
+      const R2 = (p.r + 18) * 1.08, [x, y] = polar(R2, a), yy = y * .74, sc = .74 + .34 * ((yy / (R2 * .74)) + 1) / 2;
       nodes[i].setAttribute('transform', `translate(${x.toFixed(2)} ${yy.toFixed(2)}) scale(${sc.toFixed(3)})`);
+      if (back) { const want = yy < -4 ? back : g; if (nodes[i].parentNode !== want) want.appendChild(nodes[i]); }
     });
     orb.raf = requestAnimationFrame(frame);
   };
@@ -788,7 +816,7 @@ function startOrbit() {
   });
   const end = e => {
     const d = orb.drag; orb.drag = null;
-    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); else if (e.target.closest && e.target.closest('[data-sun]')) go('habitudes'); }
+    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); else if (e.target.closest && e.target.closest('[data-sun]')) go('flux'); }
   };
   stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', () => { orb.drag = null; });
 }
@@ -3543,7 +3571,26 @@ Object.assign(FX_AR, {"x1": "وَلَقَدۡ خَلَقۡنَا ٱلۡإِنس�
    Défilement plein écran aimanté, une carte à la fois. 4 piliers équilibrés (foi, business, savoir, psychologie),
    une carte interactive toutes les 4 (quiz, vrai/faux, mot arabe), une carte « pause » toutes les 15.
    Les cartes jamais vues passent en premier ; le business du mois en cours est favorisé. */
+/* ----- Flux : astres et espace (science, histoire, peuples d'avant) ----- */
+const FX_ASTRES = [
+  ['as1', 'Des étoiles aux noms arabes', 'Une grande partie des étoiles brillantes portent encore un nom arabe : Aldébaran, Altaïr, Bételgeuse, Véga, Deneb… Ils sont arrivés en Europe au Moyen Âge, avec la traduction en latin des livres d\'astronomie du monde musulman.', 'Ce soir, cherche Véga ou Altaïr : ce sont deux des étoiles les plus brillantes du ciel d\'été et d\'automne.'],
+  ['as2', 'Al-Sûfî et la galaxie d\'Andromède', 'En 964, l\'astronome ʿAbd ar-Rahmân as-Sûfî, à Ispahan, publie le « Livre des étoiles fixes ». Il y décrit un « petit nuage » : c\'est la première mention écrite connue de la galaxie d\'Andromède.', 'Par ciel bien noir, loin des villes, Andromède se voit à l\'œil nu comme une petite tache floue.'],
+  ['as3', 'L\'année d\'al-Battânî', 'Au IXe siècle, al-Battânî mesure la durée de l\'année solaire à 365 jours, 5 heures et 46 minutes. La valeur actuelle n\'en diffère que de quelques dizaines de secondes.', 'Note l\'heure du lever du soleil quelques jours de suite : tu verras ce décalage régulier.'],
+  ['as4', 'L\'astrolabe', 'Perfectionné dans le monde musulman, l\'astrolabe permettait de lire l\'heure, de mesurer la hauteur d\'un astre et de trouver la direction de la qibla, n\'importe où.', 'Regarde où le soleil se couche ce soir, et compare avec la direction de ta qibla.'],
+  ['as5', 'Suhail, l\'étoile des voyageurs', 'Suhail (Canopus) est la deuxième étoile la plus brillante du ciel nocturne. Dans la péninsule arabique, son apparition à l\'aube, en fin d\'été, annonçait la fin des grandes chaleurs, et les caravanes s\'en servaient pour se guider vers le sud.', 'Depuis la France, Suhail ne se lève pas : il faut descendre vers le sud pour la voir.'],
+  ['as6', 'Le ciel n\'apporte pas la pluie', 'Avant l\'islam, beaucoup d\'Arabes attribuaient la pluie au coucher de certaines étoiles (les anwâʾ). Le Prophète ﷺ a corrigé cette croyance : dire « nous avons eu la pluie grâce à telle étoile », c\'est attribuer aux astres ce qui revient à Allah (Bukhari 846).', 'Quand il pleut, dis : « Nous avons eu la pluie par la grâce d\'Allah et Sa miséricorde. »'],
+  ['as7', 'Les navigateurs polynésiens', 'Sans boussole ni carte, les navigateurs polynésiens traversaient des milliers de kilomètres d\'océan en suivant les points où se lèvent et se couchent les étoiles : une véritable boussole d\'étoiles apprise par cœur.', 'Repère une étoile au-dessus de l\'horizon ce soir et regarde où elle est une heure plus tard.'],
+  ['as8', 'Sirius et la crue du Nil', 'Dans l\'Égypte ancienne, le retour de Sirius à l\'aube, juste avant le lever du soleil, annonçait chaque année la crue du Nil. Tout le calendrier agricole en dépendait.', 'Sirius est l\'étoile la plus brillante du ciel : on la voit en hiver, sous Orion.'],
+  ['as9', 'Tu regardes le passé', 'La lumière du Soleil met environ 8 minutes et 20 secondes à nous parvenir. Celle de l\'étoile la plus proche après lui, Proxima du Centaure, voyage plus de 4 ans. Quand tu regardes une étoile, tu la vois telle qu\'elle était.', 'Ce soir, choisis une étoile : sa lumière est partie avant que tu sois né, peut-être bien avant.'],
+  ['as10', 'Combien d\'étoiles ?', 'Notre galaxie, la Voie lactée, compte entre 100 et 400 milliards d\'étoiles. Et l\'univers observable contient des centaines de milliards de galaxies.', '« Ne regardent-ils pas le ciel au-dessus d\'eux, comment Nous l\'avons bâti et embelli ? » (Coran 50:6)'],
+  ['as11', 'La Lune et notre calendrier', 'Un mois lunaire dure environ 29,5 jours, donc une année hégirienne compte environ 354 jours. C\'est pour ça que le Ramadan avance d\'une dizaine de jours chaque année et fait le tour des saisons en 33 ans environ.', 'Regarde la Lune ce soir et devine où on en est dans le mois hégirien.'],
+  ['as12', 'Les étoiles filantes', 'Ce ne sont pas des étoiles : ce sont des grains de poussière, souvent pas plus gros qu\'un grain de sable, qui brûlent en entrant dans l\'atmosphère à plus de 70 km d\'altitude.', 'Mi-août, les Perséides offrent des dizaines d\'étoiles filantes par heure.'],
+  ['as13', 'L\'observatoire d\'Ulugh Beg', 'Au XVe siècle, à Samarcande, le prince astronome Ulugh Beg fait construire un immense observatoire. Son catalogue donne la position de plus de mille étoiles avec une précision remarquable pour l\'époque.', 'Cherche une photo de son sextant géant : il est creusé dans la colline.'],
+  ['as14', 'Pourquoi Mars est rouge', 'La surface de Mars est couverte de poussière riche en oxyde de fer : de la rouille, en quelque sorte. C\'est elle qui lui donne cette couleur.', 'Quand Mars est visible, elle se reconnaît à son éclat orangé, qui ne scintille presque pas.'],
+  ['as15', 'Les étoiles pour se guider', '« C\'est Lui qui a fait pour vous les étoiles, pour que vous vous guidiez par elles dans les ténèbres de la terre et de la mer. » (Coran 6:97) Pendant des siècles, marins et caravaniers ont fait exactement ça.', 'Apprends à trouver l\'étoile Polaire : elle indique le nord.']
+];
 const FXC = {
+  astres: { bg: ['#0E1A2E', '#020407'], ac: '#E8C27A', lbl: 'Astres et espace', shape: 'spark' },
   coran: { bg: ['#14402F', '#06110D'], ac: '#E9C46A', lbl: 'Coran', shape: 'star' },
   hadith: { bg: ['#2A2A17', '#080C08'], ac: '#F0D9A0', lbl: 'Hadith', shape: 'orb' },
   biz: { bg: ['#10263A', '#050A10'], ac: '#8CC4FF', lbl: 'Business', shape: 'node' },
@@ -3567,6 +3614,7 @@ FX_HADITH.forEach(([id, fr, src, ex]) => { FX_ALL[id] = { id, t: 'hadith', fr, s
 FX_BIZ.forEach(([id, book, m, title, text, act]) => { FX_ALL[id] = { id, t: 'biz', book, m, title, text, act }; });
 FX_SCI.forEach(([id, cat, title, text]) => { FX_ALL[id] = { id, t: cat, title, text }; });
 FX_PSY.forEach(([id, title, text, act]) => { FX_ALL[id] = { id, t: 'psy', title, text, act }; });
+FX_ASTRES.forEach(([id, title, text, act]) => { FX_ALL[id] = { id, t: 'astres', title, text, act }; });
 FX_QUIZ.forEach(([id, q, opts, ok, ex]) => { FX_ALL[id] = { id, t: 'quiz', q, opts, ok, ex }; });
 FX_VF.forEach(([id, q, ok, ex]) => { FX_ALL[id] = { id, t: 'vf', q, ok, ex }; });
 FX_RECIT.forEach(([id, who, title, text, lesson, src]) => { FX_ALL[id] = { id, t: 'recit', who, title, text, lesson, src }; });
@@ -3614,7 +3662,7 @@ function fxNext() {
   if (i % 15 === 0) return fxPause();
   if (i % 4 === 0) { const r = Math.random(); if (r < .25) { const w = Math.floor(Math.random() * WORDS.length); return { id: 'ar' + w + '-' + uid(), t: 'ar', w }; } return fxPick(r < .65 ? 'quiz' : 'vf'); }
   if (i % 11 === 0) return fxMe();
-  if (!FXS.order.length) FXS.order = ['foi', 'biz', 'savoir', 'psy'].sort(() => Math.random() - .5);
+  if (!FXS.order.length) FXS.order = ['foi', 'biz', 'savoir', 'psy', 'astres'].sort(() => Math.random() - .5);
   const p = FXS.order.shift();
   if (p === 'foi') return fxPick(foiType());
   if (p === 'savoir') return fxPick(Math.random() < .5 ? 'sci' : 'cult');
@@ -3674,6 +3722,8 @@ function fxCard(c) {
       <div class="fdo"><small>À faire</small>${esc(c.act)}</div>`;
   } else if (c.t === 'sci' || c.t === 'cult') {
     body = `<p class="fk">${conf.lbl}</p><h2 class="ft big">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p>`;
+  } else if (c.t === 'astres') {
+    body = `<p class="fk">${conf.lbl}</p><h2 class="ft">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p><div class="fdo"><small>${/^«/.test(c.act) ? 'Coran' : 'À observer'}</small>${esc(c.act)}</div>`;
   } else if (c.t === 'psy') {
     body = `<p class="fk">Psychologie humaine</p><h2 class="ft">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p><div class="fdo"><small>Observe</small>${esc(c.act)}</div>`;
   } else if (c.t === 'quiz') {
@@ -3817,7 +3867,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.0 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.3 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -4821,7 +4871,7 @@ window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
   const done = () => { if (el.parentNode) el.remove(); };
   el.addEventListener('click', () => { el.classList.add('skip'); setTimeout(done, 320); });
   el.addEventListener('animationend', e => { if (e.animationName === 'iout') done(); });
-  setTimeout(done, 4000);
+  setTimeout(done, 4400);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
 })();
 (async function boot() {
