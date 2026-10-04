@@ -969,6 +969,13 @@ body.gal-soft .group,body.gal-soft .card,body.gal-soft .hcard,body.gal-soft .dks
 @keyframes mshine{from{background-position:100% 0}to{background-position:0 0}}
 .intro .it span{animation-delay:2.3s!important}
 .intro{animation-delay:3.4s!important}
+
+/* ---------- J'aime et retour en bas ---------- */
+[data-fsave][aria-pressed="true"]{color:#F07A8A}
+[data-fsave][aria-pressed="true"] svg{fill:#F07A8A;stroke:#F07A8A}
+[data-fsave].pop svg{animation:hpop .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes hpop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+.tjbottom{margin-top:22px}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
