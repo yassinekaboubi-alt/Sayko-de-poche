@@ -932,12 +932,30 @@ function bindParcours() {
    ===================================================================== */
 let quiz = null; const session = { ok: 0, n: 0 };
 const currentQuarter = () => Math.min(3, Math.floor((currentMonth() - 1) / 3));
+/* Constellation réaliste : chaque mot est une étoile (couleur selon sa « température »),
+   avec halo, cœur blanc, aigrettes de diffraction et scintillement quand il est maîtrisé ;
+   les étoiles maîtrisées sont reliées comme une vraie constellation. */
+const STARCOL = ['#BFD7FF', '#FFFFFF', '#FFF1C8', '#FFD49A', '#FFC6A8', '#D6E4FF'];
 function constellation() {
-  return WORDS.map((w, i) => {
-    const r = 13.6 * Math.sqrt(i + 0.6), a = i * 137.508, [x, y] = polar(r, a), sc = Math.min(3, S.words[i] || 0);
-    const on = sc >= 3;
-    return `<circle class="star" data-star="${i}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(2.4 + sc * 1.25).toFixed(2)}" fill="var(--${on ? 'mint' : 'gold'})" opacity="${on ? 1 : (0.22 + sc * 0.22).toFixed(2)}" ${on ? 'style="filter:drop-shadow(0 0 4px var(--mint))"' : ''}/>`;
+  let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const pts = WORDS.map((w, i) => { const r = 13.6 * Math.sqrt(i + 0.6), [x, y] = polar(r, i * 137.508); return { i, x, y, sc: Math.min(3, S.words[i] || 0) }; });
+  const dust = Array.from({ length: 150 }, () => `<circle cx="${(rnd() * 224 - 112).toFixed(1)}" cy="${(rnd() * 208 - 104).toFixed(1)}" r="${(rnd() * .5 + .12).toFixed(2)}" fill="#FFF8E6" opacity="${(rnd() * .45 + .1).toFixed(2)}"/>`).join('');
+  const on = pts.filter(p => p.sc >= 3), links = [];
+  on.forEach(p => { let best = null, bd = 1e9; on.forEach(q => { if (q === p) return; const d = (p.x - q.x) ** 2 + (p.y - q.y) ** 2; if (d < bd) { bd = d; best = q; } }); if (best && bd < 1600) { const k = [p.i, best.i].sort((x, y) => x - y).join('-'); if (!links.includes(k)) links.push(k); } });
+  const lines = links.map(k => { const [u, v] = k.split('-').map(Number); return `<line x1="${pts[u].x.toFixed(1)}" y1="${pts[u].y.toFixed(1)}" x2="${pts[v].x.toFixed(1)}" y2="${pts[v].y.toFixed(1)}" stroke="#E8C27A" stroke-opacity=".32" stroke-width=".5"/>`; }).join('');
+  const stars = pts.map(p => {
+    const col = STARCOL[(p.i * 7) % STARCOL.length], R = [0.7, 1.1, 1.5, 2.1][p.sc], gid = `sg${(p.i * 7) % STARCOL.length}`;
+    let s = `<circle r="${(R * (p.sc >= 3 ? 6 : 3.6)).toFixed(2)}" fill="url(#${gid})" opacity="${[.35, .55, .75, 1][p.sc]}"/>`;
+    if (p.sc >= 2) { const L = R * (p.sc >= 3 ? 7.5 : 4.5); s += `<path d="M${-L} 0H${L}M0 ${-L}V${L}" stroke="url(#spk)" stroke-width="${p.sc >= 3 ? .55 : .35}" opacity="${p.sc >= 3 ? .9 : .5}"/>`; }
+    if (p.sc >= 3) s += `<path d="M${-R * 3} ${-R * 3}L${R * 3} ${R * 3}M${-R * 3} ${R * 3}L${R * 3} ${-R * 3}" stroke="${col}" stroke-width=".25" opacity=".45"/>`;
+    s += `<circle r="${R.toFixed(2)}" fill="${p.sc ? '#FFFDF6' : col}" opacity="${p.sc ? 1 : .55}"/>`;
+    return `<g class="star ${p.sc >= 3 ? 'tw' : ''}" data-star="${p.i}" transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})" style="animation-delay:-${((p.i * 0.37) % 4).toFixed(2)}s"><circle r="7" fill="transparent"/>${s}</g>`;
   }).join('');
+  return `<defs>${STARCOL.map((c, k) => `<radialGradient id="sg${k}"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".18" stop-color="${c}" stop-opacity=".9"/><stop offset=".45" stop-color="${c}" stop-opacity=".25"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`).join('')}
+    <linearGradient id="spk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFF8E6" stop-opacity="0"/><stop offset=".5" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFF8E6" stop-opacity="0"/></linearGradient>
+    <radialGradient id="cneb"><stop offset="0" stop-color="#2E7D5B" stop-opacity=".35"/><stop offset=".55" stop-color="#3A3070" stop-opacity=".18"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient></defs>
+    <rect x="-112" y="-104" width="224" height="208" rx="18" fill="#03070A"/>
+    <ellipse rx="120" ry="60" fill="url(#cneb)" transform="rotate(-24)"/>${dust}${lines}${stars}`;
 }
 function vArabe() {
   const t = S.tajwid, cq = currentQuarter(), nS = SOURATES.filter(s => S.sourates[s[1]]).length;
@@ -3869,7 +3887,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.5 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.6 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
