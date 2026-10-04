@@ -3869,7 +3869,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.4 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.5 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -4479,14 +4479,16 @@ const NAV = [['foi', 'Foi'], ['corps', 'Corps'], ['routine', 'Routine'], ['flux'
 const NAV_A0 = -80, NAV_SPAN = 160;
 const W8 = { open: false, hi: null, press: null, lp: 0 };
 const navAngle = i => NAV_A0 + NAV_SPAN / (NAV.length - 1) * i;
-function coreGlyph() { $('#coreIc').innerHTML = GLYPH[tab === 'orbite' ? 'orbite' : tab] || GLYPH.orbite; }
+function coreGlyph() { const c = $('#core'); if (c && !c.querySelector('.bh')) { c.classList.add('bhole'); c.insertAdjacentHTML('afterbegin', '<span class="bh" aria-hidden="true"><i class="bh-glow"></i><i class="bh-lens"></i><i class="bh-disk back"><b></b></i><i class="bh-core"></i><i class="bh-disk front"><b></b></i></span>'); } }
 function buildWheel() {
   const R = Math.max(112, Math.min(150, innerWidth / 2 - 38));
   $('#wheelItems').innerHTML = NAV.map(([k, n], i) => {
     const [x, y] = polar(R, navAngle(i)), locked = k === 'business' && !S.unlocks.business;
-    return `<button class="w-item ${k === tab ? 'cur' : ''} ${locked ? 'locked' : ''}" data-nav="${k}" style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px;--i:${i}" aria-label="${n}${locked ? ', verrouillé' : ''}${k === tab ? ', ouvert' : ''}"><svg viewBox="0 0 24 24" aria-hidden="true">${locked ? GLYPH.lock : GLYPH[k]}</svg><span class="w-lbl">${n}</span></button>`;
+    const pl = k === 'flux' ? '<circle r="26" fill="url(#gSun)"/><circle r="11" fill="#FFF8E6"/>' : planetSvg(k, gStage(k), 15);
+    return `<button class="w-item wp ${k === tab ? 'cur' : ''} ${locked ? 'locked' : ''}" data-nav="${k}" style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px;--i:${i}" aria-label="${n}${locked ? ', verrouillé' : ''}${k === tab ? ', ouvert' : ''}"><svg viewBox="-27 -27 54 54" aria-hidden="true">${pl}${locked ? `<svg x="-7" y="-7" width="14" height="14" viewBox="0 0 24 24" style="color:#E8C27A">${GLYPH.lock}</svg>` : ''}</svg><span class="w-lbl">${n}</span></button>`;
   }).join('');
-  $('#wheelHint').textContent = tab === 'orbite' ? 'Où va-t-on ?' : 'Noyau : orbite';
+  $('#wheelHint').textContent = tab === 'orbite' ? 'Où va-t-on ?' : 'Appui long : ta galaxie';
+  if (!$('#wheelDefs')) $('#wheel').insertAdjacentHTML('afterbegin', `<svg id="wheelDefs" width="0" height="0" style="position:absolute" aria-hidden="true">${GDEFS}</svg>`);
 }
 function openWheel() {
   if (W8.open) return;
@@ -4503,7 +4505,7 @@ function closeWheel() {
 function highlight(k) {
   if (W8.hi === k) return; W8.hi = k;
   $$('.w-item').forEach(b => b.classList.toggle('hi', b.dataset.nav === k));
-  $('#wheelHint').textContent = k ? NAV.find(n => n[0] === k)[1] : (tab === 'orbite' ? 'Où va-t-on ?' : 'Noyau : orbite');
+  $('#wheelHint').textContent = k ? NAV.find(n => n[0] === k)[1] : (tab === 'orbite' ? 'Où va-t-on ?' : 'Appui long : ta galaxie');
   if (k) haptic();
 }
 (function bindCore() {

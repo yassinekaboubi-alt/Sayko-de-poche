@@ -976,6 +976,26 @@ body.gal-soft .group,body.gal-soft .card,body.gal-soft .hcard,body.gal-soft .dks
 [data-fsave].pop svg{animation:hpop .45s cubic-bezier(.2,1.6,.4,1)}
 @keyframes hpop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
 .tjbottom{margin-top:22px}
+
+/* ---------- Roue : les planètes, et un trou noir pour noyau ---------- */
+.w-item.wp{width:60px;height:60px;margin-left:-30px;background:transparent;box-shadow:none}
+.w-item.wp>svg{width:62px;height:62px;overflow:visible;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+.w-item.wp.cur{box-shadow:none}.w-item.wp.cur>svg{filter:drop-shadow(0 0 10px rgba(232,194,122,.8))}
+.w-item.wp.hi>svg{transform:scale(1.18);transition:transform .15s var(--ease)}
+.w-item.wp.locked{background:transparent;opacity:.7}
+.core.bhole{background:transparent!important;box-shadow:none!important;overflow:visible}
+.core.bhole>svg{display:none}
+.bh{position:absolute;inset:0;pointer-events:none}
+.bh i{position:absolute;display:block;border-radius:50%}
+.bh-glow{inset:-16px;background:radial-gradient(circle,rgba(255,196,120,.45) 0%,rgba(242,140,60,.18) 42%,rgba(242,140,60,0) 70%);animation:bhpulse 4.5s ease-in-out infinite}
+@keyframes bhpulse{50%{transform:scale(1.08);opacity:.8}}
+.bh-lens{inset:5px;background:conic-gradient(from 0deg,#FFF1CF,#F6B45E,#9A3E12,#F6B45E,#FFE2A0,#C9661E,#FFF1CF);-webkit-mask:radial-gradient(circle,transparent 52%,#000 55%,#000 66%,transparent 72%);mask:radial-gradient(circle,transparent 52%,#000 55%,#000 66%,transparent 72%);animation:spin 5s linear infinite;filter:blur(.4px)}
+.bh-disk{left:-14px;right:-14px;top:50%;height:88px;margin-top:-44px;transform:scaleY(.26) rotate(-8deg)}
+.bh-disk b{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#FFF6DC,#FFB866,#C2541A,#5A1E08,#C2541A,#FFB866,#FFF6DC);-webkit-mask:radial-gradient(circle,transparent 30%,#000 34%,#000 62%,transparent 71%);mask:radial-gradient(circle,transparent 30%,#000 34%,#000 62%,transparent 71%);animation:spin 3.2s linear infinite}
+.bh-disk.back{clip-path:inset(0 0 50% 0)}
+.bh-disk.front{clip-path:inset(50% 0 0 0)}
+.bh-core{inset:19px;background:radial-gradient(circle at 50% 50%,#000 62%,#0B0604 100%);box-shadow:0 0 0 1.3px rgba(255,236,196,.95),0 0 10px 2px rgba(255,190,110,.65)}
+@media (prefers-reduced-motion: reduce){.bh-glow,.bh-lens,.bh-disk b{animation:none}}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
