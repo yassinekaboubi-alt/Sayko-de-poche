@@ -1,5 +1,5 @@
 /* Sayko de poche — service worker : tout fonctionne hors ligne. */
-const VERSION = 'sdp-v3.6.0';
+const VERSION = 'sdp-v3.7.0';
 const FILES = [
   './', './index.html', './app.js', './manifest.json',
   './amiri-400.woff2', './amiri-700.woff2', './serif-400.woff2', './serif-400i.woff2',

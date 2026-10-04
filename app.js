@@ -939,7 +939,7 @@ const STARCOL = ['#BFD7FF', '#FFFFFF', '#FFF1C8', '#FFD49A', '#FFC6A8', '#D6E4FF
 function constellation() {
   let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   const pts = WORDS.map((w, i) => { const r = 13.6 * Math.sqrt(i + 0.6), [x, y] = polar(r, i * 137.508); return { i, x, y, sc: Math.min(3, S.words[i] || 0) }; });
-  const dust = Array.from({ length: 150 }, () => `<circle cx="${(rnd() * 224 - 112).toFixed(1)}" cy="${(rnd() * 208 - 104).toFixed(1)}" r="${(rnd() * .5 + .12).toFixed(2)}" fill="#FFF8E6" opacity="${(rnd() * .45 + .1).toFixed(2)}"/>`).join('');
+  const dust = Array.from({ length: 180 }, () => `<circle cx="${(rnd() * 300 - 150).toFixed(1)}" cy="${(rnd() * 210 - 105).toFixed(1)}" r="${(rnd() * .5 + .12).toFixed(2)}" fill="#FFF8E6" opacity="${(rnd() * .45 + .1).toFixed(2)}"/>`).join('');
   const on = pts.filter(p => p.sc >= 3), links = [];
   on.forEach(p => { let best = null, bd = 1e9; on.forEach(q => { if (q === p) return; const d = (p.x - q.x) ** 2 + (p.y - q.y) ** 2; if (d < bd) { bd = d; best = q; } }); if (best && bd < 1600) { const k = [p.i, best.i].sort((x, y) => x - y).join('-'); if (!links.includes(k)) links.push(k); } });
   const lines = links.map(k => { const [u, v] = k.split('-').map(Number); return `<line x1="${pts[u].x.toFixed(1)}" y1="${pts[u].y.toFixed(1)}" x2="${pts[v].x.toFixed(1)}" y2="${pts[v].y.toFixed(1)}" stroke="#E8C27A" stroke-opacity=".32" stroke-width=".5"/>`; }).join('');
@@ -953,9 +953,10 @@ function constellation() {
   }).join('');
   return `<defs>${STARCOL.map((c, k) => `<radialGradient id="sg${k}"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".18" stop-color="${c}" stop-opacity=".9"/><stop offset=".45" stop-color="${c}" stop-opacity=".25"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`).join('')}
     <linearGradient id="spk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFF8E6" stop-opacity="0"/><stop offset=".5" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFF8E6" stop-opacity="0"/></linearGradient>
+    <radialGradient id="cvoid"><stop offset="0" stop-color="#020407" stop-opacity=".78"/><stop offset=".55" stop-color="#020407" stop-opacity=".5"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient>
     <radialGradient id="cneb"><stop offset="0" stop-color="#2E7D5B" stop-opacity=".35"/><stop offset=".55" stop-color="#3A3070" stop-opacity=".18"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient></defs>
-    <rect x="-112" y="-104" width="224" height="208" rx="18" fill="#03070A"/>
-    <ellipse rx="120" ry="60" fill="url(#cneb)" transform="rotate(-24)"/>${dust}${lines}${stars}`;
+    <ellipse rx="150" ry="108" fill="url(#cvoid)"/>
+    <ellipse rx="130" ry="58" fill="url(#cneb)" transform="rotate(-24)"/>${dust}${lines}${stars}`;
 }
 function vArabe() {
   const t = S.tajwid, cq = currentQuarter(), nS = SOURATES.filter(s => S.sourates[s[1]]).length;
@@ -963,7 +964,7 @@ function vArabe() {
   const steps = AR_STEPS.map((s, si) => `<div class="qtr ${si === cq ? 'cur' : ''}" style="margin-top:${si ? 18 : 0}px"><p class="eyebrow" ${si === cq ? 'style="color:var(--gold)"' : ''}>${si === cq ? 'Maintenant · ' : ''}${s.t}</p><div class="checks">${s.items.map((it, i) => checkbox(`ar${si}-${i}`, esc(it))).join('')}</div></div>`).join('');
   return `${foiTop('arabe')}
   <div class="constel">
-    <svg viewBox="-112 -104 224 208" id="constel" aria-label="${wordsKnown()} mots maîtrisés sur ${WORDS.length}">${constellation()}</svg>
+    <svg viewBox="-132 -102 264 204" id="constel" aria-label="${wordsKnown()} mots maîtrisés sur ${WORDS.length}">${constellation()}</svg>
     <p class="constel-tip" id="ctip"></p>
   </div>
   <div class="row between" style="margin-top:6px"><p class="eyebrow">Constellation de vocabulaire</p><p class="small num"><b id="wk" style="font:400 1.5rem var(--serif);color:var(--mint)">${wordsKnown()}</b><span class="muted"> / ${WORDS.length} mots</span></p></div>
@@ -3887,7 +3888,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.6 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.7 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
