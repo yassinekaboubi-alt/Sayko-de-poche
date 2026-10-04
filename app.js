@@ -612,6 +612,110 @@ function planetValue(k) {
   }
   const w = sumShifts(shiftsIn(ym)).worked; return [w / baseTotal(), fmtH(w)];
 }
+/* =====================================================================
+   GALAXIE — l'accueil de Yassine. Le soleil = la Foi (il brille avec tes
+   prières du jour). Chaque module est une planète qui évolue avec tes actes :
+   Roche → Eau → Océans → Vie → Civilisation (lumières des villes + anneau d'or).
+   Le décor (Voie lactée, nébuleuses, étoiles filantes, comète) est peint une
+   fois dans #galaxy, fixe derrière toute l'app.
+   ===================================================================== */
+const GSTAGE = ['Roche', 'Eau', 'Océans', 'Vie', 'Civilisation'];
+const GGROW = { routine: [3, 20, 60, 150], corps: [1, 10, 30, 80], argent: [5, 40, 120, 300], parcours: [5, 25, 50, 90] };
+function gValue(k) {
+  if (k === 'routine') return Object.keys(S.days || {}).length;
+  if (k === 'corps') return S.body.sessions.length;
+  if (k === 'argent') return S.money.tx.length;
+  if (k === 'parcours') return globalPct();
+  return 0;
+}
+function gStage(k) {
+  if (k === 'business') return S.unlocks.business ? Math.min(4, 2 + Math.floor((S.biz.projects || []).length / 3)) : 0;
+  const t = GGROW[k], v = gValue(k); let st = 0; while (st < 4 && v >= t[st]) st++; return st;
+}
+const faithToday = () => { const n = S.faith.habits.length; return n ? dayDone(todayISO()) / n : 0; };
+function planetSvg(k, st, R) {
+  const id = `pg${st}`;
+  let s = `<circle r="${R + 7}" fill="url(#atm${st})" opacity="${st >= 2 ? .9 : .35}"/><circle r="${R}" fill="url(#${id})"/>`;
+  if (st <= 1) s += `<g fill="#000" opacity=".22"><circle cx="${-R * .3}" cy="${-R * .2}" r="${R * .18}"/><circle cx="${R * .25}" cy="${R * .3}" r="${R * .12}"/><circle cx="${R * .35}" cy="${-R * .35}" r="${R * .08}"/></g>`;
+  if (st === 1) s += `<g fill="#3E7FC2" opacity=".75"><ellipse cx="${-R * .2}" cy="${R * .35}" rx="${R * .35}" ry="${R * .16}"/><ellipse cx="${R * .3}" cy="${-R * .1}" rx="${R * .2}" ry="${R * .1}"/></g>`;
+  if (st >= 3) s += `<g fill="#3FA36A" opacity=".9"><path d="M${-R * .6} ${-R * .2}q${R * .3} ${-R * .4} ${R * .6} ${-R * .1}q${R * .1} ${R * .3} ${-R * .2} ${R * .4}q${-R * .3} ${R * .1} ${-R * .4} ${-R * .3}z"/><path d="M${R * .1} ${R * .2}q${R * .3} ${-R * .2} ${R * .5} 0q0 ${R * .3} ${-R * .3} ${R * .4}q${-R * .2} 0 ${-R * .2} ${-R * .4}z"/></g>`;
+  if (st >= 2) s += `<g fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="${(R * .09).toFixed(1)}" stroke-linecap="round"><path d="M${-R * .7} ${-R * .45}q${R * .4} ${-R * .15} ${R * .8} 0"/><path d="M${-R * .2} ${R * .55}q${R * .4} ${-R * .12} ${R * .75} ${-R * .05}"/></g>`;
+  s += `<circle r="${R}" fill="url(#term)"/>`;
+  if (st >= 4) s += `<g fill="#FFD27A">${[[.45, .3], [.55, .05], [.3, .5], [.6, .38], [.42, .62], [.2, .7]].map(([a, b]) => `<circle cx="${(R * a).toFixed(1)}" cy="${(R * b).toFixed(1)}" r="${(R * .06).toFixed(1)}"/>`).join('')}</g><ellipse rx="${R * 1.75}" ry="${R * .42}" fill="none" stroke="#E8C27A" stroke-width="${(R * .14).toFixed(1)}" opacity=".85" transform="rotate(-14)"/><ellipse rx="${R * 1.75}" ry="${R * .42}" fill="none" stroke="#FFF4D6" stroke-width="${(R * .04).toFixed(1)}" opacity=".7" transform="rotate(-14)"/>`;
+  return s;
+}
+const GDEFS = `<defs>
+  <radialGradient id="pg0" cx=".35" cy=".35"><stop offset="0" stop-color="#CBB9A6"/><stop offset=".6" stop-color="#6E5A4C"/><stop offset="1" stop-color="#1A120D"/></radialGradient>
+  <radialGradient id="pg1" cx=".35" cy=".35"><stop offset="0" stop-color="#BFB2A0"/><stop offset=".6" stop-color="#5E5650"/><stop offset="1" stop-color="#151210"/></radialGradient>
+  <radialGradient id="pg2" cx=".35" cy=".35"><stop offset="0" stop-color="#9CD3F5"/><stop offset=".55" stop-color="#2B6CB0"/><stop offset="1" stop-color="#06122A"/></radialGradient>
+  <radialGradient id="pg3" cx=".35" cy=".35"><stop offset="0" stop-color="#A8E0F2"/><stop offset=".55" stop-color="#2A7AA8"/><stop offset="1" stop-color="#051624"/></radialGradient>
+  <radialGradient id="pg4" cx=".35" cy=".35"><stop offset="0" stop-color="#B5EAF2"/><stop offset=".55" stop-color="#22709A"/><stop offset="1" stop-color="#03111C"/></radialGradient>
+  <radialGradient id="term" cx=".25" cy=".25" r=".95"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".75"/></radialGradient>
+  ${[0, 1, 2, 3, 4].map(i => `<radialGradient id="atm${i}"><stop offset=".72" stop-color="${i >= 2 ? '#7FD6FF' : '#C9B9A6'}" stop-opacity="${i >= 2 ? .45 : .2}"/><stop offset="1" stop-color="${i >= 2 ? '#7FD6FF' : '#C9B9A6'}" stop-opacity="0"/></radialGradient>`).join('')}
+  <radialGradient id="gSun"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".18" stop-color="#FFF4D6"/><stop offset=".4" stop-color="#F3D9A4" stop-opacity=".7"/><stop offset=".7" stop-color="#E8C27A" stop-opacity=".18"/><stop offset="1" stop-color="#E8C27A" stop-opacity="0"/></radialGradient>
+</defs>`;
+const GPL = { routine: 21, corps: 24, argent: 26, parcours: 22, business: 25 };
+function vGalaxy(hello, now) {
+  const f = faithToday(), sunR = 22 + 12 * f, glow = 80 + 70 * f;
+  const planets = PLANETS.filter(p => p.key !== 'foi').map(p => {
+    const [v, lbl] = planetValue(p.key), st = gStage(p.key), locked = p.key === 'business' && !S.unlocks.business, R = GPL[p.key] || 16;
+    return `<g class="gplanet ${locked ? 'locked' : ''}" data-planet="${p.key}" role="button" tabindex="0" aria-label="${p.name} : ${GSTAGE[st]}, ${lbl}">
+      <circle r="${R + 16}" fill="transparent"/>${planetSvg(p.key, st, R)}
+      <circle class="gprog" r="${R + 5}" transform="rotate(-90)" ${ringDash(R + 5, v)}/>
+      ${locked ? `<svg x="-7" y="-7" width="14" height="14" viewBox="0 0 24 24" style="color:#E8C27A">${GLYPH.lock}</svg>` : ''}
+      <text class="glbl" y="${R + 22}">${p.name}</text><text class="gval" y="${R + 34}">${locked ? 'Verrouillé' : GSTAGE[st]}</text></g>`;
+  }).join('');
+  return `${pageHead(`${hello}, <em>Yassine</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite')}
+  <div class="orbit-stage gal" id="stage"><svg viewBox="-215 -135 430 270" aria-label="Ta galaxie : le soleil est ta foi, chaque planète un module">
+    ${GDEFS}
+    ${PLANETS.filter(p => p.key !== 'foi').map(p => `<ellipse class="gorb" rx="${p.r + 18}" ry="${((p.r + 18) * .48).toFixed(0)}"/>`).join('')}
+    <circle r="${glow.toFixed(0)}" fill="url(#gSun)" class="gsunglow" style="transition:r .8s"/>
+    <circle r="${sunR.toFixed(1)}" fill="#FFF8E6" class="gsun"/>
+    <circle data-sun r="34" fill="transparent" role="button" tabindex="0" aria-label="Ta foi : ouvrir tes habitudes" style="cursor:pointer"/>
+    <text y="${(-sunR - 22).toFixed(0)}" class="glbl" style="fill:#FFE6A8">Foi · ${Math.round(f * 100)} %</text>
+    <text id="sunNour" y="${(-sunR - 10).toFixed(0)}" text-anchor="middle" style="font-size:10px;font-weight:700;letter-spacing:.06em;fill:#E8C27A">✦ ${nourDay()}</text>
+    <g id="planets">${planets}</g>
+  </svg></div>`;
+}
+let GAL_W = 0, GAL_H = 0;
+function ensureGalaxy() {
+  let g = document.getElementById('galaxy');
+  if (!g) {
+    g = document.createElement('div'); g.id = 'galaxy'; g.setAttribute('aria-hidden', 'true');
+    g.innerHTML = `<canvas></canvas><svg class="galfx" viewBox="0 0 400 900" preserveAspectRatio="xMidYMid slice">
+      ${[[60, 80, 0], [250, 40, 6], [330, 210, 13], [120, 300, 21]].map(([x, y, dl]) => `<g class="gshoot" style="animation-delay:${dl}s"><line x1="${x}" y1="${y}" x2="${x - 70}" y2="${y + 26}" stroke="url(#gsh)" stroke-width="1.6" stroke-linecap="round"/></g>`).join('')}
+      <defs><linearGradient id="gsh" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF8E6"/><stop offset="1" stop-color="#FFF8E6" stop-opacity="0"/></linearGradient>
+        <radialGradient id="gcom"><stop offset="0" stop-color="#E6FFF6"/><stop offset=".4" stop-color="#8FE3C8" stop-opacity=".6"/><stop offset="1" stop-color="#8FE3C8" stop-opacity="0"/></radialGradient>
+        <linearGradient id="gtail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8FE3C8" stop-opacity="0"/><stop offset="1" stop-color="#C9F5E6" stop-opacity=".55"/></linearGradient></defs>
+      <g class="gcomet"><path d="M-120 -6L0 0L-120 6Z" fill="url(#gtail)"/><circle r="5" fill="url(#gcom)"/><circle r="1.8" fill="#FFFFFF"/></g>
+      ${Array.from({ length: 26 }, (_, i) => `<circle class="gtw" cx="${(i * 97) % 400}" cy="${(i * 211) % 900}" r="${i % 5 ? 1 : 1.6}" fill="#FFF4D6" style="animation-delay:-${(i * .37).toFixed(2)}s"/>`).join('')}
+    </svg>`;
+    document.body.prepend(g);
+    window.addEventListener('resize', () => paintGalaxy(true));
+  }
+  paintGalaxy(false);
+}
+function paintGalaxy(force) {
+  const g = document.getElementById('galaxy'); if (!g) return;
+  const W = innerWidth, H = innerHeight; if (!force && W === GAL_W && Math.abs(H - GAL_H) < 120) return; GAL_W = W; GAL_H = H;
+  const c = g.querySelector('canvas'), d = Math.min(2, devicePixelRatio || 1); c.width = W * d; c.height = H * d; const x = c.getContext('2d'); x.scale(d, d);
+  let seed = 7; const r = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  x.fillStyle = '#020407'; x.fillRect(0, 0, W, H);
+  const neb = (cx, cy, rad, col, a) => { const gr = x.createRadialGradient(cx, cy, 0, cx, cy, rad); gr.addColorStop(0, `rgba(${col},${a})`); gr.addColorStop(1, `rgba(${col},0)`); x.fillStyle = gr; x.beginPath(); x.arc(cx, cy, rad, 0, 7); x.fill(); };
+  x.save(); x.translate(W / 2, H * .36); x.rotate(-.5);
+  for (let i = 0; i < 80; i++) neb((r() - .5) * W * 1.7, (r() - .5) * 100, 40 + r() * 130, i % 3 ? '40,140,100' : '232,194,122', .05 + r() * .06);
+  for (let i = 0; i < 260; i++) { x.fillStyle = `rgba(255,248,230,${.15 + r() * .5})`; x.beginPath(); x.arc((r() - .5) * W * 1.6, (r() - .5) * 70, r() * .9, 0, 7); x.fill(); }
+  x.restore();
+  neb(W * .12, H * .78, 200, '30,90,140', .2); neb(W * .92, H * .18, 170, '80,40,110', .16); neb(W * .7, H * .62, 150, '40,140,100', .1);
+  for (let i = 0; i < 1100; i++) { const s = r(); x.fillStyle = `rgba(255,${235 + r() * 20 | 0},${200 + r() * 55 | 0},${.18 + s * .8})`; x.beginPath(); x.arc(r() * W, r() * H, s < .975 ? s * .9 : 1.7, 0, 7); x.fill(); }
+  for (let i = 0; i < 14; i++) { const px = r() * W, py = r() * H, gr = x.createRadialGradient(px, py, 0, px, py, 5); gr.addColorStop(0, 'rgba(255,250,235,.9)'); gr.addColorStop(1, 'rgba(255,250,235,0)'); x.fillStyle = gr; x.beginPath(); x.arc(px, py, 5, 0, 7); x.fill(); }
+}
+function checkGalaxy() {
+  const g = S.galaxy = S.galaxy && typeof S.galaxy === 'object' ? S.galaxy : {}; let up = null;
+  PLANETS.filter(p => p.key !== 'foi').forEach(p => { const st = gStage(p.key); if (g[p.key] == null) { g[p.key] = st; return; } if (st > g[p.key]) { up = [p, st]; } g[p.key] = st; });
+  if (up) { save(); setTimeout(() => { chime(true); burst(46, GSTAGE[up[1]], true); gemCard(`${up[0].name} · ${GSTAGE[up[1]]}`, ['', 'De l\'eau apparaît sur ta planète. La vie peut commencer.', 'Des océans couvrent ta planète, les nuages se forment.', 'La vie s\'installe : des continents verts apparaissent.', 'Ta planète s\'illumine de villes et reçoit son anneau d\'or. Tu l\'as bâtie, acte après acte.'][up[1]], ''); try { navigator.vibrate && navigator.vibrate([14, 50, 20, 50, 30]); } catch (e) {} }, 700); }
+}
+
 function vOrbite() {
   const now = new Date(), h = now.getHours();
   const hello = h < 5 ? 'Bonne nuit' : h < 18 ? 'Bonjour' : 'Bonsoir';
@@ -631,24 +735,9 @@ function vOrbite() {
   }).join('');
   const wk = sumShifts(shiftsWeek(mondayOf(now))).worked, cm = currentMonth(), cur = MONTHS[cm - 1];
   const tb = S.days[todayISO()] ? 4 : todayBlocks();
-  return `${pageHead(`${hello}, <em>Yassine</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite')}
-  <div class="orbit-stage" id="stage">
-    <svg viewBox="-210 -215 420 440" aria-label="Système de tes 6 modules">
-      <defs><radialGradient id="sunGlow"><stop offset="0" stop-color="var(--gold)" stop-opacity=".55"/><stop offset=".45" stop-color="var(--gold)" stop-opacity=".12"/><stop offset="1" stop-color="var(--gold)" stop-opacity="0"/></radialGradient></defs>
-      ${stars}
-      ${PLANETS.map(p => `<circle class="orbit-ring" r="${p.r}"/>`).join('')}
-      <circle r="${(56 + 44 * sunLevel()).toFixed(0)}" fill="url(#sunGlow)" id="sunGlowC" style="opacity:${(.35 + .65 * sunLevel()).toFixed(2)};transition:r .8s,opacity .8s"/>
-      <circle class="sun-core" id="sunCore" r="34" style="opacity:${(.55 + .45 * Math.min(1, sunLevel() * 1.6)).toFixed(2)};transition:opacity .8s"/>
-      <text y="-2" text-anchor="middle" style="font:400 30px var(--serif);fill:var(--gold-ink)">${now.getDate()}</text>
-      <text y="16" text-anchor="middle" style="font-size:9px;font-weight:700;letter-spacing:.12em;fill:var(--gold-ink);opacity:.75">${DAY_SHORT.format(now).replace('.', '').toUpperCase()}</text>
-      <circle data-sun r="40" fill="transparent" role="button" tabindex="0" aria-label="Ouvrir le Flux" style="cursor:pointer"/>
-      <text id="sunNour" y="58" text-anchor="middle" style="font-size:10.5px;font-weight:700;letter-spacing:.06em;fill:var(--gold)">✦ ${nourDay()}</text>
-      <g id="planets">${planets}</g>
-    </svg>
-  </div>
-  ${yesterdayCard()}${atStake()}
-${tjCard()}${tjFeedback()}
-  <section style="margin-top:18px">
+  return `${vGalaxy(hello, now)}
+  <div class="gglass">${yesterdayCard()}${atStake()}${tjCard()}${tjFeedback()}</div>
+  <section class="glass">
     <h2>Aujourd'hui</h2>
     <div class="today-list">
       ${(() => { const d = S.flux.day.d === todayISO() ? S.flux.day.n : 0; return `<button class="today-item" data-goto="flux">${miniOrb(Math.min(1, d / 5), 'flux')}<span><b>${d >= 5 ? 'Esprit nourri aujourd\'hui' : 'Flux · 5 cartes pour ton esprit'}</b><span class="s">${d ? `${d} carte${d > 1 ? 's' : ''} lue${d > 1 ? 's' : ''} aujourd'hui` : 'Coran, business, savoir, psychologie'}</span></span>${ICON.chev}</button>`; })()}
@@ -682,8 +771,9 @@ function startOrbit() {
     const t = orb.elapsed / 1000;
     PLANETS.forEach((p, i) => {
       const a = p.phase + (still ? 0 : p.speed * t) + orb.spin * (70 / p.r);
-      const [x, y] = polar(p.r, a);
-      nodes[i].setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
+      if (!nodes[i]) return;
+      const [x, y] = polar(p.r + 18, a), yy = y * .48, sc = .72 + .36 * ((yy / ((p.r + 18) * .48)) + 1) / 2;
+      nodes[i].setAttribute('transform', `translate(${x.toFixed(2)} ${yy.toFixed(2)}) scale(${sc.toFixed(3)})`);
     });
     orb.raf = requestAnimationFrame(frame);
   };
@@ -698,7 +788,7 @@ function startOrbit() {
   });
   const end = e => {
     const d = orb.drag; orb.drag = null;
-    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); else if (e.target.closest && e.target.closest('[data-sun]')) go('flux'); }
+    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); else if (e.target.closest && e.target.closest('[data-sun]')) go('habitudes'); }
   };
   stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', () => { orb.drag = null; });
 }
@@ -3727,7 +3817,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v2.31 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.0 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -4258,7 +4348,7 @@ document.addEventListener('input', e => {
 
 function thConf() { const t = S.theme = S.theme && typeof S.theme === 'object' ? S.theme : {}; if (!t.custom || !t.custom.a) t.custom = { a: '#E9C46A', b: '#0F221C' }; THEMES.custom = customTheme(t.custom); if (!THEMES[t.id]) t.id = THEME_DEFAULT; if (!['auto', 'light', 'dark'].includes(t.mode)) t.mode = 'auto'; return t; }
 function applyTheme() {
-  const t = thConf(), dark = t.mode === 'dark' || (t.mode === 'auto' && tMQ && tMQ.matches), v = dark ? 'd' : 'l';
+  const t = thConf(), dark = document.body.classList.contains('gal-home') || t.mode === 'dark' || (t.mode === 'auto' && tMQ && tMQ.matches), v = dark ? 'd' : 'l';
   const vals = THEMES[t.id][v].split(' '), r = document.documentElement;
   TKEYS.forEach((k, i) => r.style.setProperty('--' + k, vals[i]));
   Object.entries(Object.assign({}, TSTATE[v], (THEME_EXTRA || {})[v] || {})).forEach(([k, x]) => r.style.setProperty('--' + k, x));
@@ -4290,6 +4380,9 @@ const TABS = ['orbite', 'flux', 'parcours', 'foi', 'corps', 'routine', 'argent',
 const CVIEWS = ['entrainement', 'nutrition', 'soin'];
 let tab = 'orbite', missedDismissed = false;
 function render(animate) {
+  const deco = tab !== 'flux' && tab !== 'z';
+  document.body.classList.toggle('gal-on', deco); document.body.classList.toggle('gal-home', tab === 'orbite'); document.body.classList.toggle('gal-soft', deco && tab !== 'orbite');
+  if (deco) ensureGalaxy();
   applyTheme();
   if (!tjLast) tjOpen();
   const app = $('#app');
@@ -4300,7 +4393,7 @@ function render(animate) {
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
   app.innerHTML = { orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
   coreGlyph();
-  if (tab === 'orbite') startOrbit();
+  if (tab === 'orbite') { startOrbit(); checkGalaxy(); }
   if ((tab === 'orbite' || tab === 'foi') && !missedDismissed) setTimeout(missedOverlay, 700);
   if (tab === 'flux') bindFlux();
   if (tab === 'parcours') bindParcours();

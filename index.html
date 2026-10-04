@@ -889,6 +889,15 @@ dialog.sheet[open]{animation:up .38s var(--ease)}
 .mpform input,.mpform textarea{min-height:44px;border:0;border-radius:12px;background:var(--raise);padding:10px 12px;color:var(--ink);font:inherit}
 .mpadv{margin:0 0 8px;padding:10px 12px;border-radius:12px;background:var(--surface);line-height:1.5}
 .mppick .zlbl{display:block;margin:12px 0 2px;font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+/* ---------- Recettes ---------- */
+.mprecipe{margin-top:14px;padding:16px;border-radius:var(--r);background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--gold)}
+.mprecipe .zlbl,.mptoday .eyebrow{display:block;margin:12px 0 4px;font-size:.75rem;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.mping{margin:0;padding-left:1.1em;line-height:1.7}
+.mpsteps{margin:0;padding-left:1.3em;line-height:1.55}.mpsteps li{margin-bottom:8px}
+.mptoday{margin-top:16px;padding:12px 14px;border-radius:var(--r);background:var(--surface)}
+.mptd{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:8px;width:100%;padding:10px 0;border-top:1px solid var(--line);text-align:left;min-height:0}
+.mptd small{font-size:.625rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.mptd span{font-weight:600;line-height:1.3}
 /* ---------- Plan à valider ---------- */
 .plancard{margin-top:16px;padding:14px;border-radius:var(--r);background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--gold)}
 .plancard .zlbl{display:block;margin:12px 0 2px;font-size:.75rem;font-weight:700;color:var(--muted);letter-spacing:.04em}
@@ -910,6 +919,41 @@ dialog.sheet[open]{animation:up .38s var(--ease)}
 .thpick small{display:block;font-weight:500;font-size:.75rem;color:var(--muted)}
 .thpick input[type=color]{flex:none;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:none;cursor:pointer;-webkit-appearance:none;appearance:none}
 .thpick input[type=color]::-webkit-color-swatch-wrapper{padding:0}.thpick input[type=color]::-webkit-color-swatch{border:0;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+
+/* ---------- Galaxie ---------- */
+#galaxy{position:fixed;inset:0;z-index:0;pointer-events:none;display:none}
+body.gal-on #galaxy{display:block}
+#galaxy canvas{position:absolute;inset:0;width:100%;height:100%;animation:gbreath 14s ease-in-out infinite}
+@keyframes gbreath{50%{opacity:.86}}
+#galaxy .galfx{position:absolute;inset:0;width:100%;height:100%}
+body.gal-on{background:#020407}
+body.gal-on #app{position:relative;z-index:1}
+body.gal-soft #galaxy::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,color-mix(in srgb,var(--bg) 45%,transparent) 0%,color-mix(in srgb,var(--bg) 80%,transparent) 24%,color-mix(in srgb,var(--bg) 86%,transparent) 100%)}
+.gshoot{opacity:0;animation:gshoot 26s linear infinite}
+@keyframes gshoot{0%{opacity:0;transform:translate(0,0)}1%{opacity:1}4%{opacity:0;transform:translate(-90px,34px)}100%{opacity:0}}
+.gcomet{animation:gcomet 48s linear infinite}
+@keyframes gcomet{0%{transform:translate(-160px,620px) rotate(-12deg)}60%{transform:translate(560px,520px) rotate(-12deg)}100%{transform:translate(560px,520px) rotate(-12deg)}}
+.gtw{animation:gtw 3.2s ease-in-out infinite}@keyframes gtw{50%{opacity:.15}}
+.orbit-stage.gal{margin:4px -20px 0}.orbit-stage.gal>svg{max-height:360px;overflow:visible}
+:root[data-mode="light"] body.gal-soft #galaxy::after{background:linear-gradient(180deg,color-mix(in srgb,var(--bg) 70%,transparent) 0%,color-mix(in srgb,var(--bg) 92%,transparent) 22%,color-mix(in srgb,var(--bg) 95%,transparent) 100%)}
+.gorb{fill:none;stroke:#E8C27A;stroke-opacity:.16;stroke-width:1}
+.gsun{filter:drop-shadow(0 0 12px rgba(255,236,190,.9))}
+.gsunglow{animation:gpulse 6s ease-in-out infinite}@keyframes gpulse{50%{opacity:.8}}
+.gplanet{cursor:pointer}.gplanet.locked{opacity:.55}
+.gprog{fill:none;stroke:#E8C27A;stroke-width:1.6;stroke-linecap:round;opacity:.85}
+.glbl{font-size:10.5px;font-weight:700;fill:#FFFFFF;text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:3px}
+.gval{font-size:9px;font-weight:600;fill:#E8C27A;text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:3px}
+body.gal-home .glass,body.gal-home .gglass>*{background:color-mix(in srgb,var(--surface) 55%,transparent)!important;-webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);box-shadow:inset 0 0 0 1px rgba(232,194,122,.26),0 20px 40px -26px rgba(0,0,0,.8)!important;border-radius:var(--r)}
+body.gal-home .glass{margin-top:16px;padding:16px 16px 6px}
+body.gal-home .gglass>*{margin-top:14px}
+body.gal-home .glass .today-item:last-child{border-bottom:0}
+body.gal-soft .group,body.gal-soft .card,body.gal-soft .hcard,body.gal-soft .dkstats div,body.gal-soft .sqcard,body.gal-soft .zkcard,body.gal-soft .plancard,body.gal-soft .mppick,body.gal-soft .mprecipe,body.gal-soft .lcard{background:color-mix(in srgb,var(--surface) 72%,transparent)!important;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+/* Récompenses : pluie d'étoiles et onde de lumière */
+.fx i{width:9px;height:9px;left:-4.5px;top:-4.5px;border-radius:0;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);background:radial-gradient(circle,#FFFFFF,#FFF4D6 40%,#E8C27A)}
+.fx i:nth-child(3n){width:5px;height:5px;left:-2.5px;top:-2.5px;border-radius:50%;clip-path:none;background:#FFFFFF;box-shadow:0 0 6px #FFF4D6}
+.fx::after{content:"";position:absolute;left:-10px;top:-10px;width:20px;height:20px;border-radius:50%;box-shadow:0 0 0 2px rgba(255,244,214,.8),0 0 24px rgba(232,194,122,.6);animation:gwave .9s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes gwave{to{transform:scale(9);opacity:0}}
+@media (prefers-reduced-motion: reduce){#galaxy canvas,.gshoot,.gcomet,.gtw,.gsunglow{animation:none}.gcomet{transform:translate(260px,560px) rotate(-12deg)}}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }
