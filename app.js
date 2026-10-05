@@ -486,6 +486,7 @@ const eur0 = v => v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR'
    7. OUTILS D'INTERFACE
    ===================================================================== */
 const ICON = {
+  trophy: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4z"/><path d="M16 5.5h2.5a2 2 0 0 1-2.2 3.4M8 5.5H5.5a2 2 0 0 0 2.2 3.4M12 13v3.5M8.5 20h7M9.5 20l.5-3.5h4l.5 3.5"/></svg>',
   fheart: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.2-9.4C1.6 7.8 3.7 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.9 1.3-1.8 2.9-2.9 4.9-2.9 3.4 0 5.5 3.3 4.3 6.6-1.7 4.8-9.2 9.4-9.2 9.4z"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   idea: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z"/></svg>',
@@ -529,6 +530,8 @@ function tween(dur, fn, done) {
 }
 
 const COACH = {
+  qibla: ['Ta qibla', 'Tu es le soleil, et devant toi s\'ouvre ton ciel. Tourne sur toi-même : le ciel tourne avec toi. Quelque part brille l\'étoile de la qibla ; quand elle passe au centre, elle s\'embrase et ton téléphone vibre. Glisse le doigt pour explorer le ciel sans bouger.'],
+  chasse: ['Ton permis de chasser', 'Entraîne-toi par thème, puis passe des examens blancs au format de l\'examen : 10 questions, dont une de sécurité éliminatoire. Note aussi les scores de ton appli de révision pour suivre ta courbe. Le jour où tu as ton permis, il devient un trophée.'],
   orbite: ['Ton système', 'Chaque planète est un module, son anneau doré montre où tu en es. Touche une planète pour y aller, fais tourner le système du doigt. Touche le soleil pour ouvrir le Flux. Partout dans l\'app, le noyau doré en bas ouvre la roue des modules : touche-le, ou appuie et glisse vers un module.'],
   parcours: ['12 mois pour te former au business', 'Fais glisser l\'anneau ou touche une lune pour choisir un mois. Chaque mois se fait dans l\'ordre :', ['Écoute et lis les ressources', 'Coche les acquis quand tu les maîtrises', 'Fais l\'exercice pratique', 'Note ce que tu retiens']],
   arabe: ['Comprendre le sens de ce que tu récites', 'Quelques minutes de quiz par jour suffisent. Chaque étoile de la constellation est un mot : elle brille quand il est maîtrisé (3 bonnes réponses).'],
@@ -554,6 +557,7 @@ function pageHead(title, sub, key) {
   return `<header class="top"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>
     <div class="top-actions">
       ${key && S.seen[key] ? `<button class="icon-btn" data-unseen="${key}" aria-label="Revoir l'explication">${ICON.info}</button>` : ''}
+      <button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button>
       <button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button>
       <button class="icon-btn" data-open="settings" aria-label="Réglages et sauvegarde">${ICON.gear}</button>
     </div></header>${key ? coach(key) : ''}`;
@@ -593,7 +597,8 @@ const PLANETS = [
   { key: 'corps', name: 'Corps', r: 98, speed: 6, phase: 150 },
   { key: 'argent', name: 'Argent', r: 130, speed: 4, phase: 70 },
   { key: 'parcours', name: 'Parcours', r: 160, speed: 2.4, phase: 150 },
-  { key: 'business', name: 'Business', r: 160, speed: 2.4, phase: 330 }
+  { key: 'business', name: 'Business', r: 160, speed: 2.4, phase: 330 },
+  { key: 'chasse', name: 'Chasse', r: 130, speed: 4, phase: 250 }
 ];
 const todayBlocks = () => (S.blocks[todayISO()] || [0, 0, 0, 0]).filter(Boolean).length;
 const baseTotal = () => (numv(S.settings.base.gare) + numv(S.settings.base.pizza)) * 60 || 1;
@@ -623,12 +628,13 @@ function planetValue(k) {
    ===================================================================== */
 const GSTAGE = ['Roche', 'Eau', 'Océans', 'Vie', 'Civilisation'];
 /* Chaque planète porte le nom d'une étoile au nom arabe, révélé lettre par lettre à mesure qu'elle s'éveille. */
-const GNAME = { foi: ['Suhail', 'Canopus, l\'étoile qui guidait les voyageurs arabes dans le désert'], business: ['Altaïr', 'de an-nasr at-tâ\'ir, l\'aigle qui vole'], corps: ['Hamal', 'de al-ḥamal, le bélier : la force'], argent: ['Alnilam', 'de an-nizâm, le collier de perles'], parcours: ['Achernar', 'de âkhir an-nahr, la fin du fleuve'], arabe: ['Fomalhaut', 'de fam al-hût, la bouche du poisson'], routine: ['Deneb', 'de dhanab, la queue du cygne'] };
-const GSIZE = { foi: 30, business: 26, corps: 24, argent: 24, parcours: 22, arabe: 20, routine: 19 };
-const GPAL = { foi: ['#C6F7E0', '#1F9E6E', '#04261A'], business: ['#F6E2B0', '#C08A3E', '#2A1606'], corps: ['#F7B79A', '#B9472E', '#2A0A05'], argent: ['#FFF1C8', '#D4A84A', '#2E1E06'], parcours: ['#E6F6FF', '#6FA8D6', '#0B1E33'], arabe: ['#E2D6FF', '#6A57C9', '#120A2E'], routine: ['#B5EAF2', '#22709A', '#03111C'] };
-const GGROW = { foi: [9, 90, 300, 800], arabe: [5, 30, 80, 150], routine: [3, 20, 60, 150], corps: [1, 10, 30, 80], argent: [5, 40, 120, 300], parcours: [5, 25, 50, 90] };
+const GNAME = { foi: ['Suhail', 'Canopus, l\'étoile qui guidait les voyageurs arabes dans le désert'], business: ['Altaïr', 'de an-nasr at-tâ\'ir, l\'aigle qui vole'], corps: ['Hamal', 'de al-ḥamal, le bélier : la force'], argent: ['Alnilam', 'de an-nizâm, le collier de perles'], chasse: ['Alnair', 'de an-nayyir, la brillante'], parcours: ['Achernar', 'de âkhir an-nahr, la fin du fleuve'], arabe: ['Fomalhaut', 'de fam al-hût, la bouche du poisson'], routine: ['Deneb', 'de dhanab, la queue du cygne'] };
+const GSIZE = { chasse: 18, foi: 30, business: 26, corps: 24, argent: 24, parcours: 22, arabe: 20, routine: 19 };
+const GPAL = { chasse: ['#D9E8C2', '#6B7F3A', '#141A08'], foi: ['#C6F7E0', '#1F9E6E', '#04261A'], business: ['#F6E2B0', '#C08A3E', '#2A1606'], corps: ['#F7B79A', '#B9472E', '#2A0A05'], argent: ['#FFF1C8', '#D4A84A', '#2E1E06'], parcours: ['#E6F6FF', '#6FA8D6', '#0B1E33'], arabe: ['#E2D6FF', '#6A57C9', '#120A2E'], routine: ['#B5EAF2', '#22709A', '#03111C'] };
+const GGROW = { chasse: [5, 30, 80, 160], foi: [9, 90, 300, 800], arabe: [5, 30, 80, 150], routine: [3, 20, 60, 150], corps: [1, 10, 30, 80], argent: [5, 40, 120, 300], parcours: [5, 25, 50, 90] };
 function gValue(k) {
-  if (k === 'arabe') return wordsKnown();
+  if (k === 'arabe') return wordsKnown() + arCount() * 40;
+  if (k === 'chasse') { const c = S.chasse || {}; return CHQ.filter(x => chMast(x[0])).length * 2 + (c.ex || []).length * 5 + (c.ext || []).length * 3; }
   if (k === 'foi') { let n = 0; Object.values(S.faith.log || {}).forEach(d => Object.values(d || {}).forEach(v => { if (v && v !== 'x') n++; })); return n; }
   if (k === 'routine') return Object.keys(S.days || {}).length;
   if (k === 'corps') return S.body.sessions.length;
@@ -682,12 +688,17 @@ const GDEFS = `<defs>
   <radialGradient id="gSun"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".18" stop-color="#FFF4D6"/><stop offset=".4" stop-color="#F3D9A4" stop-opacity=".7"/><stop offset=".7" stop-color="#E8C27A" stop-opacity=".18"/><stop offset="1" stop-color="#E8C27A" stop-opacity="0"/></radialGradient>
 </defs>`;
 const GPL = { arabe: 20, routine: 21, corps: 24, argent: 26, parcours: 22, business: 25 };
+const MOONS = { foi: () => ['Prières', 'Dhikr', 'Cœur'].concat(nafUnlocked() ? ['Surérogatoires'] : []).concat(arDone(5) ? ['Coran'] : []), corps: () => ['Entraînement', 'Nutrition', 'Soin'], argent: () => ['Budget', 'Heures', 'Zakat'], arabe: () => ARP.filter((_, i) => arDone(i + 1)).map(x => x[0]) };
+function moonsSvg(k, R) {
+  const f = MOONS[k]; if (!f) return ''; const L = f(); if (!L.length) return '';
+  return L.map((n, i) => { const rr = R + 9 + i * 4.5, dur = 9 + i * 4, ph = i * 137; return `<g class="moon" style="animation-duration:${dur}s;animation-delay:-${(ph / 360 * dur).toFixed(2)}s" aria-hidden="true"><ellipse rx="${rr}" ry="${(rr * .42).toFixed(1)}" fill="none" stroke="#FFF4D6" stroke-opacity=".06"/><circle cx="${rr}" cy="0" r="${(2.6 - i * .2).toFixed(1)}" fill="${['#E6E1D8', '#C9D7E6', '#E8C27A', '#BFE3D6', '#F3D9A4'][i % 5]}"/></g>`; }).join('');
+}
 function vGalaxy(hello, now) {
   const L = sunLevel(), sunR = 26 + 10 * L, glow = 100 + 70 * L, K = 1.08, RY = .74;
-  const planets = PLANETS.map(p => {
-    const v = p.key === 'arabe' ? wordsKnown() / WORDS.length : planetValue(p.key)[0], st = gStage(p.key), locked = p.key === 'business' && !S.unlocks.business, R = GSIZE[p.key] || 20;
+  const planets = PLANETS.filter(p => p.key !== 'chasse' || chasseActive()).map(p => {
+    const v = p.key === 'arabe' ? wordsKnown() / WORDS.length : p.key === 'chasse' ? CHQ.filter(x => chMast(x[0])).length / CHQ.length : planetValue(p.key)[0], st = gStage(p.key), locked = p.key === 'business' && !S.unlocks.business, R = GSIZE[p.key] || 20;
     return `<g class="gplanet ${locked ? 'locked' : ''}" data-planet="${p.key}" role="button" tabindex="0" aria-label="${p.name} : ${GNAME[p.key][0]}, ${GSTAGE[st]}">
-      <circle r="${R + 18}" fill="transparent"/>${planetSvg(p.key, st, R)}
+      <circle r="${R + 18}" fill="transparent"/>${planetSvg(p.key, st, R)}${moonsSvg(p.key, R)}
       <circle class="gprog" r="${R + 6}" transform="rotate(-90)" ${ringDash(R + 6, v)}/>
       ${locked ? `<svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" style="color:#E8C27A">${GLYPH.lock}</svg>` : ''}
       <text class="glbl" y="${R + 22}">${p.name}</text>${locked ? `<text class="gval" y="${R + 35}">Verrouillé</text>` : gNameSvg(p.key, R + 35)}</g>`;
@@ -768,7 +779,9 @@ function vOrbite() {
   <section class="glass">
     <h2>Aujourd'hui</h2>
     <div class="today-list">
-      ${(() => { const d = S.flux.day.d === todayISO() ? S.flux.day.n : 0; return `<button class="today-item" data-goto="flux">${miniOrb(Math.min(1, d / 5), 'flux')}<span><b>${d >= 5 ? 'Esprit nourri aujourd\'hui' : 'Flux · 5 cartes pour ton esprit'}</b><span class="s">${d ? `${d} carte${d > 1 ? 's' : ''} lue${d > 1 ? 's' : ''} aujourd'hui` : 'Coran, business, savoir, psychologie'}</span></span>${ICON.chev}</button>`; })()}
+      ${(() => { const p = adk().pending; if (!p || p.k !== todayISO() || adkDone(p.k, p.id)) return ''; return `<button class="today-item" data-adk="open">${miniOrb(0, 'foi', true)}<span><b>Adhkar de ${PNAMES[p.id]}</b><span class="s">En attente · touche pour les faire</span></span>${ICON.chev}</button>`; })()}
+      ${(() => { if (!chasseActive()) return ''; const dd = chDays(), c = ch(), m = CHQ.filter(x => chMast(x[0])).length; return `<button class="today-item" data-goto="chasse">${miniOrb(m / CHQ.length, 'corps')}<span><b>${dd != null && dd >= 0 ? `Permis de chasser · J-${dd}` : 'Permis de chasser'}</b><span class="s">${m}/${CHQ.length} questions maîtrisées${c.ex.length ? ` · dernier blanc ${c.ex[c.ex.length - 1].s}/10` : ''}</span></span>${ICON.chev}</button>`; })()}
+      ${(() => { const d = S.flux.day.d === todayISO() ? S.flux.day.n : 0; return `<button class="today-item" data-goto="flux">${miniOrb(Math.min(1, d / 5), 'flux')}<span><b>${d >= 5 ? 'Esprit nourri aujourd\'hui' : d ? `Flux · ${d} carte${d > 1 ? 's' : ''} sur 5` : 'Flux · 5 cartes pour ton esprit'}</b><span class="s">${d ? `${d} carte${d > 1 ? 's' : ''} lue${d > 1 ? 's' : ''} aujourd'hui` : 'Coran, business, savoir, psychologie'}</span></span>${ICON.chev}</button>`; })()}
       ${isSetUp() ? (() => { const bb = budgetOf(todayISO().slice(0, 7)), dd = bb.daysLeft ? bb.reste / bb.daysLeft : 0; return `<button class="today-item" data-goto="budget">${miniOrb(bb.free > 0 ? Math.max(0, bb.reste) / bb.free : 0, 'argent')}<span><b>${bb.reste > 0 ? `${eur0(dd)} à dépenser aujourd'hui` : 'Budget du mois épuisé'}</b><span class="s">Reste ${eur0(bb.reste)} ce mois</span></span>${ICON.chev}</button>`; })() : ''}
       <button class="today-item" data-goto="heures">${miniOrb(planetValue('heures')[0], 'heures')}<span><b>${wk ? `${fmtH(wk)} cette semaine` : 'Aucun service cette semaine'}</b><span class="s">Noter un service</span></span>${ICON.chev}</button>
       <button class="today-item" data-goto="routine">${miniOrb(tb / 4, 'routine')}<span><b>${tb === 4 ? 'Routine faite' : `${tb} bloc${tb > 1 ? 's' : ''} sur 4`}</b><span class="s">${streak()} jour${streak() > 1 ? 's' : ''} d'affilée</span></span>${ICON.chev}</button>
@@ -956,9 +969,16 @@ function constellation() {
     <radialGradient id="cvoid"><stop offset="0" stop-color="#020407" stop-opacity=".78"/><stop offset=".55" stop-color="#020407" stop-opacity=".5"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient>
     <radialGradient id="cneb"><stop offset="0" stop-color="#2E7D5B" stop-opacity=".35"/><stop offset=".55" stop-color="#3A3070" stop-opacity=".18"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient></defs>
     <ellipse rx="150" ry="108" fill="url(#cvoid)"/>
-    <ellipse rx="130" ry="58" fill="url(#cneb)" transform="rotate(-24)"/>${dust}${lines}${stars}`;
+    <ellipse rx="130" ry="58" fill="url(#cneb)" transform="rotate(-24)"/>${dust}${lines}${stars}${arPalierStars()}`;
 }
 function vArabe() {
+  const p = AR.p || Math.min(5, arPalier());
+  if (p !== 1) return `${foiTop('arabe')}
+  <div class="constel"><svg viewBox="-132 -102 264 204" id="constel" aria-label="Ta constellation">${constellation()}</svg><p class="constel-tip" id="ctip"></p></div>
+  ${arBar()}${p === 2 ? vAr2() : p === 3 ? vArQuiz('ph') : p === 4 ? vArQuiz('vo') : vAr5()}`;
+  return vArabe1();
+}
+function vArabe1() {
   const t = S.tajwid, cq = currentQuarter(), nS = SOURATES.filter(s => S.sourates[s[1]]).length;
   const fat = FATIHA.map((v, vi) => `<div class="verse"><span class="vn">Verset ${vi + 1} <button class="say" data-say="${v.map(w => w[0]).join(' ')}" aria-label="Écouter le verset ${vi + 1}">${SPK} Écouter</button></span><div class="words">${v.map(w => `<button class="w" data-fw><span class="a" lang="ar">${w[0]}</span><span class="f">${esc(w[1])}</span></button>`).join('')}</div></div>`).join('');
   const steps = AR_STEPS.map((s, si) => `<div class="qtr ${si === cq ? 'cur' : ''}" style="margin-top:${si ? 18 : 0}px"><p class="eyebrow" ${si === cq ? 'style="color:var(--gold)"' : ''}>${si === cq ? 'Maintenant · ' : ''}${s.t}</p><div class="checks">${s.items.map((it, i) => checkbox(`ar${si}-${i}`, esc(it))).join('')}</div></div>`).join('');
@@ -967,6 +987,7 @@ function vArabe() {
     <svg viewBox="-132 -102 264 204" id="constel" aria-label="${wordsKnown()} mots maîtrisés sur ${WORDS.length}">${constellation()}</svg>
     <p class="constel-tip" id="ctip"></p>
   </div>
+  ${arBar()}
   <div class="row between" style="margin-top:6px"><p class="eyebrow">Constellation de vocabulaire</p><p class="small num"><b id="wk" style="font:400 1.5rem var(--serif);color:var(--mint)">${wordsKnown()}</b><span class="muted"> / ${WORDS.length} mots</span></p></div>
   <section style="margin-top:22px">
     <div class="quiz"><div class="qcard" id="quiz" aria-live="polite"></div></div>
@@ -1927,13 +1948,10 @@ function openInvestSetup() {
 
 /* ----- Onglet Foi : habitudes ----- */
 function foiTop(view) {
-  return `${pageHead('Foi', view === 'arabe' ? 'Le sens de ce que tu lis. Tajwid Institut s\'occupe de la lecture.' : view === 'dhikr' ? 'C\'est par l\'évocation d\'Allah que les cœurs s\'apaisent.' : view === 'coeur' ? 'Les compétences du croyant, une à la fois, jusqu\'à ce qu\'elles s\'ancrent.' : 'La régularité avant tout. Chaque prière à l\'heure compte.', view === 'arabe' ? 'arabe' : view === 'dhikr' ? 'dhikr' : view === 'coeur' ? 'coeur' : 'foi')}
-  <div class="seg" role="group" aria-label="Section" style="margin-top:20px">
-    <button data-fview="habitudes" aria-pressed="${view === 'habitudes'}"><span class="dot"></span>Pratique</button>
-    <button data-fview="arabe" aria-pressed="${view === 'arabe'}"><span class="dot"></span>Arabe</button>
-    <button data-fview="coeur" aria-pressed="${view === 'coeur'}"><span class="dot"></span>Cœur</button>
-    <button data-fview="dhikr" aria-pressed="${view === 'dhikr'}"><span class="dot"></span>Dhikr</button>
-  </div>`;
+  const sub = { arabe: 'Un chemin en 5 paliers, des mots jusqu\'à la lecture fluide.', dhikr: 'C\'est par l\'évocation d\'Allah que les cœurs s\'apaisent.', coeur: 'Les compétences du croyant, une à la fois, jusqu\'à ce qu\'elles s\'ancrent.', nafila: 'Ce qui te rapproche, au-delà de l\'obligatoire.', coran: 'Le garder dans ton cœur, verset après verset.' }[view] || 'La régularité avant tout. Chaque prière à l\'heure compte.';
+  const tabs = [['habitudes', 'Pratique', true], ['nafila', 'Surérogatoires', nafUnlocked()], ['dhikr', 'Dhikr', true], ['coeur', 'Cœur', true], ['arabe', 'Arabe', true], ['coran', 'Coran', arDone(5)]];
+  return `${pageHead('Foi', sub, ['arabe', 'dhikr', 'coeur'].includes(view) ? view : 'foi')}
+  <div class="fseg" role="tablist" aria-label="Sections de la Foi">${tabs.map(([k, l, op]) => `<button data-fview="${k}" role="tab" aria-selected="${view === k}" class="${view === k ? 'on' : ''} ${op ? '' : 'lock'}">${op ? '' : `<svg viewBox="0 0 24 24" aria-hidden="true">${GLYPH.lock}</svg>`}${l}</button>`).join('')}</div>${view === 'habitudes' ? `<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm ghost" data-goto="qibla">Trouver la qibla</button>${adkPendingChip()}</div>` : ''}`;
 }
 function vHabits() {
   const k = F.day, d = S.faith.log[k] || {}, isToday = k === todayISO();
@@ -2092,6 +2110,7 @@ function setPrayer(k, id, v) {
   if (!v) { render(); return; }
   if (v === 'x') { nourAdd(-5); save(); refreshSun(); thud(); try { navigator.vibrate && navigator.vibrate(250); } catch (e) {} return; }
   if (!today) { render(); return; }
+  adkAfterPrayer(k, id, v);
   const late = id === 'fajr' || id === 'isha', pts = prayerPts(id, v) + (full && !wasFull ? 5 : 0);
   const msg = v === 'm' ? [late ? `${PNAMES[id]} à la mosquée` : 'À la mosquée', late ? 'Celui qui prie Isha en groupe, c\'est comme s\'il avait veillé la moitié de la nuit ; et s\'il prie aussi Fajr en groupe, comme s\'il avait prié toute la nuit.' : 'La prière en groupe vaut vingt-sept fois celle faite seul.', late ? 'Muslim' : 'Bukhari']
     : v === 'g' ? ['En groupe', 'La prière en groupe vaut vingt-sept fois celle faite seul.', 'Bukhari']
@@ -3888,7 +3907,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.7 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.12 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -4445,12 +4464,684 @@ function themeClick(t) {
 }
 
 /* =====================================================================
+   ADHKAR APRÈS LA PRIÈRE — la liste de Yassine, en arabe.
+   Apparaît quand une prière du jour est validée (sauf « manquée »).
+   S.adk = { log{ date: { prière: 1 } }, pending: { k, id } | null }
+   ===================================================================== */
+const ADK_COMMON_A = [
+  { id: 'ajir', t: 'Protection du Feu', ar: 'اللَّهُمَّ أَجِرْنَا مِنَ النَّارِ', n: 7, after: 'وَمَغْفِرَةً بِاللَّيْلِ وَالنَّهَارِ' },
+  { id: 'istigh', t: 'Demande de pardon', ar: 'أَسْتَغْفِرُ اللَّهَ الْعَلِيَّ الْعَظِيمَ وَأَتُوبُ إِلَيْهِ', n: 3 },
+  { id: 'subh', t: 'Tasbîh', ar: 'سُبْحَانَ اللَّهِ', n: 33 },
+  { id: 'hamd', t: 'Tahmîd', ar: 'الْحَمْدُ لِلَّهِ', n: 33 },
+  { id: 'tahl', t: 'Tahlîl', ar: 'لَا إِلَٰهَ إِلَّا اللَّهُ', n: 33 },
+  { id: 'takb', t: 'Takbîr', ar: 'اللَّهُ أَكْبَرُ', n: 33, after: 'لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ' },
+  { id: 'tahl100', t: 'Lâ ilâha illa Allah · 100', ar: 'لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ', n: 100 }
+];
+const ADK_FAJR = [
+  { id: 'asbahna', t: 'Le matin', ar: 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ', n: 4 },
+  { id: 'ashhid_m', t: 'Le témoignage du matin', ar: 'اللَّهُمَّ إِنِّي أَصْبَحْتُ أُشْهِدُكَ وَأُشْهِدُ حَمَلَةَ عَرْشِكَ وَمَلَائِكَتَكَ وَجَمِيعَ خَلْقِكَ أَنَّكَ أَنْتَ اللَّهُ لَا إِلَٰهَ إِلَّا أَنْتَ وَحْدَكَ لَا شَرِيكَ لَكَ، وَأَنَّ مُحَمَّدًا عَبْدُكَ وَرَسُولُكَ', n: 4 }
+];
+const ADK_ISHA = [
+  { id: 'ashhid_s', t: 'Le témoignage du soir', ar: 'اللَّهُمَّ إِنِّي أَمْسَيْتُ أُشْهِدُكَ وَأُشْهِدُ حَمَلَةَ عَرْشِكَ وَمَلَائِكَتَكَ وَجَمِيعَ خَلْقِكَ أَنَّكَ أَنْتَ اللَّهُ لَا إِلَٰهَ إِلَّا أَنْتَ وَحْدَكَ لَا شَرِيكَ لَكَ، وَأَنَّ مُحَمَّدًا عَبْدُكَ وَرَسُولُكَ', n: 4 }
+];
+const ADK_COMMON_B = [
+  { id: 'kursi', t: 'Âyat al-Kursî · Al-Baqara 255', ar: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَنْ ذَا الَّذِي يَشْفَعُ عِنْدَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ', n: 1 },
+  { id: 'tawba', t: 'Fin d\'At-Tawba · 128-129', ar: 'لَقَدْ جَاءَكُمْ رَسُولٌ مِنْ أَنْفُسِكُمْ عَزِيزٌ عَلَيْهِ مَا عَنِتُّمْ حَرِيصٌ عَلَيْكُمْ بِالْمُؤْمِنِينَ رَءُوفٌ رَحِيمٌ ۝ فَإِنْ تَوَلَّوْا فَقُلْ حَسْبِيَ اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ ۖ عَلَيْهِ تَوَكَّلْتُ ۖ وَهُوَ رَبُّ الْعَرْشِ الْعَظِيمِ', n: 1 },
+  { id: 'ikhlas', t: 'Al-Ikhlâs', ar: 'قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ', n: 3, bism: true },
+  { id: 'falaq', t: 'Al-Falaq', ar: 'قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِنْ شَرِّ مَا خَلَقَ ۝ وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِنْ شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِنْ شَرِّ حَاسِدٍ إِذَا حَسَدَ', n: 3, bism: true },
+  { id: 'nas', t: 'An-Nâs', ar: 'قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ', n: 3, bism: true },
+  { id: 'asr', t: 'Al-ʿAsr', ar: 'وَالْعَصْرِ ۝ إِنَّ الْإِنْسَانَ لَفِي خُسْرٍ ۝ إِلَّا الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ وَتَوَاصَوْا بِالْحَقِّ وَتَوَاصَوْا بِالصَّبْرِ', n: 1, bism: true },
+  { id: 'fatiha', t: 'Al-Fâtiha', ar: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ ۝ الرَّحْمَٰنِ الرَّحِيمِ ۝ مَالِكِ يَوْمِ الدِّينِ ۝ إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ ۝ اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ ۝ صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ', n: 1 },
+  { id: 'salat', t: 'Prière sur le Prophète ﷺ', ar: 'اللَّهُمَّ صَلِّ وَسَلِّمْ وَبَارِكْ عَلَىٰ سَيِّدِنَا مُحَمَّدٍ الْفَاتِحِ لِمَا أُغْلِقَ، وَالْخَاتِمِ لِمَا سَبَقَ، نَاصِرِ الْحَقِّ بِالْحَقِّ، وَالْهَادِي إِلَىٰ صِرَاطِكَ الْمُسْتَقِيمِ، وَعَلَىٰ آلِهِ حَقَّ قَدْرِهِ وَمِقْدَارِهِ الْعَظِيمِ ۝ سُبْحَانَ رَبِّكَ رَبِّ الْعِزَّةِ عَمَّا يَصِفُونَ ۝ وَسَلَامٌ عَلَى الْمُرْسَلِينَ ۝ وَالْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ', n: 1 }
+];
+const ADK_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+const adkList = id => ADK_COMMON_A.concat(id === 'fajr' ? ADK_FAJR : id === 'isha' ? ADK_ISHA : [], ADK_COMMON_B);
+const AK = { on: false, k: null, id: null, i: 0, c: 0, aft: false };
+function adk() { S.adk = S.adk && typeof S.adk === 'object' ? S.adk : {}; S.adk.log = S.adk.log || {}; if (S.adk.pending === undefined) S.adk.pending = null; return S.adk; }
+const adkDone = (k, id) => !!((adk().log[k] || {})[id]);
+function adkOpen(k, id) {
+  Object.assign(AK, { on: true, k, id, i: 0, c: 0, aft: false });
+  let el = $('#adk'); if (!el) { el = document.createElement('div'); el.id = 'adk'; el.className = 'adk'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); document.body.appendChild(el); }
+  adkDraw(); requestAnimationFrame(() => el.classList.add('on'));
+}
+function adkClose(later) {
+  const el = $('#adk'); if (el) { el.classList.remove('on'); setTimeout(() => { if (!AK.on) el.innerHTML = ''; }, 320); }
+  if (later && AK.k) { adk().pending = { k: AK.k, id: AK.id }; save(); }
+  AK.on = false; if (tab === 'orbite' || tab === 'foi') render();
+}
+function adkDraw() {
+  const el = $('#adk'); if (!el) return;
+  const L = adkList(AK.id), it = L[AK.i];
+  if (!it) { el.innerHTML = `<div class="adk-in adk-end"><p class="eyebrow">Adhkar · ${PNAMES[AK.id]}</p><p class="adk-big">تَقَبَّلَ اللَّهُ</p><p class="small muted" style="margin:6px 0 18px">Qu'Allah accepte.</p><button class="btn block" data-adk="close">Terminer</button></div>`; return; }
+  const p = Math.min(1, AK.c / it.n), circ = 2 * Math.PI * 64;
+  el.innerHTML = `<div class="adk-in">
+    <div class="row between" style="align-items:center"><p class="eyebrow" style="margin:0">Après ${PNAMES[AK.id]} · ${AK.i + 1}/${L.length}</p><button class="link-btn small" data-adk="later">Plus tard</button></div>
+    <div class="adk-dots">${L.map((_, j) => `<i class="${j < AK.i ? 'ok' : j === AK.i ? 'cur' : ''}"></i>`).join('')}</div>
+    <p class="adk-t">${esc(it.t)}</p>
+    ${it.bism ? '<p class="adk-bism" lang="ar" dir="rtl">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>' : ''}
+    <p class="adk-ar ${it.ar.length > 140 ? 'long' : ''}" lang="ar" dir="rtl">${AK.aft ? it.after : it.ar}</p>
+    ${AK.aft ? '<p class="small muted" style="text-align:center;margin:0">Pour conclure</p>' : ''}
+    <button class="adk-tap" data-adk="tap" aria-label="Compter"><svg viewBox="-80 -80 160 160"><circle r="64" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="6"/><circle r="64" fill="none" stroke="var(--gold)" stroke-width="6" stroke-linecap="round" transform="rotate(-90)" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${(circ * (1 - (AK.aft ? 1 : p))).toFixed(1)}" style="transition:stroke-dashoffset .25s"/></svg>
+      <span><b class="num">${AK.aft ? '✓' : AK.c}</b><small>${AK.aft ? 'touche quand c\'est dit' : it.n > 1 ? `sur ${it.n}` : 'touche quand c\'est dit'}</small></span></button>
+    <div class="row" style="justify-content:center;gap:18px;margin-top:6px"><button class="link-btn small" data-adk="back" ${AK.i === 0 && AK.c === 0 ? 'disabled' : ''}>Revenir</button><button class="link-btn small" data-adk="skip">Passer</button></div>
+  </div>`;
+}
+function adkClick(t) {
+  const b = t.closest('[data-adk]'); if (!b) return false;
+  const a = b.dataset.adk, L = adkList(AK.id), it = L[AK.i];
+  if (a === 'tap' && it) {
+    try { navigator.vibrate && navigator.vibrate(AK.c + 1 >= it.n ? [12, 40, 18] : 6); } catch (e) {}
+    if (AK.aft) { AK.aft = false; AK.i++; AK.c = 0; }
+    else { AK.c++; if (AK.c >= it.n) { if (it.after) AK.aft = true; else { AK.i++; AK.c = 0; } } }
+    if (AK.i >= L.length) adkFinish(); else adkDraw();
+    return true;
+  }
+  if (a === 'skip') { AK.aft = false; AK.i++; AK.c = 0; if (AK.i >= L.length) adkFinish(); else adkDraw(); return true; }
+  if (a === 'back') { if (AK.c > 0) AK.c = 0; else if (AK.i > 0) AK.i--; AK.aft = false; adkDraw(); return true; }
+  if (a === 'later') { adkClose(true); return true; }
+  if (a === 'close') { adkClose(false); return true; }
+  if (a === 'open') { const p = adk().pending; if (p) adkOpen(p.k, p.id); return true; }
+  return false;
+}
+function adkFinish() {
+  const s = adk(); (s.log[AK.k] = s.log[AK.k] || {})[AK.id] = 1; if (s.pending && s.pending.k === AK.k && s.pending.id === AK.id) s.pending = null; save();
+  adkDraw(); lastPt = { x: innerWidth / 2, y: innerHeight * .45 }; reward(4, { msg: [`Adhkar de ${PNAMES[AK.id]}`, 'Celui qui glorifie Allah après chaque prière… ses péchés sont pardonnés, même s\'ils étaient comme l\'écume de la mer.', 'Muslim 597'] });
+}
+function adkAfterPrayer(k, id, v) {
+  if (!ADK_PRAYERS.includes(id) || v === 'x' || k !== todayISO() || adkDone(k, id)) return;
+  setTimeout(() => adkOpen(k, id), 1600);
+}
+function adkPendingChip() { const p = adk().pending; if (!p || p.k !== todayISO() || adkDone(p.k, p.id)) return ''; return `<button class="adk-chip" data-adk="open">Adhkar de ${PNAMES[p.id]} en attente</button>`; }
+
+/* =====================================================================
+   QIBLA — tu es au centre de ton système ; la Kaaba est une étoile d'or
+   sur l'horizon. Direction calculée (grand cercle) depuis ta position ;
+   la boussole peut être recalée sur le soleil, dont la position est calculée.
+   ===================================================================== */
+const KAABA = [21.422487, 39.826206];
+const QB = { lat: null, lon: null, acc: null, head: null, ok: false, err: '', off: 0, cal: false, abs: false };
+const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
+function qiblaBearing(lat, lon) { const f1 = rad(lat), f2 = rad(KAABA[0]), dl = rad(KAABA[1] - lon); return (deg(Math.atan2(Math.sin(dl) * Math.cos(f2), Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dl))) + 360) % 360; }
+function distKm(lat, lon) { const f1 = rad(lat), f2 = rad(KAABA[0]), df = f2 - f1, dl = rad(KAABA[1] - lon); const a = Math.sin(df / 2) ** 2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl / 2) ** 2; return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); }
+/* Position du soleil (algorithme de la NOAA) : azimut depuis le nord vrai et hauteur. */
+function sunPos(date, lat, lon) {
+  const jd = date.getTime() / 864e5 + 2440587.5, T = (jd - 2451545) / 36525;
+  const L0 = (280.46646 + T * (36000.76983 + T * .0003032)) % 360, M = 357.52911 + T * (35999.05029 - .0001537 * T), e = .016708634 - T * (.000042037 + .0000001267 * T);
+  const C = Math.sin(rad(M)) * (1.914602 - T * (.004817 + .000014 * T)) + Math.sin(rad(2 * M)) * (.019993 - .000101 * T) + Math.sin(rad(3 * M)) * .000289;
+  const om = 125.04 - 1934.136 * T, lam = L0 + C - .00569 - .00478 * Math.sin(rad(om));
+  const eps0 = 23 + (26 + (21.448 - T * (46.815 + T * (.00059 - T * .001813))) / 60) / 60, eps = eps0 + .00256 * Math.cos(rad(om));
+  const dec = deg(Math.asin(Math.sin(rad(eps)) * Math.sin(rad(lam))));
+  const y = Math.tan(rad(eps / 2)) ** 2, eqt = 4 * deg(y * Math.sin(2 * rad(L0)) - 2 * e * Math.sin(rad(M)) + 4 * e * y * Math.sin(rad(M)) * Math.cos(2 * rad(L0)) - .5 * y * y * Math.sin(4 * rad(L0)) - 1.25 * e * e * Math.sin(2 * rad(M)));
+  const minutes = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds() / 60, tst = (minutes + eqt + 4 * lon + 1440) % 1440;
+  let ha = tst / 4 - 180; if (ha < -180) ha += 360;
+  const zen = deg(Math.acos(Math.sin(rad(lat)) * Math.sin(rad(dec)) + Math.cos(rad(lat)) * Math.cos(rad(dec)) * Math.cos(rad(ha))));
+  let az = deg(Math.acos(((Math.sin(rad(lat)) * Math.cos(rad(zen))) - Math.sin(rad(dec))) / (Math.cos(rad(lat)) * Math.sin(rad(zen)))));
+  az = ha > 0 ? (az + 180) % 360 : (540 - az) % 360;
+  return { az, alt: 90 - zen };
+}
+function qiblaStart() {
+  QB.err = '';
+  if (!navigator.geolocation) { QB.err = 'Ton téléphone ne donne pas sa position.'; render(); return; }
+  navigator.geolocation.getCurrentPosition(p => { QB.lat = p.coords.latitude; QB.lon = p.coords.longitude; QB.acc = p.coords.accuracy; S.qibla = { lat: QB.lat, lon: QB.lon, d: todayISO() }; save(); if (tab === 'qibla') render(); }, () => { if (S.qibla && S.qibla.lat) { QB.lat = S.qibla.lat; QB.lon = S.qibla.lon; QB.err = 'Position non autorisée : j\'utilise ta dernière position connue.'; } else QB.err = 'Autorise la localisation pour Sayko (Réglages de l\'iPhone → Confidentialité → Service de localisation → Safari / Sayko).'; render(); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  const listen = () => { window.addEventListener('deviceorientation', qiblaOrient, true); QB.ok = true; };
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') listen(); else { QB.err = 'Sans accès à la boussole, tu peux t\'orienter avec l\'angle indiqué.'; render(); } }).catch(() => { QB.err = 'Touche à nouveau « Activer » pour autoriser la boussole.'; render(); });
+  else listen();
+}
+function qiblaOrient(e) {
+  let h = null;
+  if (typeof e.webkitCompassHeading === 'number') { h = e.webkitCompassHeading; QB.abs = true; }
+  else if (e.absolute && typeof e.alpha === 'number') { h = (360 - e.alpha) % 360; QB.abs = true; }
+  if (typeof e.beta === 'number') QB.beta = e.beta;
+  if (h == null) return;
+  const so = screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : (window.orientation || 0);
+  QB.head = (h + so + 360) % 360;
+}
+function qiblaHeading() { return QB.head == null ? null : (QB.head + QB.off + 360) % 360; }
+/* =====================================================================
+   PERMIS DE CHASSER — examen OFB : 4 ateliers pratiques (21 points) +
+   10 questions (10 points), dont une de sécurité éliminatoire ; reçu à 25/31.
+   S.chasse = { date, q{ id:{ ok, st } }, ex[{ d, s, elim }], ext[{ d, s }], prat{ a1..a4 }, done }
+   ===================================================================== */
+const ring2 = (p, big, small, col = 'gold') => `<div class="zring"><svg viewBox="-60 -60 120 120"><circle r="50" fill="none" stroke="var(--raise)" stroke-width="7"/><circle r="50" fill="none" stroke="var(--${col})" stroke-width="7" stroke-linecap="round" transform="rotate(-90)" ${ringDash(50, Math.min(1, p))}/></svg><div><b>${big}</b><span>${small}</span></div></div>`;
+const CHTH = { secu: 'Sécurité', regl: 'Lois et réglementation', faune: 'Faune sauvage et habitats', chasse: 'Connaissance de la chasse', armes: 'Armes et munitions' };
+const CHQ = [
+  ['s1', 'secu', 'En battue, l\'angle de sécurité à respecter avec ses voisins de poste est de…', ['15°', '30°', '45°'], 1, 'On ne tire jamais dans un angle de 30° de part et d\'autre de la direction de ses voisins.'],
+  ['s2', 'secu', 'Dans un véhicule, l\'arme de chasse doit être…', ['Chargée, sous étui', 'Déchargée', 'Chargée, sécurité mise'], 1, 'L\'arme est toujours transportée déchargée, de préférence démontée ou sous étui.'],
+  ['s3', 'secu', 'Avant de franchir une clôture ou un fossé, je…', ['Mets la sécurité', 'Décharge mon arme', 'Garde l\'arme chargée canons vers le ciel'], 1, 'On décharge avant tout obstacle : la sûreté seule ne suffit pas.'],
+  ['s4', 'secu', 'Je peux tirer sur un animal…', ['Dès qu\'un buisson bouge', 'Seulement s\'il est parfaitement identifié', 'S\'il est dans ma direction de tir'], 1, 'On ne tire que sur un animal parfaitement identifié, avec un environnement de tir sûr.'],
+  ['s5', 'secu', 'En battue au grand gibier, le vêtement fluorescent est…', ['Conseillé', 'Obligatoire', 'Interdit'], 1, 'Le port d\'un vêtement fluorescent (orange en général) est obligatoire en chasse collective au grand gibier.'],
+  ['s6', 'secu', 'En battue, un tir « fichant » c\'est…', ['Un tir vers le haut', 'Un tir dirigé vers le sol, à courte distance', 'Un tir à longue distance'], 1, 'La balle part vers le sol, qui la stoppe : c\'est la base de la sécurité en battue.'],
+  ['s7', 'secu', 'Quand je me déplace avec mon arme, ses canons sont…', ['Dirigés vers une zone sans danger (ciel ou sol)', 'Vers l\'avant, à hauteur d\'homme', 'Peu importe si elle est déchargée'], 0, 'Une arme se manipule toujours comme si elle était chargée, canons vers une zone sans danger.'],
+  ['s8', 'secu', 'Une balle de carabine peut rester dangereuse jusqu\'à…', ['200 mètres', '500 mètres', 'Plusieurs kilomètres'], 2, 'Une balle porte bien plus loin qu\'on ne le croit : plusieurs kilomètres.'],
+  ['s9', 'secu', 'Au poste, en battue, je…', ['Change de place selon le gibier', 'Reste à mon poste jusqu\'à la fin de la traque', 'Rejoins mon voisin pour discuter'], 1, 'On ne quitte jamais son poste avant le signal de fin : les autres tirent en fonction de ta position.'],
+  ['s10', 'secu', 'Tirer en direction d\'une route ouverte à la circulation est…', ['Autorisé si personne ne passe', 'Interdit', 'Autorisé avec de la grenaille'], 1, 'Le tir en direction ou au-dessus des routes et des habitations est interdit.'],
+  ['r1', 'regl', 'Pour chasser, il faut…', ['Le permis seulement', 'Le permis, sa validation et une assurance', 'Une assurance seulement'], 1, 'Permis + validation (annuelle ou temporaire) + assurance responsabilité civile chasse.'],
+  ['r2', 'regl', 'L\'assurance du chasseur est…', ['Facultative', 'Obligatoire', 'Obligatoire seulement en battue'], 1, 'L\'assurance responsabilité civile chasse est obligatoire.'],
+  ['r3', 'regl', 'Qui organise l\'examen du permis de chasser ?', ['La gendarmerie', 'L\'Office français de la biodiversité (OFB)', 'La mairie'], 1, 'L\'examen est confié à l\'OFB ; la formation est assurée par les fédérations des chasseurs.'],
+  ['r4', 'regl', 'Chasser sur le terrain d\'autrui sans autorisation est…', ['Autorisé', 'Interdit', 'Autorisé en battue'], 1, 'Le droit de chasse appartient au propriétaire : il faut son autorisation.'],
+  ['r5', 'regl', 'Les dates d\'ouverture générale de la chasse sont fixées par…', ['Le préfet', 'Le maire', 'Le président de la fédération'], 0, 'L\'ouverture et la fermeture générales sont fixées par arrêté préfectoral, selon le cadre national.'],
+  ['r6', 'regl', 'Un animal soumis au plan de chasse doit, avant tout transport…', ['Être photographié', 'Être muni de son bracelet', 'Être éviscéré'], 1, 'Le bracelet de marquage se pose sur l\'animal avant tout transport.'],
+  ['r7', 'regl', 'En règle générale, la chasse de nuit est…', ['Autorisée', 'Interdite', 'Autorisée au grand gibier'], 1, 'La chasse se pratique de jour ; il existe des exceptions encadrées (gibier d\'eau dans certains départements).'],
+  ['r8', 'regl', 'Le chevreuil et le cerf sont chassés…', ['Librement', 'Dans le cadre d\'un plan de chasse', 'Uniquement en hiver'], 1, 'Les grands cervidés sont soumis à un plan de chasse, avec un nombre d\'animaux attribué.'],
+  ['r9', 'regl', 'Une validation temporaire du permis peut durer…', ['9 jours ou 3 jours', '1 mois', '6 mois'], 0, 'Il existe des validations temporaires de 9 jours et de 3 jours, en plus de la validation annuelle.'],
+  ['f1', 'faune', 'La femelle du sanglier s\'appelle…', ['La biche', 'La laie', 'La chevrette'], 1, 'Laie pour la femelle, marcassins pour les jeunes, rayés jusqu\'à quelques mois.'],
+  ['f2', 'faune', 'Le jeune du chevreuil s\'appelle…', ['Le faon', 'Le chevrillard', 'Le marcassin'], 1, 'Chez le chevreuil : brocard (mâle), chevrette (femelle), chevrillard (jeune).'],
+  ['f3', 'faune', 'Le brame du cerf a lieu…', ['Au printemps', 'En septembre-octobre', 'En plein hiver'], 1, 'Le brame correspond à la période de reproduction, en septembre et octobre.'],
+  ['f4', 'faune', 'Le brocard perd ses bois…', ['En fin d\'automne et en hiver', 'Au printemps', 'Il ne les perd jamais'], 0, 'Le chevreuil perd ses bois vers novembre-décembre ; le cerf, lui, à la fin de l\'hiver.'],
+  ['f5', 'faune', 'Lequel de ces animaux est protégé ?', ['Le sanglier', 'Le hérisson', 'Le faisan'], 1, 'Le hérisson est une espèce protégée, comme l\'écureuil roux et les rapaces.'],
+  ['f6', 'faune', 'La buse variable est…', ['Chassable', 'Protégée, comme tous les rapaces', 'Chassable en hiver'], 1, 'Tous les rapaces sont protégés.'],
+  ['f7', 'faune', 'Le jeune du lièvre s\'appelle…', ['Le lapereau', 'Le levraut', 'Le faon'], 1, 'Levraut pour le lièvre, lapereau pour le lapin.'],
+  ['f8', 'faune', 'Le sanglier se nourrit…', ['Uniquement d\'herbe', 'De tout : c\'est un omnivore', 'Uniquement de viande'], 1, 'Le sanglier est omnivore : glands, racines, vers, petits animaux…'],
+  ['f9', 'faune', 'Chez le canard colvert, le mâle a…', ['La tête verte', 'La tête rouge', 'Le même plumage brun que la femelle'], 0, 'Le mâle colvert a la tête vert brillant ; la femelle est brune.'],
+  ['f10', 'faune', 'La bécasse est…', ['Un oiseau sédentaire des villes', 'Un oiseau migrateur au long bec', 'Un rapace'], 1, 'Oiseau migrateur au long bec, présent surtout en automne et en hiver.'],
+  ['c1', 'chasse', 'La battue, c\'est une chasse où…', ['Un chasseur seul attend', 'Des traqueurs poussent le gibier vers des chasseurs postés', 'On chasse avec un rapace'], 1, 'Chasse collective : rabatteurs et chiens poussent le gibier vers la ligne des postés.'],
+  ['c2', 'chasse', 'Un chien d\'arrêt…', ['Poursuit le gibier en aboyant', 'S\'immobilise devant le gibier qu\'il a trouvé', 'Ne sert qu\'au grand gibier'], 1, 'Setter, pointer, épagneul… il marque l\'arrêt devant le gibier.'],
+  ['c3', 'chasse', 'Pour retrouver un grand gibier blessé, on fait appel à…', ['Un chien de sang et son conducteur', 'Un chien d\'arrêt', 'Personne, il faut le laisser'], 0, 'On marque l\'endroit du tir et on appelle un conducteur de chien de sang.'],
+  ['c4', 'chasse', 'L\'affût et l\'approche sont des chasses…', ['Collectives', 'Individuelles et discrètes', 'Avec chiens courants'], 1, 'À l\'affût on attend, à l\'approche on avance doucement : seul et en silence.'],
+  ['c5', 'chasse', 'Après le tir d\'un grand gibier, il faut…', ['Le laisser jusqu\'au lendemain', 'L\'éviscérer rapidement', 'Le congeler entier'], 1, 'Une éviscération rapide préserve la qualité de la venaison.'],
+  ['c6', 'chasse', 'Les chiens courants servent à…', ['Rapporter le gibier d\'eau', 'Poursuivre le gibier en le menant à la voix', 'Garder le poste'], 1, 'Ils suivent la voie du gibier en aboyant, ce qui renseigne les chasseurs.'],
+  ['a1', 'armes', 'Un fusil de chasse a…', ['Un canon lisse et tire de la grenaille', 'Un canon rayé et tire des balles', 'Un canon court'], 0, 'Fusil = canon lisse (grenaille, parfois balle) ; carabine = canon rayé (balle).'],
+  ['a2', 'armes', 'Pour les plombs de chasse, plus le numéro est élevé…', ['Plus les plombs sont gros', 'Plus les plombs sont petits', 'Le numéro ne veut rien dire'], 1, 'Un plomb n° 8 est plus petit qu\'un plomb n° 4.'],
+  ['a3', 'armes', 'Dans les zones humides, la grenaille de plomb est…', ['Autorisée', 'Interdite : on utilise de la grenaille sans plomb (acier…)', 'Obligatoire'], 1, 'Le plomb est toxique pour l\'environnement : grenaille de substitution obligatoire en zone humide.'],
+  ['a4', 'armes', 'Le « choke » (étranglement) d\'un canon sert à…', ['Ralentir les plombs', 'Resserrer la gerbe de plombs', 'Refroidir le canon'], 1, 'Plus le canon est étranglé, plus la gerbe reste groupée loin.'],
+  ['a5', 'armes', 'À la maison, mes armes et munitions sont…', ['Rangées ensemble dans un placard', 'Rangées séparément, à l\'abri, armes sous clé', 'Laissées dans la voiture'], 1, 'On empêche l\'accès à un tiers : armes sous clé (coffre conseillé), munitions à part.'],
+  ['a6', 'armes', 'Le calibre 12 d\'un fusil correspond…', ['Au diamètre intérieur du canon', 'À la longueur du canon', 'Au nombre de cartouches'], 0, 'Le calibre désigne le diamètre intérieur du canon (défini historiquement par un nombre de balles par livre).'],
+  ['a7', 'armes', 'Avant de tirer, je vérifie que mon canon…', ['Est bien graissé', 'N\'est pas obstrué (terre, neige…)', 'Est chaud'], 1, 'Un canon obstrué peut éclater au tir : on vérifie qu\'il est libre.']
+];
+const CH = { mode: null, list: [], i: 0, score: 0, pick: null, elim: null };
+function ch() { S.chasse = S.chasse && typeof S.chasse === 'object' ? S.chasse : {}; const c = S.chasse; c.q = c.q || {}; c.ex = c.ex || []; c.ext = c.ext || []; c.prat = c.prat || {}; return c; }
+const chMast = id => (ch().q[id] || {}).st >= 2;
+function chStart(mode, th) {
+  const all = CHQ.filter(x => !th || x[1] === th), q = ch().q;
+  if (mode === 'exam') {
+    const secu = CHQ.filter(x => x[1] === 'secu').sort(() => Math.random() - .5), others = CHQ.filter(x => x[1] !== 'secu').sort(() => Math.random() - .5);
+    const byTh = {}; others.forEach(x => (byTh[x[1]] = byTh[x[1]] || []).push(x));
+    const picks = []; let k = 0; const keys = Object.keys(byTh); while (picks.length < 8) { const L = byTh[keys[k % keys.length]]; if (L.length) picks.push(L.shift()); k++; }
+    const list = [secu[0], secu[1]].concat(picks).sort(() => Math.random() - .5);
+    Object.assign(CH, { mode, th: null, list, i: 0, score: 0, pick: null, elim: secu[0][0], elimOk: null });
+  } else {
+    const list = all.slice().sort((a, b) => ((q[a[0]] || {}).st || 0) - ((q[b[0]] || {}).st || 0) || Math.random() - .5).slice(0, th ? all.length : 10);
+    Object.assign(CH, { mode, th, list, i: 0, score: 0, pick: null, elim: null });
+  }
+}
+function chDays() { const d = ch().date; if (!d) return null; return Math.ceil((parseDate(d) - parseDate(todayISO())) / 864e5); }
+function vChasse() {
+  const c = ch(), mast = CHQ.filter(x => chMast(x[0])).length, last = c.ex[c.ex.length - 1], dd = chDays();
+  if (CH.mode && CH.i < CH.list.length) {
+    const x = CH.list[CH.i], done = CH.pick != null, isEl = x[0] === CH.elim;
+    return `${pageHead('Permis de chasser', CH.mode === 'exam' ? 'Examen blanc · 10 questions dont une éliminatoire' : CH.th ? CHTH[CH.th] : 'Entraînement', 'chasse')}
+    <div class="cbar"><i style="width:${CH.i / CH.list.length * 100}%"></i></div><p class="small muted" style="margin:6px 0 0">Question ${CH.i + 1} sur ${CH.list.length}</p>
+    <section class="cq"><p class="eyebrow" style="margin:0">${CHTH[x[1]]}${isEl ? ' · <span style="color:var(--danger)">éliminatoire</span>' : ''}</p><h2 style="margin:8px 0 14px;font:400 1.3rem/1.35 var(--serif)">${esc(x[2])}</h2>
+      ${x[3].map((o, k) => `<button class="copt ${done ? (k === x[4] ? 'ok' : k === CH.pick ? 'ko' : '') : ''}" data-chopt="${k}" ${done ? 'disabled' : ''}><b>${'ABC'[k]}</b><span>${esc(o)}</span></button>`).join('')}
+      ${done && CH.mode !== 'exam' ? `<p class="cexp"><b>${CH.pick === x[4] ? 'Bonne réponse.' : 'Pas tout à fait.'}</b> ${esc(x[5])}</p><button class="btn block" data-chnext style="margin-top:12px">${CH.i + 1 < CH.list.length ? 'Question suivante' : 'Voir mon résultat'}</button>` : ''}
+    </section><button class="link-btn small" data-chstop style="display:block;margin:14px auto 0">Arrêter</button>`;
+  }
+  if (CH.mode && CH.i >= CH.list.length) {
+    const s = CH.score, n = CH.list.length, ex = CH.mode === 'exam', elimOk = CH.elimOk;
+    const pass = ex && elimOk && s >= 8;
+    return `${pageHead('Permis de chasser', 'Ton résultat', 'chasse')}
+    <section class="cq" style="text-align:center"><p class="eyebrow">${ex ? 'Examen blanc' : 'Entraînement'}</p><p style="font:400 3.4rem/1 var(--serif);margin:10px 0;color:var(--${ex ? (pass ? 'mint' : 'danger') : 'gold'})">${s}<small style="font-size:1.4rem;color:var(--muted)">/${n}</small></p>
+      <p class="small" style="margin:0 0 14px">${ex ? (!elimOk ? 'Question de sécurité ratée : à l\'examen, c\'est éliminatoire. Révise le thème Sécurité en priorité.' : s >= 8 ? 'Solide. Avec un bon parcours pratique, ça passe largement.' : `La question de sécurité est bonne. Pour être serein, vise au moins 8 sur 10 : il te faudra ${Math.max(0, 25 - s)} points sur 21 à la pratique.`) : s >= n * .8 ? 'Très bien. Passe à un examen blanc.' : 'Continue : tes erreurs reviennent jusqu\'à ce qu\'elles soient maîtrisées.'}</p>
+      <button class="btn block" data-chdone>Terminer</button></section>`;
+  }
+  const ths = Object.keys(CHTH).map(k => { const L = CHQ.filter(x => x[1] === k); return [k, L.filter(x => chMast(x[0])).length, L.length]; });
+  const ext = c.ext.slice(-8), best = c.ex.reduce((a, e) => Math.max(a, e.s), 0);
+  return `${pageHead('Permis de chasser', dd != null ? (dd > 0 ? `Examen dans <b>${dd}</b> jour${dd > 1 ? 's' : ''}` : dd === 0 ? 'C\'est aujourd\'hui. Bismillah.' : 'Examen passé : et alors ?') : 'Ta préparation à l\'examen de l\'OFB.', 'chasse')}
+  <div class="zhero">${typeof ring2 === 'function' ? ring2(mast / CHQ.length, `${mast}<small>/${CHQ.length}</small>`, 'questions maîtrisées') : ''}
+    <div class="zside"><p class="num" style="font:400 2.4rem/1 var(--serif);color:var(--${last && last.elim && last.s >= 8 ? 'mint' : 'gold'});margin:0">${last ? last.s : '–'}<small style="font-size:1rem;color:var(--muted)">/10</small></p><p class="small muted" style="margin:4px 0 0">dernier examen blanc${best ? ` · record ${best}` : ''}</p></div></div>
+  <div class="row" style="gap:8px;margin-top:16px"><button class="btn" data-chgo="train" style="flex:1">S'entraîner</button><button class="btn ghost" data-chgo="exam" style="flex:1">Examen blanc</button></div>
+  ${dd != null && dd <= 0 ? '' : ''}
+  <section><h2>Le jour J</h2><div class="group">
+    <label class="cell"><span class="lbl">Date de l'examen</span><input type="date" data-chdate value="${c.date || ''}" style="max-width:150px"></label>
+    ${[['inscr', 'Inscription validée par l\'OFB'], ['form', 'Formation théorique suivie'], ['formp', 'Formation pratique suivie']].map(([k, l]) => `<label class="cell"><span class="lbl">${l}</span><input type="checkbox" data-chchk="${k}" ${c.prat[k] ? 'checked' : ''}></label>`).join('')}
+  </div><p class="hint">À l'examen : 4 ateliers pratiques sur 21 points, puis 10 questions sur 10 points. Reçu à 25 points sur 31, sans faute éliminatoire et avec la bonne réponse à la question de sécurité.</p></section>
+  <section><h2>Par thème</h2><div class="group">${ths.map(([k, m, n]) => `<button class="cell tap cth" data-chth="${k}"><span class="lbl">${CHTH[k]}${k === 'secu' ? ' <span class="small" style="color:var(--danger)">· éliminatoire</span>' : ''}<span class="cbar sm"><i style="width:${n ? m / n * 100 : 0}%"></i></span></span><span class="small muted num">${m}/${n}</span>${ICON.chev}</button>`).join('')}</div></section>
+  <section><h2>Tes examens blancs sur ton appli</h2>
+    <div class="row" style="gap:8px"><input id="chExt" inputmode="numeric" placeholder="Score sur 10" style="flex:1"><button class="btn sm" data-chext>Noter</button></div>
+    ${ext.length ? `<div class="chbars">${ext.map(e => `<div><i style="height:${e.s * 10}%" class="${e.s >= 8 ? 'ok' : ''}"></i><span>${e.s}</span></div>`).join('')}</div><p class="small muted" style="margin:6px 0 0">Tes ${ext.length} derniers scores sur ton appli de révision.</p>` : '<p class="small muted" style="margin:8px 0 0">Note ici le score de chaque examen blanc fait sur ton appli : tu verras ta courbe monter.</p>'}</section>
+  <section><button class="btn block ghost" data-chwin>J'ai obtenu mon permis de chasser</button></section>
+  <p class="hint">Ces questions sont écrites pour Sayko d'après les thèmes officiels ; les 400 questions officielles sont dans le manuel de la FNC et de l'OFB et dans ton appli de révision.</p>`;
+}
+function chasseClick(t) {
+  const c = s => t.closest(s); let el;
+  if ((el = c('[data-chgo]'))) { chStart(el.dataset.chgo); render(); window.scrollTo(0, 0); return true; }
+  if ((el = c('[data-chth]'))) { chStart('train', el.dataset.chth); render(); window.scrollTo(0, 0); return true; }
+  if ((el = c('[data-chopt]'))) {
+    const x = CH.list[CH.i], k = Number(el.dataset.chopt), q = ch().q, r = q[x[0]] = q[x[0]] || { ok: 0, st: 0 };
+    CH.pick = k; if (k === x[4]) { CH.score++; r.ok++; r.st = (r.st || 0) + 1; } else r.st = 0;
+    if (x[0] === CH.elim) CH.elimOk = k === x[4];
+    save(); if (CH.mode === 'exam') { CH.i++; CH.pick = null; if (CH.i >= CH.list.length) chEnd(); }
+    const y = window.scrollY; render(); window.scrollTo(0, y); return true;
+  }
+  if (c('[data-chnext]')) { CH.i++; CH.pick = null; if (CH.i >= CH.list.length) chEnd(); render(); window.scrollTo(0, 0); return true; }
+  if (c('[data-chstop]') || c('[data-chdone]')) { CH.mode = null; render(); window.scrollTo(0, 0); return true; }
+  if (c('[data-chext]')) { const v = parseInt(($('#chExt').value || '').trim(), 10); if (!(v >= 0 && v <= 10)) { toast('Un score entre 0 et 10'); return true; } ch().ext.push({ d: todayISO(), s: v }); save(); render(); reward(v >= 8 ? 4 : 2); return true; }
+  if (c('[data-chwin]')) { if (!confirm('Bravo ! On range ce module dans tes trophées ?')) return true; const cc = ch(); cc.done = todayISO(); trophyAdd({ t: 'Permis de chasser', type: 'permis', d: todayISO(), note: `${cc.ex.length} examens blancs dans Sayko · record ${cc.ex.reduce((a, e) => Math.max(a, e.s), 0)}/10 · ${CHQ.filter(x => chMast(x[0])).length} questions maîtrisées` }); save(); go('orbite'); nourAdd(40); return true; }
+  return false;
+}
+function chasseChange(t) {
+  if (t.hasAttribute('data-chdate')) { ch().date = t.value; save(); render(); return true; }
+  if (t.dataset.chchk) { ch().prat[t.dataset.chchk] = t.checked; save(); if (t.checked) reward(2); return true; }
+  return false;
+}
+function chEnd() {
+  if (CH.mode === 'exam') { ch().ex.push({ d: todayISO(), s: CH.score, elim: !!CH.elimOk }); save(); if (CH.elimOk && CH.score >= 8) reward(20, { big: true, msg: ['Examen blanc réussi', `${CH.score}/10, question de sécurité comprise.`] }); else reward(3); }
+  else reward(Math.max(2, CH.score));
+}
+const chasseActive = () => !(S.chasse && S.chasse.done);
+
+/* =====================================================================
+   TROPHÉES — la vitrine des accomplissements (permis, investissement,
+   client, logement…). S.trophies = [{ id, t, type, d, note }]
+   ===================================================================== */
+/* ---------- QIBLA : une fenêtre sur le ciel, vue depuis ton soleil ---------- */
+const QS = { pano: null, ppd: 0, W: 0, H: 0, drag: 0, vel: 0, dragging: false, x0: 0, d0: 0, back: 0, raf: 0, lock: false, sh: null, ty: null, last: 0 };
+function vQibla() {
+  const has = QB.lat != null, b = has ? qiblaBearing(QB.lat, QB.lon) : 0, km = has ? Math.round(distKm(QB.lat, QB.lon)) : 0, sun = has ? sunPos(new Date(), QB.lat, QB.lon) : null;
+  const rel = sun && sun.alt > 2 ? ((b - sun.az + 540) % 360) - 180 : null;
+  return `${pageHead('Qibla', has ? `La Mecque, à ${km.toLocaleString('fr-FR')} km de toi` : 'Trouve ton étoile dans le ciel.', 'qibla')}
+  <div class="qsky ${QS.lock ? 'lock' : ''}" id="qsky"><canvas id="qcv" aria-label="Le ciel autour de toi. L'étoile dorée indique la qibla."></canvas>
+    <div class="qret" aria-hidden="true"></div><div class="qhint" id="qhint"></div></div>
+  <p class="qstate" id="qstate">${has ? '' : 'Touche le bouton : ton ciel va s\'ouvrir.'}</p>
+  ${QB.err ? `<p class="hint" style="text-align:center">${esc(QB.err)}</p>` : ''}
+  ${!has || !QB.ok ? `<button class="btn block" data-qb="start" style="margin-top:12px">${has ? 'Activer la vue du ciel' : 'Ouvrir mon ciel'}</button>` : ''}
+  ${has ? `<section><h2>Ton repère : le soleil</h2>
+    <p class="small" style="margin:0">${rel != null ? `Mets-toi face au soleil, puis tourne de <b class="num">${Math.abs(rel).toFixed(0)}°</b> vers la ${rel > 0 ? 'droite' : 'gauche'} : tu fais face à la qibla. Dans ton ciel, le soleil est l'astre doré et chaud ; ton étoile est l'étoile blanche et or.` : `La qibla est à <b class="num">${b.toFixed(0)}°</b> du nord, vers l'est-sud-est depuis la France. En journée, le soleil te servira de repère.`}</p>
+    ${sun && sun.alt > 3 && QB.ok ? `<button class="btn sm ghost" data-qb="sun" style="margin-top:10px">${QB.cal ? 'Recaler sur le soleil' : 'Pointe ton téléphone vers le soleil, puis touche ici'}</button>` : ''}
+    ${QB.cal ? `<p class="small" style="color:var(--mint);margin:8px 0 0">Ciel recalé sur le soleil (${QB.off >= 0 ? '+' : ''}${QB.off.toFixed(0)}°).</p>` : ''}</section>
+    <p class="hint">La direction est calculée par le plus court chemin sur le globe jusqu'à la Kaaba. Tourne-toi doucement, téléphone devant toi ; glisse le doigt pour explorer le ciel sans bouger. Loin des objets métalliques, la boussole est plus juste.</p>` : ''}`;
+}
+function qiblaFrame() {}
+function qsPrerender() {
+  const W = QS.W, H = QS.H, ppd = QS.ppd, PW = Math.round(360 * ppd), EH = Math.round(H * 1.7), cv = document.createElement('canvas'), d = Math.min(2, devicePixelRatio || 1);
+  cv.width = PW * d; cv.height = EH * d; const x = cv.getContext('2d'); x.scale(d, d);
+  let seed = 17; const r = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const hz = EH * .78; QS.hz = hz; QS.EH = EH;
+  let g = x.createLinearGradient(0, 0, 0, EH); g.addColorStop(0, '#010208'); g.addColorStop(.55, '#03070F'); g.addColorStop(.76, '#0A1A22'); g.addColorStop(.78, '#13302C'); g.addColorStop(1, '#030807'); x.fillStyle = g; x.fillRect(0, 0, PW, EH);
+  const band = az => hz * .55 + Math.sin(az * Math.PI / 180) * hz * .22;
+  for (let i = 0; i < 900; i++) { const az = r() * 360, y = band(az) + (r() - .5) * hz * .2, rad = 14 + r() * 70, gr = x.createRadialGradient(az * ppd, y, 0, az * ppd, y, rad), a = .03 + r() * .05; gr.addColorStop(0, i % 5 ? `rgba(70,150,120,${a})` : `rgba(232,194,122,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.beginPath(); x.arc(az * ppd, y, rad, 0, 7); x.fill(); }
+  for (let i = 0; i < 1400; i++) { const az = r() * 360, y = band(az) + (r() - .5) * hz * .14; x.fillStyle = `rgba(255,248,230,${.12 + r() * .35})`; x.beginPath(); x.arc(az * ppd, y, r() * .7, 0, 7); x.fill(); }
+  for (let i = 0; i < 3200; i++) { const az = r() * 360, y = r() * hz * .98, s = r(); x.fillStyle = `rgba(255,${235 + r() * 20 | 0},${200 + r() * 55 | 0},${.1 + s * .7 * (y / hz < .1 ? .7 : 1)})`; x.beginPath(); x.arc(az * ppd, y, s > .99 ? 1.4 : s * .8, 0, 7); x.fill(); }
+  QS.bright = []; const tint = ['255,255,255', '210,225,255', '255,236,200', '255,214,170'];
+  for (let i = 0; i < 46; i++) QS.bright.push({ az: r() * 360, y: hz * (.05 + r() * .85), s: .6 + r() * 1.1, c: tint[i % 4], p: r() * 6.28 });
+  g = x.createLinearGradient(0, hz - 60, 0, hz + 8); g.addColorStop(0, 'rgba(120,180,150,0)'); g.addColorStop(.8, 'rgba(150,200,170,.10)'); g.addColorStop(1, 'rgba(232,194,122,.16)'); x.fillStyle = g; x.fillRect(0, hz - 60, PW, 68);
+  const hill = (amp, base, col, f) => { x.fillStyle = col; x.beginPath(); x.moveTo(0, EH); for (let px = 0; px <= PW; px += 4) { const a = px / PW * Math.PI * 2; x.lineTo(px, hz + base - amp * (.5 + .25 * Math.sin(a * f) + .15 * Math.sin(a * f * 2.7 + 1.3) + .1 * Math.sin(a * f * 6.1 + .4))); } x.lineTo(PW, EH); x.fill(); };
+  hill(26, 6, '#0B1A1A', 3); hill(18, 12, '#061010', 5); hill(10, 20, '#030807', 9);
+  QS.pano = cv; QS.PW = PW;
+}
+function qiblaInit() {
+  const cv = $('#qcv'); if (!cv) return; const box = cv.parentElement.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1);
+  QS.W = box.width; QS.H = box.height; QS.ppd = QS.W / 58; cv.width = QS.W * d; cv.height = QS.H * d; cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0);
+  if (!QS.pano || QS.pW !== QS.W || QS.pH !== QS.H) { qsPrerender(); QS.pW = QS.W; QS.pH = QS.H; }
+  let lx = 0, lt = 0;
+  cv.onpointerdown = e => { QS.dragging = true; QS.vel = 0; QS.x0 = e.clientX; QS.d0 = QS.drag; lx = e.clientX; lt = e.timeStamp; cv.setPointerCapture(e.pointerId); };
+  cv.onpointermove = e => { if (!QS.dragging) return; QS.drag = QS.d0 - (e.clientX - QS.x0) / QS.ppd; const dt = Math.max(1, e.timeStamp - lt); QS.vel = QS.vel * .5 + (-(e.clientX - lx) / QS.ppd / dt) * .5; lx = e.clientX; lt = e.timeStamp; };
+  cv.onpointerup = cv.onpointercancel = () => { QS.dragging = false; QS.back = performance.now() + (QB.head != null ? 1400 : 1e12); };
+  cancelAnimationFrame(QS.raf); QS.last = 0; QS.raf = requestAnimationFrame(qsLoop);
+}
+const angD = (a, b) => ((a - b + 540) % 360) - 180;
+function qsLoop(ts) {
+  const cv = $('#qcv'); if (!cv || tab !== 'qibla') return; QS.raf = requestAnimationFrame(qsLoop);
+  const dt = Math.min(64, QS.last ? ts - QS.last : 16); QS.last = ts;
+  const x = cv.getContext('2d'), W = QS.W, H = QS.H, ppd = QS.ppd, d = Math.min(2, devicePixelRatio || 1), k = 1 - Math.pow(.86, dt / 16);
+  /* Cap lissé : on suit la boussole en douceur, sans à-coups */
+  const raw = qiblaHeading(); if (raw != null) QS.sh = QS.sh == null ? raw : (QS.sh + angD(raw, QS.sh) * k + 360) % 360;
+  /* Élan du doigt, puis retour en douceur à la vraie direction */
+  if (!QS.dragging) { if (Math.abs(QS.vel) > .0005) { QS.drag += QS.vel * dt; QS.vel *= Math.pow(.93, dt / 16); } else QS.vel = 0; if (performance.now() > QS.back && !QS.vel) QS.drag -= QS.drag * (1 - Math.pow(.9, dt / 16)); if (Math.abs(QS.drag) < .02) QS.drag = 0; }
+  /* Inclinaison : le ciel monte et descend avec le téléphone */
+  const tgtY = QB.beta == null ? 0 : Math.max(-H * .35, Math.min(H * .35, (QB.beta - 80) * ppd * .9)); QS.ty = QS.ty == null ? tgtY : QS.ty + (tgtY - QS.ty) * k;
+  const center = (((QS.sh == null ? 0 : QS.sh) + QS.drag) % 360 + 360) % 360, oy = QS.hz - H * .80 - QS.ty;
+  const sx = ((center - 29 + 360) % 360) * ppd * d, pw = QS.pano.width, sy = Math.max(0, Math.min(QS.pano.height - H * d, oy * d));
+  x.save(); x.setTransform(1, 0, 0, 1, 0, 0);
+  const w1 = Math.min(W * d, pw - sx); x.drawImage(QS.pano, sx, sy, w1, H * d, 0, 0, w1, H * d); if (w1 < W * d) x.drawImage(QS.pano, 0, sy, W * d - w1, H * d, w1, 0, W * d - w1, H * d);
+  x.restore();
+  const yShift = -sy / d, toX = az => W / 2 + angD(az, center) * ppd, toY = el => QS.hz - el * ppd + yShift, t = ts / 1000;
+  /* Scintillement des étoiles brillantes */
+  x.globalCompositeOperation = 'lighter';
+  QS.bright.forEach(s => { const px = toX(s.az), py = s.y + yShift; if (px < -20 || px > W + 20 || py < -20 || py > H + 20) return; const tw = .55 + .45 * Math.sin(t * (1.3 + s.s) + s.p) * Math.sin(t * .7 + s.p * 2); const R = 3 + s.s * 3; const gr = x.createRadialGradient(px, py, 0, px, py, R * 2.2); gr.addColorStop(0, `rgba(${s.c},${.85 * tw})`); gr.addColorStop(1, `rgba(${s.c},0)`); x.fillStyle = gr; x.beginPath(); x.arc(px, py, R * 2.2, 0, 7); x.fill(); if (s.s > 1.2) { x.strokeStyle = `rgba(${s.c},${.35 * tw})`; x.lineWidth = .6; x.beginPath(); x.moveTo(px - R * 3, py); x.lineTo(px + R * 3, py); x.moveTo(px, py - R * 3); x.lineTo(px, py + R * 3); x.stroke(); } });
+  x.globalCompositeOperation = 'source-over';
+  const has = QB.lat != null; if (!has) return;
+  const sun = sunPos(new Date(), QB.lat, QB.lon);
+  if (sun.alt > -6) { const px = toX(sun.az), py = toY(Math.max(sun.alt, -2)); if (px > -150 && px < W + 150) { x.globalCompositeOperation = 'lighter'; let gr = x.createRadialGradient(px, py, 0, px, py, 110); gr.addColorStop(0, 'rgba(255,224,160,.85)'); gr.addColorStop(.12, 'rgba(255,196,120,.45)'); gr.addColorStop(.5, 'rgba(255,160,90,.10)'); gr.addColorStop(1, 'rgba(255,150,80,0)'); x.fillStyle = gr; x.beginPath(); x.arc(px, py, 110, 0, 7); x.fill(); gr = x.createLinearGradient(px - 140, 0, px + 140, 0); gr.addColorStop(0, 'rgba(255,210,150,0)'); gr.addColorStop(.5, 'rgba(255,220,170,.35)'); gr.addColorStop(1, 'rgba(255,210,150,0)'); x.fillStyle = gr; x.fillRect(px - 140, py - 1, 280, 2); x.globalCompositeOperation = 'source-over'; x.fillStyle = '#FFF0CC'; x.beginPath(); x.arc(px, py, 10, 0, 7); x.fill(); x.font = '600 11px system-ui'; x.fillStyle = 'rgba(255,226,170,.8)'; x.textAlign = 'center'; x.fillText('soleil', px, py + 28); } }
+  /* L'étoile de la qibla : halo, aigrettes de diffraction, scintillement ; en face, une onde de lumière */
+  const b = qiblaBearing(QB.lat, QB.lon), qx = toX(b), qy = toY(16);
+  const diff = raw == null ? null : angD(b, (QS.sh + 360) % 360), free = !QS.dragging && Math.abs(QS.drag) < .4;
+  const lock = diff != null && free && (QS.lock ? Math.abs(diff) <= 5 : Math.abs(diff) <= 3);
+  if (lock !== QS.lock) { QS.lock = lock; const sk = $('#qsky'); if (sk) sk.classList.toggle('lock', lock); if (lock) { QS.lockT = t; try { navigator.vibrate && navigator.vibrate([18, 50, 28]); } catch (e) {} chime(false); } }
+  if (diff != null && free) { const band = Math.floor(Math.abs(diff) / 10); if (QS.band != null && band < QS.band && band < 3) { try { navigator.vibrate && navigator.vibrate(5); } catch (e) {} } QS.band = band; }
+  if (qx > -160 && qx < W + 160) {
+    const tw = 1 + .06 * Math.sin(t * 3.1) + .03 * Math.sin(t * 7.3), L = (lock ? 1.35 : 1) * tw;
+    x.globalCompositeOperation = 'lighter';
+    let gr = x.createRadialGradient(qx, qy, 0, qx, qy, 70 * L); gr.addColorStop(0, 'rgba(255,252,240,1)'); gr.addColorStop(.06, 'rgba(255,240,205,.9)'); gr.addColorStop(.25, 'rgba(240,205,140,.28)'); gr.addColorStop(1, 'rgba(232,194,122,0)'); x.fillStyle = gr; x.beginPath(); x.arc(qx, qy, 70 * L, 0, 7); x.fill();
+    const spike = (ang, len, w, a) => { x.save(); x.translate(qx, qy); x.rotate(ang); const lg = x.createLinearGradient(-len, 0, len, 0); lg.addColorStop(0, 'rgba(255,248,230,0)'); lg.addColorStop(.5, `rgba(255,250,238,${a})`); lg.addColorStop(1, 'rgba(255,248,230,0)'); x.fillStyle = lg; x.beginPath(); x.moveTo(-len, 0); x.lineTo(0, -w); x.lineTo(len, 0); x.lineTo(0, w); x.fill(); x.restore(); };
+    spike(0, 120 * L, 1.6, .9); spike(Math.PI / 2, 120 * L, 1.6, .9); spike(Math.PI / 4, 46 * L, .8, .45); spike(-Math.PI / 4, 46 * L, .8, .45);
+    if (lock) { const ph = ((t - QS.lockT) % 1.8) / 1.8; x.strokeStyle = `rgba(255,226,160,${.55 * (1 - ph)})`; x.lineWidth = 1.5; x.beginPath(); x.arc(qx, qy, 14 + ph * 90, 0, 7); x.stroke(); }
+    x.globalCompositeOperation = 'source-over'; x.fillStyle = '#FFFFFF'; x.beginPath(); x.arc(qx, qy, 3.6, 0, 7); x.fill();
+    x.textAlign = 'center'; x.font = '600 11px system-ui'; x.fillStyle = `rgba(255,236,190,${lock ? 1 : .8})`; x.fillText('AL-QIBLA', qx, qy + 40); x.font = '400 17px Amiri, serif'; x.fillText('القبلة', qx, qy + 60);
+  }
+  const hint = $('#qhint'), st = $('#qstate'), view = angD(b, center);
+  if (hint) { if (Math.abs(view) > 27) { hint.className = 'qhint ' + (view > 0 ? 'r' : 'l'); hint.textContent = view > 0 ? `${Math.abs(view).toFixed(0)}° ›` : `‹ ${Math.abs(view).toFixed(0)}°`; } else hint.className = 'qhint'; }
+  if (st && (ts - (QS.st || 0) > 120)) { QS.st = ts; st.innerHTML = raw == null ? 'Glisse le doigt pour parcourir ton ciel, ou active la vue pour qu\'il suive tes mouvements.' : lock ? '<b style="color:var(--gold)">Tu fais face à la qibla</b>' : !free ? 'Lâche : ton ciel revient doucement vers là où tu regardes.' : `Tourne-toi ${diff > 0 ? 'vers la droite' : 'vers la gauche'} de <b class="num">${Math.abs(diff).toFixed(0)}°</b>`; }
+}
+function qiblaClick(t) {
+  const b = t.closest('[data-qb]'); if (!b) return false;
+  if (b.dataset.qb === 'start') { qiblaStart(); return true; }
+  if (b.dataset.qb === 'sun') { if (QB.head == null) return true; const s = sunPos(new Date(), QB.lat, QB.lon); QB.off = ((s.az - QB.head + 540) % 360) - 180; QB.cal = true; render(); toast('Ciel recalé sur le soleil'); return true; }
+  return false;
+}
+
+/* ---------- TROPHÉES : de vrais trophées, dessinés selon l'accomplissement ---------- */
+const TRTYPES = { permis: ['Permis', 'Écusson'], invest: ['Investissement', 'Obélisque de cristal'], client: ['Client', 'Médaille'], logement: ['Logement', 'Clé d\'or'], diplome: ['Diplôme', 'Toque'], foi: ['Foi', 'Croissant'], sport: ['Sport', 'Coupe'], autre: ['Accomplissement', 'Étoile'] };
+function trEmblem(o) { const t = (o.t || '').toLowerCase(); if (o.type === 'permis') return /chass/.test(t) ? 'bois' : /moto/.test(t) ? 'moto' : /conduire|voiture|permis b/.test(t) ? 'volant' : 'etoile'; return ''; }
+const TG = (id) => `<defs>
+  <linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF4D6"/><stop offset=".25" stop-color="#E8C27A"/><stop offset=".5" stop-color="#9A6B1E"/><stop offset=".72" stop-color="#F3D9A4"/><stop offset="1" stop-color="#6B4A12"/></linearGradient>
+  <linearGradient id="${id}gv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6DC"/><stop offset=".45" stop-color="#E8C27A"/><stop offset="1" stop-color="#7A5214"/></linearGradient>
+  <linearGradient id="${id}m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2A2E33"/><stop offset=".5" stop-color="#14171A"/><stop offset="1" stop-color="#050607"/></linearGradient>
+  <linearGradient id="${id}c" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F2FBFF" stop-opacity=".95"/><stop offset=".45" stop-color="#9FD3E8" stop-opacity=".55"/><stop offset="1" stop-color="#2B5C70" stop-opacity=".85"/></linearGradient>
+  <linearGradient id="${id}s" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`;
+function trophySvg(o, size = 120) {
+  const id = 't' + (o.id || 'x').replace(/[^a-z0-9]/gi, '').slice(0, 8), G = `url(#${id}g)`, GV = `url(#${id}gv)`, emb = trEmblem(o);
+  const base = `<rect x="34" y="138" width="52" height="16" rx="2" fill="url(#${id}m)"/><rect x="30" y="152" width="60" height="6" rx="1.5" fill="url(#${id}m)"/><rect x="34" y="138" width="52" height="1.6" fill="${G}"/><rect x="42" y="142" width="36" height="8" rx="1" fill="${G}" opacity=".9"/>`;
+  const laurel = side => { const s = side < 0 ? -1 : 1; return `<g fill="${GV}" transform="translate(60 0) scale(${s} 1)">${[0, 1, 2, 3, 4, 5].map(i => `<ellipse cx="${30 + i * 1.5}" cy="${98 - i * 11}" rx="3.6" ry="7.5" transform="rotate(${-30 + i * 6} ${30 + i * 1.5} ${98 - i * 11})"/>`).join('')}</g><path d="M${60 + s * 28} 104Q${60 + s * 36} 60 ${60 + s * 26} 30" stroke="${G}" stroke-width="1.6" fill="none"/>`; };
+  const embl = { bois: `<path d="M60 92v-8M60 84q-12-6-14-22M54 72l-8-4M50 64l-8-8M60 84q12-6 14-22M66 72l8-4M70 64l8-8" stroke="#3A2408" stroke-width="2.6" fill="none" stroke-linecap="round"/>`, moto: `<circle cx="50" cy="80" r="7" fill="none" stroke="#3A2408" stroke-width="2.4"/><circle cx="70" cy="80" r="7" fill="none" stroke="#3A2408" stroke-width="2.4"/><path d="M50 80l7-10h6l7 10M60 70l-3-5" stroke="#3A2408" stroke-width="2.4" fill="none"/>`, volant: `<circle cx="60" cy="74" r="12" fill="none" stroke="#3A2408" stroke-width="2.6"/><path d="M48 74h24M60 74v12" stroke="#3A2408" stroke-width="2.6"/>`, etoile: `<path d="M60 60l4 9 10 1-8 6 3 10-9-6-9 6 3-10-8-6 10-1z" fill="#3A2408"/>` };
+  let body = '';
+  if (o.type === 'permis') body = `${laurel(-1)}${laurel(1)}<path d="M60 40l26 8v22c0 22-14 34-26 40c-12-6-26-18-26-40V48z" fill="${G}" stroke="#5A3A0A" stroke-width="1"/><path d="M60 46l20 6v18c0 17-11 27-20 32c-9-5-20-15-20-32V52z" fill="${GV}" opacity=".55"/>${embl[emb] || embl.etoile}<path d="M36 112h48l-6 8 6 8H36l6-8z" fill="#7A1F1F"/><path d="M36 112h48" stroke="${G}" stroke-width="1"/>`;
+  else if (o.type === 'invest') body = `<path d="M60 18l12 22-4 94H52l-4-94z" fill="url(#${id}c)" stroke="#CFEFFA" stroke-opacity=".7"/><path d="M60 18l4 22-2 94" stroke="#fff" stroke-opacity=".5" fill="none"/><path d="M52 110l6-14 6 6 8-22" stroke="${G}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M68 78l5 2 0-6z" fill="${G}"/>`;
+  else if (o.type === 'client') body = `<path d="M50 20l10 36 10-36z" fill="#7A1F1F"/><path d="M44 20l10 36M76 20l-10 36" stroke="#A33" stroke-width="5"/>${laurel(-1)}${laurel(1)}<circle cx="60" cy="86" r="26" fill="${G}" stroke="#5A3A0A"/><circle cx="60" cy="86" r="20" fill="${GV}" opacity=".6"/><path d="M60 72l4.5 9 10 1.4-7.3 7 1.8 10-9-4.8-9 4.8 1.8-10-7.3-7 10-1.4z" fill="#5A3A0A"/>`;
+  else if (o.type === 'logement') body = `<path d="M60 22l20 16v22H40V38z" fill="${G}" stroke="#5A3A0A"/><rect x="54" y="44" width="12" height="16" rx="1" fill="#3A2408"/><rect x="56" y="60" width="8" height="70" fill="${GV}" stroke="#5A3A0A" stroke-width=".6"/><path d="M64 104h10v6H64zM64 116h7v6H64z" fill="${G}"/>`;
+  else if (o.type === 'diplome') body = `<path d="M60 34l36 14-36 14-36-14z" fill="${G}" stroke="#5A3A0A"/><path d="M38 54v14c6 6 16 8 22 8s16-2 22-8V54l-22 8z" fill="${GV}"/><path d="M90 50v22" stroke="${G}" stroke-width="1.6"/><circle cx="90" cy="74" r="3" fill="${G}"/><rect x="44" y="96" width="32" height="10" rx="5" fill="#F4ECD8" stroke="${G}"/><path d="M56 101h8" stroke="#7A1F1F" stroke-width="3"/><rect x="56" y="106" width="8" height="32" fill="${GV}"/>`;
+  else if (o.type === 'foi') body = `<path d="M34 138V70a26 26 0 0 1 52 0v68" fill="none" stroke="${G}" stroke-width="3"/><path d="M68 56a22 22 0 1 0 0 40a17 17 0 1 1 0-40z" fill="${G}" stroke="#5A3A0A"/><path d="M76 66l2.4 5 5.4.6-4 3.6 1.2 5.4-5-2.8-5 2.8 1.2-5.4-4-3.6 5.4-.6z" fill="${G}"/><rect x="56" y="98" width="8" height="40" fill="${GV}"/>`;
+  else if (o.type === 'sport') body = `<path d="M38 30h44v18c0 18-10 30-22 32c-12-2-22-14-22-32z" fill="${G}" stroke="#5A3A0A"/><path d="M38 36c-14 0-16 22 2 26M82 36c14 0 16 22-2 26" stroke="${G}" stroke-width="4" fill="none"/><path d="M44 34h32v12c0 13-7 22-16 24c-9-2-16-11-16-24z" fill="${GV}" opacity=".5"/><path d="M56 80h8v20h-8z" fill="${GV}"/><path d="M46 100h28l4 38H42z" fill="${G}" stroke="#5A3A0A"/>`;
+  else body = `<path d="M60 22l11 24 26 3-19 18 5 26-23-13-23 13 5-26-19-18 26-3z" fill="${G}" stroke="#5A3A0A"/><path d="M60 22v58M60 80l-23 13M60 80l23 13M60 80l-37-31M60 80l37-31" stroke="#5A3A0A" stroke-opacity=".35"/><rect x="56" y="96" width="8" height="42" fill="${GV}"/>`;
+  return `<svg class="trsvg" viewBox="0 0 120 160" width="${size}" height="${size * 4 / 3}" aria-hidden="true">${TG(id)}<ellipse cx="60" cy="156" rx="40" ry="4" fill="#000" opacity=".5"/>${body}${base}<rect class="trshine" x="-40" y="0" width="30" height="160" fill="url(#${id}s)" transform="skewX(-18)"/></svg>`;
+}
+const TR = { add: false, sel: null };
+function trophyAdd(o) { S.trophies = Array.isArray(S.trophies) ? S.trophies : []; const t = Object.assign({ id: uid() }, o); S.trophies.push(t); save(); setTimeout(() => trCeremony(t), 450); return t; }
+function openTrophies() { let el = $('#trophies'); if (!el) { el = document.createElement('div'); el.id = 'trophies'; el.className = 'trsheet'; document.body.appendChild(el); } TR.sel = null; trDraw(); requestAnimationFrame(() => el.classList.add('on')); }
+function trDraw() {
+  const el = $('#trophies'); if (!el) return; const L = (Array.isArray(S.trophies) ? S.trophies : []).slice().sort((a, b) => (b.d || '').localeCompare(a.d || ''));
+  if (TR.sel) { const x = L.find(t => t.id === TR.sel); if (x) { el.innerHTML = `<div class="tr-in tr-show"><button class="icon-btn trx" data-tr="back" aria-label="Retour">‹</button><div class="trspot big">${trophySvg(x, 190)}</div><p class="eyebrow" style="margin:6px 0 0">${(TRTYPES[x.type] || TRTYPES.autre)[0]}</p><h2 class="trname">${esc(x.t)}</h2><p class="small muted" style="margin:4px 0 0">${x.d ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(parseDate(x.d)) : ''}</p>${x.note ? `<p class="trnote">${esc(x.note)}</p>` : ''}<button class="link-btn small" data-trdel="${x.id}" style="color:var(--muted);margin-top:18px">Retirer de la vitrine</button></div>`; return; } }
+  const pend = chasseActive() && S.chasse ? [{ t: 'Permis de chasser', type: 'permis', pend: chDays() != null && chDays() >= 0 ? `J-${chDays()}` : 'à venir' }] : [];
+  el.innerHTML = `<div class="tr-in"><div class="row between" style="align-items:center"><div><p class="eyebrow" style="margin:0">Ta vitrine</p><h2 style="margin:4px 0 0">Trophées</h2></div><button class="icon-btn" data-tr="close" aria-label="Fermer">✕</button></div>
+    <div class="trcase">${L.map(x => `<button class="trslot" data-trsel="${x.id}"><div class="trspot">${trophySvg(x, 104)}</div><span class="trplate"><b>${esc(x.t)}</b><small>${x.d ? x.d.slice(0, 4) : ''}</small></span></button>`).join('')}
+      ${pend.map(p => `<div class="trslot ghost"><div class="trspot">${trophySvg({ id: 'pend', type: p.type, t: p.t }, 104)}</div><span class="trplate"><b>${p.t}</b><small>${p.pend}</small></span></div>`).join('')}
+      ${!L.length && !pend.length ? '<p class="small muted" style="grid-column:1/-1;text-align:center;margin:20px 0">Ta vitrine attend son premier trophée.</p>' : ''}</div>
+    ${TR.add ? `<div class="bzform" style="margin-top:18px"><input id="trT" placeholder="Ex : premier client signé"><select id="trY">${Object.entries(TRTYPES).map(([k, v]) => `<option value="${k}">${v[0]} · ${v[1]}</option>`).join('')}</select><input id="trD" type="date" value="${todayISO()}"><input id="trN" placeholder="Un mot pour t'en souvenir (facultatif)"><button class="btn" data-tr="save">Graver mon trophée</button></div>` : '<button class="btn ghost block" data-tr="add" style="margin-top:18px">+ Ajouter un accomplissement</button>'}
+  </div>`;
+}
+function trCeremony(x) {
+  let el = $('#trcer'); if (!el) { el = document.createElement('div'); el.id = 'trcer'; el.className = 'trcer'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="trrays"></div><div class="trrise">${trophySvg(x, 210)}</div><p class="eyebrow" style="margin:10px 0 0;color:var(--gold)">Nouveau trophée</p><h2 class="trname">${esc(x.t)}</h2><button class="btn" data-tr="cer" style="margin-top:18px">Le ranger dans ma vitrine</button>`;
+  requestAnimationFrame(() => el.classList.add('on')); chime(true); try { navigator.vibrate && navigator.vibrate([20, 70, 30, 70, 60]); } catch (e) {}
+  lastPt = { x: innerWidth / 2, y: innerHeight * .4 }; setTimeout(() => burst(60, '', true), 500);
+}
+function trClick(t) {
+  const b = t.closest('[data-tr],[data-trdel],[data-trsel]'); if (!b) return false;
+  if (b.dataset.trsel) { TR.sel = b.dataset.trsel; trDraw(); return true; }
+  if (b.dataset.trdel) { if (confirm('Retirer ce trophée de ta vitrine ?')) { S.trophies = S.trophies.filter(x => x.id !== b.dataset.trdel); save(); TR.sel = null; trDraw(); } return true; }
+  const a = b.dataset.tr;
+  if (a === 'close') { $('#trophies').classList.remove('on'); TR.add = false; return true; }
+  if (a === 'back') { TR.sel = null; trDraw(); return true; }
+  if (a === 'add') { TR.add = true; trDraw(); return true; }
+  if (a === 'cer') { const el = $('#trcer'); el.classList.remove('on'); return true; }
+  if (a === 'save') { const tt = ($('#trT').value || '').trim(); if (!tt) { toast('Donne un nom à ton accomplissement'); return true; } trophyAdd({ t: tt, type: $('#trY').value, d: $('#trD').value || todayISO(), note: ($('#trN').value || '').trim() }); TR.add = false; trDraw(); reward(15); return true; }
+  return false;
+}
+
+/* =====================================================================
+   LE CHEMIN DE L'ARABE — 5 paliers, chacun ouvre le suivant :
+   1 Les mots · 2 Le sens dans les versets · 3 Les phrases · 4 Les voyelles · 5 La lecture fluide
+   puis le Coran (mémorisation). S.ar = { p, sur{}, ph{}, vo{}, flu{ id:[dates] }, t{} }
+   ===================================================================== */
+const ARP = [['Les mots', '50 mots du Coran'], ['Le sens', 'Comprendre des sourates mot à mot'], ['Les phrases', 'Les formules du quotidien'], ['Les voyelles', 'Lire chaque son sans hésiter'], ['La lecture', 'Lire couramment']];
+const ARS = [
+  ['fatiha', 'Al-Fâtiha', [[['بِسْمِ', 'Au nom'], ['اللَّهِ', 'd\'Allah'], ['الرَّحْمَٰنِ', 'le Tout Miséricordieux'], ['الرَّحِيمِ', 'le Très Miséricordieux']], [['الْحَمْدُ', 'La louange'], ['لِلَّهِ', 'est à Allah'], ['رَبِّ', 'Seigneur'], ['الْعَالَمِينَ', 'des mondes']], [['الرَّحْمَٰنِ', 'le Tout Miséricordieux'], ['الرَّحِيمِ', 'le Très Miséricordieux']], [['مَالِكِ', 'Maître'], ['يَوْمِ', 'du Jour'], ['الدِّينِ', 'de la Rétribution']], [['إِيَّاكَ', 'C\'est Toi seul'], ['نَعْبُدُ', 'que nous adorons'], ['وَإِيَّاكَ', 'et c\'est Toi seul'], ['نَسْتَعِينُ', 'dont nous implorons l\'aide']], [['اهْدِنَا', 'Guide-nous'], ['الصِّرَاطَ', 'sur le chemin'], ['الْمُسْتَقِيمَ', 'droit']], [['صِرَاطَ', 'le chemin'], ['الَّذِينَ', 'de ceux'], ['أَنْعَمْتَ عَلَيْهِمْ', 'que Tu as comblés'], ['غَيْرِ', 'non pas'], ['الْمَغْضُوبِ عَلَيْهِمْ', 'ceux qui ont encouru la colère'], ['وَلَا', 'ni'], ['الضَّالِّينَ', 'les égarés']]]],
+  ['ikhlas', 'Al-Ikhlâs', [[['قُلْ', 'Dis'], ['هُوَ', 'Il est'], ['اللَّهُ', 'Allah'], ['أَحَدٌ', 'Unique']], [['اللَّهُ', 'Allah'], ['الصَّمَدُ', 'l\'Absolu, vers qui tout se tourne']], [['لَمْ يَلِدْ', 'Il n\'a pas engendré'], ['وَلَمْ يُولَدْ', 'et n\'a pas été engendré']], [['وَلَمْ يَكُنْ', 'et nul n\'est'], ['لَهُ', 'à Lui'], ['كُفُوًا', 'égal'], ['أَحَدٌ', 'personne']]]],
+  ['asr', 'Al-ʿAsr', [[['وَالْعَصْرِ', 'Par le Temps']], [['إِنَّ', 'Certes'], ['الْإِنْسَانَ', 'l\'homme'], ['لَفِي', 'est en'], ['خُسْرٍ', 'perdition']], [['إِلَّا', 'sauf'], ['الَّذِينَ', 'ceux qui'], ['آمَنُوا', 'ont cru'], ['وَعَمِلُوا', 'et accompli'], ['الصَّالِحَاتِ', 'les bonnes œuvres'], ['وَتَوَاصَوْا', 'et se sont recommandé'], ['بِالْحَقِّ', 'la vérité'], ['وَتَوَاصَوْا', 'et se sont recommandé'], ['بِالصَّبْرِ', 'l\'endurance']]]],
+  ['kawthar', 'Al-Kawthar', [[['إِنَّا', 'Certes, Nous'], ['أَعْطَيْنَاكَ', 't\'avons donné'], ['الْكَوْثَرَ', 'l\'Abondance (Al-Kawthar)']], [['فَصَلِّ', 'Prie donc'], ['لِرَبِّكَ', 'pour ton Seigneur'], ['وَانْحَرْ', 'et sacrifie']], [['إِنَّ', 'Certes'], ['شَانِئَكَ', 'celui qui te hait'], ['هُوَ', 'c\'est lui'], ['الْأَبْتَرُ', 'qui est sans postérité']]]],
+  ['falaq', 'Al-Falaq', [[['قُلْ', 'Dis'], ['أَعُوذُ', 'je cherche refuge'], ['بِرَبِّ', 'auprès du Seigneur'], ['الْفَلَقِ', 'de l\'aube naissante']], [['مِنْ شَرِّ', 'contre le mal'], ['مَا خَلَقَ', 'de ce qu\'Il a créé']], [['وَمِنْ شَرِّ', 'et contre le mal'], ['غَاسِقٍ', 'de l\'obscurité'], ['إِذَا وَقَبَ', 'quand elle s\'étend']], [['وَمِنْ شَرِّ', 'et contre le mal'], ['النَّفَّاثَاتِ', 'de celles qui soufflent'], ['فِي الْعُقَدِ', 'sur les nœuds']], [['وَمِنْ شَرِّ', 'et contre le mal'], ['حَاسِدٍ', 'de l\'envieux'], ['إِذَا حَسَدَ', 'quand il envie']]]],
+  ['nas', 'An-Nâs', [[['قُلْ', 'Dis'], ['أَعُوذُ', 'je cherche refuge'], ['بِرَبِّ', 'auprès du Seigneur'], ['النَّاسِ', 'des hommes']], [['مَلِكِ', 'Roi'], ['النَّاسِ', 'des hommes']], [['إِلَٰهِ', 'Dieu'], ['النَّاسِ', 'des hommes']], [['مِنْ شَرِّ', 'contre le mal'], ['الْوَسْوَاسِ', 'du tentateur'], ['الْخَنَّاسِ', 'qui se dérobe']], [['الَّذِي', 'celui qui'], ['يُوَسْوِسُ', 'souffle le mal'], ['فِي صُدُورِ', 'dans les poitrines'], ['النَّاسِ', 'des hommes']], [['مِنَ الْجِنَّةِ', 'parmi les djinns'], ['وَالنَّاسِ', 'et les hommes']]]]
+];
+const PHR = [
+  ['p1', 'بِسْمِ اللَّهِ', 'Au nom d\'Allah'], ['p2', 'الْحَمْدُ لِلَّهِ', 'Louange à Allah'], ['p3', 'إِنْ شَاءَ اللَّهُ', 'Si Allah le veut'], ['p4', 'مَا شَاءَ اللَّهُ', 'C\'est ce qu\'Allah a voulu'],
+  ['p5', 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ', 'Gloire et louange à Allah'], ['p6', 'لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ', 'Il n\'y a de force ni de puissance qu\'en Allah'],
+  ['p7', 'حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ', 'Allah nous suffit, et quel excellent garant (3:173)'], ['p8', 'رَبِّ زِدْنِي عِلْمًا', 'Seigneur, accroît ma science (20:114)'],
+  ['p9', 'جَزَاكَ اللَّهُ خَيْرًا', 'Qu\'Allah te récompense en bien'], ['p10', 'السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ', 'Que la paix soit sur vous, ainsi que la miséricorde d\'Allah et Ses bénédictions'],
+  ['p11', 'إِنَّا لِلَّهِ وَإِنَّا إِلَيْهِ رَاجِعُونَ', 'Nous sommes à Allah et c\'est vers Lui que nous retournerons (2:156)'], ['p12', 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ', 'Seigneur, accorde-nous une belle part ici-bas et dans l\'au-delà, et protège-nous du châtiment du Feu (2:201)'],
+  ['p13', 'تَوَكَّلْتُ عَلَى اللَّهِ', 'Je place ma confiance en Allah'], ['p14', 'بَارَكَ اللَّهُ فِيكَ', 'Qu\'Allah te bénisse'], ['p15', 'أَسْتَغْفِرُ اللَّهَ', 'Je demande pardon à Allah'],
+  ['p16', 'لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ', 'Pas de divinité à part Toi, gloire à Toi, j\'ai été parmi les injustes (21:87)']
+];
+const VOY = [
+  ['v1', 'بَ', 'ba', 'Fatha : un petit trait au-dessus, son « a ».'], ['v2', 'بِ', 'bi', 'Kasra : un petit trait en dessous, son « i ».'], ['v3', 'بُ', 'bou', 'Damma : un petit waw au-dessus, son « ou ».'],
+  ['v4', 'بْ', 'b (sans voyelle)', 'Soukoun : un petit rond, la lettre se lit sans voyelle.'], ['v5', 'بَّ', 'bba (doublé)', 'Chadda : la lettre est doublée.'],
+  ['v6', 'بًا', 'ban', 'Tanwîn fath : deux fathas, son « an ».'], ['v7', 'بٍ', 'bin', 'Tanwîn kasr : deux kasras, son « in ».'], ['v8', 'بٌ', 'boun', 'Tanwîn damm : deux dammas, son « oun ».'],
+  ['v9', 'بَا', 'bâ (long)', 'Fatha suivie d\'un alif : le « a » s\'allonge.'], ['v10', 'بِي', 'bî (long)', 'Kasra suivie d\'un ya : le « i » s\'allonge.'], ['v11', 'بُو', 'boû (long)', 'Damma suivie d\'un waw : le « ou » s\'allonge.'],
+  ['v12', 'الْقَمَرُ', 'al-qamar (le lâm se prononce)', 'Lettre « lunaire » : le lâm de « al » se prononce.'], ['v13', 'الشَّمْسُ', 'ach-chams (le lâm ne se prononce pas)', 'Lettre « solaire » : le lâm s\'efface et la lettre suivante est doublée.'],
+  ['v14', 'رَبِّ الْعَالَمِينَ', 'rabbi-l-ʿâlamîn', 'Hamzat al-wasl : l\'alif de « al » ne se prononce pas en liaison.']
+];
+const FLU = [['f1', 'Al-Fâtiha', 'fatiha'], ['f2', 'Al-Ikhlâs, Al-Falaq, An-Nâs', 'ikhlas,falaq,nas'], ['f3', 'Al-ʿAsr et Al-Kawthar', 'asr,kawthar'], ['f4', 'Âyat al-Kursî', 'kursi'], ['f5', 'Fin d\'At-Tawba', 'tawba']];
+const AR = { p: null, sur: null, q: null, fl: null };
+function arS() { const a = S.ar = S.ar && typeof S.ar === 'object' ? S.ar : {}; ['sur', 'ph', 'vo', 'flu', 't'].forEach(k => { a[k] = a[k] || {}; }); return a; }
+function arDone(n) {
+  const a = arS();
+  if (n === 1) return wordsKnown() >= WORDS.length;
+  if (n === 2) return ARS.every(s => a.sur[s[0]]);
+  if (n === 3) return PHR.every(p => (a.ph[p[0]] || {}).st >= 2);
+  if (n === 4) return VOY.every(v => (a.vo[v[0]] || {}).st >= 2);
+  if (n === 5) return FLU.every(f => new Set(a.flu[f[0]] || []).size >= 2);
+  return false;
+}
+const arOpen = n => n === 1 || arDone(n - 1);
+const arPalier = () => { for (let n = 1; n <= 5; n++) if (!arDone(n)) return n; return 6; };
+const arCount = () => [1, 2, 3, 4, 5].filter(arDone).length;
+function arProg(n) {
+  const a = arS();
+  if (n === 1) return [wordsKnown(), WORDS.length];
+  if (n === 2) return [ARS.filter(s => a.sur[s[0]]).length, ARS.length];
+  if (n === 3) return [PHR.filter(p => (a.ph[p[0]] || {}).st >= 2).length, PHR.length];
+  if (n === 4) return [VOY.filter(v => (a.vo[v[0]] || {}).st >= 2).length, VOY.length];
+  return [FLU.filter(f => new Set(a.flu[f[0]] || []).size >= 2).length, FLU.length];
+}
+function arBar() {
+  const cur = AR.p || Math.min(5, arPalier());
+  return `<div class="arpath">${ARP.map(([t], i) => { const n = i + 1, op = arOpen(n), d = arDone(n), [x, y] = arProg(n); return `<button class="arstep ${d ? 'ok' : ''} ${op ? '' : 'lock'} ${cur === n ? 'cur' : ''}" data-arp="${n}"><i>${d ? '✦' : op ? n : GLYPH.lock ? `<svg viewBox="0 0 24 24">${GLYPH.lock}</svg>` : '·'}</i><b>${t}</b><small>${op ? `${x}/${y}` : 'verrouillé'}</small></button>`; }).join('')}<button class="arstep ${arDone(5) ? '' : 'lock'}" data-goto="coran"><i>${arDone(5) ? '۞' : `<svg viewBox="0 0 24 24">${GLYPH.lock}</svg>`}</i><b>Le Coran</b><small>${arDone(5) ? 'ouvert' : 'au bout du chemin'}</small></button></div>`;
+}
+/* Les étoiles de palier : une grande étoile nommée s'ajoute à la constellation à chaque palier franchi. */
+function arPalierStars() {
+  const pos = [[-96, -76], [96, -76], [-100, 72], [100, 72], [0, -90]];
+  return [1, 2, 3, 4, 5].filter(arDone).map(n => { const [x, y] = pos[n - 1]; return `<g class="pstar" transform="translate(${x} ${y})"><circle r="16" fill="url(#sg2)"/><path d="M-20 0H20M0 -20V20" stroke="url(#spk)" stroke-width=".8"/><path d="M-8 -8L8 8M-8 8L8 -8" stroke="#FFE6A8" stroke-width=".35" opacity=".6"/><circle r="2.6" fill="#FFFDF6"/><text y="15" text-anchor="middle" style="font-size:6.5px;font-weight:700;fill:#F3D9A4;letter-spacing:.06em">${ARP[n - 1][0].toUpperCase()}</text></g>`; }).join('');
+}
+/* La transformation : quand un palier est franchi, les étoiles convergent en une nova, puis la constellation renaît. */
+function arCheckNova() {
+  const a = arS(); const n = [1, 2, 3, 4, 5].find(k => arDone(k) && !a.t[k]); if (!n) return;
+  a.t[n] = todayISO(); save();
+  const svg = $('#constel'); if (!svg || matchMedia('(prefers-reduced-motion: reduce)').matches) { arNovaMsg(n); return; }
+  const stars = [...svg.querySelectorAll('.star')];
+  stars.forEach((s, i) => { const m = (s.getAttribute('transform') || '').match(/translate\(([-\d.]+) ([-\d.]+)\)/); if (!m) return; s.animate([{ transform: `translate(${m[1]}px, ${m[2]}px)` }, { transform: 'translate(0px, 0px) scale(.3)', opacity: .9 }], { duration: 1300, delay: i * 12, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'forwards' }); });
+  svg.insertAdjacentHTML('beforeend', '<g class="nova"><circle r="6" fill="#FFFDF6"/><circle r="40" fill="url(#sg2)"/><path d="M-90 0H90M0 -90V90" stroke="url(#spk)" stroke-width="1.4"/></g>');
+  setTimeout(() => { const nv = svg.querySelector('.nova'); if (nv) nv.classList.add('go'); chime(true); try { navigator.vibrate && navigator.vibrate([20, 60, 30, 60, 40]); } catch (e) {} }, 1350);
+  setTimeout(() => { render(); arNovaMsg(n); }, 2600);
+}
+function arNovaMsg(n) { lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(30, { big: true, msg: [`Palier franchi · ${ARP[n - 1][0]}`, n < 5 ? `Une nouvelle étoile brille dans ta constellation. Palier ${n + 1} ouvert : ${ARP[n][0].toLowerCase()}, ${ARP[n][1].toLowerCase()}.` : 'Tu lis couramment. Le Coran s\'ouvre à toi : la mémorisation commence.'] }); }
+/* Palier 2 : le sens, mot à mot */
+function vAr2() {
+  const a = arS();
+  if (AR.sur) {
+    const s = ARS.find(x => x[0] === AR.sur);
+    if (AR.q) { const it = AR.q.list[AR.q.i];
+      if (!it) { const ok = AR.q.score >= AR.q.list.length - 1; return `<section class="cq" style="text-align:center"><p class="eyebrow">${s[1]}</p><p style="font:400 3rem/1 var(--serif);color:var(--${ok ? 'mint' : 'gold'});margin:10px 0">${AR.q.score}/${AR.q.list.length}</p><p class="small">${ok ? 'Sourate comprise. Elle rejoint ta constellation.' : 'Presque : relis-la mot à mot et retente.'}</p><button class="btn block" data-ar2="back" style="margin-top:12px">Continuer</button></section>`; }
+      return `<section class="cq"><p class="eyebrow" style="margin:0">${s[1]} · ${AR.q.i + 1}/${AR.q.list.length}</p><p class="arbig" lang="ar" dir="rtl">${it[0]}</p><p class="small muted" style="text-align:center;margin:0 0 8px">Que veut dire ce mot ?</p>${it.opts.map((o, k) => `<button class="copt ${AR.q.pick != null ? (o === it[1] ? 'ok' : k === AR.q.pick ? 'ko' : '') : ''}" data-ar2q="${k}" ${AR.q.pick != null ? 'disabled' : ''}><b>${'ABC'[k]}</b><span>${esc(o)}</span></button>`).join('')}${AR.q.pick != null ? '<button class="btn block" data-ar2="next" style="margin-top:12px">Suivant</button>' : ''}</section>`; }
+    return `<section><div class="row between" style="align-items:center"><h2 style="margin:0">${s[1]}</h2><button class="link-btn small" data-ar2="close">Toutes les sourates</button></div><p class="small muted" style="margin:6px 0 10px">Touche chaque mot pour voir son sens, puis teste-toi.</p>
+      ${s[2].map((v, vi) => `<div class="arverse"><span class="vn">Verset ${vi + 1}</span><div class="arwords" dir="rtl">${v.map(([w, m]) => `<button class="arw" data-arw="${esc(m)}" lang="ar">${w}<small>${esc(m)}</small></button>`).join('')}</div></div>`).join('')}
+      <button class="btn block" data-ar2="quiz" style="margin-top:14px">${a.sur[s[0]] ? 'Refaire le test' : 'Je me teste'}</button></section>`;
+  }
+  return `<section><h2>Le sens dans les versets</h2><p class="small muted" style="margin:-6px 0 12px">Comprends ce que tu récites, mot à mot. Chaque sourate comprise compte.</p><div class="group">${ARS.map(s => `<button class="cell tap" data-ar2s="${s[0]}"><span class="lbl">${s[1]}</span><span class="small ${a.sur[s[0]] ? '' : 'muted'}" style="${a.sur[s[0]] ? 'color:var(--mint)' : ''}">${a.sur[s[0]] ? 'Comprise' : `${s[2].length} versets`}</span>${ICON.chev}</button>`).join('')}</div></section>`;
+}
+function ar2Quiz(sid) {
+  const s = ARS.find(x => x[0] === sid), all = []; s[2].forEach(v => v.forEach(w => all.push(w))); const uniq = []; all.forEach(w => { if (!uniq.some(u => u[0] === w[0])) uniq.push(w); });
+  const list = uniq.sort(() => Math.random() - .5).slice(0, Math.min(6, uniq.length)).map(w => { const others = uniq.filter(u => u[1] !== w[1]).sort(() => Math.random() - .5).slice(0, 2).map(u => u[1]); return Object.assign([w[0], w[1]], { opts: [w[1], ...others].sort(() => Math.random() - .5) }); });
+  AR.q = { list, i: 0, score: 0, pick: null };
+}
+/* Palier 3 et 4 : questionnaires à maîtrise (deux bonnes réponses d'affilée) */
+function quizItems(kind) { const a = arS(), src = kind === 'ph' ? PHR : VOY, st = kind === 'ph' ? a.ph : a.vo; return src.slice().sort((x, y) => ((st[x[0]] || {}).st || 0) - ((st[y[0]] || {}).st || 0) || Math.random() - .5).slice(0, 8); }
+function vArQuiz(kind) {
+  const a = arS(), src = kind === 'ph' ? PHR : VOY, st = kind === 'ph' ? a.ph : a.vo, ttl = kind === 'ph' ? 'Les phrases' : 'Les voyelles';
+  if (AR.q && AR.q.kind === kind) {
+    const x = AR.q.list[AR.q.i];
+    if (!x) return `<section class="cq" style="text-align:center"><p class="eyebrow">${ttl}</p><p style="font:400 3rem/1 var(--serif);color:var(--gold);margin:10px 0">${AR.q.score}/${AR.q.list.length}</p><button class="btn block" data-arq="end">Continuer</button></section>`;
+    const right = kind === 'ph' ? x[2] : x[2];
+    if (!AR.q.opts) AR.q.opts = [right, ...src.filter(y => y[0] !== x[0]).sort(() => Math.random() - .5).slice(0, 2).map(y => y[2])].sort(() => Math.random() - .5);
+    return `<section class="cq"><p class="eyebrow" style="margin:0">${ttl} · ${AR.q.i + 1}/${AR.q.list.length}</p><p class="arbig" lang="ar" dir="rtl">${x[1]}</p><p class="small muted" style="text-align:center;margin:0 0 8px">${kind === 'ph' ? 'Que veut dire cette phrase ?' : 'Comment ça se lit ?'}</p>
+      ${AR.q.opts.map((o, k) => `<button class="copt ${AR.q.pick != null ? (o === right ? 'ok' : k === AR.q.pick ? 'ko' : '') : ''}" data-arqo="${k}" ${AR.q.pick != null ? 'disabled' : ''}><b>${'ABC'[k]}</b><span>${esc(o)}</span></button>`).join('')}
+      ${AR.q.pick != null ? `${kind === 'vo' ? `<p class="cexp">${esc(x[3])}</p>` : ''}<button class="btn block" data-arq="next" style="margin-top:12px">Suivant</button>` : `<button class="say" data-say="${x[1]}" style="margin:10px auto 0;display:flex">${SPK} Écouter</button>`}</section>`;
+  }
+  return `<section><h2>${ttl}</h2><p class="small muted" style="margin:-6px 0 12px">${kind === 'ph' ? 'Les formules que tu dis et entends chaque jour.' : 'Les signes qui donnent leur son aux lettres.'} Une carte est maîtrisée après deux bonnes réponses d'affilée.</p>
+    <div class="group">${src.map(x => { const s = (st[x[0]] || {}).st || 0; return `<div class="cell"><span class="lbl" lang="ar" dir="rtl" style="font:400 1.25rem 'Amiri',serif">${x[1]}</span><span class="small ${s >= 2 ? '' : 'muted'}" style="text-align:right;${s >= 2 ? 'color:var(--mint)' : ''}">${s >= 2 ? esc(x[2]) : '·'.repeat(2 - s) + ' à maîtriser'}</span></div>`; }).join('')}</div>
+    <button class="btn block" data-arq="go" data-kind="${kind}" style="margin-top:14px">Je m'entraîne</button></section>`;
+}
+/* Palier 5 : la lecture fluide, chronométrée */
+const FLUTXT = () => ({ fatiha: ARS[0][2].map(v => v.map(w => w[0]).join(' ')).join(' ۝ '), ikhlas: ADK_COMMON_B[2].ar, falaq: ADK_COMMON_B[3].ar, nas: ADK_COMMON_B[4].ar, asr: ADK_COMMON_B[5].ar, kawthar: 'إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ ۝ فَصَلِّ لِرَبِّكَ وَانْحَرْ ۝ إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ', kursi: ADK_COMMON_B[0].ar, tawba: ADK_COMMON_B[1].ar });
+function vAr5() {
+  const a = arS(), T = FLUTXT();
+  if (AR.fl) { const f = FLU.find(x => x[0] === AR.fl.id), txt = f[2].split(',').map(k => T[k]).join(' ۝ ');
+    return `<section class="cq"><div class="row between" style="align-items:center"><p class="eyebrow" style="margin:0">${f[1]}</p><button class="link-btn small" data-arf="close">Fermer</button></div>
+      <p class="arread" lang="ar" dir="rtl">${txt}</p>
+      ${AR.fl.t0 && !AR.fl.t1 ? `<p class="small muted" style="text-align:center">Lis à voix haute, à ton rythme…</p><button class="btn block" data-arf="stop">J'ai fini</button>`
+        : AR.fl.t1 ? `<p style="text-align:center;font:400 2rem var(--serif);color:var(--gold);margin:6px 0">${Math.round((AR.fl.t1 - AR.fl.t0) / 1000)} s</p><p class="small muted" style="text-align:center;margin:0 0 10px">Comment ça s'est passé ?</p><div class="row" style="gap:8px"><button class="btn sm" data-arf="rate" data-v="flu" style="flex:1">Fluide</button><button class="btn sm ghost" data-arf="rate" data-v="hes" style="flex:1">Avec des hésitations</button></div>`
+        : '<button class="btn block" data-arf="start">Commencer la lecture</button>'}</section>`; }
+  return `<section><h2>La lecture fluide</h2><p class="small muted" style="margin:-6px 0 12px">Lis chaque passage à voix haute, chronomètre en marche. Un passage est validé quand tu l'as lu de façon fluide deux jours différents.</p><div class="group">${FLU.map(f => { const n = new Set(a.flu[f[0]] || []).size; return `<button class="cell tap" data-arf="open" data-id="${f[0]}"><span class="lbl">${f[1]}</span><span class="small ${n >= 2 ? '' : 'muted'}" style="${n >= 2 ? 'color:var(--mint)' : ''}">${n >= 2 ? 'Fluide' : `${n}/2 jours`}</span>${ICON.chev}</button>`; }).join('')}</div></section>`;
+}
+function arClick(t) {
+  const c = s => t.closest(s); let el; const a = arS(), rr = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
+  if ((el = c('[data-arp]'))) { const n = Number(el.dataset.arp); if (!arOpen(n)) { toast(`Termine d'abord le palier ${n - 1} : ${ARP[n - 2][0].toLowerCase()}`); return true; } AR.p = n; AR.sur = null; AR.q = null; AR.fl = null; rr(); return true; }
+  if ((el = c('[data-arw]'))) { el.classList.toggle('show'); return true; }
+  if ((el = c('[data-ar2s]'))) { AR.sur = el.dataset.ar2s; AR.q = null; render(); window.scrollTo(0, 0); return true; }
+  if ((el = c('[data-ar2]'))) { const v = el.dataset.ar2; if (v === 'close') AR.sur = null; if (v === 'quiz') ar2Quiz(AR.sur); if (v === 'next') { AR.q.i++; AR.q.pick = null; if (AR.q.i >= AR.q.list.length && AR.q.score >= AR.q.list.length - 1 && !a.sur[AR.sur]) { a.sur[AR.sur] = todayISO(); save(); reward(12, { big: true, msg: ['Sourate comprise', ARS.find(x => x[0] === AR.sur)[1]] }); } } if (v === 'back') AR.q = null; rr(); return true; }
+  if ((el = c('[data-ar2q]'))) { const it = AR.q.list[AR.q.i], k = Number(el.dataset.ar2q); AR.q.pick = k; if (it.opts[k] === it[1]) { AR.q.score++; try { navigator.vibrate && navigator.vibrate(8); } catch (e) {} } rr(); return true; }
+  if ((el = c('[data-arq]'))) { const v = el.dataset.arq; if (v === 'go') AR.q = { kind: el.dataset.kind, list: quizItems(el.dataset.kind), i: 0, score: 0, pick: null }; if (v === 'next') { AR.q.i++; AR.q.pick = null; AR.q.opts = null; } if (v === 'end') { const s = AR.q.score; AR.q = null; reward(Math.max(2, s)); } rr(); return true; }
+  if ((el = c('[data-arqo]'))) { const x = AR.q.list[AR.q.i], k = Number(el.dataset.arqo), st = AR.q.kind === 'ph' ? a.ph : a.vo, r = st[x[0]] = st[x[0]] || { st: 0 }; AR.q.pick = k; if (AR.q.opts[k] === x[2]) { AR.q.score++; r.st = (r.st || 0) + 1; } else r.st = 0; save(); rr(); return true; }
+  if ((el = c('[data-arf]'))) { const v = el.dataset.arf;
+    if (v === 'open') AR.fl = { id: el.dataset.id }; if (v === 'close') AR.fl = null; if (v === 'start') AR.fl.t0 = Date.now(); if (v === 'stop') AR.fl.t1 = Date.now();
+    if (v === 'rate') { if (el.dataset.v === 'flu') { (a.flu[AR.fl.id] = a.flu[AR.fl.id] || []).push(todayISO()); save(); reward(8, { msg: ['Lecture fluide', `${Math.round((AR.fl.t1 - AR.fl.t0) / 1000)} secondes. Continue, jour après jour.`] }); } else reward(2); AR.fl = null; }
+    rr(); return true; }
+  return false;
+}
+
+/* =====================================================================
+   PRIÈRES SURÉROGATOIRES — les 12 rawâtib d'abord, puis les autres.
+   Se déverrouillent après 14 jours avec les 5 prières sur les 21 derniers.
+   S.naf = { log{ date: { id: 1 } } }
+   ===================================================================== */
+const RAWATIB = [['fajr_b', '2 avant Fajr', 2], ['dhuhr_b', '4 avant Dhuhr', 4], ['dhuhr_a', '2 après Dhuhr', 2], ['maghrib_a', '2 après Maghrib', 2], ['isha_a', '2 après Isha', 2]];
+const NAFOTHER = [
+  ['duha', 'Ad-Duhâ, la prière du matin', true, 'Entre le moment où le soleil s\'est bien levé (environ un quart d\'heure après le lever) et un peu avant Dhuhr. 2 rak\'ats au minimum, souvent 4 ou 8.', '« Chaque matin, chacune de vos articulations doit une aumône… et deux rak\'ats de Duhâ y suffisent. » (Muslim 720)'],
+  ['witr', 'Al-Witr, la prière impaire', true, 'Après Isha et avant Fajr : 1, 3, 5 rak\'ats ou plus, toujours en nombre impair. C\'est la prière qui clôt ta nuit.', '« Allah est impair et Il aime l\'impair. » (Bukhari 6410, Muslim 2677)'],
+  ['qiyam', 'Qiyâm al-layl, la prière de nuit', true, 'La nuit, après Isha, idéalement dans le dernier tiers avant Fajr. Par deux rak\'ats, puis le Witr.', '« La meilleure prière après la prière obligatoire est la prière de nuit. » (Muslim 1163)'],
+  ['asr_b', '4 rak\'ats avant ʿAsr', true, 'Deux fois deux rak\'ats avant la prière de ʿAsr.', '« Qu\'Allah fasse miséricorde à quiconque prie quatre rak\'ats avant ʿAsr. » (Abu Dawud 1271, Tirmidhi 430)'],
+  ['istikhara', 'Al-Istikhâra, la prière de consultation', false, 'Quand tu hésites dans une décision permise : deux rak\'ats en dehors des prières obligatoires, puis l\'invocation de l\'Istikhâra, et tu avances en confiant le choix à Allah.', 'Le Prophète ﷺ l\'enseignait pour chaque affaire, comme il enseignait une sourate du Coran (Bukhari 1162).'],
+  ['tahiyya', 'Tahiyyat al-masjid, la salutation de la mosquée', false, 'En entrant dans une mosquée, deux rak\'ats avant de t\'asseoir.', '« Quand l\'un de vous entre à la mosquée, qu\'il prie deux rak\'ats avant de s\'asseoir. » (Bukhari 444, Muslim 714)'],
+  ['wudu', 'Les deux rak\'ats après les ablutions', false, 'Après chaque wudû\', deux rak\'ats avec présence de cœur.', 'Le Prophète ﷺ entendit les pas de Bilal au Paradis : il priait après chacune de ses ablutions (Bukhari 1149).'],
+  ['tawba', 'La prière du repentir', false, 'Après une faute : faire de belles ablutions, prier deux rak\'ats, puis demander pardon à Allah.', '« Nul serviteur ne commet un péché, puis fait ses ablutions, prie deux rak\'ats et demande pardon à Allah, sans qu\'Allah ne lui pardonne. » (Abu Dawud 1521, Tirmidhi 406)']
+];
+const NF = { open: null };
+function naf() { S.naf = S.naf && typeof S.naf === 'object' ? S.naf : {}; S.naf.log = S.naf.log || {}; return S.naf; }
+function nafStreakDays() { let n = 0; for (let i = 1; i <= 21; i++) { const d = S.faith.log[iso(addDays(new Date(), -i))] || {}; if (PRAYERS.every(([id]) => d[id] && pv(d[id]) !== 'x')) n++; } return n; }
+const nafUnlocked = () => !!(S.naf && S.naf.unlocked) || nafStreakDays() >= 14;
+function rakToday(k = todayISO()) { const l = naf().log[k] || {}; return RAWATIB.reduce((s, r) => s + (l[r[0]] ? r[2] : 0), 0); }
+function vNafila() {
+  if (!nafUnlocked()) { const n = nafStreakDays(); return `${foiTop('nafila')}<section class="lockv"><div class="lockic"><svg viewBox="0 0 24 24">${GLYPH.lock}</svg></div><h2 style="margin:12px 0 6px">Les prières surérogatoires</h2><p class="small muted" style="margin:0 0 14px">D'abord la base : elles s'ouvrent quand tes cinq prières sont solides. Il te faut 14 jours avec les cinq prières sur les 21 derniers jours.</p><div class="cbar"><i style="width:${n / 14 * 100}%"></i></div><p class="small" style="margin:8px 0 0"><b class="num">${n}</b>/14 jours</p><p class="hint">« Mon serviteur ne se rapproche pas de Moi par une chose que J'aime plus que ce que Je lui ai imposé, et il continue de se rapprocher de Moi par les œuvres surérogatoires jusqu'à ce que Je l'aime. » (Bukhari 6502)</p></section>`; }
+  if (!naf().unlocked) { naf().unlocked = todayISO(); save(); setTimeout(() => { lastPt = { x: innerWidth / 2, y: innerHeight * .35 }; reward(25, { big: true, msg: ['Nouvel onglet ouvert', 'Les prières surérogatoires : tes cinq prières sont solides, tu peux maintenant aller plus loin.'] }); }, 500); }
+  const k = todayISO(), l = naf().log[k] || {}, r = rakToday(), days = Array.from({ length: 14 }, (_, i) => iso(addDays(new Date(), i - 13)));
+  let st = 0; for (let i = rakToday() >= 12 ? 0 : 1; i < 400; i++) { if (rakToday(iso(addDays(new Date(), -i))) >= 12) st++; else break; }
+  return `${foiTop('nafila')}
+  <div class="zhero">${ring2(r / 12, `${r}<small>/12</small>`, 'rak\'ats aujourd\'hui', 'mint')}<div class="zside"><p class="num" style="font:400 2.4rem/1 var(--serif);color:var(--gold);margin:0">${st}</p><p class="small muted" style="margin:4px 0 0">jour${st > 1 ? 's' : ''} avec les 12</p></div></div>
+  <div class="zdays">${days.map(d => `<i class="${rakToday(d) >= 12 ? 'on' : rakToday(d) ? 'half' : ''} ${d === k ? 'today' : ''}"></i>`).join('')}</div>
+  <section><h2>Les 12 rawâtib</h2><div class="checks">${RAWATIB.map(([id, t, n]) => `<label class="check"><input type="checkbox" data-naf="${id}" ${l[id] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${t}</span></label>`).join('')}</div>
+    <p class="hint">« Quiconque prie chaque jour douze rak'ats volontaires, en plus des obligatoires, Allah lui bâtit une maison au Paradis. » (Muslim 728) · Les deux rak'ats avant Fajr « valent mieux que ce monde et ce qu'il contient » (Muslim 725).</p></section>
+  <section><h2>Aller plus loin</h2><div class="group">${NAFOTHER.map(([id, t, tr, how, src]) => `<div class="nafo ${NF.open === id ? 'open' : ''}"><button class="cell tap" data-nafo="${id}"><span class="lbl">${t}</span>${tr ? `<span class="small ${l[id] ? '' : 'muted'}" style="${l[id] ? 'color:var(--mint)' : ''}">${l[id] ? 'Fait' : ''}</span>` : ''}${ICON.chev}</button>
+    ${NF.open === id ? `<div class="nafb"><p class="small" style="margin:0 0 8px">${how}</p><p class="small muted" style="margin:0 0 10px">${src}</p>${tr ? `<label class="check"><input type="checkbox" data-naf="${id}" ${l[id] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">Faite aujourd'hui</span></label>` : ''}</div>` : ''}</div>`).join('')}</div></section>`;
+}
+function nafClick(t) { const el = t.closest('[data-nafo]'); if (!el) return false; NF.open = NF.open === el.dataset.nafo ? null : el.dataset.nafo; const y = window.scrollY; render(); window.scrollTo(0, y); return true; }
+function nafChange(t) {
+  if (!t.dataset.naf) return false; const k = todayISO(), l = naf().log[k] = naf().log[k] || {}, before = rakToday();
+  if (t.checked) l[t.dataset.naf] = 1; else delete l[t.dataset.naf]; save();
+  const after = rakToday(), raw = RAWATIB.find(r => r[0] === t.dataset.naf);
+  if (t.checked) { if (after >= 12 && before < 12) reward(15, { big: true, msg: ['Les 12 rak\'ats', 'Une maison au Paradis, promesse du Prophète ﷺ (Muslim 728).'] }); else reward(raw ? raw[2] : 4); } else unreward(raw ? raw[2] : 4);
+  const y = window.scrollY; render(); window.scrollTo(0, y); return true;
+}
+
+/* =====================================================================
+   LE CORAN — mémorisation (hifz) et révisions espacées.
+   S'ouvre au bout du chemin de l'arabe. Texte (rasm uthmani) chargé une fois
+   depuis api.alquran.cloud puis gardé sur le téléphone.
+   S.hifz = { s{ n: { v{ i: date }, known, rev[], next } } }
+   ===================================================================== */
+const SURAHS = [[1, 'Al-Fâtiha', 'الفاتحة'], [67, 'Al-Mulk', 'الملك'], ...[[78, 'An-Naba\'', 'النبأ'], [79, 'An-Nâziʿât', 'النازعات'], [80, 'ʿAbasa', 'عبس'], [81, 'At-Takwîr', 'التكوير'], [82, 'Al-Infitâr', 'الانفطار'], [83, 'Al-Mutaffifîn', 'المطففين'], [84, 'Al-Inshiqâq', 'الانشقاق'], [85, 'Al-Burûj', 'البروج'], [86, 'At-Târiq', 'الطارق'], [87, 'Al-Aʿlâ', 'الأعلى'], [88, 'Al-Ghâshiya', 'الغاشية'], [89, 'Al-Fajr', 'الفجر'], [90, 'Al-Balad', 'البلد'], [91, 'Ash-Shams', 'الشمس'], [92, 'Al-Layl', 'الليل'], [93, 'Ad-Duhâ', 'الضحى'], [94, 'Ash-Sharh', 'الشرح'], [95, 'At-Tîn', 'التين'], [96, 'Al-ʿAlaq', 'العلق'], [97, 'Al-Qadr', 'القدر'], [98, 'Al-Bayyina', 'البينة'], [99, 'Az-Zalzala', 'الزلزلة'], [100, 'Al-ʿÂdiyât', 'العاديات'], [101, 'Al-Qâriʿa', 'القارعة'], [102, 'At-Takâthur', 'التكاثر'], [103, 'Al-ʿAsr', 'العصر'], [104, 'Al-Humaza', 'الهمزة'], [105, 'Al-Fîl', 'الفيل'], [106, 'Quraysh', 'قريش'], [107, 'Al-Mâʿûn', 'الماعون'], [108, 'Al-Kawthar', 'الكوثر'], [109, 'Al-Kâfirûn', 'الكافرون'], [110, 'An-Nasr', 'النصر'], [111, 'Al-Masad', 'المسد'], [112, 'Al-Ikhlâs', 'الإخلاص'], [113, 'Al-Falaq', 'الفلق'], [114, 'An-Nâs', 'الناس']].reverse()];
+const HIFZ_GAP = [1, 3, 7, 14, 30, 60];
+const QZ = { s: null, mode: 'lire', show: {}, load: false, err: '' };
+function hz() { S.hifz = S.hifz && typeof S.hifz === 'object' ? S.hifz : {}; S.hifz.s = S.hifz.s || {}; return S.hifz; }
+function qText(n) { try { const t = localStorage.getItem('sdp-quran-' + n); return t ? JSON.parse(t) : null; } catch (e) { return null; } }
+function qFetch(n) {
+  QZ.load = true; QZ.err = ''; render();
+  fetch(`https://api.alquran.cloud/v1/surah/${n}/quran-uthmani`).then(r => r.json()).then(j => {
+    let ay = j.data.ayahs.map(a => a.text);
+    if (n !== 1 && n !== 9 && ay[0]) { const w = ay[0].split(' '); if (w[0].startsWith('بِسْمِ')) ay[0] = w.slice(4).join(' '); }
+    try { localStorage.setItem('sdp-quran-' + n, JSON.stringify(ay)); } catch (e) {}
+    QZ.load = false; render();
+  }).catch(() => { QZ.load = false; QZ.err = 'Pas de connexion : il faut internet la première fois pour charger cette sourate.'; render(); });
+}
+const hzDue = () => Object.entries(hz().s).filter(([, v]) => v.known && v.next && v.next <= todayISO()).map(([n]) => Number(n));
+function vCoran() {
+  if (!arDone(5)) { const [x, y] = [arCount(), 5]; return `${foiTop('coran')}<section class="lockv"><div class="lockic"><svg viewBox="0 0 24 24">${GLYPH.lock}</svg></div><h2 style="margin:12px 0 6px">Mémoriser le Coran</h2><p class="small muted" style="margin:0 0 14px">Au bout du chemin de l'arabe : quand tu sais lire couramment et comprendre ce que tu lis, la mémorisation s'ouvre ici, avec ses révisions.</p><div class="cbar"><i style="width:${x / y * 100}%"></i></div><p class="small" style="margin:8px 0 0"><b class="num">${x}</b>/5 paliers d'arabe</p><button class="btn sm ghost" data-goto="arabe" style="margin-top:12px">Continuer le chemin de l'arabe</button></section>`; }
+  const H = hz();
+  if (QZ.s) {
+    const info = SURAHS.find(s => s[0] === QZ.s), ay = qText(QZ.s), st = H.s[QZ.s] = H.s[QZ.s] || { v: {} };
+    if (!ay && !QZ.load) { setTimeout(() => qFetch(QZ.s), 0); }
+    const nK = ay ? ay.filter((_, i) => st.v[i]).length : 0;
+    return `${foiTop('coran')}<section><div class="row between" style="align-items:center"><h2 style="margin:0">${info[1]} <span lang="ar" style="font-family:'Amiri',serif;color:var(--gold)">${info[2]}</span></h2><button class="link-btn small" data-qz="close">Sourates</button></div>
+      ${ay ? `<p class="small muted" style="margin:6px 0 10px">${nK}/${ay.length} versets mémorisés${st.known ? ` · prochaine révision le ${DAY_MONTH.format(parseDate(st.next))}` : ''}</p>
+      <div class="seg" style="margin-bottom:12px">${[['lire', 'Lire'], ['trous', 'Mots cachés'], ['cache', 'De mémoire']].map(([m, l]) => `<button data-qzm="${m}" aria-pressed="${QZ.mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
+      ${QZ.s !== 1 && QZ.s !== 9 ? '<p class="adk-bism" lang="ar" dir="rtl">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>' : ''}
+      ${ay.map((v, i) => { const hidden = QZ.mode === 'cache' && !QZ.show[i], words = v.split(' ');
+        const txt = QZ.mode === 'trous' && !QZ.show[i] ? words.map((w, j) => j % 2 ? `<span class="hole">${w}</span>` : w).join(' ') : v;
+        return `<div class="hzv ${st.v[i] ? 'ok' : ''}"><button class="hztxt ${hidden ? 'hid' : ''}" data-qzs="${i}" lang="ar" dir="rtl">${hidden ? 'Récite le verset ' + (i + 1) + ', puis touche pour vérifier' : txt} <span class="ayn">﴿${(i + 1).toLocaleString('ar-EG')}﴾</span></button><button class="hzk" data-qzk="${i}" aria-pressed="${!!st.v[i]}">${st.v[i] ? 'Mémorisé' : 'Je le connais'}</button></div>`; }).join('')}
+      ${st.known && st.next <= todayISO() ? '<button class="btn block" data-qz="rev" style="margin-top:14px">Révision faite, sans erreur</button>' : ''}
+      ${!st.known ? '<button class="link-btn small" data-qz="all" style="margin-top:12px">Je connais déjà toute cette sourate</button>' : ''}`
+      : `<p class="small muted" style="margin:12px 0">${QZ.err || 'Chargement de la sourate…'}</p>${QZ.err ? '<button class="btn sm" data-qz="retry">Réessayer</button>' : ''}`}</section>`;
+  }
+  const due = hzDue(), known = Object.values(H.s).filter(v => v.known).length;
+  return `${foiTop('coran')}
+  <div class="zhero">${ring2(known / SURAHS.length, `${known}<small>/${SURAHS.length}</small>`, 'sourates mémorisées', 'mint')}<div class="zside"><p class="num" style="font:400 2.4rem/1 var(--serif);color:var(--gold);margin:0">${due.length}</p><p class="small muted" style="margin:4px 0 0">révision${due.length > 1 ? 's' : ''} aujourd'hui</p></div></div>
+  ${due.length ? `<section><h2>À réviser aujourd'hui</h2><div class="group">${due.map(n => { const s = SURAHS.find(x => x[0] === n); return `<button class="cell tap" data-qzo="${n}"><span class="lbl">${s[1]}</span><span class="small" style="color:var(--gold)">Réviser</span>${ICON.chev}</button>`; }).join('')}</div></section>` : ''}
+  <section><h2>Les sourates</h2><p class="small muted" style="margin:-6px 0 12px">On commence par la fin du Coran, les sourates courtes. Une sourate mémorisée revient en révision après 1, 3, 7, 14, 30 puis 60 jours.</p><div class="group">${SURAHS.map(([n, fr, ar]) => { const v = H.s[n] || {}; const p = v.v ? Object.keys(v.v).length : 0; return `<button class="cell tap" data-qzo="${n}"><span class="lbl">${fr} <span lang="ar" style="font-family:'Amiri',serif;color:var(--muted)">${ar}</span></span><span class="small ${v.known ? '' : 'muted'}" style="${v.known ? 'color:var(--mint)' : ''}">${v.known ? 'Mémorisée' : p ? `${p} versets` : ''}</span>${ICON.chev}</button>`; }).join('')}</div></section>`;
+}
+function coranClick(t) {
+  const c = s => t.closest(s); let el; const H = hz(), rr = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
+  if ((el = c('[data-qzo]'))) { QZ.s = Number(el.dataset.qzo); QZ.show = {}; QZ.err = ''; render(); window.scrollTo(0, 0); return true; }
+  if ((el = c('[data-qzm]'))) { QZ.mode = el.dataset.qzm; QZ.show = {}; rr(); return true; }
+  if ((el = c('[data-qzs]'))) { const i = el.dataset.qzs; QZ.show[i] = !QZ.show[i]; rr(); return true; }
+  if ((el = c('[data-qzk]'))) {
+    const i = Number(el.dataset.qzk), st = H.s[QZ.s] = H.s[QZ.s] || { v: {} }, ay = qText(QZ.s) || [];
+    if (st.v[i]) delete st.v[i]; else { st.v[i] = todayISO(); reward(3); }
+    if (!st.known && ay.length && ay.every((_, j) => st.v[j])) { st.known = todayISO(); st.rev = []; st.next = iso(addDays(new Date(), HIFZ_GAP[0])); reward(30, { big: true, msg: ['Sourate mémorisée', `${SURAHS.find(x => x[0] === QZ.s)[1]}. Elle reviendra en révision demain, puis de plus en plus espacée.`] }); }
+    save(); rr(); return true;
+  }
+  if ((el = c('[data-qz]'))) { const v = el.dataset.qz, st = H.s[QZ.s] = H.s[QZ.s] || { v: {} };
+    if (v === 'close') QZ.s = null; if (v === 'retry') qFetch(QZ.s);
+    if (v === 'rev') { st.rev = st.rev || []; st.rev.push(todayISO()); st.next = iso(addDays(new Date(), HIFZ_GAP[Math.min(st.rev.length, HIFZ_GAP.length - 1)])); save(); reward(10, { msg: ['Révision faite', `Prochaine révision le ${DAY_MONTH.format(parseDate(st.next))}.`] }); }
+    if (v === 'all') { const ay = qText(QZ.s) || []; ay.forEach((_, j) => { st.v[j] = st.v[j] || todayISO(); }); st.known = todayISO(); st.rev = []; st.next = iso(addDays(new Date(), HIFZ_GAP[0])); save(); reward(15, { msg: ['Ajoutée à tes sourates', 'Elle passe directement en révisions.'] }); }
+    rr(); return true; }
+  return false;
+}
+
+/* =====================================================================
    15. RENDU & NAVIGATION
    ===================================================================== */
-const TABS = ['orbite', 'flux', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business'];
+const TABS = ['orbite', 'flux', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business', 'qibla', 'chasse'];
 const CVIEWS = ['entrainement', 'nutrition', 'soin'];
 let tab = 'orbite', missedDismissed = false;
 function render(animate) {
+  { const w = chasseActive(), ix = NAV.findIndex(n => n[0] === 'chasse'); if (!w && ix >= 0) NAV.splice(ix, 1); if (w && ix < 0) NAV.push(['chasse', 'Chasse']); }
   const deco = tab !== 'flux' && tab !== 'z';
   document.body.classList.toggle('gal-on', deco); document.body.classList.toggle('gal-home', tab === 'orbite'); document.body.classList.toggle('gal-soft', deco && tab !== 'orbite');
   if (deco) ensureGalaxy();
@@ -4462,13 +5153,14 @@ function render(animate) {
   checkUnlocks();
   document.documentElement.classList.toggle('flux-on', tab === 'flux');
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
-  app.innerHTML = { orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
+  app.innerHTML = { qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
   coreGlyph();
   if (tab === 'orbite') { startOrbit(); checkGalaxy(); }
+  if (tab === 'qibla') requestAnimationFrame(qiblaInit);
   if ((tab === 'orbite' || tab === 'foi') && !missedDismissed) setTimeout(missedOverlay, 700);
   if (tab === 'flux') bindFlux();
   if (tab === 'parcours') bindParcours();
-  if (tab === 'foi' && F.view === 'arabe') { if (quiz && !quiz.answered) drawQuiz(); else nextQuiz(); }
+  if (tab === 'foi' && F.view === 'arabe') { if ($('#quiz')) { if (quiz && !quiz.answered) drawQuiz(); else nextQuiz(); } setTimeout(arCheckNova, 400); }
   if (tab === 'foi' && F.view === 'dhikr') { const b = $('#dkTap'); if (b) b.addEventListener('pointerdown', dkTap); }
   if (tab === 'argent' && A.view === 'heures') bindDial();
 }
@@ -4478,7 +5170,7 @@ function go(t) {
   tjMod(t);
   if (tab === 'z') zLock();
   if (CVIEWS.includes(t)) { setCView(t); if (tab === 'corps') { render(); window.scrollTo(0, 0); return; } t = 'corps'; }
-  if (t === 'arabe' || t === 'habitudes' || t === 'dhikr' || t === 'coeur') { setFView(t); if (tab === 'foi') { render(); window.scrollTo(0, 0); return; } t = 'foi'; }
+  if (t === 'arabe' || t === 'habitudes' || t === 'dhikr' || t === 'coeur' || t === 'nafila' || t === 'coran') { setFView(t); if (tab === 'foi') { render(); window.scrollTo(0, 0); return; } t = 'foi'; }
   if (t === 'heures' || t === 'budget' || t === 'zakat') { if (tab === 'argent' && A.view === 'heures' && $('#fDate')) readForm(); setAView(t); if (tab === 'argent') { render(); window.scrollTo(0, 0); return; } t = 'argent'; }
   if (!TABS.includes(t)) return;
   if (t === tab) { window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); return; }
@@ -4579,7 +5271,8 @@ document.addEventListener('click', e => {
   if (mealClick(t)) return;
   if (dkClick(t)) return;
   if (hairClick(t)) return;
-  if ((el = c('[data-open]'))) { el.dataset.open === 'settings' ? openSettings() : openIdeas(); return; }
+  if (adkClick(t) || qiblaClick(t) || chasseClick(t) || trClick(t) || arClick(t) || nafClick(t) || coranClick(t)) return;
+  if ((el = c('[data-open]'))) { el.dataset.open === 'settings' ? openSettings() : el.dataset.open === 'trophies' ? openTrophies() : openIdeas(); return; }
   // Foi
   if ((el = c('[data-fview]'))) { go(el.dataset.fview); return; }
   if ((el = c('[data-fstep]'))) { F.day = iso(addDays(parseDate(F.day), Number(el.dataset.fstep))); render(); return; }
@@ -4805,6 +5498,8 @@ document.addEventListener('keydown', e => {
 document.addEventListener('change', e => {
   const t = e.target;
   if (hairChange(t)) return;
+  if (chasseChange(t)) return;
+  if (nafChange(t)) return;
   if (heartChange(t)) return;
   if (zkChange(t)) return;
   if (planChange(t)) return;
@@ -4894,14 +5589,14 @@ window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
   const done = () => { if (el.parentNode) el.remove(); };
   el.addEventListener('click', () => { el.classList.add('skip'); setTimeout(done, 320); });
   el.addEventListener('animationend', e => { if (e.animationName === 'iout') done(); });
-  setTimeout(done, 4400);
+  setTimeout(done, 6800);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
 })();
 (async function boot() {
   S = await loadState();
   save(true);
   let t = location.hash.slice(1);
-  if (t === 'arabe' || t === 'habitudes' || t === 'dhikr' || t === 'coeur') { setFView(t); t = 'foi'; }
+  if (t === 'arabe' || t === 'habitudes' || t === 'dhikr' || t === 'coeur' || t === 'nafila' || t === 'coran') { setFView(t); t = 'foi'; }
   if (t === 'heures' || t === 'budget' || t === 'zakat') { setAView(t); t = 'argent'; }
   if (CVIEWS.includes(t)) { setCView(t); t = 'corps'; }
   if (!TABS.includes(t)) { try { t = localStorage.getItem('sdp-tab'); } catch (e) {} }
