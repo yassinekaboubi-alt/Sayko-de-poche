@@ -549,7 +549,7 @@ const COACH = {
   heures: ['Vérifier ta paie', 'Fais glisser les deux poignées du cadran pour ton début et ta fin (la zone sombre, c\'est la nuit). L\'app cumule tes heures du mois, tes heures de nuit et du dimanche, et le compteur d\'heures stockées de la Gare.']
 };
 const COACH_SYS = {
-  qibla: ['Ton viseur', 'L\'anneau gradué tourne avec ton téléphone ; le losange QIBLA marque la direction de la Kaaba. Tourne-toi jusqu\'à ce qu\'il passe sous le repère du haut : le Système verrouille la cible et ton téléphone vibre. Sans boussole, glisse le doigt pour faire tourner l\'anneau.'],
+  qibla: ['Ta quête de direction', 'Lance le scan : à travers ta caméra, un losange de quête flotte dans ta pièce, dans la direction de la Kaaba, avec sa distance. Une traînée lumineuse au sol y mène ; s\'il est hors champ, il se colle au bord de l\'écran pour te montrer où tourner. Centre-le : la destination se verrouille, ton téléphone vibre, tu fais face à la qibla.'],
   arabe: ['Ton arbre de compétences', 'Cinq compétences se débloquent l\'une après l\'autre, des mots à la lecture fluide. Chaque mot du Coran est une rune : elle s\'allume quand tu le maîtrises (3 bonnes réponses). Quelques minutes de quiz par jour suffisent.'],
   foi: ['Ta quête de prière', 'Chaque prière s\'ouvre à son heure : valide-la en disant comment tu l\'as faite. Tes autres habitudes sont tes objectifs secondaires. Atteindre 90 % sur 30 jours est une des deux clés du donjon Business.'],
   routine: ['Ta 1 h 30 quotidienne', 'L\'anneau est découpé en 4 blocs. Touche un bloc quand il est fait : les 4 faits, la journée est validée et ta série continue. C\'est un objectif de ta quête quotidienne.'],
@@ -1091,71 +1091,142 @@ function hoursHud() {
   return sysWin(`MISSIONS · ${monthLabel(ym).toUpperCase()}`, `<div class="hm-tot"><p class="sys-k">HEURES ACCOMPLIES</p><p class="rs-big num">${fmtH(tot.worked)}</p></div>${rows}`);
 }
 
-/* ----- La Qibla : le viseur ----- */
-const QH = { raf: 0, h: null, drag: 0, lock: false, lockT: 0, d0: 0, x0: 0, dragging: false };
+/* ----- La Qibla : le marqueur de quête. À travers la caméra, comme dans un jeu en monde ouvert :
+   un losange de quête flotte dans la vraie pièce, dans la direction de la Kaaba, avec sa distance ;
+   une traînée lumineuse au sol y mène. Hors champ, le marqueur se colle au bord de l'écran.
+   Aligné : il se verrouille et une fenêtre du Système s'affiche. Sans caméra : fond noir du Système. ----- */
+const QH = { raf: 0, yaw: null, pitch: 0, dy: 0, dp: 0, lock: false, lockT: -9, drag: null, cam: false, stream: null, scan0: 0 };
 function vQiblaSys() {
   const has = QB.lat != null, b = has ? qiblaBearing(QB.lat, QB.lon) : 0, km = has ? Math.round(distKm(QB.lat, QB.lon)) : 0;
-  return `${pageHead('Qibla', has ? `Cible : la Kaaba, à ${km.toLocaleString('fr-FR')} km` : 'Le viseur du Système.', 'qibla')}
-  <div class="qh ${QH.lock ? 'lock' : ''}" id="qh"><canvas id="qhcv" aria-label="Viseur : le losange indique la qibla. Aligne-le avec le repère du haut."></canvas></div>
-  <p class="qstate" id="qstate">${has ? '' : 'Active le viseur : le Système va calculer ta cible.'}</p>
+  const sun = has ? sunPos(new Date(), QB.lat, QB.lon) : null, ready = has && QB.ok;
+  return `${pageHead('Qibla', has ? `Destination : la Kaaba, à ${km.toLocaleString('fr-FR')} km` : 'Quête de direction.', 'qibla')}
+  <div class="qp ${QH.cam ? 'cam' : ''} ${QH.lock ? 'lock' : ''}" id="qp"><video id="qpv" playsinline muted autoplay></video><canvas id="qpcv" aria-label="Le losange de quête indique la qibla."></canvas>
+    <div class="qp-hud"><span>◆ QUÊTE · QIBLA</span><span class="num" id="qpst">${has ? `${km.toLocaleString('fr-FR')} KM` : ''}</span></div>
+    <div class="qp-lock" id="qplock"><div class="sw"><i class="sw-c sw-tl"></i><i class="sw-c sw-tr"></i><i class="sw-c sw-bl"></i><i class="sw-c sw-br"></i><header class="sw-h"><span class="sw-dot"></span>DESTINATION VERROUILLÉE</header><div class="sw-b"><p class="ql-t">QIBLA</p><p class="ql-a" lang="ar" dir="rtl">ٱلْكَعْبَة</p><p class="ql-s">La Kaaba, Makkah · ${km.toLocaleString('fr-FR')} km</p><p class="ql-s">Tu fais face à la qibla.</p></div></div></div>
+    ${ready ? '' : `<div class="qp-start"><p>Le Système a besoin de ta <b>position</b>, de ta <b>boussole</b> et de ta <b>caméra</b> pour placer le marqueur dans ta pièce.</p><button class="sys-btn big" data-qp="go">LANCER LE SCAN</button></div>`}
+    <p class="qp-msg" id="qpmsg"></p></div>
   ${QB.err ? `<p class="hint" style="text-align:center">${esc(QB.err)}</p>` : ''}
-  ${!has || !QB.ok ? `<button class="sys-btn big" data-qb="start">${has ? 'ACTIVER LA BOUSSOLE' : 'ACTIVER LE VISEUR'}</button>` : ''}
-  ${has ? sysWin('DONNÉES DE VISÉE', `<div class="sys-stats" style="margin-top:0;border:0;padding:0">
-      <div class="qh-d"><span>CAP QIBLA</span><b class="num">${b.toFixed(0)}°</b></div><div class="qh-d"><span>DISTANCE</span><b class="num">${km.toLocaleString('fr-FR')} km</b></div>
-      <div class="qh-d"><span>TON CAP</span><b class="num" id="qhH">—</b></div><div class="qh-d"><span>ÉCART</span><b class="num" id="qhD">—</b></div></div>
-      ${(() => { const sun = sunPos(new Date(), QB.lat, QB.lon); return sun.alt > 3 && QB.ok ? `<button class="sys-btn big ghost" data-qb="sun">${QB.cal ? 'RECALER SUR LE SOLEIL' : 'VISE LE SOLEIL ☀ PUIS TOUCHE ICI'}</button>${QB.cal ? `<p class="sys-xpt" style="text-align:center">Boussole recalée sur le soleil (${QB.off >= 0 ? '+' : ''}${QB.off.toFixed(0)}°).</p>` : ''}` : ''; })()}`) : ''}
-  ${has ? '<p class="hint">Le cap est calculé par le plus court chemin sur le globe jusqu\'à la Kaaba. Téléphone à plat devant toi, loin des objets métalliques. Le ☀ sur l\'anneau montre le soleil : s\'il ne tombe pas au bon endroit, recale la boussole.</p>' : ''}`;
+  ${ready ? `<div class="dp-more"><button class="sys-btn ${QH.cam ? 'ghost' : ''}" data-qp="cam">${QH.cam ? 'COUPER LA CAMÉRA' : 'ACTIVER LA CAMÉRA'}</button>${sun && sun.alt > 3 ? `<button class="sys-btn ghost" data-qb="sun">${QB.cal ? 'RECALER ☀' : 'VISE ☀ ET TOUCHE'}</button>` : ''}</div>
+    <p class="hint">Tiens le téléphone devant toi comme pour filmer et tourne sur toi-même. Suis la traînée au sol jusqu'au losange : quand il est au centre, la destination se verrouille, tu fais face à la qibla.${QB.cal ? ` Boussole recalée sur le soleil (${QB.off >= 0 ? '+' : ''}${QB.off.toFixed(0)}°).` : ' Loin des objets métalliques, la boussole est plus juste.'}</p>` : ''}`;
+}
+function qpCamStop() { if (QH.stream) { QH.stream.getTracks().forEach(t => t.stop()); QH.stream = null; } }
+async function qpCamOn() {
+  try { QH.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }); QH.cam = true; QH.scan0 = performance.now(); }
+  catch (e) { QH.cam = false; toast('Caméra indisponible : le marqueur s\'affiche sur fond noir.'); }
+}
+async function qpCam(mode) {
+  if (mode === 'go') { qiblaStart(); await qpCamOn(); render(); return; }
+  if (QH.cam) { QH.cam = false; qpCamStop(); render(); return; }
+  await qpCamOn(); render();
 }
 function qhInit() {
-  const cv = $('#qhcv'); if (!cv) return; const box = cv.parentElement.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1);
+  const cv = $('#qpcv'); if (!cv) return; const box = cv.parentElement.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1);
   cv.width = box.width * d; cv.height = box.height * d; cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0); QH.W = box.width; QH.H = box.height;
-  cv.onpointerdown = e => { QH.dragging = true; QH.x0 = e.clientX; QH.d0 = QH.drag; cv.setPointerCapture(e.pointerId); };
-  cv.onpointermove = e => { if (QH.dragging) QH.drag = QH.d0 - (e.clientX - QH.x0) * .6; };
-  cv.onpointerup = cv.onpointercancel = () => { QH.dragging = false; };
+  const v = $('#qpv'); if (v && QH.cam && QH.stream) { v.srcObject = QH.stream; v.play && v.play().catch(() => {}); }
+  if (!QH.scan0) QH.scan0 = performance.now();
+  cv.onpointerdown = e => { QH.drag = { x: e.clientX, y: e.clientY, dy: QH.dy, dp: QH.dp }; cv.setPointerCapture(e.pointerId); };
+  cv.onpointermove = e => { const g = QH.drag; if (!g) return; QH.dy = g.dy - (e.clientX - g.x) * .25; QH.dp = Math.max(-50, Math.min(50, g.dp + (e.clientY - g.y) * .2)); };
+  cv.onpointerup = cv.onpointercancel = () => { QH.drag = null; };
   cancelAnimationFrame(QH.raf); QH.raf = requestAnimationFrame(qhLoop);
 }
 function qhLoop(ts) {
-  const cv = $('#qhcv'); if (!cv || tab !== 'qibla') return; QH.raf = requestAnimationFrame(qhLoop);
-  const x = cv.getContext('2d'), W = QH.W, H = QH.H, cx = W / 2, cy = H / 2, R = Math.min(W, H) * .4, t = ts / 1000;
+  const cv = $('#qpcv'); if (!cv || tab !== 'qibla') { qpCamStop(); QH.cam = false; QH.scan0 = 0; return; } QH.raf = requestAnimationFrame(qhLoop);
+  const x = cv.getContext('2d'), W = QH.W, H = QH.H, cx = W / 2, cy = H / 2, t = ts / 1000;
   const cs = getComputedStyle(document.body), A1 = cs.getPropertyValue('--sa').trim() || '#4DB0FF', A2 = cs.getPropertyValue('--sa2').trim() || '#9AD8FF', AR = cs.getPropertyValue('--sar').trim() || '77,176,255';
-  const raw = qiblaHeading(); if (raw != null) QH.h = QH.h == null ? raw : (QH.h + angD(raw, QH.h) * .12 + 360) % 360;
-  if (!QH.dragging && raw != null) QH.drag *= .9;
-  const head = (((QH.h == null ? 0 : QH.h) + QH.drag) % 360 + 360) % 360, has = QB.lat != null, b = has ? qiblaBearing(QB.lat, QB.lon) : null;
-  const diff = b == null ? null : angD(b, head), free = raw != null && !QH.dragging && Math.abs(QH.drag) < .5;
-  const lock = diff != null && free && Math.abs(diff) <= (QH.lock ? 5 : 3);
-  if (lock !== QH.lock) { QH.lock = lock; const q = $('#qh'); if (q) q.classList.toggle('lock', lock); if (lock) { QH.lockT = t; try { navigator.vibrate && navigator.vibrate([18, 50, 28]); } catch (e) {} sfx('win'); } }
-  const toS = az => (az - head - 90) * Math.PI / 180;
+  const raw = qiblaHeading(), live = raw != null;
+  if (live) QH.yaw = QH.yaw == null ? raw : (QH.yaw + angD(raw, QH.yaw) * .14 + 360) % 360;
+  if (QB.beta != null) { const tp = Math.max(-55, Math.min(55, QB.beta - 90)); QH.pitch += (tp - QH.pitch) * .14; }
+  if (live && !QH.drag) { QH.dy *= .9; QH.dp *= .9; }
+  const yawD = ((QH.yaw == null ? 0 : QH.yaw) + QH.dy + 360) % 360, pitD = Math.max(-60, Math.min(60, (QB.beta != null ? QH.pitch : 0) + QH.dp));
+  const yaw = yawD * Math.PI / 180, p = pitD * Math.PI / 180, cY = Math.cos(yaw), sY = Math.sin(yaw), cP = Math.cos(p), sP = Math.sin(p);
+  const fov = (QH.cam ? 54 : 64) * Math.PI / 180, f = W / 2 / Math.tan(fov / 2), EYE = 1.5;
+  const cam = (dx, dyv, dz) => { const xc = dx * cY - dz * sY, zc = dx * sY + dz * cY, z2 = zc * cP + dyv * sP, y2 = dyv * cP - zc * sP; return [xc, y2, z2]; };
+  const P = (wx, wy, wz) => { const [xc, y2, z2] = cam(wx, wy - EYE, wz); return z2 < .2 ? null : [cx + f * xc / z2, cy - f * y2 / z2, z2]; };
   x.clearRect(0, 0, W, H);
-  /* Balayage du radar */
-  const sw = (t * 70) % 360 * Math.PI / 180, g = x.createConicGradient ? x.createConicGradient(sw - Math.PI / 2, cx, cy) : null;
-  if (g) { g.addColorStop(0, `rgba(${AR},.28)`); g.addColorStop(.12, `rgba(${AR},0)`); g.addColorStop(1, `rgba(${AR},0)`); x.fillStyle = g; x.beginPath(); x.arc(cx, cy, R, 0, 7); x.fill(); }
-  /* Anneaux */
-  x.lineWidth = 1; [1, .66, .33].forEach((k, i) => { x.strokeStyle = `rgba(${AR},${i ? .18 : .55})`; x.beginPath(); x.arc(cx, cy, R * k, 0, 7); x.stroke(); });
-  x.strokeStyle = `rgba(${AR},.15)`; x.beginPath(); x.moveTo(cx - R, cy); x.lineTo(cx + R, cy); x.moveTo(cx, cy - R); x.lineTo(cx, cy + R); x.stroke();
-  /* Graduations qui tournent avec le téléphone */
-  for (let a = 0; a < 360; a += 5) { const r = toS(a), L = a % 30 ? (a % 10 ? 5 : 9) : 14; x.strokeStyle = `rgba(${AR},${a % 30 ? .45 : .9})`; x.lineWidth = a % 30 ? 1 : 1.6; x.beginPath(); x.moveTo(cx + Math.cos(r) * R, cy + Math.sin(r) * R); x.lineTo(cx + Math.cos(r) * (R + L), cy + Math.sin(r) * (R + L)); x.stroke(); }
-  x.font = '700 11px ui-monospace,Menlo,monospace'; x.textAlign = 'center'; x.textBaseline = 'middle';
-  [['N', 0], ['E', 90], ['S', 180], ['O', 270]].forEach(([l, a]) => { const r = toS(a); x.fillStyle = a ? A2 : '#FF6A82'; x.fillText(l, cx + Math.cos(r) * (R + 26), cy + Math.sin(r) * (R + 26)); });
-  /* Le soleil */
-  if (has) { const sun = sunPos(new Date(), QB.lat, QB.lon); if (sun.alt > 0) { const r = toS(sun.az); x.fillStyle = '#FFC46B'; x.font = '15px system-ui'; x.fillText('☀', cx + Math.cos(r) * (R - 16), cy + Math.sin(r) * (R - 16)); } }
-  /* Repère fixe du téléphone */
-  x.fillStyle = lock ? '#fff' : A2; x.beginPath(); x.moveTo(cx, cy - R - 20); x.lineTo(cx - 8, cy - R - 34); x.lineTo(cx + 8, cy - R - 34); x.closePath(); x.fill();
-  /* La cible */
-  if (b != null) {
-    const r = toS(b), px = cx + Math.cos(r) * R, py = cy + Math.sin(r) * R;
-    x.setLineDash([3, 5]); x.strokeStyle = `rgba(${AR},${lock ? .9 : .45})`; x.lineWidth = 1.2; x.beginPath(); x.moveTo(cx, cy); x.lineTo(px, py); x.stroke(); x.setLineDash([]);
-    x.save(); x.translate(px, py); x.rotate(Math.PI / 4); x.shadowColor = A1; x.shadowBlur = lock ? 26 : 14; x.fillStyle = lock ? '#fff' : A1; x.fillRect(-8, -8, 16, 16); x.restore();
-    x.fillStyle = A2; x.font = '700 9px ui-monospace,Menlo,monospace'; x.fillText('QIBLA', px, py + (py > cy ? 20 : -20));
-    if (lock) { const ph = ((t - QH.lockT) % 1.6) / 1.6; x.strokeStyle = `rgba(${AR},${.8 * (1 - ph)})`; x.lineWidth = 2; x.beginPath(); x.arc(cx, cy, R * (.2 + ph * .85), 0, 7); x.stroke(); }
+  if (!QH.cam) { const g = x.createRadialGradient(cx, cy * 1.1, 0, cx, cy, Math.max(W, H) * .8); g.addColorStop(0, `rgba(${AR},.10)`); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+  else { x.fillStyle = `rgba(${AR},.06)`; x.fillRect(0, 0, W, H); }
+  const has = QB.lat != null, b = has ? qiblaBearing(QB.lat, QB.lon) : null, diff = b == null ? null : angD(b, yawD), km = has ? Math.round(distKm(QB.lat, QB.lon)) : 0;
+  /* Scan d'arrivée : une ligne balaie l'écran */
+  const sk = (performance.now() - QH.scan0) / 1400;
+  if (sk < 1 && has) { const sy = sk * H; const g = x.createLinearGradient(0, sy - 60, 0, sy); g.addColorStop(0, `rgba(${AR},0)`); g.addColorStop(1, `rgba(${AR},.35)`); x.fillStyle = g; x.fillRect(0, sy - 60, W, 60); x.fillStyle = A2; x.fillRect(0, sy, W, 1.5); x.font = '700 10px ui-monospace,Menlo,monospace'; x.textAlign = 'left'; x.fillStyle = A2; x.fillText('SCAN DE LA ZONE…', 14, Math.max(40, sy - 8)); }
+  if (b == null || sk < .7) { qpText(has, live, false, null, km); return; }
+  const lock = live && !QH.drag && Math.abs(QH.dy) < 1 && Math.abs(diff) <= (QH.lock ? 6 : 4);
+  if (lock !== QH.lock) { QH.lock = lock; const q = $('#qp'); if (q) q.classList.toggle('lock', lock); if (lock) { QH.lockT = t; try { navigator.vibrate && navigator.vibrate([20, 60, 30]); } catch (e) {} sfx('lvl'); } }
+  const br = b * Math.PI / 180, ux = Math.sin(br), uz = Math.cos(br);
+  /* Traînée lumineuse au sol, de tes pieds vers la destination */
+  const pts = []; for (let d = 1.2; d <= 60; d *= 1.12) { const q = P(ux * d, 0, uz * d); if (q) pts.push([q, d]); }
+  if (pts.length > 1) {
+    for (let i = 1; i < pts.length; i++) { const [a, da] = pts[i - 1], [c, dc] = pts[i], w = Math.max(1, Math.min(12, 30 / da)), al = Math.max(0, 1 - dc / 60) * .6; x.strokeStyle = `rgba(${AR},${al.toFixed(3)})`; x.lineWidth = w; x.lineCap = 'round'; x.shadowColor = A1; x.shadowBlur = 12; x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(c[0], c[1]); x.stroke(); }
+    x.shadowBlur = 0;
+    /* chevrons qui avancent sur la traînée */
+    for (let k = 0; k < 6; k++) { const d = 2 + ((k * 3.2 + t * 2.4) % 19); const a = P(ux * d, 0, uz * d), c = P(ux * (d + .5), 0, uz * (d + .5)); if (!a || !c) continue; const ang = Math.atan2(c[1] - a[1], c[0] - a[0]), s = Math.max(4, 90 / d), al = Math.min(1, (19 - (d - 2)) / 6) * .9; x.save(); x.translate(a[0], a[1]); x.rotate(ang); x.strokeStyle = `rgba(255,255,255,${al.toFixed(2)})`; x.lineWidth = Math.max(1.2, s * .18); x.beginPath(); x.moveTo(-s * .4, -s * .5); x.lineTo(s * .3, 0); x.lineTo(-s * .4, s * .5); x.stroke(); x.restore(); }
   }
-  /* Lecture centrale */
-  x.fillStyle = '#fff'; x.shadowColor = A1; x.shadowBlur = 12;
-  if (diff == null) { x.font = '700 15px ui-monospace,Menlo,monospace'; x.fillText(has ? 'BOUSSOLE' : 'VISEUR', cx, cy - 8); x.font = '600 10px ui-monospace,Menlo,monospace'; x.fillStyle = A2; x.fillText(has ? 'INACTIVE' : 'HORS LIGNE', cx, cy + 10); }
-  else if (lock) { x.font = '800 16px ui-monospace,Menlo,monospace'; x.fillText('CIBLE', cx, cy - 10); x.fillText('VERROUILLÉE', cx, cy + 10); }
-  else { x.font = '700 34px ui-monospace,Menlo,monospace'; x.fillText(`${Math.abs(diff).toFixed(0)}°`, cx, cy - 6); x.font = '700 11px ui-monospace,Menlo,monospace'; x.fillStyle = A2; x.fillText(diff > 0 ? 'TOURNE À DROITE ›' : '‹ TOURNE À GAUCHE', cx, cy + 22); }
-  x.shadowBlur = 0;
-  if (ts - (QH.st || 0) > 200) { QH.st = ts; const h = $('#qhH'), dd = $('#qhD'), s = $('#qstate'); if (h) h.textContent = raw == null ? '—' : `${head.toFixed(0)}°`; if (dd) dd.textContent = diff == null ? '—' : `${diff > 0 ? '+' : ''}${diff.toFixed(0)}°`;
-    if (s) s.innerHTML = !has ? s.innerHTML : raw == null ? 'Boussole inactive : glisse le doigt pour faire tourner l\'anneau, ou active-la.' : lock ? '<b style="color:var(--sa2)">CIBLE VERROUILLÉE · tu fais face à la qibla</b>' : 'Tourne-toi jusqu\'à ce que le losange passe sous le repère du haut.'; }
+  /* Le losange de quête : dans la direction de la Kaaba, un peu au-dessus de l'horizon */
+  const bob = Math.sin(t * 2.2) * .12, mp = P(ux * 20, EYE + 1.1 + bob, uz * 20);
+  const [xc, y2, z2] = cam(ux, Math.tan(4 * Math.PI / 180), uz);
+  let mx, my, on = false;
+  if (mp && mp[0] > 30 && mp[0] < W - 30 && mp[1] > 60 && mp[1] < H - 70) { mx = mp[0]; my = mp[1]; on = true; }
+  else { /* hors champ : collé au bord, dans la direction de la cible */ let ax = xc, ay = -y2; if (z2 < 0) { ax = Math.sign(xc || 1) * 1; ay = 0; } const m = Math.max(Math.abs(ax) / (W / 2 - 34), Math.abs(ay) / (H / 2 - 80)) || 1; mx = cx + ax / m; my = cy + ay / m; }
+  const sz = lock ? 22 : 16, pulse = 1 + .08 * Math.sin(t * 4);
+  x.save(); x.translate(mx, my);
+  x.shadowColor = A1; x.shadowBlur = lock ? 30 : 18;
+  x.rotate(Math.PI / 4); x.strokeStyle = lock ? '#fff' : A2; x.lineWidth = 2.4; x.strokeRect(-sz * pulse, -sz * pulse, sz * 2 * pulse, sz * 2 * pulse);
+  x.fillStyle = lock ? '#fff' : A1; x.fillRect(-sz * .45, -sz * .45, sz * .9, sz * .9); x.rotate(-Math.PI / 4); x.shadowBlur = 0;
+  if (!on) { const ang = Math.atan2(my - cy, mx - cx); x.rotate(ang); x.fillStyle = A2; x.beginPath(); x.moveTo(sz * 1.9, 0); x.lineTo(sz * 1.3, -7); x.lineTo(sz * 1.3, 7); x.closePath(); x.fill(); x.rotate(-ang); }
+  if (lock) { const ph = ((t - QH.lockT) % 1.4) / 1.4; x.strokeStyle = `rgba(255,255,255,${(.8 * (1 - ph)).toFixed(2)})`; x.lineWidth = 2; x.rotate(Math.PI / 4); const r = sz * (1.3 + ph * 2.2); x.strokeRect(-r, -r, r * 2, r * 2); x.rotate(-Math.PI / 4); }
+  x.textAlign = 'center'; x.fillStyle = '#fff'; x.shadowColor = '#000'; x.shadowBlur = 6;
+  x.font = '700 12px ui-monospace,Menlo,monospace'; x.fillText('QIBLA', 0, -sz * 1.9);
+  x.font = '600 11px ui-monospace,Menlo,monospace'; x.fillStyle = A2; x.fillText(on ? `${km.toLocaleString('fr-FR')} km` : `${Math.abs(diff).toFixed(0)}°`, 0, sz * 2.3);
+  x.restore();
+  /* crochets de visée qui se referment sur le losange quand on est proche */
+  const close = Math.max(0, 1 - Math.abs(diff) / 30), gap = 44 - close * 18 - (lock ? 6 : 0), L = 12; x.strokeStyle = lock ? '#fff' : `rgba(${AR},${.35 + .5 * close})`; x.lineWidth = 2;
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => { const px = cx + sx * gap, py = cy + sy * gap; x.beginPath(); x.moveTo(px, py - sy * L); x.lineTo(px, py); x.lineTo(px - sx * L, py); x.stroke(); });
+  qpText(has, live, lock, diff, km);
+}
+function qpText(has, live, lock, diff, km) {
+  const now = performance.now(); if (now - (QH.st || 0) < 200) return; QH.st = now;
+  const mg = $('#qpmsg'), lk = $('#qplock');
+  if (lk) lk.classList.toggle('on', !!lock);
+  if (mg) mg.innerHTML = !has ? '' : lock ? '' : !live ? 'Glisse le doigt pour regarder autour de toi' : diff == null ? '' : Math.abs(diff) < 20 ? 'Presque : centre le losange' : `Suis la traînée · tourne vers la ${diff > 0 ? 'droite' : 'gauche'}`;
+}
+
+/* ----- Routine en thème Système : une quête de 4 objectifs, une jauge, une série ----- */
+function vRoutineSys() {
+  const k = todayISO(), bl = dayBlocks(k), n = bl.filter(Boolean).length, st = streak(), total = ROUTINE.reduce((s, r) => s + r[0], 0);
+  const doneMin = ROUTINE.reduce((s, r, i) => s + (bl[i] ? r[0] : 0), 0);
+  const gauge = `<div class="rt-g">${ROUTINE.map((r, i) => `<i class="${bl[i] ? 'on' : ''}" style="flex:${r[0]}"></i>`).join('')}</div><p class="sys-xpt num">${doneMin} / ${total} min</p>`;
+  const objs = ROUTINE.map((r, i) => `<button class="sys-obj ${bl[i] ? 'ok' : ''}" data-block="${i}" aria-pressed="${!!bl[i]}"><span class="sys-box">${bl[i] ? '✓' : ''}</span><span class="grow"><b class="rt-n">${r[1]}</b><small class="rt-d">${r[2]}</small></span><b class="num">${r[0]}′</b></button>`).join('');
+  const start = addDays(mondayOf(new Date()), -21); let cells = '';
+  for (let i = 0; i < 28; i++) {
+    const d = addDays(start, i), key = iso(d), future = key > k, b = dayBlocks(key), lv = S.days[key] ? 4 : b.filter(Boolean).length;
+    cells += `<button class="rt-c l${lv} ${key === k ? 'today' : ''}" data-day="${key}" ${future ? 'disabled' : ''} aria-pressed="${!!S.days[key]}" aria-label="${DAY_LONG.format(d)}${S.days[key] ? ', routine faite' : ''}"><span>${d.getDate()}</span></button>`;
+  }
+  const last28 = Array.from({ length: 28 }, (_, i) => iso(addDays(new Date(), -i))).filter(x => S.days[x]).length;
+  return `${pageHead('Routine', '1 h 30 par jour, calée sur tes deux emplois.', 'routine')}
+  ${sysWin(`QUÊTE DE ROUTINE · 1 H 30 [${n}/4]`, `<p class="sys-qt">${n === 4 ? 'JOURNÉE VALIDÉE · LA SÉRIE CONTINUE' : 'TOUCHE UN OBJECTIF QUAND IL EST ACCOMPLI'}</p>${gauge}${objs}
+    <p class="sys-warn" style="color:var(--sak)">Un jour chargé ? Garde au moins l'audio et l'arabe.</p>`, n === 4 ? 'done' : '')}
+  ${sysWin('SÉRIE', `<div class="rt-s"><div><p class="sys-k">SÉRIE</p><p class="rs-big num">${st}<small> j</small></p></div><div><p class="sys-k">RECORD</p><p class="rt-v num">${bestStreak()} j</p></div><div><p class="sys-k">28 JOURS</p><p class="rt-v num">${last28}/28</p></div></div>
+    <div class="rt-cal">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span>${x}</span>`).join('')}${cells}</div>
+    <p class="sys-xpt" style="text-align:left">Plus la case est vive, plus de blocs faits ce jour-là. Touche un jour passé pour le valider ou l'annuler en entier.</p>`)}`;
+}
+
+/* ----- Parcours en thème Système : la campagne de 12 mois en 4 actes ----- */
+function pTiles() {
+  const cm = currentMonth();
+  return [0, 1, 2, 3].map(q => `<div class="pc-act"><p class="sys-k">ACTE ${['I', 'II', 'III', 'IV'][q]} · T${q + 1}</p><div class="pc-row">${MONTHS.slice(q * 3, q * 3 + 3).map(m => {
+    const pc = modPct(m), st = pc >= 1 ? 'done' : m.n === cm ? 'now' : m.n < cm ? 'late' : 'next';
+    return `<button class="pc-t ${st} ${m.n === P.sel ? 'sel' : ''}" data-msel="${m.n}"><span class="pc-n num">${String(m.n).padStart(2, '0')}</span><span class="pc-ti">${esc(m.title)}</span><span class="pc-b"><i style="width:${Math.round(pc * 100)}%"></i></span><span class="pc-s">${pc >= 1 ? 'BOUCLÉ' : m.n === cm ? 'EN COURS' : `${Math.round(pc * 100)} %`}</span></button>`; }).join('')}</div></div>`).join('');
+}
+function vParcoursSys() {
+  const cm = currentMonth(); if (P.sel == null) P.sel = cm;
+  return `${pageHead('Parcours', `<span id="psub">Mois ${cm} sur 12 · ${globalPct()} % des acquis</span>`, 'parcours')}
+  ${sysWin('CAMPAGNE · 12 MOIS POUR LE BUSINESS', `<div class="pc-sel" id="pcenter"></div><div id="pcamp">${pTiles()}</div>
+    <div class="dp-more"><button class="sys-btn ghost" data-pstep="-1">‹ PRÉCÉDENT</button><button class="sys-btn ghost" id="pnow" ${P.sel === cm ? 'hidden' : ''}>MOIS ${cm}</button><button class="sys-btn ghost" data-pstep="1">SUIVANT ›</button></div>`)}
+  <div id="mcard"></div>
+  <section><h2>Par compétence</h2>
+    <div class="stats-line" style="margin-bottom:18px"><div><b class="num" id="gpct">${globalPct()} %</b><span>des acquis</span></div><div><b class="num" id="mdone">${MONTHS.filter(m => modPct(m) === 1).length}</b><span>mois bouclés</span></div></div>
+    <div class="skills">${Object.keys(DOMAINS).map(k => `<div class="skill" data-skill="${k}"><span>${DOMAINS[k]}${BIZ_DOMAINS.includes(k) ? ' <span class="pill gold" style="margin-left:4px">clé Business</span>' : ''}</span><span class="small muted num" data-skill-n></span><div class="bar"><i style="width:0"></i></div></div>`).join('')}</div>
+  </section>`;
 }
 
 /* =====================================================================
@@ -1324,6 +1395,7 @@ function stopOrbit() { cancelAnimationFrame(orb.raf); orb.raf = 0; }
    ===================================================================== */
 const P = { sel: null, rot: 0 };
 function vParcours() {
+  if (uiSys()) return vParcoursSys();
   const cm = currentMonth();
   if (P.sel == null) P.sel = cm;
   P.rot = -(P.sel - 1) * 30;
@@ -1386,7 +1458,8 @@ function pCard(animate) {
   if (animate && !reduceMotion()) { el.firstElementChild.style.animation = 'rise .45s var(--ease) both'; }
 }
 function refreshParcours() {
-  if (!$('#ring')) return;
+  if (!$('#ring') && !$('#pcamp')) return;
+  if ($('#pcamp')) $('#pcamp').innerHTML = pTiles();
   MONTHS.forEach(m => { const c = $(`[data-moon="${m.n}"] .mp`); if (c) { const C = 2 * Math.PI * 22; c.setAttribute('stroke-dashoffset', (C * (1 - modPct(m))).toFixed(1)); } });
   pCenter();
   const m = MONTHS[P.sel - 1], d = modDone(m);
@@ -1402,6 +1475,7 @@ function refreshParcours() {
 function selectMonth(n) {
   n = ((n - 1 + 12) % 12) + 1;
   if (n === P.sel) return;
+  if (!$('#ring')) { P.sel = n; haptic(); $('#pnow').hidden = n === currentMonth(); pCenter(); pCard(true); const pc = $('#pcamp'); if (pc) pc.innerHTML = pTiles(); return; }
   const from = P.rot; let to = -(n - 1) * 30;
   while (to - from > 180) to -= 360; while (to - from < -180) to += 360;
   $$('#ring .moon').forEach(g => { const on = Number(g.dataset.moon) === n; g.classList.toggle('sel', on); g.querySelector('.mb').setAttribute('r', on ? 18 : 16); });
@@ -1413,7 +1487,7 @@ function selectMonth(n) {
 function bindParcours() {
   counterRotate(); pCenter(); pCard(false);
   requestAnimationFrame(() => requestAnimationFrame(refreshParcours));
-  const wrap = $('#pdial'); let sw = null;
+  const wrap = $('#pdial'); if (!wrap) return; let sw = null;
   wrap.addEventListener('pointerdown', e => { sw = { x: e.clientX, y: e.clientY }; });
   wrap.addEventListener('pointerup', e => {
     if (!sw) return; const dx = e.clientX - sw.x, dy = e.clientY - sw.y; sw = null;
@@ -1562,6 +1636,7 @@ function showStar(i) {
    ===================================================================== */
 function dayBlocks(k) { return S.days[k] && !S.blocks[k] ? [1, 1, 1, 1] : (S.blocks[k] || [0, 0, 0, 0]); }
 function vRoutine() {
+  if (uiSys()) return vRoutineSys();
   const k = todayISO(), bl = dayBlocks(k), n = bl.filter(Boolean).length, st = streak();
   let a = 0; const GAP = 3, total = ROUTINE.reduce((s, r) => s + r[0], 0);
   const segs = ROUTINE.map((r, i) => {
@@ -4927,7 +5002,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.16.2 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.17.3 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -5473,7 +5548,7 @@ function themeBlock() {
   return `<p class="gt">Univers de l'app</p>
     <div class="seg" role="group" aria-label="Univers" style="margin-bottom:8px">${[['systeme', 'Système'], ['galaxie', 'Galaxie']].map(([m, l]) => `<button data-ui="${m}" aria-pressed="${(S.ui || 'systeme') === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
     <p class="hint" style="margin-bottom:16px">Système : niveau, stats, quête quotidienne et donjons. Galaxie : les planètes et le soleil. Tes données ne changent pas.</p>
-    ${uiSys() ? `<p class="gt">Apparence</p><p class="hint" style="margin-bottom:16px">En Système, les couleurs ne se choisissent pas : l'aura évolue avec ton rang (aura actuelle : <b>${AURA[auraIdx()]}</b>). Les palettes reviennent en Galaxie.</p>` : `<p class="gt">Apparence</p>
+    ${uiSys() ? `<p class="gt">Apparence</p><p class="hint" style="margin-bottom:16px">En Système, les couleurs ne se choisissent pas : l'aura évolue avec ton rang (aura actuelle : <b>${AURA[auraIdx()]}</b>). Les palettes reviennent en Galaxie.</p><button class="sys-btn big ghost" data-replay-eveil style="margin:0 0 18px">REVOIR L'ÉVEIL</button>` : `<p class="gt">Apparence</p>
     <div class="thgrid">${Object.entries(THEMES).map(([id, x]) => { const l = x.l.split(' '), d = x.d.split(' '); return `<button class="thsw" data-theme="${id}" aria-pressed="${t.id === id}"><span class="thdots"><i style="background:${l[0]};box-shadow:inset 0 0 0 1px ${l[7]}"></i><i style="background:${l[9]}"></i><i style="background:${d[0]}"></i><i style="background:${d[9]}"></i></span><span>${x.n}</span></button>`; }).join('')}</div>
     ${t.id === 'custom' ? `<div class="thpick"><label><input type="color" data-tcol="a" value="${t.custom.a}"><span>Couleur principale<small>boutons, chiffres, accents</small></span></label><label><input type="color" data-tcol="b" value="${t.custom.b}"><span>Teinte du fond<small>l'ambiance générale</small></span></label></div><p class="hint" style="margin-top:6px">L'app en tire toute seule une version claire et une version sombre lisibles.</p>` : ''}
     <div class="seg" role="group" aria-label="Mode" style="margin-top:10px">${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([m, l]) => `<button data-tmode="${m}" aria-pressed="${t.mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
@@ -5852,6 +5927,7 @@ function qsLoop(ts) {
   if (st && (ts - (QS.st || 0) > 120)) { QS.st = ts; st.innerHTML = raw == null ? 'Glisse le doigt pour parcourir ton ciel, ou active la vue pour qu\'il suive tes mouvements.' : lock ? '<b style="color:var(--gold)">Tu fais face à la qibla</b>' : !free ? 'Lâche : ton ciel revient doucement vers là où tu regardes.' : `Tourne-toi ${diff > 0 ? 'vers la droite' : 'vers la gauche'} de <b class="num">${Math.abs(diff).toFixed(0)}°</b>`; }
 }
 function qiblaClick(t) {
+  { const q = t.closest('[data-qp]'); if (q) { qpCam(q.dataset.qp); return true; } }
   const b = t.closest('[data-qb]'); if (!b) return false;
   if (b.dataset.qb === 'start') { qiblaStart(); return true; }
   if (b.dataset.qb === 'sun') { if (QB.head == null) return true; const s = sunPos(new Date(), QB.lat, QB.lon); QB.off = ((s.az - QB.head + 540) % 360) - 180; QB.cal = true; render(); toast('Ciel recalé sur le soleil'); return true; }
@@ -6295,6 +6371,7 @@ function highlight(k) {
 setInterval(() => { const el = $('#sessEl'); if (el && S.body.active) el.textContent = sessLine(); }, 15000);
 
 document.addEventListener('click', e => {
+  if (e.target.closest('[data-replay-eveil]')) { try { localStorage.removeItem('sdp-awake'); } catch (er) {} save(true); setTimeout(() => location.reload(), 150); return; }
   if (snavClick(e.target)) return;
   if (pqClick(e.target)) return;
   if (arcClick(e.target)) return;
@@ -6479,6 +6556,7 @@ document.addEventListener('click', e => {
     toast(`Cotisations ${EMP[k]} : ${String(S.settings.cotis[k]).replace('.', ',')} %`); return;
   }
   // Parcours
+  if ((el = c('[data-msel]'))) { selectMonth(Number(el.dataset.msel)); return; }
   if ((el = c('[data-pstep]'))) { selectMonth(P.sel + Number(el.dataset.pstep)); return; }
   if (c('#pnow')) { selectMonth(currentMonth()); return; }
   // Arabe
@@ -6652,12 +6730,15 @@ window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
   render(true);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js').then(reg => {
+      /* Mise à jour : proposée dès qu'une nouvelle version attend (même téléchargée lors d'une ouverture précédente),
+         et vérifiée à chaque retour dans l'app. Le bouton reste affiché 10 minutes. */
+      const offer = w => { if (w && navigator.serviceWorker.controller) toast('Nouvelle version disponible', 'Recharger', () => w.postMessage('skipWaiting'), 600000); };
+      if (reg.waiting) offer(reg.waiting);
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
-        nw && nw.addEventListener('statechange', () => {
-          if (nw.state === 'installed' && navigator.serviceWorker.controller) toast('Nouvelle version disponible', 'Recharger', () => nw.postMessage('skipWaiting'), 15000);
-        });
+        nw && nw.addEventListener('statechange', () => { if (nw.state === 'installed') offer(nw); });
       });
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
     }).catch(() => {});
     let reloaded = false; const hadController = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; save(true); location.reload(); } });

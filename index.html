@@ -1705,6 +1705,48 @@ body.sys-on textarea{border-radius:2px}
 body.sys-on .icon-btn[style*="background:var(--surface)"]{border-radius:2px}
 body.sys-on .fseg button,body.sys-on .fseg a{border-radius:2px!important;font-family:var(--sysm);font-size:.72rem;letter-spacing:.08em}
 body.sys-on .fseg [aria-pressed="true"],body.sys-on .fseg .on{box-shadow:inset 0 0 0 1px var(--sa2),0 0 10px rgba(var(--sar),.35)}
+/* La Qibla : marqueur de quête (caméra) */
+.qp{position:relative;margin:14px -20px 0;height:min(64vh,560px);overflow:hidden;touch-action:none;background:radial-gradient(120% 90% at 50% 40%,var(--ssf),var(--sbg));border-top:1px solid rgba(var(--sar),.4);border-bottom:1px solid rgba(var(--sar),.4)}
+.qp canvas,.qp video{position:absolute;inset:0;width:100%;height:100%}
+.qp video{object-fit:cover;display:none;filter:saturate(.7) contrast(1.05)}.qp.cam video{display:block}
+.qp-hud{position:absolute;left:14px;right:14px;top:12px;display:flex;justify-content:space-between;pointer-events:none;font:700 .66rem var(--sysm);letter-spacing:.2em;color:var(--sa2);text-shadow:0 0 8px #000,0 0 8px var(--sa)}
+.qp-msg{position:absolute;left:0;right:0;bottom:14px;margin:0;text-align:center;pointer-events:none;font:600 .78rem/1.5 var(--sysm);letter-spacing:.06em;color:#fff;text-shadow:0 0 6px #000,0 0 10px #000}
+.qp-start{position:absolute;inset:0;display:grid;place-content:center;gap:4px;padding:24px;text-align:center;background:rgba(1,3,8,.55)}
+.qp-start p{margin:0 0 8px;font-size:.9rem;line-height:1.5;color:#CFE0FF}.qp-start b{color:#fff}
+.qp-lock{position:absolute;left:50%;bottom:52px;width:min(300px,84%);transform:translate(-50%,16px) scaleY(.2);opacity:0;pointer-events:none;transition:opacity .25s,transform .35s cubic-bezier(.2,.9,.2,1.1)}
+.qp-lock.on{opacity:1;transform:translate(-50%,0) scaleY(1)}
+.qp-lock .sw{margin:0;animation:none;padding-bottom:10px}.qp-lock .sw-b{text-align:center;padding-top:8px}
+.ql-t{margin:0;font:800 1.3rem var(--sysm);letter-spacing:.3em;color:#fff;text-shadow:0 0 12px var(--sa)}
+.ql-a{margin:2px 0 4px;font:400 1.3rem 'Amiri',serif;color:var(--sa2)}.ql-s{margin:0;font-size:.74rem;color:#CFE0FF}
+.qp.lock{box-shadow:inset 0 0 70px rgba(var(--sar),.35)}
+/* Routine et Parcours en Système */
+.rt-g{display:flex;gap:3px;margin:2px 0 0}.rt-g i{height:10px;background:var(--sxp);border:1px solid rgba(var(--sar),.2)}
+.rt-g i.on{background:var(--sa);border-color:var(--sa2);box-shadow:0 0 10px rgba(var(--sar),.7)}
+.sys-obj .rt-n{display:block;font:600 .95rem var(--sysf);color:#E4EEFF}.rt-d{display:block;font-size:.72rem;line-height:1.35;color:#6C83AB}
+.sys-obj.ok .rt-n{color:#9FB5D8}
+.rt-s{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:10px;align-items:end}.rt-s small{font-size:1rem;color:var(--sak)}
+.rt-v{margin:4px 0 2px;font:700 1.15rem var(--sysm);color:#fff}
+.rt-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:14px}
+.rt-cal>span{text-align:center;font:700 .6rem var(--sysm);color:#6C83AB}
+.rt-c{aspect-ratio:1;display:grid;place-items:center;border:1px solid rgba(var(--sar),.18);background:rgba(var(--swb2),.6);font:600 .7rem var(--sysm);color:#55688C}
+.rt-c:disabled{opacity:.3}
+.rt-c.l1{background:rgba(var(--sar),.1)}.rt-c.l2{background:rgba(var(--sar),.2);color:#A9BEE4}.rt-c.l3{background:rgba(var(--sar),.32);color:#CFE0FF}
+.rt-c.l4{background:var(--sa);color:#fff;border-color:var(--sa2);box-shadow:0 0 8px rgba(var(--sar),.6)}
+.rt-c.today{outline:2px solid var(--sa2);outline-offset:1px}
+.pc-sel{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding-bottom:10px;margin-bottom:6px;border-bottom:1px dashed rgba(var(--sar),.2)}
+.pc-sel .eyebrow{flex-basis:100%;margin:0}.pc-sel .big{margin:0;font-size:2rem;color:#fff;text-shadow:0 0 12px rgba(var(--sar),.8)}.pc-sel .t{margin:0;font-weight:600;color:#E4EEFF}
+.pc-act{margin-top:12px}.pc-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:6px}
+.pc-t{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-height:96px;padding:8px;text-align:left;border:1px solid rgba(var(--sar),.25);background:rgba(var(--swb2),.6);color:#CFE0FF}
+.pc-n{font:800 1.05rem var(--sysm);color:#6C83AB}.pc-ti{flex:1;font-size:.7rem;line-height:1.25;color:#A9BEE4}
+.pc-b{display:block;width:100%;height:3px;background:var(--sxp)}.pc-b i{display:block;height:100%;background:var(--sa)}
+.pc-s{font:700 .54rem var(--sysm);letter-spacing:.1em;color:#6C83AB}
+.pc-t.now{border-color:var(--sa2);box-shadow:inset 0 0 14px rgba(var(--sad),.3)}.pc-t.now .pc-n,.pc-t.now .pc-s{color:var(--sa2)}
+.pc-t.done{background:rgba(var(--sar),.14)}.pc-t.done .pc-n{color:#fff}.pc-t.done .pc-s{color:var(--sok)}
+.pc-t.sel{border-color:#fff;box-shadow:0 0 14px rgba(var(--sar),.55),inset 0 0 14px rgba(var(--sad),.35)}.pc-t.sel .pc-n{color:#fff}
+.pc-t.next{opacity:.75}
+body.sys-on .month-card .why,body.sys-on em,body.sys-on i.it{font-style:normal}
+body.sys-on .month-card{border-radius:2px}
+body.sys-on .step .sn{border-radius:0;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
 </style>
 </head>
 <body>
