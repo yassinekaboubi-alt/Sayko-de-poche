@@ -543,7 +543,7 @@ const COACH = {
   foi: ['Ta régularité', 'Coche chaque prière faite à l\'heure sur le chemin du soleil, et tes autres habitudes en dessous. Atteindre 90 % sur 30 jours est une des deux clés de l\'onglet Business.'],
   business: ['Pourquoi c\'est verrouillé', 'Pour que l\'app reflète honnêtement tes priorités : d\'abord les compétences et la constance, ensuite le business. Chaque volet affiche ce qu\'il te reste.'],
   businessOn: ['Ton atelier', 'Un projet = un nom, une étape, et une prochaine action concrète. Rien de plus pour l\'instant.'],
-  corps: ['Construire, étape par étape', 'Tu repars de l\'arrêt : 12 séances de Réveil à la maison ouvrent la salle, 36 séances de Forge ouvrent la Sculpture. Pendant une séance, touche ✓ à chaque série : le repos se lance tout seul et l\'app te dit quand monter la charge.'],
+  corps: ['Ton arc de combattant', 'Trois arcs : le Réveil à la maison, la Forge à la salle et au sac, le Tranchant. Chaque lundi, tu indiques tes jours libres : l\'app place tes séances de force, de combat, de vitesse et de mental. Le grimoire t\'apprend les techniques, la défense de rue, les points vitaux et le mental. La fiche mesure tes stats tous les 28 jours. Pendant une séance de combat, garde le téléphone près de toi : la voix t\'annonce les frappes.'],
   nutri: ['Ton carburant', 'Pour prendre du muscle : un léger surplus de calories et assez de protéines. Touche un aliment quand tu le manges, la jauge se remplit. Pèse-toi une fois par semaine : l\'app ajuste ta cible si tu prends trop vite ou trop lentement.'],
   soin: ['Réparer et entretenir', 'Le muscle se construit pendant le sommeil. Note tes nuits, calcule ton heure de coucher, et garde un œil sur la fitra : chaque jauge se vide en 40 jours.'],
   heures: ['Vérifier ta paie', 'Fais glisser les deux poignées du cadran pour ton début et ta fin (la zone sombre, c\'est la nuit). L\'app cumule tes heures du mois, tes heures de nuit et du dimanche, et le compteur d\'heures stockées de la Gare.']
@@ -611,7 +611,7 @@ function planetValue(k) {
   if (k === 'parcours') return [globalPct() / 100, `${globalPct()} %`];
   if (k === 'foi') { const sc = faithScore(); return [sc.pct / FAITH_GOAL, `${Math.round(sc.pct * 100)} % / 30 j`]; }
   if (k === 'routine') { const d = S.days[todayISO()] ? 4 : todayBlocks(); return [d / 4, `${d}/4 blocs`]; }
-  if (k === 'corps') { const ph = phaseOf(S.body.phase), n = weekSessions().length; return [n / ph.perWeek, `${n}/${ph.perWeek} séances`]; }
+  if (k === 'corps') { const [d, t] = weekPlanProgress(); if (t) return [d / t, `${d}/${t} séances`]; const n = weekSessions().length; return [n / 3, `${n} séance${n > 1 ? 's' : ''}`]; }
   if (k === 'business') {
     if (S.unlocks.business) { const n = S.biz.projects.length; return [1, `${n} projet${n > 1 ? 's' : ''}`]; }
     const st = bizStatus(), d = st.skills.reduce((m, x) => m + x.d, 0), t = st.skills.reduce((m, x) => m + x.t, 0) || 1;
@@ -637,7 +637,7 @@ function gValue(k) {
   if (k === 'chasse') { const c = S.chasse || {}; return CHQ.filter(x => chMast(x[0])).length * 2 + (c.ex || []).length * 5 + (c.ext || []).length * 3; }
   if (k === 'foi') { let n = 0; Object.values(S.faith.log || {}).forEach(d => Object.values(d || {}).forEach(v => { if (v && v !== 'x') n++; })); return n; }
   if (k === 'routine') return Object.keys(S.days || {}).length;
-  if (k === 'corps') return S.body.sessions.length;
+  if (k === 'corps') return S.body.sessions.length + ((S.fight && S.fight.log) || []).length;
   if (k === 'argent') return S.money.tx.length;
   if (k === 'parcours') return globalPct();
   return 0;
@@ -704,7 +704,7 @@ function vGalaxy(hello, now) {
       <text class="glbl" y="${R + 22}">${p.name}</text>${locked ? `<text class="gval" y="${R + 35}">Verrouillé</text>` : gNameSvg(p.key, R + 35)}</g>`;
   }).join('');
   const radii = [...new Set(PLANETS.map(p => p.r))];
-  return `${pageHead(`${hello}, <em>Yassine</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite')}
+  return `${pageHead(`${hello}, <em>Sayko</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite')}
   <div class="orbit-stage gal" id="stage"><svg viewBox="-205 -205 410 410" aria-label="Ta galaxie : chaque planète est un module, le soleil ouvre le Flux">
     ${GDEFS}
     ${radii.map(r => `<ellipse class="gorb" rx="${((r + 18) * K).toFixed(0)}" ry="${((r + 18) * K * RY).toFixed(0)}"/>`).join('')}
@@ -755,6 +755,190 @@ function checkGalaxy() {
   if (up) { save(); setTimeout(() => { chime(true); burst(46, GSTAGE[up[1]], true); gemCard(`${GNAME[up[0].key][0]} · ${GSTAGE[up[1]]}`, (up[1] === 4 ? `${GNAME[up[0].key][0]}, ${GNAME[up[0].key][1]}. ` : '') + ['', 'De l\'eau apparaît sur ta planète. La vie peut commencer.', 'Des océans couvrent ta planète, les nuages se forment.', 'La vie s\'installe : des continents verts apparaissent.', 'Ta planète s\'illumine de villes et reçoit son anneau d\'or. Tu l\'as bâtie, acte après acte.'][up[1]], ''); try { navigator.vibrate && navigator.vibrate([14, 50, 20, 50, 30]); } catch (e) {} }, 700); }
 }
 
+/* =====================================================================
+   LE SYSTÈME — thème « jeu de rôle » : le joueur, son niveau, ses stats,
+   la quête quotidienne (et sa pénalité), les donjons (les modules).
+   Inspiré du genre « système » des récits de progression, création originale.
+   Choix du thème : Réglages → Apparence → Univers (Système ou Galaxie).
+   S.sys = { lv, q{ date: { m{id:true}, done, pen{ n } } }, seen }
+   ===================================================================== */
+function uiSys() { return (S.ui || 'systeme') === 'systeme'; }
+function sysS() { const s = S.sys = S.sys && typeof S.sys === 'object' ? S.sys : {}; if (!s.q || typeof s.q !== 'object') s.q = {}; return s; }
+const xpTotal = () => Object.values(S.nour.log || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+const xpNeed = n => 60 + 25 * n;
+function lvOf(xp) { let l = 1, rest = xp; while (rest >= xpNeed(l)) { rest -= xpNeed(l); l++; } return { l, rest, need: xpNeed(l) }; }
+const SYS_RANK = [[1, 'E', 'Éveillé'], [5, 'D', 'Apprenti'], [12, 'C', 'Combattant'], [22, 'B', 'Élite'], [35, 'A', 'Vétéran'], [50, 'S', 'Légende']];
+function sysRank(l) { let r = SYS_RANK[0]; SYS_RANK.forEach(x => { if (l >= x[0]) r = x; }); return r; }
+const prayToday = (k = todayISO()) => PRAYERS.filter(([id]) => { const v = (S.faith.log[k] || {})[id]; return v && v !== 'x'; }).length;
+const cap = v => Math.max(1, Math.min(99, Math.round(v)));
+function sysStats() {
+  const fs = (S.fight ? statVals() : {}), faithN = gValue('foi');
+  return [
+    ['FOI', cap(4 + faithN / 9), 'foi'],
+    ['FORCE', cap(5 + (fs.force || 0) * .8 + S.body.sessions.length * .6), 'corps'],
+    ['AGILITÉ', cap(5 + (fs.vitesse || 0) * .7 + (fs.souplesse || 0) * .2), 'corps'],
+    ['ENDURANCE', cap(5 + ((fs.endurance || 0) + (fs.resistance || 0)) * .45), 'corps'],
+    ['SAVOIR', cap(4 + wordsKnown() * .5 + arCount() * 6 + globalPct() * .3), 'arabe'],
+    ['DISCIPLINE', cap(4 + Object.keys(S.days || {}).length * 1.2 + (S.fight ? planStats(4).pct * 30 : 0)), 'routine'],
+    ['RICHESSE', cap(4 + S.money.tx.length * .4 + gStage('argent') * 8), 'argent'],
+    ['ESPRIT', cap(4 + Object.keys(S.flux.seen || {}).length * .15 + Object.keys((S.heart && S.heart.c) || {}).length * 4), 'flux']
+  ];
+}
+/* La quête quotidienne : 4 objectifs suivis automatiquement */
+function questDay(k = todayISO()) {
+  const s = sysS(), q = s.q[k] = s.q[k] || { m: {} }; if (!q.m) q.m = {};
+  const tp = typeof todayPlan === 'function' && k === todayISO() ? todayPlan() : null;
+  const fluxN = S.flux.day && S.flux.day.d === k ? S.flux.day.n : 0, blocks = k === todayISO() ? (S.days[k] ? 4 : todayBlocks()) : (S.days[k] ? 4 : 0);
+  const corpsObj = tp && !tp.rest ? { id: 'corps', t: `Séance du jour · ${FTYPES[tp.type].n}`, v: dayDoneAny(k) ? 1 : 0, n: 1, go: 'corps' }
+    : { id: 'corps', t: 'Entraînement de base · 30 pompes, 30 squats, 1 min de gainage', v: q.m.corps ? 1 : 0, n: 1, manual: true };
+  return { q, list: [
+    { id: 'pri', t: 'Les cinq prières à l\'heure', v: prayToday(k), n: 5, go: 'habitudes' },
+    corpsObj,
+    { id: 'rout', t: 'Routine · les 4 blocs', v: blocks, n: 4, go: 'routine' },
+    { id: 'flux', t: 'Esprit · 5 cartes du Flux', v: Math.min(5, fluxN), n: 5, go: 'flux' }
+  ] };
+}
+const questDone = d => d.list.every(o => o.v >= o.n);
+function penaltyToday() {
+  const s = sysS(), y = iso(addDays(new Date(), -1)), start = s.start || todayISO();
+  if (y < start) return null;
+  const yd = s.q[y]; if (yd && yd.done) return null;
+  const k = todayISO(), q = s.q[k] = s.q[k] || { m: {} }; q.pen = q.pen || { n: 0, goal: 100 }; return q.pen;
+}
+const tLeft = () => { const n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); const s = Math.max(0, Math.floor((m - n) / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; };
+/* Les donjons : chaque module, avec son rang selon ta progression */
+const DUNG = [['foi', 'Foi'], ['corps', 'Corps'], ['arabe', 'Arabe'], ['routine', 'Routine'], ['argent', 'Argent'], ['parcours', 'Parcours'], ['business', 'Business'], ['chasse', 'Chasse']];
+const DRANK = ['E', 'D', 'C', 'B', 'A'];
+function sysWin(title, body, cls = '') { return `<section class="sw ${cls}"><i class="sw-c sw-tl"></i><i class="sw-c sw-tr"></i><i class="sw-c sw-bl"></i><i class="sw-c sw-br"></i><header class="sw-h"><span class="sw-dot"></span>${title}</header><div class="sw-b">${body}</div></section>`; }
+function vSys(now) {
+  const xp = xpTotal(), L = lvOf(xp), r = sysRank(L.l), st = sysStats(), d = questDay(), done = questDone(d), pen = penaltyToday();
+  try { localStorage.setItem('sdp-sysline', JSON.stringify({ lv: L.l, r: r[1], pen: !!(pen && pen.n < pen.goal), done })); } catch (e) {}
+  const status = `<div class="sys-id"><div><p class="sys-k">NOM</p><p class="sys-name">SAYKO</p></div><div class="sys-lv"><p class="sys-k">NIVEAU</p><p class="sys-big num">${L.l}</p></div></div>
+    <div class="sys-row"><span><b class="sys-k">RANG</b> <span class="sys-r">${r[1]}</span></span><span><b class="sys-k">TITRE</b> ${r[2]}</span></div>
+    <div class="sys-xp"><i style="width:${(L.rest / L.need * 100).toFixed(1)}%"></i></div><p class="sys-xpt num">XP ${L.rest} / ${L.need}</p>
+    <div class="sys-stats">${st.map(([n, v, go]) => `<button data-goto="${go === 'flux' ? 'flux' : go}"><span>${n}</span><b class="num">${v}</b></button>`).join('')}</div>`;
+  const quest = `<p class="sys-qt">QUÊTE QUOTIDIENNE · FORGER LE JOUEUR</p>
+    ${d.list.map(o => `<button class="sys-obj ${o.v >= o.n ? 'ok' : ''}" ${o.manual ? `data-sysm="${o.id}"` : o.go ? `data-goto="${o.go}"` : ''}><span class="sys-box">${o.v >= o.n ? '✓' : ''}</span><span class="grow">${esc(o.t)}</span><b class="num">[${Math.min(o.v, o.n)}/${o.n}]</b></button>`).join('')}
+    <p class="sys-warn">${done ? 'Quête accomplie. Récompense reçue : +30 XP.' : `Temps restant <b class="num" id="sysT">${tLeft()}</b> · Ne pas l'accomplir déclenche une pénalité.`}</p>`;
+  const penW = pen && !(pen.n >= pen.goal) ? sysWin('ALERTE · QUÊTE DE PÉNALITÉ', `<p class="sys-pt">La quête d'hier n'a pas été accomplie.</p><p>100 pompes aujourd'hui, en autant de séries que nécessaire.</p><div class="sys-pbar"><i style="width:${pen.n}%"></i></div><p class="num" style="text-align:center;margin:6px 0 10px">${pen.n} / 100</p><div class="row" style="gap:8px">${[5, 10, 20].map(n => `<button class="sys-btn" data-syspen="${n}">+${n}</button>`).join('')}<button class="sys-btn ghost" data-syspen="-5">−5</button></div>`, 'pen') : '';
+  const dung = DUNG.filter(([k]) => k !== 'chasse' || chasseActive()).map(([k, n]) => { const s = gStage(k), lk = k === 'business' && !S.unlocks.business, f = gFrac(k);
+    return `<button class="sys-d ${lk ? 'lk' : ''}" data-goto="${k === 'business' && lk ? 'parcours' : k}"><span class="sys-dr">${lk ? '✕' : DRANK[s]}</span><span class="grow"><b>${n}</b><small>${lk ? 'Accès restreint' : `Donjon de rang ${DRANK[s]} · ${Math.round(f * 100)} %`}</small></span><i class="sys-dp"><b style="width:${lk ? 0 : Math.round(f * 100)}%"></b></i></button>`; }).join('');
+  return `<header class="sys-top"><p class="sys-k">◆ SYSTÈME</p><p class="sys-date">${DAY_LONG.format(now).replace(/^./, c => c.toUpperCase())}</p>
+      <div class="top-actions"><button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button><button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button><button class="icon-btn" data-open="settings" aria-label="Réglages">${ICON.gear}</button></div></header>
+    ${penW}
+    ${sysWin('STATUT', status)}
+    ${sysWin('QUÊTE', quest, done ? 'done' : '')}
+    <button class="sys-src" data-goto="flux"><span class="sys-k">LA SOURCE</span><b>Flux · ${S.flux.day.d === todayISO() ? S.flux.day.n : 0}/5</b><span class="num">✦ ${nourDay()} XP aujourd'hui</span></button>
+    ${sysWin('DONJONS', dung)}`;
+}
+/* Fenêtres plein écran du Système : nouvelle quête, quête accomplie, niveau supérieur */
+function sysPing(big) {
+  try { audioUnlock(); const c = actx; if (!c) return; [[880, 0], [1320, .09], big ? [1760, .18] : null].filter(Boolean).forEach(([f, t]) => { const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(.0001, c.currentTime + t); g.gain.exponentialRampToValueAtTime(.18, c.currentTime + t + .02); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + t + .5); o.connect(g).connect(c.destination); o.start(c.currentTime + t); o.stop(c.currentTime + t + .55); }); } catch (e) {}
+}
+function sysPop(title, html, btn = 'Fermer', cls = '') {
+  if ($('.sys-pop')) return; const el = document.createElement('div'); el.className = `sys-pop ${cls}`; el.setAttribute('role', 'dialog');
+  el.innerHTML = `<div class="sys-pop-in">${sysWin(title, `${html}<button class="sys-btn big" data-syspop>${btn}</button>`)}</div>`;
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on')); sysPing(cls === 'lvl'); try { navigator.vibrate && navigator.vibrate([20, 40, 20]); } catch (e) {}
+  el.addEventListener('click', e => { if (e.target.closest('[data-syspop]') || e.target === el) { el.classList.remove('on'); setTimeout(() => el.remove(), 300); } });
+}
+function sysCheck() {
+  const s = sysS(), k = todayISO(); if (!s.start) { s.start = k; save(); }
+  const L = lvOf(xpTotal()).l;
+  if (s.lv == null) { s.lv = L; save(); }
+  else if (L > s.lv) { const from = s.lv; s.lv = L; save(); const r = sysRank(L); setTimeout(() => sysPop('NIVEAU SUPÉRIEUR', `<p class="sys-lvup num">${L}</p><p style="text-align:center;margin:0 0 6px">Niveau ${from} → ${L}</p>${sysRank(from)[1] !== r[1] ? `<p class="sys-pt" style="text-align:center">Nouveau rang : ${r[1]} · ${r[2]}</p>` : ''}<p class="small" style="text-align:center;color:var(--muted)">Toutes tes stats progressent avec tes actes, dans chaque donjon.</p>`, 'Continuer', 'lvl'), 500); return; }
+  const d = questDay();
+  if (questDone(d) && !d.q.done) { d.q.done = k; nourAdd(30); save(); setTimeout(() => sysPop('QUÊTE ACCOMPLIE', `<p style="text-align:center">La quête quotidienne est accomplie.</p><p class="sys-pt" style="text-align:center">Récompense : +30 XP</p>`, 'Récupérer'), 500); return; }
+  if (s.seen !== k) { s.seen = k; save(); const pen = penaltyToday();
+    setTimeout(() => sysPop('NOUVELLE QUÊTE', `<p class="sys-qt" style="text-align:center">QUÊTE QUOTIDIENNE · FORGER LE JOUEUR</p>${d.list.map(o => `<p class="sys-li">— ${esc(o.t)} <b class="num">[${Math.min(o.v, o.n)}/${o.n}]</b></p>`).join('')}${pen ? '<p class="sys-pt" style="color:var(--danger);text-align:center;margin-top:10px">Quête de pénalité active : 100 pompes aujourd\'hui.</p>' : ''}<p class="small" style="text-align:center;color:var(--muted);margin-top:10px">Récompense : +30 XP. Ne pas l'accomplir déclenche une pénalité demain.</p>`, 'Accepter'), 700); }
+}
+function sysCheckLater() { if (document.getElementById('intro')) { setTimeout(sysCheckLater, 600); return; } if (tab === 'orbite' && uiSys()) sysCheck(); }
+function sysClick(t) {
+  const c = s => t.closest(s); let el;
+  if ((el = c('[data-sysm]'))) { const q = questDay().q; q.m[el.dataset.sysm] = !q.m[el.dataset.sysm]; save(); if (q.m[el.dataset.sysm]) reward(3); const y = window.scrollY; render(); window.scrollTo(0, y); return true; }
+  if ((el = c('[data-syspen]'))) { const p = penaltyToday(); if (!p) return true; const before = p.n; p.n = Math.max(0, Math.min(100, p.n + Number(el.dataset.syspen))); save(); haptic(); const y = window.scrollY; render(); window.scrollTo(0, y); if (p.n >= 100 && before < 100) sysPop('PÉNALITÉ LEVÉE', '<p style="text-align:center">Tu as tenu parole. Le Système lève la pénalité.</p>', 'Continuer'); return true; }
+  return false;
+}
+setInterval(() => { const e = $('#sysT'); if (e) e.textContent = tLeft(); }, 1000);
+/* Les médaillons de la roue en thème Système */
+function sysSigil(k) { const g = GLYPH[k] || GLYPH.corps; return `<polygon points="0,-24 21,-12 21,12 0,24 -21,12 -21,-12" class="sx-hex"/><svg x="-10" y="-10" width="20" height="20" viewBox="0 0 24 24" class="sx-ic">${g}</svg>`; }
+/* =====================================================================
+   L'ENTRÉE DU SYSTÈME
+   - Première fois : l'Éveil. Écran noir, un moniteur cardiaque qui ralentit
+     jusqu'à l'arrêt, puis une fenêtre d'alerte du Système propose de devenir
+     Joueur, avec un compte à rebours. Accepter relance le cœur.
+   - Ensuite : la reconnexion du Joueur, courte, qui annonce l'état du jour
+     (quête disponible, accomplie, ou pénalité active).
+   localStorage : sdp-awake (Éveil fait), sdp-sysline (niveau, rang, état du jour).
+   ===================================================================== */
+function sysIntro() {
+  let L = null; try { L = JSON.parse(localStorage.getItem('sdp-sysline') || 'null'); } catch (e) {}
+  const state = !L ? ['Quête quotidienne disponible', ''] : L.pen ? ['⚠ Quête de pénalité active', 'red'] : L.done ? ['Quête du jour accomplie', 'ok'] : ['Quête quotidienne disponible', ''];
+  return `<div class="sys-boot"><p class="sb1">[ SYSTÈME ]</p><p class="sb2">Connexion du Joueur… Sayko</p>${L ? `<p class="sb3">Niveau ${L.lv} · Rang ${L.r}</p>` : '<p class="sb3">Synchronisation…</p>'}<p class="sb5 ${state[1]}">${state[0]}</p><p class="sb4" lang="ar" dir="rtl">بِسْمِ ٱللَّهِ</p></div>`;
+}
+function awakeIntro(el, finish) {
+  el.classList.add('awake');
+  el.innerHTML = `<div class="aw-vig"></div>
+    <div class="aw-ecg"><svg viewBox="0 0 400 120" preserveAspectRatio="none"><path id="awLine" d=""/></svg></div>
+    <div class="aw-hud"><span>BPM</span><b id="awBpm">72</b></div>
+    <p class="aw-msg" id="awMsg"></p>
+    <div class="aw-win" id="awWin" hidden></div>`;
+  const line = el.querySelector('#awLine'), bpmEl = el.querySelector('#awBpm'), msg = el.querySelector('#awMsg'), win = el.querySelector('#awWin');
+  const W = 400, pts = [], t0 = performance.now(); let raf = 0, x = 0, lastBeat = 0, bpm = 72, flat = false, revived = false, beatAmp = 1;
+  const beatShape = [0, -5, 4, -52, 36, -10, 0, 0, -7, 0];
+  let queue = [];
+  function frame(now) {
+    const t = (now - t0) / 1000;
+    if (!revived) { bpm = t < 1 ? 72 : t < 2.6 ? 58 : t < 4 ? 41 : t < 5.4 ? 23 : 0; flat = bpm === 0; }
+    const interval = bpm ? 60 / bpm : 1e9;
+    if (!flat && now - lastBeat > interval * 1000) { lastBeat = now; queue = beatShape.map(v => v * beatAmp * (revived ? 1.3 : Math.max(.45, bpm / 72))); }
+    for (let k = 0; k < 2; k++) { const y = queue.length ? queue.shift() : (Math.random() - .5) * (flat ? .4 : 1.2); pts.push(y); if (pts.length > W / 2) pts.shift(); }
+    line.setAttribute('d', 'M' + pts.map((y, i) => `${(i * 2).toFixed(0)} ${(60 + y).toFixed(1)}`).join(' L'));
+    bpmEl.textContent = revived ? Math.round(118 + Math.sin(t * 3) * 4) : bpm;
+    el.classList.toggle('flat', flat && !revived);
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+  const say = (txt, d) => setTimeout(() => { msg.textContent = txt; msg.classList.remove('in'); void msg.offsetWidth; msg.classList.add('in'); }, d);
+  say('…', 1200); say('Le rythme ralentit.', 2800); say('', 5600);
+  let left = 10, iv = 0, refused = false;
+  function ask() {
+    el.classList.add('glitch'); setTimeout(() => el.classList.remove('glitch'), 500);
+    win.hidden = false;
+    win.innerHTML = `<div class="sw aw-sw"><i class="sw-c sw-tl"></i><i class="sw-c sw-tr"></i><i class="sw-c sw-bl"></i><i class="sw-c sw-br"></i>
+      <header class="sw-h"><span class="sw-dot"></span>ALERTE</header>
+      <div class="sw-b"><p class="aw-l">Signes vitaux du sujet : <b class="red">critiques</b>.</p>
+        <p class="aw-l">Le sujet remplit les conditions de <b>l'Éveil</b>.</p>
+        <p class="aw-l">Une seule proposition sera faite :<br><b>devenir Joueur et grandir chaque jour</b>.</p>
+        <p class="aw-q">Acceptes-tu ?</p>
+        <p class="aw-t">Temps restant : <b id="awLeft">${left}</b></p>
+        <p class="aw-ref" id="awRef"></p>
+        <div class="row" style="gap:10px"><button class="sys-btn big" data-aw="yes">ACCEPTER</button><button class="sys-btn big ghost" data-aw="no">REFUSER</button></div></div></div>`;
+    iv = setInterval(() => { left--; const e = win.querySelector('#awLeft'); if (e) e.textContent = Math.max(0, left); if (left <= 0) { clearInterval(iv); accept(true); } }, 1000);
+  }
+  setTimeout(ask, 6900);
+  function accept(auto) {
+    clearInterval(iv); revived = true; flat = false; beatAmp = 1.2; lastBeat = 0;
+    try { audioUnlock(); sysPing(true); } catch (e) {}
+    el.classList.remove('flat'); el.classList.add('revive');
+    win.innerHTML = `<div class="sw aw-sw"><i class="sw-c sw-tl"></i><i class="sw-c sw-tr"></i><i class="sw-c sw-bl"></i><i class="sw-c sw-br"></i>
+      <header class="sw-h"><span class="sw-dot"></span>ÉVEIL</header>
+      <div class="sw-b" style="text-align:center"><p class="aw-l">${auto ? 'Temps écoulé. Le Système a choisi pour toi.' : 'Proposition acceptée.'}</p>
+        <p class="aw-big">JOUEUR</p><p class="aw-name">Sayko</p>
+        <p class="aw-l">${(() => { try { const st = JSON.parse(localStorage.getItem('sayko-de-poche-state') || '{}'), xp = Object.values((st.nour && st.nour.log) || {}).reduce((m, v) => m + (Number(v) || 0), 0), L = lvOf(xp).l; return `Niveau ${L} · Rang ${sysRank(L)[1]}`; } catch (e) { return 'Niveau 1 · Rang E'; } })()}</p><p class="aw-l" style="color:var(--muted,#6C83AB)">Ta quête commence aujourd'hui.</p>
+        <p class="aw-ar" lang="ar" dir="rtl">بِسْمِ ٱللَّهِ</p></div></div>`;
+    try { localStorage.setItem('sdp-awake', '1'); } catch (e) {}
+    setTimeout(() => { el.classList.add('aw-out'); }, 3600);
+    setTimeout(() => { cancelAnimationFrame(raf); finish(); }, 4300);
+  }
+  el.addEventListener('click', e => {
+    const b = e.target.closest('[data-aw]'); if (!b) return;
+    if (b.dataset.aw === 'yes') { accept(false); return; }
+    if (!refused) { refused = true; const r = win.querySelector('#awRef'); if (r) r.textContent = 'Refus impossible. Le cœur ne repartira pas seul.'; }
+    else { const r = win.querySelector('#awRef'); if (r) r.textContent = 'Le Système attend ta réponse.'; }
+    try { audioUnlock(); sysPing(false); } catch (e2) {}
+  });
+}
+
 function vOrbite() {
   const now = new Date(), h = now.getHours();
   const hello = h < 5 ? 'Bonne nuit' : h < 18 ? 'Bonjour' : 'Bonsoir';
@@ -774,7 +958,7 @@ function vOrbite() {
   }).join('');
   const wk = sumShifts(shiftsWeek(mondayOf(now))).worked, cm = currentMonth(), cur = MONTHS[cm - 1];
   const tb = S.days[todayISO()] ? 4 : todayBlocks();
-  return `${vGalaxy(hello, now)}
+  return `${uiSys() ? vSys(now) : vGalaxy(hello, now)}
   <div class="gglass">${yesterdayCard()}${atStake()}${tjCard()}</div>
   <section class="glass">
     <h2>Aujourd'hui</h2>
@@ -785,9 +969,9 @@ function vOrbite() {
       ${isSetUp() ? (() => { const bb = budgetOf(todayISO().slice(0, 7)), dd = bb.daysLeft ? bb.reste / bb.daysLeft : 0; return `<button class="today-item" data-goto="budget">${miniOrb(bb.free > 0 ? Math.max(0, bb.reste) / bb.free : 0, 'argent')}<span><b>${bb.reste > 0 ? `${eur0(dd)} à dépenser aujourd'hui` : 'Budget du mois épuisé'}</b><span class="s">Reste ${eur0(bb.reste)} ce mois</span></span>${ICON.chev}</button>`; })() : ''}
       <button class="today-item" data-goto="heures">${miniOrb(planetValue('heures')[0], 'heures')}<span><b>${wk ? `${fmtH(wk)} cette semaine` : 'Aucun service cette semaine'}</b><span class="s">Noter un service</span></span>${ICON.chev}</button>
       <button class="today-item" data-goto="routine">${miniOrb(tb / 4, 'routine')}<span><b>${tb === 4 ? 'Routine faite' : `${tb} bloc${tb > 1 ? 's' : ''} sur 4`}</b><span class="s">${streak()} jour${streak() > 1 ? 's' : ''} d'affilée</span></span>${ICON.chev}</button>
-      ${(() => { const ph = phaseOf(S.body.phase), n = weekSessions().length, t = bodyTargets(), fd = foodDay();
-        const b = S.body.active ? 'Séance en cours' : n >= ph.perWeek ? 'Séances de la semaine faites' : isFastDay() ? 'Jour de jeûne · repos' : `Séance ${nextTpl(ph)} · ${ph.name}`;
-        return `<button class="today-item" data-goto="corps">${miniOrb(n / ph.perWeek, 'corps')}<span><b>${b}</b><span class="s">${t ? `Protéines ${fd.p} / ${t.prot} g aujourd'hui` : `${n}/${ph.perWeek} séances cette semaine`}</span></span>${ICON.chev}</button>`; })()}
+      ${(() => { const [wd, wt] = weekPlanProgress(), tp = todayPlan(), t = bodyTargets(), fd = foodDay(), a = arcOf(fight().arc);
+        const b = S.body.active ? 'Séance en cours' : !tp ? 'Prépare ta semaine de combattant' : tp.rest ? `Arc ${a.roman} · repos aujourd'hui` : dayDoneAny(todayISO()) ? `${FTYPES[tp.type].n} · fait` : `${FTYPES[tp.type].n} · ${tp.type === 'force' ? 'séance du jour' : tp.min + ' min'}`;
+        return `<button class="today-item" data-goto="corps">${miniOrb(wt ? wd / wt : 0, 'corps')}<span><b>${b}</b><span class="s">${t ? `Protéines ${fd.p} / ${t.prot} g aujourd'hui` : wt ? `${wd}/${wt} séances cette semaine` : `Arc ${a.roman} · ${a.name}`}</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="parcours">${miniOrb(modPct(cur), 'parcours')}<span><b>Mois ${cm} · ${esc(cur.title)}</b><span class="s">${modDone(cur)} acquis sur ${cur.acq.length}</span></span>${ICON.chev}</button>
       ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">${(() => { const pn = prayerNow(), nx = nextPrayer(); return pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine : ${PNAMES[nx.id]} à ${hm(nx.start)}` : `Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours`; })()}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const td = dkDay(), st = dkStreak(); return `<button class="today-item" data-goto="dhikr">${miniOrb(Math.min(1, td / 33), 'foi', true)}<span><b>${td >= 33 ? `Dhikr · ${td} aujourd'hui` : 'Dhikr · ton premier 33'}</b><span class="s">${st ? `${st} jour${st > 1 ? 's' : ''} d'affilée` : dkF(dk().cur)[2]}</span></span>${ICON.chev}</button>`; })()}
@@ -2486,6 +2670,7 @@ function vSession() {
   return `<header class="top"><div><p class="eyebrow">${ph.name} · séance en cours</p><h1>Séance <em>${esc(a.tpl)}</em></h1><p id="sessEl" class="num">${sessLine()}</p></div></header>
   <details class="warm"><summary>Échauffement · 5 min</summary><p>30 s de jumping jacks, 10 rotations d'épaules, 10 squats lents, 10 pompes faciles. Puis, pour le premier exercice, 1 ou 2 séries légères.</p></details>
   ${cards}
+  <details class="warm"><summary>Finisseur de l'arc · 3 min</summary><p>${fight().arc === 1 ? 'Chaise contre le mur 60 s, planche 45 s, 15 burpees. Sans pause.' : fight().arc === 2 ? 'Tractions ou rowing jusqu\'à l\'échec, puis planche jusqu\'au bout.' : 'Farmer walk lourd 2 × 40 m, puis chaise contre le mur jusqu\'au bout.'} C'est là que se forge la résistance.</p></details>
   <button class="btn block" data-cfinish style="margin-top:22px">Terminer la séance</button>
   <button class="btn block quiet" data-cabort style="margin-top:10px">Abandonner</button>
   <p class="hint">Touche ✓ quand une série est faite : si tu n'as rien tapé, le chiffre grisé est retenu et le repos se lance. Tes notes sont gardées même si tu quittes l'app.</p>`;
@@ -2557,6 +2742,523 @@ function startRest(sec) {
 }
 function stopRest() { clearInterval(RT.iv); RT.iv = 0; clearTimeout(RT.hide); const el = $('#rest'); if (el) el.classList.remove('on'); }
 
+const arcDays = (a, b) => Math.round((parseDate(b) - parseDate(a)) / 864e5);
+
+/* =====================================================================
+   L'ARC DU COMBATTANT — le module Corps devient un arc de manga.
+   Base : prise de muscle (nutrition et séances de force inchangées),
+   plus un corps fonctionnel (vitesse, souplesse, endurance, résistance)
+   et le savoir du combat (techniques, défense de rue, points vitaux, mental).
+   S.fight = { arc, unlock{2,3}, plan{ lundi: { d{0-6: minutes}, s{0-6: type} } }, log[{ id, date, type, arc, min, tech[], res }],
+               tech{ id: [dates] }, read{ id: date }, tests[{ date, pompes, tractions, saut, reac, flex, burpees, planche, chaise }], gear{ id: true } }
+   ===================================================================== */
+const ARCS = [
+  { id: 1, roman: 'I', name: 'Le Réveil', sub: 'Maison · poids du corps', force: 1,
+    why: 'Réveiller le corps et poser les bases : la garde, les appuis, les premières frappes, tes chutes de judo, le souffle. Ton corps se réhabitue aux efforts et aux impacts sans se blesser.' },
+  { id: 2, roman: 'II', name: 'La Forge', sub: 'Salle · sac de frappe', force: 2,
+    why: 'Des charges lourdes pour la masse et la force, le sac pour frapper pour de vrai et durcir poings et tibias, les dégagements avancés et ton judo remis au service de la rue.' },
+  { id: 3, roman: 'III', name: 'Le Tranchant', sub: 'Vitesse · scénarios · résistance', force: 2,
+    why: 'Peu de coups, mais décisifs. Vitesse explosive, combinaisons courtes, réactions aux scénarios réels, endurance de combat. Le corps et l\'esprit ne lâchent plus.' }
+];
+const ARC_NEED = { 2: { force: 12, combat: 8 }, 3: { force: 24, combat: 24 } };
+const FTYPES = {
+  force: { n: 'Force', s: 'Masse et puissance', ic: '<path d="M6.5 12h11M4 8v8M20 8v8M2 10v4M22 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' },
+  combat: { n: 'Combat', s: 'Technique, rounds, finisseur', ic: '<path d="M7 11V7.5a1.5 1.5 0 0 1 3 0V11m0-3.5a1.5 1.5 0 0 1 3 0V11m0-2.5a1.5 1.5 0 0 1 3 0V13c0 4-2.5 6.5-6 6.5S5 17 5 14v-3a1.5 1.5 0 0 1 2 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
+  vitesse: { n: 'Vitesse & souplesse', s: 'Réflexes, explosivité, mobilité', ic: '<path d="M13 3L5 13.5h6L10 21l8-10.5h-6L13 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' },
+  mental: { n: 'Mental', s: 'Souffle, visualisation, résistance', ic: '<path d="M12 3c-4 0-7 3-7 6.5 0 2.2 1.2 3.6 2 4.5V18h7v-2.5h2.5L18 12c.3-5-2.5-9-6-9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9.5 9.5a2.5 2.5 0 0 1 5 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' }
+};
+/* Le grimoire : [id, nom, catégorie, arc, appel vocal, étapes[], erreurs, seul, à deux] */
+const TECH = [
+  ['garde', 'La garde de combat', 'bases', 1, '', ['Pieds largeur d\'épaules, pied fort en arrière, décalés comme sur deux rails.', 'Genoux souples, poids sur l\'avant des pieds : tu dois pouvoir partir dans tous les sens.', 'Mains devant le visage, coudes serrés qui protègent les côtes.', 'Menton rentré, regard sur sa poitrine : tu vois ses mains et ses pieds en même temps.'], 'Talons collés au sol, menton levé, mains qui tombent après chaque frappe.', 'Devant un miroir : 3 × 1 min en garde en bougeant, arrête-toi et vérifie chaque point.', 'Il te touche doucement d\'une main ouverte (visage, côtes) dès que ta garde s\'ouvre.'],
+  ['cloture', 'La clôture, garde de rue', 'bases', 1, 'Clôture', ['Mains ouvertes devant toi, paumes vers l\'autre, à hauteur de poitrine, comme pour dire « calme-toi ».', 'Pieds déjà décalés en garde, discrètement : tu as l\'air calme, tu es prêt.', 'Tes mains marquent une frontière. S\'il la franchit, ce n\'est plus une discussion.', 'Depuis cette position, la paume part directement au visage, sans armer.'], 'Bras tendus (il les attrape), doigts croisés, poings fermés qui provoquent.', 'Parle à voix haute à un adversaire imaginaire en reculant en diagonale, mains en clôture.', 'Il avance en parlant fort, tu gardes la distance avec ta clôture et ta voix, sans jamais le toucher le premier.'],
+  ['appuis', 'Appuis et distances', 'bases', 1, 'Bouge', ['Bouge toujours d\'abord le pied le plus proche de la direction voulue.', 'Pas glissés, jamais les pieds croisés ni joints.', 'Pivote sur le pied avant pour sortir de l\'axe d\'une attaque.', 'Trois distances : hors de portée (sécurité), à portée de pied, corps à corps (coudes, genoux, ton judo).'], 'Sautiller sans but, reculer en ligne droite (on finit contre un mur).', '4 × 1 min : avance, recule, côtés, pivots, en gardant ta garde. Ajoute des frappes en fin de mouvement.', 'Il avance et recule, tu gardes exactement la même distance.'],
+  ['direct', 'Direct du bras avant', 'frappes', 1, 'Direct', ['Le poing part droit depuis ton visage, sans armer.', 'Il tourne en fin de course, paume vers le sol ; l\'épaule monte protéger le menton.', 'Il revient aussi vite qu\'il est parti, sur la même ligne.', 'L\'autre main ne quitte pas ton visage.'], 'Ramener le bras en arrière avant de frapper (on te voit venir), baisser l\'autre main.', 'Shadow : 3 × 1 min de directs seuls, rapides, avec un pas en avant.', 'Il tient une main ouverte, tu touches juste en vitesse, il la bouge.'],
+  ['directar', 'Direct du bras arrière', 'frappes', 1, 'Direct arrière', ['Pivote le pied arrière, talon vers l\'extérieur, comme pour écraser un mégot.', 'Hanche puis épaule tournent : la puissance vient du sol et des jambes.', 'Poing aligné avec l\'avant-bras, expire fort en frappant.', 'Reviens en garde immédiatement.'], 'Frapper seulement avec le bras, pencher le buste en avant.', 'Shadow : direct, direct arrière, 3 × 1 min. Sens la rotation des hanches.', 'Frappe dans une patte d\'ours ou un coussin tenu contre son épaule.'],
+  ['paume', 'Frappe en paume', 'frappes', 1, 'Paume', ['Talon de la main, doigts repliés vers l\'arrière, poignet ferme.', 'Vise le nez ou le menton, du bas vers le haut.', 'Tout le corps pousse comme pour un direct arrière.', 'Dans la rue, sans gants, elle protège ta main : un poing nu se casse vite sur un crâne.'], 'Doigts tendus vers l\'avant, frapper à plat.', 'Shadow depuis la clôture : la paume part sans armer, 3 × 1 min.', 'Il tient un coussin à hauteur de visage, tu frappes depuis la clôture au signal.'],
+  ['crochet', 'Crochet court', 'frappes', 1, 'Crochet', ['Coude plié à 90°, à hauteur d\'épaule.', 'Ce n\'est pas le bras qui tourne, c\'est tout le corps : pied, hanche, épaule.', 'Court et serré, vise le côté de la mâchoire.', 'Poing ou paume ouverte : la paume est plus sûre pour ta main.'], 'Ouvrir le bras en grand arc, rester bloqué de face.', 'Shadow : direct arrière, crochet, 3 × 1 min.', 'Il te tend un coussin sur le côté de sa tête.'],
+  ['marteau', 'Poing marteau', 'frappes', 1, 'Marteau', ['Poing fermé, tu frappes avec le bas du poing, côté petit doigt.', 'Comme un marteau : de haut en bas, ou en revers sur le côté.', 'La main ne se blesse presque jamais : c\'est la frappe du poing nu par excellence.'], 'Frapper avec les jointures.', 'Shadow et coussin posé sur une table : 3 × 30 s par bras.', 'Coussin tenu à plat, frappe de haut en bas.'],
+  ['coude', 'Les coups de coude', 'frappes', 1, 'Coude', ['Seulement à courte distance : quand il est collé à toi.', 'Horizontal : la main près de ton oreille, tout le corps pivote.', 'Montant : du bas vers le haut, sous le menton.', 'L\'os le plus dur de ton corps : peu de force suffit.'], 'Le lancer de trop loin, oublier de pivoter.', 'Shadow : coude horizontal, coude montant, 3 × 30 s de chaque côté.', 'Coussin plaqué contre son épaule, distance de corps à corps.'],
+  ['genou', 'Coup de genou', 'frappes', 1, 'Genou', ['Saisis ses épaules ou sa nuque (clinch).', 'Tire vers le bas pendant que ta hanche pousse le genou vers le haut.', 'Vise la cuisse, le ventre ou le bas-ventre.', 'Repose le pied et enchaîne, ou repousse et pars.'], 'Lever le genou sans tirer avec les bras, se pencher en arrière.', 'Mains en clinch imaginaire, 3 × 30 s de genoux alternés.', 'Il tient un coussin au niveau de son ventre, tu tires et tu montes.'],
+  ['piedface', 'Coup de pied de face, bas', 'frappes', 1, 'Pied de face', ['Le genou monte d\'abord, la jambe s\'étend ensuite.', 'Frappe avec la plante ou le talon au bas-ventre ou à la cuisse.', 'Repose immédiatement en garde.', 'Dans la rue, jamais au-dessus de la ceinture : un pied haut se fait attraper.'], 'Pousser au lieu de frapper, lever le pied trop haut.', '3 × 30 s par jambe, en alternant avec un pas en arrière.', 'Il tient un coussin contre sa cuisse.'],
+  ['low', 'Low kick', 'frappes', 2, 'Low kick', ['Pivote sur le pied avant, le talon s\'oriente vers lui.', 'Frappe avec le tibia, pas avec le pied, sur l\'extérieur de la cuisse.', 'Le bras du même côté descend pour l\'équilibre, l\'autre garde le visage.', 'Répété, il coupe la jambe : l\'autre ne peut plus avancer.'], 'Frapper avec le cou-de-pied, ne pas pivoter.', 'Au sac : 3 × 10 par jambe, contrôlés. C\'est aussi ce qui durcit tes tibias.', 'Il porte un pao ou un coussin épais sur la cuisse.'],
+  ['uppercut', 'Uppercut', 'frappes', 2, 'Uppercut', ['Fléchis légèrement le genou du même côté.', 'Le poing monte en remontant les jambes et en tournant la hanche.', 'Court : il ne descend jamais en dessous de ta poitrine.', 'Vise le menton ou le plexus.'], 'Baisser le poing pour prendre de l\'élan.', 'Au sac : uppercut, crochet, 3 × 1 min.', 'Coussin tenu à plat sous son menton.'],
+  ['couvre', 'La couverture', 'defense', 1, 'Couvre', ['Coudes levés, avant-bras contre les tempes, mains sur l\'arrière de ta tête.', 'Menton rentré, dos rond, genoux fléchis.', 'Contre une avalanche de coups désordonnés : tu encaisses sur les bras.', 'Puis tu rentres dans le corps à corps (clinch) ou tu sors sur le côté.'], 'Fermer les yeux, rester figé dans la couverture.', 'Shadow : au signal « Couvre », 2 s de couverture puis contre-attaque.', 'Il frappe doucement des deux mains ouvertes, tu couvres puis tu rentres.'],
+  ['recule', 'Le retrait', 'defense', 1, 'Recule', ['Un petit pas en arrière, juste assez pour être hors de portée.', 'Garde haute pendant le retrait.', 'Dès que son coup arrive en bout de course, tu reviens en frappant.'], 'Reculer trop loin, baisser les mains.', 'Shadow : « Recule, direct arrière », 3 × 1 min.', 'Il lance un direct lent, tu recules juste assez et tu reviens.'],
+  ['pare', 'La parade', 'defense', 2, 'Pare', ['Petite tape de la main ouverte qui dévie son direct sur le côté.', 'Le geste est court : ta main ne quitte presque pas ton visage.', 'Contre-attaque avec l\'autre main en même temps ou juste après.'], 'Aller chercher le coup loin devant, faire de grands gestes.', 'Shadow : pare, direct arrière.', 'Il lance des directs lents puis de plus en plus vite.'],
+  ['esquive', 'Esquive rotative', 'defense', 2, 'Esquive', ['Fléchis les genoux et tourne le buste, la tête passe sous ou à côté du coup.', 'Les yeux restent sur lui.', 'Tu reviens en frappant, avec l\'énergie de la rotation (crochet).'], 'Se pencher en avant en regardant le sol.', 'Une corde tendue à hauteur d\'épaule : passe dessous en esquive, 3 × 1 min.', 'Il lance des crochets lents au-dessus de ta tête.'],
+  ['poignet', 'Saisie de poignet', 'degage', 1, '', ['Le point faible de sa prise, c\'est l\'ouverture entre son pouce et ses doigts.', 'Tourne ton poignet vers son pouce et tire sec en pliant le coude vers ton épaule.', 'S\'il tient à deux mains : passe ta main libre entre ses bras, attrape ton propre poing et tire vers le haut.', 'Libre ? Frappe ou pars, tout de suite.'], 'Tirer en ligne droite contre sa force.', 'Mime le geste 20 fois de chaque côté, lentement puis vite.', 'Il serre de plus en plus fort, tu te dégages à chaque fois.'],
+  ['col', 'Saisie au col ou au t-shirt', 'degage', 1, '', ['Plaque sa main contre ta poitrine avec tes deux mains : elle est piégée.', 'Frappe immédiatement (paume au visage, genou).', 'Ou fais un pas en arrière en pliant son poignet vers le bas : il lâche.', 'Remets de la distance, clôture.'], 'Essayer d\'arracher sa main sans frapper d\'abord.', 'Mime : plaque, paume, pas en arrière, 20 fois.', 'Il t\'attrape le t-shirt, tu enchaînes doucement les trois temps.'],
+  ['etrface', 'Étranglement de face', 'degage', 1, '', ['Rentre le menton et monte les épaules : tu protèges la gorge.', 'Tes mains en crochet viennent arracher ses pouces vers le bas, d\'un coup sec.', 'Enchaîne aussitôt : genou au bas-ventre ou paume.', 'Autre option : lève un bras très haut et tourne fort sur toi-même pour casser la prise.'], 'Tirer sur ses avant-bras (trop forts), paniquer.', 'Mime les trois temps 20 fois, lentement d\'abord.', 'Ses mains posées sans serrer sur ton cou, tu travailles le geste au ralenti. Jamais d\'étranglement serré à l\'entraînement.'],
+  ['etrarr', 'Étranglement par derrière', 'degage', 2, '', ['Rentre le menton dans le creux de son coude, tout de suite.', 'Tes deux mains tirent son avant-bras vers le bas, accrochées comme à une barre de traction.', 'Baisse-toi, tourne la tête vers son coude et sors la tête par là.', 'Coup de coude arrière si besoin, puis distance.'], 'Tirer vers l\'avant, perdre du temps.', 'Mime le geste 15 fois, puis contre une serviette autour de ton cou tenue par toi.', 'Bras posé sans serrer, tu travailles l\'enchaînement. Il relâche au moindre tapotement.'],
+  ['ceinture', 'Ceinture par derrière', 'degage', 2, '', ['Baisse ton centre de gravité : écarte les jambes, fléchis les genoux.', 'Frappe le dos de sa main avec tes jointures, ou coude arrière.', 'Tourne pour lui faire face, ou utilise ton judo (projection de hanche).'], 'Rester droit : il te soulève.', 'Mime : base basse, frappe, rotation, 15 fois.', 'Il te ceinture doucement, tu baisses ta base et tu tournes.'],
+  ['mur', 'Plaqué contre un mur', 'degage', 3, '', ['Le mur est aussi un appui : pousse-toi dessus.', 'Tourne pour inverser : c\'est lui qui se retrouve contre le mur.', 'Coudes et genoux à courte distance, puis sors sur le côté.'], 'Rester plat contre le mur, mains basses.', 'Contre un mur : pivot, coude, sortie, 15 fois de chaque côté.', 'Il te plaque doucement, tu travailles le pivot.'],
+  ['releve', 'Se relever du sol', 'degage', 1, '', ['Au sol, une jambe levée entre lui et toi pour le repousser, une main au sol derrière toi.', 'Appuie-toi sur cette main et le pied opposé, soulève les hanches.', 'Glisse la jambe libre en arrière sous toi et relève-toi déjà en garde, à distance.', 'Jamais debout face à lui d\'un coup : c\'est là qu\'on prend un coup de pied.'], 'Se relever de face, tourner le dos.', '10 relevés techniques de chaque côté, de plus en plus vite.', 'Il tourne autour de toi, tu le suis avec la jambe puis tu te relèves.'],
+  ['chute', 'Chute arrière sur le dur', 'judo', 1, '', ['Le menton collé à la poitrine : la tête ne doit jamais toucher.', 'Dos arrondi, tu roules comme une boule.', 'Les bras amortissent à 45°, sans bloquer les coudes.', 'Sur du béton, c\'est ce qui sauve la tête. Tes 10 ans de judo sont là.'], 'Lâcher la tête en arrière, tendre un bras pour se rattraper.', 'Sur un tapis ou de l\'herbe : 10 chutes arrière, 10 de côté, 5 roulades avant.', 'Il te pousse doucement, tu chutes et te relèves en garde.'],
+  ['osoto', 'O-soto-gari dans la rue', 'judo', 2, '', ['Casse son équilibre vers l\'arrière : pousse son épaule ou son menton.', 'Ta jambe fauche derrière son genou, ton buste continue vers l\'avant.', 'Garde sa manche ou son col pour contrôler sa chute.', 'Sur du béton, une chute non contrôlée peut tuer : contrôle-la si la menace ne justifie pas plus.'], 'Faucher sans avoir cassé l\'équilibre.', 'Uchi-komi à vide ou à l\'élastique : 3 × 10 par jambe.', 'Sur un tapis, avec un partenaire qui sait chuter.'],
+  ['ouchi', 'O-uchi-gari contre une saisie', 'judo', 2, '', ['Il te tient de face (col, épaules) : avance vers lui.', 'Ta jambe crochète l\'intérieur de sa jambe et la balaie vers l\'arrière.', 'Ton poids le pousse vers l\'arrière en même temps.', 'Tu restes debout, prêt à partir.'], 'Reculer au lieu d\'entrer.', 'Uchi-komi à vide : 3 × 10.', 'Sur un tapis.'],
+  ['sol', 'Contrôler au sol, puis partir', 'judo', 3, '', ['S\'il tombe, une seconde de contrôle (genou sur le ventre, kesa-gatame) pour sécuriser.', 'Tu ne restes jamais au sol dans la rue : sol dur, autres agresseurs, objets.', 'Tu te relèves en garde et tu pars.'], 'Rester au sol à « finir ».', 'Enchaînement à vide : projection imaginaire, contrôle 2 s, relevé, 10 fois.', 'Sur un tapis.']
+];
+const TCAT = [['bases', 'Les bases'], ['frappes', 'Frapper'], ['defense', 'Se défendre'], ['degage', 'Se dégager'], ['judo', 'Ton judo dans la rue']];
+const T_MASTER = 5;
+/* Les appels vocaux du shadow, selon l'arc */
+const CALLS = {
+  1: ['Direct', 'Direct, direct arrière', 'Paume', 'Paume, genou', 'Direct arrière, crochet', 'Marteau', 'Coude', 'Pied de face', 'Couvre !', 'Recule', 'Direct, recule', 'Clôture', 'Bouge'],
+  2: ['Direct, direct arrière, low kick', 'Pare, direct arrière', 'Esquive, crochet', 'Uppercut, crochet', 'Low kick', 'Direct, crochet, coude', 'Couvre, genou', 'Recule, direct arrière', 'Paume, coude, genou'],
+  3: ['Paume, genou, pars !', 'Esquive, crochet, low kick', 'Direct arrière, coude', 'Couvre, coude, genou', 'Saisie au col !', 'Poussée !', 'Étranglement de face !', 'Il te prend le poignet !', 'Ceinture par derrière !', 'Il sort quelque chose de sa poche : pars !']
+};
+const REACT = ['Gauche !', 'Droite !', 'Baisse-toi !', 'Recule !', 'Frappe !', 'Couvre !', 'Pivote !'];
+/* Le savoir : défense de rue, mental, éthique */
+const LORE = [
+  ['vigil', 'rue', 'Les quatre couleurs de la vigilance', ['Blanc : tu ne fais attention à rien (écouteurs, téléphone). C\'est l\'état que cherchent les agresseurs.', 'Jaune : détendu mais attentif. Tu sais qui est autour de toi et où sont les sorties. C\'est ton état normal dehors.', 'Orange : quelque chose cloche, une personne précise. Tu prépares un plan : par où partir, quoi faire s\'il s\'approche.', 'Rouge : la menace est là. Tu agis selon ton plan, sans hésiter.', 'Le combat qu\'on évite parce qu\'on l\'a vu venir est le seul qu\'on gagne à coup sûr.']],
+  ['signes', 'rue', 'Les signes avant l\'attaque', ['Il réduit la distance en parlant, souvent avec un prétexte (une cigarette, l\'heure, une question).', 'Ses mains sont cachées, ou il touche sa ceinture, sa poche.', 'Son regard scanne autour : il vérifie les témoins et les caméras.', 'Ils sont plusieurs et se placent pour t\'encercler.', 'Il se met de profil, serre les poings, sa respiration change, il arrête soudain de parler.', 'À un seul de ces signes : orange. À plusieurs : clôture et distance.']],
+  ['voix', 'rue', 'La clôture et la voix', ['Mains ouvertes en clôture, voix calme mais forte : « Reste là. » « Recule. »', 'Parler fort attire les témoins et montre que tu n\'es pas une proie.', 'Ne réponds jamais aux insultes : ton ego ne vaut pas une lame.', 'Laisse-lui toujours une sortie : un homme acculé se bat.']],
+  ['fuite', 'rue', 'Partir est une victoire', ['Le meilleur résultat d\'une agression : rentrer chez toi entier, sans avoir eu à frapper.', 'Si tu dois frapper, frappe pour créer une ouverture, puis pars. Pas pour gagner.', 'Va vers la lumière et les gens : un commerce, une gare, une rue passante.', 'Tes séances de vitesse servent d\'abord à ça.']],
+  ['femme', 'rue', 'Protéger ta femme', ['Convenez d\'un plan ensemble, à froid : un mot-signal qui veut dire « éloigne-toi et appelle le 17 ou le 112 ».', 'Dès l\'orange, place-toi entre elle et la menace, sans brusquerie.', 'Elle s\'éloigne vers un lieu sûr : elle n\'est pas en danger à côté de toi, et toi tu as les mains libres.', 'Vous repartez ensemble dès que possible : le but est de rentrer à deux.']],
+  ['groupe', 'rue', 'Contre plusieurs', ['Ne va jamais au sol : au sol, on se fait frapper par les autres.', 'Bouge pour les aligner : qu\'un seul puisse t\'atteindre à la fois.', 'Garde un mur, une voiture ou un poteau dans ton dos seulement si tu ne peux pas fuir.', 'Ta priorité reste la sortie.']],
+  ['lame', 'rue', 'Face à une arme blanche', ['Si on te demande ton téléphone ou ton argent : donne. Rien ne vaut ta vie.', 'S\'il veut te frapper : fuis, c\'est la seule vraie défense.', 'Si tu ne peux pas fuir : mets un objet entre vous (sac, veste enroulée sur l\'avant-bras, chaise) et crie.', 'Ne tente pas de désarmer comme dans les films : en vrai, on se fait toucher plusieurs fois sans même le sentir.']],
+  ['apres', 'rue', 'Après', ['Mets-toi en sécurité, puis appelle le 17 ou le 112.', 'Vérifie que tu n\'es pas blessé : avec l\'adrénaline, on ne sent rien sur le moment.', 'Retiens les témoins, l\'heure, les visages, les vêtements.', 'Va voir un médecin, même pour un coup qui paraît léger.']],
+  ['adren', 'mental', 'L\'adrénaline', ['Sous le stress, le cœur s\'emballe, la vision se rétrécit (effet tunnel), les mains tremblent, les gestes fins disparaissent.', 'C\'est normal, et tout le monde le vit. Ce qui change avec l\'entraînement, c\'est que tu le reconnais et que tu continues à agir.', 'D\'où le choix de techniques simples : sous adrénaline, on ne fait que ce qu\'on a répété des centaines de fois.']],
+  ['souffle', 'mental', 'La respiration tactique', ['Inspire 4 secondes, bloque 4 secondes, expire 4 secondes, bloque 4 secondes.', 'Trois ou quatre cycles suffisent à faire redescendre le cœur.', 'Utilise-la avant une situation tendue, pendant un effort dur, et le soir.']],
+  ['colere', 'mental', 'La colère maîtrisée', ['« Le fort n\'est pas celui qui terrasse les gens, le fort est celui qui se maîtrise lorsqu\'il est en colère. » (Bukhari 6114, Muslim 2609)', 'Un homme demanda un conseil au Prophète ﷺ ; il répondit : « Ne te mets pas en colère », et le répéta plusieurs fois. (Bukhari 6116)', 'Dans la colère : cherche refuge auprès d\'Allah contre Satan (Bukhari 3282), et si tu es debout, assieds-toi (Abu Dawud 4782).', 'Gentil mais dangereux : tu ne cherches jamais le combat. Tu ne frappes que pour te défendre ou défendre les tiens, et jamais plus que nécessaire.']],
+  ['douleur', 'mental', 'La résistance à la douleur', ['La douleur est une information, pas un ordre. On apprend à la regarder sans paniquer.', 'Le corps s\'adapte aux impacts répétés et progressifs : peau, muscles, os. D\'où l\'endurcissement par petits paliers, jamais d\'un coup.', 'Le mental se forge dans les dernières secondes d\'un effort, quand tout dit d\'arrêter : c\'est le rôle des finisseurs.', 'Une douleur vive, articulaire ou qui dure, ce n\'est pas de la faiblesse : on s\'arrête et on soigne.']],
+  ['visu', 'mental', 'La visualisation', ['Les yeux fermés, tu vis une scène en détail : le lieu, la lumière, sa voix, ta réponse.', 'Le cerveau répète le geste presque comme s\'il le faisait.', 'Termine toujours la scène en sécurité, chez toi : c\'est ça, la victoire.']],
+  ['sabr', 'mental', 'Sabr et tawakkul', ['Le sabr, c\'est tenir quand c\'est dur : une séance de plus, un round de plus.', 'Le tawakkul : tu fais tout ce qui dépend de toi (t\'entraîner, être vigilant), puis tu confies le reste à Allah.', '« Le croyant fort est meilleur et plus aimé d\'Allah que le croyant faible, et en chacun il y a du bien. » (Muslim 2664)']]
+];
+/* Les points vitaux : [id, nom, x, y, couleur g (s'échapper) / o (avec contrôle) / r (jamais, sauf danger de mort), arme, effet] */
+const VITAL = [
+  ['yeux', 'Les yeux', 100, 33, 'g', 'Doigts tendus en éventail, geste de balayage.', 'Il ne voit plus et se protège par réflexe : tu as le temps de partir.'],
+  ['nez', 'Le nez', 100, 45, 'g', 'Paume du bas vers le haut, direct.', 'Larmes, douleur vive, il recule. Rarement grave.'],
+  ['menton', 'Le menton et la mâchoire', 100, 58, 'o', 'Paume, crochet court, coude.', 'Peut faire perdre l\'équilibre ou connaissance. Attention : sa tête qui tombe sur le béton peut le tuer.'],
+  ['plexus', 'Le plexus solaire', 100, 128, 'g', 'Direct, genou, coude.', 'Souffle coupé quelques secondes.'],
+  ['basventre', 'Le bas-ventre', 100, 196, 'g', 'Genou, coup de pied de face bas.', 'Il se plie en deux. Très efficace, peu de risque mortel.'],
+  ['cuisse', 'L\'extérieur de la cuisse', 76, 240, 'g', 'Low kick avec le tibia, genou.', 'La jambe « meurt », il ne peut plus avancer ni te suivre.'],
+  ['genou', 'Le genou', 124, 290, 'o', 'Coup de pied de face ou de côté, bas.', 'Il tombe. Mais un genou cassé, c\'est parfois une vie de handicap : seulement si c\'est grave.'],
+  ['pied', 'Le dessus du pied', 84, 382, 'g', 'Talon, écrasement.', 'Il lâche une saisie par derrière.'],
+  ['tempe', 'La tempe', 79, 34, 'r', 'Jamais, sauf si ta vie est en jeu.', 'L\'os y est fin : un coup peut provoquer une hémorragie cérébrale.'],
+  ['gorge', 'La gorge', 100, 76, 'r', 'Jamais, sauf si ta vie est en jeu.', 'La trachée peut s\'écraser : risque de mort.']
+];
+const VITAL_BACK = 'Dans son dos : la nuque, l\'arrière du crâne et la colonne vertébrale. Jamais, sauf si ta vie est en jeu : un coup peut tuer ou paralyser.';
+/* Les scénarios de visualisation (séance Mental) */
+const SCEN = [
+  ['Le parking de la gare', 'Un soir, après ton service. Un homme s\'approche et te demande une cigarette. Tu passes à l\'orange. Il se rapproche en parlant : tes mains montent en clôture, ta voix dit « Reste là ». Il attrape ton t-shirt : tu plaques sa main, paume au visage, pas en arrière. Tu pars vers la lumière de la gare et tu appelles le 17. Tu rentres chez toi.'],
+  ['Avec ta femme', 'Vous marchez le soir. Un groupe vous insulte. Tu ne réponds pas, tu te places entre eux et elle, tu dis le mot-signal : elle s\'éloigne vers le commerce éclairé. L\'un vous suit et te pousse : appuis, distance, clôture, voix forte. Il revient : paume, genou, et tu la rejoins. Vous rentrez à deux.'],
+  ['Dans la foule', 'Dans un bus bondé, quelqu\'un te ceinture par derrière. Tu baisses ta base, frappe sur sa main, tu tournes. Tu fais face, clôture, et tu descends au prochain arrêt.'],
+  ['Au sol', 'Une poussée dans le dos, tu tombes sur le trottoir. Menton rentré, chute amortie. Une jambe entre lui et toi, relevé technique, garde. Il hésite : tu pars.'],
+  ['La lame', 'Il sort un couteau et demande ton téléphone. Tu le donnes, mains visibles, voix calme. Il part. Tu respires, tu appelles le 17. Tu es vivant : tu as gagné.']
+];
+/* Le matériel de l'arc II */
+const GEAR = [['corde', 'Corde à sauter', 'Échauffement et cardio, pieds légers.'], ['elast', 'Élastiques de résistance', 'Uchi-komi de judo, épaules, mobilité.'], ['bandes', 'Bandes de boxe (4 m) et gants 14 oz', 'Pour frapper le sac sans te casser les mains.'], ['sac', 'Sac de frappe (sur pied ou suspendu)', 'La puissance réelle et l\'endurcissement.'], ['barre', 'Barre de traction de porte', 'Tractions, gainage suspendu, force de saisie.']];
+/* Les tests de la fiche : [clé, nom, unité, aide, min, max, stat] */
+const FTESTS = [
+  ['pompes', 'Pompes d\'affilée', 'reps', 'Corps gainé, poitrine à 2 cm du sol, sans pause.', 0, 60, 'force'],
+  ['tractions', 'Tractions d\'affilée', 'reps', 'Bras tendus en bas, menton au-dessus de la barre. Laisse vide si tu n\'as pas de barre.', 0, 20, 'force'],
+  ['saut', 'Saut en longueur sans élan', 'cm', 'Pieds joints, mesure du bout des pieds au talon arrière. Meilleur de 3.', 150, 280, 'vitesse'],
+  ['reac', 'Temps de réaction', 'ms', 'Fais le test dans l\'app : touche l\'écran dès qu\'il devient rouge.', 360, 180, 'vitesse'],
+  ['flex', 'Flexion avant, jambes tendues', 'cm', 'Distance doigts-sol : négatif si tu ne touches pas, positif si tu dépasses (sur une marche).', -25, 20, 'souplesse'],
+  ['burpees', 'Burpees en 2 minutes', 'reps', 'Poitrine au sol, saut en haut, mains au-dessus de la tête.', 10, 50, 'endurance'],
+  ['planche', 'Planche, le plus longtemps possible', 's', 'Coudes sous les épaules, corps droit. Tu t\'arrêtes quand les hanches tombent.', 30, 300, 'resistance'],
+  ['chaise', 'Chaise contre le mur', 's', 'Cuisses parallèles au sol, dos au mur, bras libres.', 30, 240, 'resistance']
+];
+const STATS = [['force', 'Force'], ['vitesse', 'Vitesse'], ['souplesse', 'Souplesse'], ['endurance', 'Endurance'], ['resistance', 'Résistance'], ['technique', 'Technique'], ['mental', 'Mental']];
+const RANKS = [[0, 'E', 'Novice'], [20, 'D', 'Apprenti'], [35, 'C', 'Combattant'], [50, 'B', 'Guerrier'], [65, 'A', 'Vétéran'], [80, 'S', 'Maître']];
+
+const STRETCH = [['Ischios : jambe tendue sur une chaise, buste droit qui descend', 'gauche'], ['Ischios, l\'autre jambe', 'droite'], ['Pigeon : hanche ouverte au sol', 'gauche'], ['Pigeon, l\'autre côté', 'droite'], ['Papillon : plantes des pieds jointes, genoux vers le sol', ''], ['Fente basse : hanche avant, psoas étiré', 'gauche'], ['Fente basse, l\'autre côté', 'droite'], ['Épaules : bras tendu croisé devant la poitrine', 'gauche'], ['Épaules, l\'autre bras', 'droite'], ['Rotation du dos, allongé sur le côté', 'gauche'], ['Rotation du dos, l\'autre côté', 'droite'], ['Grand écart facial, progressif, sans forcer', '']];
+function fight() {
+  const f = S.fight = S.fight && typeof S.fight === 'object' ? S.fight : {};
+  if (![1, 2, 3].includes(f.arc)) f.arc = 1;
+  ['unlock', 'plan', 'tech', 'read', 'gear'].forEach(k => { if (!f[k] || typeof f[k] !== 'object' || Array.isArray(f[k])) f[k] = {}; });
+  ['log', 'tests'].forEach(k => { if (!Array.isArray(f[k])) f[k] = []; });
+  return f;
+}
+const arcOf = id => ARCS.find(a => a.id === id) || ARCS[0];
+const combatCount = arc => fight().log.filter(l => l.type === 'combat' && (!arc || l.arc === arc)).length;
+const chapters = () => S.body.sessions.length + fight().log.length;
+function arcStatus(id) {
+  if (id === 1 || fight().unlock[id]) return { open: true };
+  const n = ARC_NEED[id], fc = phaseCount(id === 2 ? 1 : 2), cc = combatCount(id - 1);
+  return { open: false, fc, cc, need: n, gym: id !== 2 || S.body.gym };
+}
+function checkArcUnlocks() {
+  [2, 3].forEach(id => { const s = arcStatus(id); if (s.open) return;
+    if (s.fc >= s.need.force && s.cc >= s.need.combat && s.gym) { fight().unlock[id] = todayISO(); if (id === 2) S.body.unlocks[2] = S.body.unlocks[2] || todayISO(); save(); setTimeout(() => arcCeremony(id), 700); } });
+}
+function setArc(id) { const f = fight(); f.arc = id; S.body.phase = arcOf(id).force; save(); }
+/* ----- Le plan de la semaine ----- */
+const DAYN = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+const monKey = (d = new Date()) => iso(mondayOf(d));
+const planOf = (k = monKey()) => fight().plan[k] || null;
+function autoTypes(d) {
+  const days = Object.keys(d).map(Number).filter(i => d[i] > 0).sort((a, b) => a - b), n = days.length;
+  const MIX = { 1: ['combat'], 2: ['force', 'combat'], 3: ['force', 'combat', 'force'], 4: ['force', 'combat', 'force', 'combat'], 5: ['force', 'combat', 'vitesse', 'force', 'combat'], 6: ['force', 'combat', 'vitesse', 'force', 'combat', 'mental'], 7: ['force', 'combat', 'vitesse', 'force', 'combat', 'mental', 'force'] };
+  const want = (MIX[n] || []).slice(), s = {};
+  let F = want.filter(t => t === 'force').length;
+  /* La force d'abord, sur les jours les plus longs (45 min et plus), en évitant deux jours d'affilée */
+  const elig = days.filter(i => d[i] >= 45).sort((a, b) => d[b] - d[a] || a - b), fd = [];
+  elig.forEach(i => { if (fd.length < F && !fd.some(j => Math.abs(j - i) === 1)) fd.push(i); });
+  elig.forEach(i => { if (fd.length < F && !fd.includes(i)) fd.push(i); });
+  fd.forEach(i => { s[i] = 'force'; want.splice(want.indexOf('force'), 1); });
+  want.forEach((t, k) => { if (t === 'force') want[k] = 'combat'; });
+  days.filter(i => !s[i]).forEach(i => {
+    let k = d[i] <= 20 ? want.findIndex(t => t === 'mental' || t === 'vitesse') : want.findIndex(t => t === 'combat');
+    if (k < 0) k = 0;
+    s[i] = want.length ? want.splice(k, 1)[0] : (d[i] <= 20 ? 'vitesse' : 'combat');
+  });
+  return s;
+}
+const dayDoneAny = k => S.body.sessions.some(s => s.date === k) || fight().log.some(l => l.date === k);
+function planStats(weeks = 4) {
+  let planned = 0, done = 0; const today = todayISO();
+  for (let w = 0; w < weeks; w++) { const mon = addDays(mondayOf(new Date()), -7 * w), p = planOf(iso(mon)); if (!p) continue;
+    Object.keys(p.s || {}).forEach(i => { const k = iso(addDays(mon, Number(i))); if (k > today) return; if (k === today && !dayDoneAny(k)) return; planned++; if (dayDoneAny(k)) done++; }); }
+  return { planned, done, pct: planned ? done / planned : 0 };
+}
+function weekPlanProgress() { const p = planOf(); if (!p) return [0, 0]; const mon = mondayOf(new Date()), ks = Object.keys(p.s || {}); return [ks.filter(i => dayDoneAny(iso(addDays(mon, Number(i))))).length, ks.length]; }
+const todayIdx = () => (new Date().getDay() + 6) % 7;
+function todayPlan() { const p = planOf(); if (!p) return null; const i = todayIdx(); return p.s && p.s[i] ? { type: p.s[i], min: p.d[i] } : { rest: true }; }
+/* ----- Les séances ----- */
+function techPick(arc, cats) {
+  const f = fight(), pool = TECH.filter(t => t[3] <= arc && (!cats || cats.includes(t[2])));
+  return pool.slice().sort((a, b) => (f.tech[a[0]] || []).length - (f.tech[b[0]] || []).length || a[3] - b[3])[0];
+}
+const techDays = id => new Set(fight().tech[id] || []).size;
+function buildSession(type, arc, min) {
+  const L = min <= 20 ? 0 : min <= 45 ? 1 : 2, B = [], P = (t, sec, cue, x = {}) => B.push(Object.assign({ t, sec, cue }, x));
+  const rest = (sec = 60) => P('Repos', sec, 'Respire par le nez, garde haute en marchant.', { kind: 'rest' });
+  if (type === 'combat') {
+    if (arc >= 2) P('Corde à sauter', L ? 180 : 120, 'Pieds légers, poignets qui tournent, épaules relâchées.', { kind: 'warm' });
+    else { P('Réveil', 60, 'Sautille sur place, épaules relâchées.', { kind: 'warm' }); P('Articulations', 60, 'Cou, épaules, hanches, genoux, chevilles : 10 rotations chacun.', { kind: 'warm' }); }
+    P('Shadow léger', 60, 'Garde haute, déplacements, quelques directs souples.', { kind: 'warm' });
+    const t = techPick(arc, ['bases', 'frappes', 'defense']);
+    P(`Technique · ${t[1]}`, L ? 300 : 180, 'Lentement d\'abord, parfaitement. La vitesse viendra seule.', { kind: 'tech', tech: t[0], steps: t[5] });
+    if (L >= 1) P(arc === 1 ? 'Tes chutes de judo' : 'Uchi-komi', 180, arc === 1 ? '10 chutes arrière, 10 de côté, 5 roulades, sur un tapis ou de l\'herbe. Menton rentré.' : 'Entrées de projection à vide ou à l\'élastique : o-soto-gari, o-uchi-gari, 10 de chaque, en boucle.', { kind: 'drill', tech: arc === 1 ? 'chute' : 'osoto' });
+    const n = [3, arc === 1 ? 5 : 4, 6][L], len = arc === 1 ? 120 : 180, ev = arc === 1 ? 6 : arc === 2 ? 5 : 3.5;
+    for (let r = 1; r <= n; r++) {
+      const name = arc === 1 ? 'Shadow' : arc === 2 ? (r % 2 ? 'Sac · puissance' : 'Sac · combinaisons') : (r % 2 ? 'Sac · vitesse' : 'Scénarios');
+      const cue = arc === 1 ? 'Écoute les appels et frappe. Entre deux appels : bouge, garde haute.' : name === 'Sac · puissance' ? 'Peu de coups, tout le corps dedans. Expire à chaque frappe.' : name === 'Scénarios' ? 'Réagis à chaque situation annoncée : dégage-toi, frappe, pars.' : 'Vite, net, la garde revient toujours.';
+      P(`Round ${r} · ${name}`, len, cue, { kind: 'round', calls: arc === 3 && name === 'Scénarios' ? 3 : arc, every: ev });
+      if (r < n) rest(L ? 60 : 30);
+    }
+    if (arc >= 2 && L >= 1) P('Endurcissement', 120, 'Low kicks contrôlés au sac, 10 par jambe, puis frappes moyennes poings bandés. Ajoute un peu chaque semaine. Jamais de douleur vive.', { kind: 'drill', tech: 'low' });
+    if (L >= 1) { const d = techPick(arc, ['degage']); P(`Self-défense · ${d[1]}`, 150, d[5].join(' '), { kind: 'tech', tech: d[0], steps: d[5] }); }
+    if (L === 2) { const t2 = techPick(arc, ['frappes', 'defense']); if (t2 && t2[0] !== t[0]) P(`Technique · ${t2[1]}`, 300, 'Deuxième technique du jour : lentement, puis en vitesse.', { kind: 'tech', tech: t2[0], steps: t2[5] }); const d2 = techPick(arc, ['degage', 'judo']); P(`Self-défense · ${d2[1]}`, 180, d2[5].join(' '), { kind: 'tech', tech: d2[0], steps: d2[5] }); }
+    if (arc === 1) { P('Finisseur · chaise contre le mur', L ? 60 : 45, 'Les cuisses brûlent : c\'est là que le mental se forge.', { kind: 'fin' }); P('Finisseur · planche', 45, 'Fessiers serrés, respire. Ne lâche pas.', { kind: 'fin' }); P('Finisseur · burpees à fond', L ? 45 : 30, 'Chaque répétition compte.', { kind: 'fin' }); }
+    else if (arc === 2) { for (let k = 0; k < (L ? 2 : 1); k++) { P('Finisseur · burpees', 40, 'À fond.', { kind: 'fin' }); P('Repos', 20, '', { kind: 'rest' }); P('Finisseur · frappes au sac à fond', 40, 'Jusqu\'au bout.', { kind: 'fin' }); P('Repos', 20, '', { kind: 'rest' }); } P('Chaise contre le mur, jusqu\'au bout', 0, 'Tiens. Encore. Touche « J\'ai lâché » seulement quand tu ne peux plus.', { kind: 'hold', res: 'chaise' }); }
+    else { for (let k = 0; k < (L ? 5 : 3); k++) { P('Le Mur · sprawls', 30, 'Descends, remonte, garde haute.', { kind: 'fin' }); P('Le Mur · frappes à fond', 30, 'Tout ce qui te reste.', { kind: 'fin' }); } P('Planche, jusqu\'au bout', 0, 'Quand tout dit d\'arrêter, tiens encore cinq secondes.', { kind: 'hold', res: 'planche' }); }
+    if (L >= 1) P('Souplesse', L === 2 ? 240 : 150, 'Ischios, hanches, épaules : 30 s chacun, respire dans l\'étirement.', { kind: 'stretch' });
+    P('Respiration tactique', L ? 120 : 60, 'Inspire 4 s, bloque 4 s, expire 4 s, bloque 4 s.', { kind: 'breath', box: true });
+  }
+  if (type === 'vitesse') {
+    P('Échauffement dynamique', 180, 'Montées de genoux, talons-fesses, pas chassés, rotations de bras.', { kind: 'warm' });
+    const n = [2, 4, 6][L];
+    for (let r = 1; r <= n; r++) { P(`Réflexes ${r}`, 45, 'En garde. Réagis à chaque appel le plus vite possible.', { kind: 'round', react: true }); P('Repos', 30, '', { kind: 'rest' }); }
+    for (let r = 1; r <= n; r++) { P(arc === 1 ? 'Squats sautés' : 'Sauts groupés', 20, 'Explosif en montant, réception souple et silencieuse.', { kind: 'fin' }); P('Repos', 40, '', { kind: 'rest' }); }
+    if (arc >= 2) for (let r = 1; r <= n; r++) { P('Corde · pieds rapides', 30, 'Le plus vite possible, sur la pointe des pieds.', { kind: 'fin' }); P('Repos', 30, '', { kind: 'rest' }); }
+    if (L >= 1) for (let r = 1; r <= (L === 2 ? 4 : 3); r++) { P(`Shadow vitesse ${r}`, 60, 'Frappes les plus rapides possible, sans perdre la garde.', { kind: 'round', calls: arc, every: 2.5 }); P('Repos', 30, '', { kind: 'rest' }); }
+    for (let r = 1; r <= (L ? 4 : 2); r++) { P('Sprint sur place', 15, 'Montées de genoux à fond, bras qui frappent l\'air.', { kind: 'fin' }); P('Repos', 45, '', { kind: 'rest' }); }
+    STRETCH.slice(0, [4, 10, 12][L]).forEach(([s, side]) => P(`Souplesse · ${s.split(' :')[0]}`, [40, 50, 60][L], s + (side ? ` (${side})` : ''), { kind: 'stretch' }));
+  }
+  if (type === 'mental') {
+    P('Respiration tactique', L ? 300 : 180, 'Assis ou allongé. Suis la voix : inspire 4, bloque 4, expire 4, bloque 4.', { kind: 'breath', box: true });
+    const sc = SCEN[fight().log.filter(l => l.type === 'mental').length % SCEN.length];
+    P(`Visualisation · ${sc[0]}`, L ? 240 : 180, sc[1], { kind: 'visu' });
+    if (L >= 1) { const sc2 = SCEN[(SCEN.indexOf(sc) + 1) % SCEN.length]; P(`Visualisation · ${sc2[0]}`, 240, sc2[1], { kind: 'visu' }); }
+    if (L === 2) P('Shadow au ralenti', 300, 'Rejoue tes scénarios au ralenti, chaque geste parfait : clôture, dégagement, frappe, départ.', { kind: 'drill' });
+    P('Défi de résistance · chaise contre le mur', 0, 'Jusqu\'au bout. Respire, regarde un point fixe, pense à ce pour quoi tu te bats.', { kind: 'hold', res: 'chaise' });
+    if (L >= 1) P('Défi de résistance · planche', 0, 'Encore une fois, jusqu\'au bout.', { kind: 'hold', res: 'planche' });
+    P('Le fort', 30, '« Le fort n\'est pas celui qui terrasse les gens, le fort est celui qui se maîtrise lorsqu\'il est en colère. » Bukhari 6114', { kind: 'visu' });
+  }
+  return B;
+}
+const blocksMin = B => Math.round(B.reduce((m, b) => m + (b.sec || 60), 0) / 60);
+/* ----- La voix des appels (français) ----- */
+let FV = (() => { try { return localStorage.getItem('sdp-fvoice') !== '0'; } catch (e) { return true; } })();
+function sayFr(txt) {
+  if (!FV) return;
+  try { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.lang = 'fr-FR'; u.rate = 1.08; const v = speechSynthesis.getVoices().find(x => /^fr/i.test(x.lang)); if (v) u.voice = v; speechSynthesis.speak(u); } catch (e) {}
+}
+/* ----- Le lecteur de séance (plein écran, hors de #app) ----- */
+const FP = { on: false, B: [], i: 0, end: 0, paused: 0, iv: 0, nextCall: 0, box: 0, t0: 0, type: '', min: 0, held: {}, wl: null, hold0: 0 };
+function fpEl() { let el = $('#fp'); if (!el) { el = document.createElement('div'); el.id = 'fp'; el.className = 'fp'; document.body.appendChild(el); } return el; }
+async function wakeOn() { try { if ('wakeLock' in navigator) FP.wl = await navigator.wakeLock.request('screen'); } catch (e) {} }
+function wakeOff() { try { FP.wl && FP.wl.release(); } catch (e) {} FP.wl = null; }
+function startFight(type, min) {
+  const arc = fight().arc, B = buildSession(type, arc, min || 45);
+  Object.assign(FP, { on: true, B, i: -1, type, min: min || 45, t0: Date.now(), held: {}, paused: 0 });
+  audioUnlock(); wakeOn(); try { speechSynthesis.getVoices(); } catch (e) {}
+  document.body.classList.add('fp-on'); fpNext();
+  clearInterval(FP.iv); FP.iv = setInterval(fpTick, 200);
+}
+function fpNext() {
+  FP.i++; const b = FP.B[FP.i];
+  if (!b) { fpFinish(); return; }
+  FP.end = Date.now() + b.sec * 1000; FP.hold0 = Date.now(); FP.nextCall = Date.now() + 2500; FP.box = 0; FP.paused = 0;
+  if (FP.i > 0) beep(); try { navigator.vibrate && navigator.vibrate(b.kind === 'rest' ? 60 : [80, 60, 80]); } catch (e) {}
+  sayFr(b.kind === 'rest' ? 'Repos' : b.t.replace(/ · /g, ', ').replace(/^Round (\d+)/, 'Round $1'));
+  fpDraw(true);
+}
+function fpTick() {
+  if (!FP.on || FP.paused) return; const b = FP.B[FP.i]; if (!b) return; const now = Date.now();
+  if (b.sec && now >= FP.end) { fpNext(); return; }
+  if (b.kind === 'round' && now >= FP.nextCall) {
+    if (b.react) { sayFr(REACT[Math.floor(Math.random() * REACT.length)]); FP.nextCall = now + 1200 + Math.random() * 1500; $('#fpcall') && fpFlash(); }
+    else if (b.calls) { const L = CALLS[b.calls === 3 ? 3 : b.calls].concat(b.calls > 1 ? CALLS[1].slice(0, 4) : []); const c = L[Math.floor(Math.random() * L.length)]; sayFr(c); const e = $('#fpcall'); if (e) { e.textContent = c; fpFlash(); } FP.nextCall = now + b.every * 1000 * (.75 + Math.random() * .5); }
+  }
+  if (b.kind === 'breath' && b.box && now >= FP.nextCall) { const W = ['Inspire', 'Bloque', 'Expire', 'Bloque']; const w = W[FP.box % 4]; FP.box++; sayFr(w); const e = $('#fpcall'); if (e) e.textContent = w; FP.nextCall = now + 4000; }
+  if (b.sec && (b.kind === 'round' || b.kind === 'fin') && Math.ceil((FP.end - now) / 1000) === 10 && !FP.ten) { FP.ten = 1; sayFr('Dix secondes'); }
+  if (b.sec && Math.ceil((FP.end - now) / 1000) !== 10) FP.ten = 0;
+  fpClock();
+}
+function fpFlash() { const e = $('#fp'); if (!e) return; e.classList.remove('flash'); void e.offsetWidth; e.classList.add('flash'); }
+function fpClock() {
+  const b = FP.B[FP.i], e = $('#fpclock'); if (!b || !e) return;
+  const s = b.sec ? Math.max(0, Math.ceil((FP.end - Date.now()) / 1000)) : Math.floor((Date.now() - FP.hold0) / 1000);
+  e.textContent = `${Math.floor(s / 60)}:${pad(s % 60)}`;
+  const bar = $('#fpbar'); if (bar && b.sec) bar.style.transform = `scaleX(${Math.min(1, 1 - (FP.end - Date.now()) / (b.sec * 1000))})`;
+}
+function fpDraw(anim) {
+  const b = FP.B[FP.i], nx = FP.B[FP.i + 1], el = fpEl(); if (!b) return;
+  const tot = FP.B.length, kind = b.kind || '';
+  el.className = `fp on k-${kind} ${anim ? 'enter' : ''} ${FP.paused ? 'paused' : ''}`;
+  el.innerHTML = `<div class="fp-lines" aria-hidden="true"></div><div class="fp-tone" aria-hidden="true"></div>
+    <div class="fp-top"><span>${esc(FTYPES[FP.type].n.toUpperCase())} · ${FP.i + 1}/${tot}</span><button class="fp-x" data-fp="stop" aria-label="Arrêter">✕</button></div>
+    <div class="fp-segs">${FP.B.map((x, k) => `<i class="${k < FP.i ? 'd' : k === FP.i ? 'c' : ''} ${x.kind === 'rest' ? 'r' : ''}"></i>`).join('')}</div>
+    <div class="fp-main">
+      <p class="fp-kind">${{ warm: 'Échauffement', tech: 'Technique', drill: 'Exercice', round: 'Round', rest: 'Repos', fin: 'Finisseur', hold: 'Défi', breath: 'Souffle', stretch: 'Souplesse', visu: 'Visualisation' }[kind] || ''}</p>
+      <h2 class="fp-title">${esc(b.t.replace(/^(Technique|Défi de résistance) · /, ''))}</h2>
+      <p class="fp-clock num" id="fpclock">0:00</p>
+      ${b.sec ? '<div class="fp-bar"><i id="fpbar"></i></div>' : ''}
+      ${b.kind === 'round' || b.box ? `<p class="fp-call" id="fpcall">${b.box ? 'Inspire' : b.react ? 'Prêt' : 'En garde'}</p>` : ''}
+      ${b.steps ? `<ol class="fp-steps">${b.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : `<p class="fp-cue">${esc(b.cue)}</p>`}
+    </div>
+    <div class="fp-foot">
+      ${b.kind === 'hold' ? `<button class="fp-big" data-fp="held">J'ai lâché</button>` : `<button class="fp-btn" data-fp="pause">${FP.paused ? 'Reprendre' : 'Pause'}</button><button class="fp-btn" data-fp="skip">Suivant</button>`}
+      <button class="fp-btn ghost" data-fp="voice">${FV ? 'Voix ✓' : 'Voix ✕'}</button>
+    </div>
+    ${nx ? `<p class="fp-next">Ensuite : ${esc(nx.t)}${nx.sec ? ` · ${nx.sec >= 60 ? Math.round(nx.sec / 60) + ' min' : nx.sec + ' s'}` : ''}</p>` : '<p class="fp-next">Dernier effort.</p>'}`;
+  fpClock();
+}
+function fpClick(t) {
+  const el = t.closest('[data-fp]'); if (!el) return false; const v = el.dataset.fp, b = FP.B[FP.i];
+  if (v === 'pause') { if (FP.paused) { FP.end += Date.now() - FP.paused; FP.hold0 += Date.now() - FP.paused; FP.paused = 0; } else FP.paused = Date.now(); fpDraw(); }
+  if (v === 'skip') fpNext();
+  if (v === 'voice') { FV = !FV; try { localStorage.setItem('sdp-fvoice', FV ? '1' : '0'); } catch (e) {} fpDraw(); }
+  if (v === 'held') { const s = Math.round((Date.now() - FP.hold0) / 1000); FP.held[b.res] = Math.max(FP.held[b.res] || 0, s); sayFr(`${s} secondes`); fpNext(); }
+  if (v === 'stop') { if (FP.i < 2 || FP.arm) { FP.arm = 0; fpClose(FP.i >= 2); } else { FP.arm = 1; el.textContent = 'Sûr ?'; el.classList.add('arm'); setTimeout(() => { FP.arm = 0; if (el.isConnected) { el.textContent = '✕'; el.classList.remove('arm'); } }, 2500); } }
+  return true;
+}
+function fpClose(keep) {
+  clearInterval(FP.iv); FP.on = false; wakeOff(); try { speechSynthesis.cancel(); } catch (e) {}
+  const el = $('#fp'); if (el) el.remove(); document.body.classList.remove('fp-on');
+  if (keep) fpSave(true); else render();
+}
+function fpFinish() { clearInterval(FP.iv); FP.on = false; wakeOff(); sayFr('Séance terminée. Bravo.'); const el = $('#fp'); if (el) el.remove(); document.body.classList.remove('fp-on'); fpSave(false); }
+function fpSave(partial) {
+  const f = fight(), d = todayISO(), done = FP.B.slice(0, Math.max(0, FP.i + (partial ? 0 : 1)));
+  const techs = [...new Set(done.filter(b => b.tech).map(b => b.tech))];
+  techs.forEach(id => { const a = f.tech[id] = f.tech[id] || []; if (!a.includes(d)) a.push(d); });
+  const min = Math.max(1, Math.round((Date.now() - FP.t0) / 60000));
+  f.log.push({ id: uid(), date: d, type: FP.type, arc: f.arc, min, tech: techs, res: FP.held });
+  save(); askPersist(); checkArcUnlocks(); render(true); window.scrollTo(0, 0);
+  const n = chapters();
+  arcPanel(`Chapitre ${n}`, partial ? 'Séance écourtée, mais comptée. Demain, on va au bout.' : `${FTYPES[FP.type].n} · ${min} min${Object.keys(FP.held).length ? ` · ${Object.entries(FP.held).map(([k, s]) => `${k === 'chaise' ? 'chaise' : 'planche'} ${s} s`).join(', ')}` : ''}`);
+  reward(partial ? 3 : 8, { big: !partial });
+}
+/* Une case de manga plein écran, pour les grands moments */
+function arcPanel(title, text) {
+  const el = document.createElement('div'); el.className = 'arc-panel'; el.setAttribute('role', 'dialog');
+  el.innerHTML = `<div class="ap-lines"></div><div class="ap-box"><p class="ap-k">— ${esc(text)}</p><h2 class="ap-t">${esc(title)}</h2></div>`;
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+  const close = () => { el.classList.remove('on'); setTimeout(() => el.remove(), 400); };
+  el.addEventListener('click', close); setTimeout(close, 3200);
+}
+function arcCeremony(id) { const a = arcOf(id); arcPanel(`Arc ${a.roman} · ${a.name}`, 'Un nouvel arc commence.'); sayFr(`Arc ${id}. ${a.name}.`); reward(30, { big: true }); }
+/* ----- Le test de réaction ----- */
+const RX = { on: false, n: 0, res: [], t: 0, to: 0, st: '' };
+function rxStart() { Object.assign(RX, { on: true, n: 0, res: [] }); audioUnlock(); rxRound(); }
+function rxRound() {
+  const el = fpEl(); el.className = 'fp on rx wait';
+  el.innerHTML = `<div class="fp-top"><span>TEST DE RÉACTION · ${RX.n + 1}/5</span><button class="fp-x" data-rx="stop" aria-label="Arrêter">✕</button></div><div class="rx-zone" data-rx="tap"><p class="rx-t">Attends…</p><p class="rx-s">Touche l'écran dès qu'il devient rouge.</p></div>`;
+  RX.st = 'wait'; clearTimeout(RX.to); RX.to = setTimeout(() => { RX.st = 'go'; RX.t = performance.now(); el.className = 'fp on rx go'; $('.rx-t', el).textContent = 'FRAPPE !'; $('.rx-s', el).textContent = ''; }, 1400 + Math.random() * 2600);
+}
+function rxClick(t) {
+  const el = t.closest('[data-rx]'); if (!el || !RX.on) return false;
+  if (el.dataset.rx === 'stop') { clearTimeout(RX.to); RX.on = false; $('#fp') && $('#fp').remove(); return true; }
+  if (el.dataset.rx === 'save') { const v = Math.round([...RX.res].sort((a, b) => a - b).slice(0, 3).reduce((a, b) => a + b, 0) / Math.min(3, RX.res.length)); TST.draft.reac = v; RX.on = false; $('#fp') && $('#fp').remove(); render(); return true; }
+  if (el.dataset.rx !== 'tap') return true;
+  if (RX.st === 'wait') { clearTimeout(RX.to); $('.rx-t').textContent = 'Trop tôt !'; $('.rx-s').textContent = 'On recommence ce coup-ci.'; RX.st = 'pause'; setTimeout(rxRound, 1100); return true; }
+  if (RX.st === 'go') { const ms = Math.round(performance.now() - RX.t); RX.res.push(ms); RX.n++; RX.st = 'pause'; haptic();
+    const z = $('.rx-zone'); z.parentElement.className = 'fp on rx done'; $('.rx-t').textContent = `${ms} ms`;
+    if (RX.n >= 5) { const v = Math.round([...RX.res].sort((a, b) => a - b).slice(0, 3).reduce((a, b) => a + b, 0) / 3); $('.rx-s').innerHTML = `Moyenne de tes 3 meilleurs : <b>${v} ms</b><br><button class="fp-big" data-rx="save" style="margin-top:18px">Garder ce résultat</button>`; }
+    else { $('.rx-s').textContent = 'Encore…'; setTimeout(rxRound, 1000); } }
+  return true;
+}
+/* ----- La fiche du personnage ----- */
+function lastTestVal(k) { const T = fight().tests; for (let i = T.length - 1; i >= 0; i--) { const v = T[i][k]; if (v !== '' && v != null && !isNaN(v)) return Number(v); } return null; }
+function testScore(k, v) { const t = FTESTS.find(x => x[0] === k); if (!t || v == null) return null; const [, , , , lo, hi] = t; return Math.max(0, Math.min(100, Math.round((v - lo) / (hi - lo) * 100))); }
+function bestHold(k) { return Math.max(0, ...fight().log.map(l => (l.res || {})[k] || 0)); }
+function statVals() {
+  const o = {};
+  ['force', 'vitesse', 'souplesse', 'endurance', 'resistance'].forEach(st => {
+    const ks = FTESTS.filter(t => t[6] === st).map(t => t[0]);
+    const sc = ks.map(k => { let v = lastTestVal(k); if (st === 'resistance') v = Math.max(v || 0, bestHold(k)) || null; return testScore(k, v); }).filter(x => x != null);
+    o[st] = sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : null;
+  });
+  const m = TECH.filter(t => techDays(t[0]) >= T_MASTER).length; o.technique = Math.round(m / TECH.length * 100);
+  const ps = planStats(4), ment = fight().log.filter(l => l.type === 'mental' && l.date >= iso(addDays(new Date(), -28))).length;
+  o.mental = ps.planned || ment ? Math.min(100, Math.round(ps.pct * 70 + Math.min(30, ment * 7.5))) : null;
+  return o;
+}
+function rankOf(vals) { const v = STATS.map(([k]) => vals[k] || 0), avg = v.reduce((a, b) => a + b, 0) / v.length; let r = RANKS[0]; RANKS.forEach(x => { if (avg >= x[0]) r = x; }); return { avg: Math.round(avg), r }; }
+function radar(vals, size = 300) {
+  const c = size / 2, R = size / 2 - 56, n = STATS.length, ang = i => -Math.PI / 2 + i * 2 * Math.PI / n, pt = (i, f) => [c + Math.cos(ang(i)) * R * f, c + Math.sin(ang(i)) * R * f];
+  const ring = f => STATS.map((_, i) => pt(i, f).map(x => x.toFixed(1)).join(',')).join(' ');
+  const poly = STATS.map(([k], i) => pt(i, Math.max(.04, (vals[k] || 0) / 100)).map(x => x.toFixed(1)).join(',')).join(' ');
+  return `<svg class="radar" viewBox="0 0 ${size} ${size}" role="img" aria-label="Tes statistiques">
+    ${[.25, .5, .75, 1].map(f => `<polygon points="${ring(f)}" class="rg ${f === 1 ? 'o' : ''}"/>`).join('')}
+    ${STATS.map((_, i) => { const [x, y] = pt(i, 1); return `<line x1="${c}" y1="${c}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="rg"/>`; }).join('')}
+    <polygon points="${poly}" class="rv"/>
+    ${STATS.map(([k, l], i) => { const [x, y] = pt(i, 1.2); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" class="rl">${l.toUpperCase()}</text>`; }).join('')}
+  </svg>`;
+}
+
+/* ----- Les vues de l'arc ----- */
+const AW = { v: (() => { try { return localStorage.getItem('sdp-arc-view') || 'semaine'; } catch (e) { return 'semaine'; } })(), g: 'tech', open: null, edit: false, draft: null, vital: null };
+const TST = { on: false, draft: {} };
+const fIcon = (t, sz = 22) => `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" aria-hidden="true">${FTYPES[t].ic}</svg>`;
+function arcHead() {
+  const a = arcOf(fight().arc);
+  return `<header class="arc-head"><div class="arc-speed" aria-hidden="true"></div>
+    <div class="top-actions">${S.seen.corps ? `<button class="icon-btn" data-unseen="corps" aria-label="Revoir l'explication">${ICON.info}</button>` : ''}<button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button><button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button><button class="icon-btn" data-open="settings" aria-label="Réglages">${ICON.gear}</button></div>
+    <p class="arc-kicker">ARC ${a.roman}</p><h1 class="arc-title">${a.name}</h1><p class="arc-ch">Chapitre ${chapters()} <span>· ${a.sub}</span></p>
+  </header>${coach('corps')}
+  <div class="arc-seg" role="group" aria-label="Section"><button data-cview="entrainement" aria-pressed="true">L'Arc</button><button data-cview="nutrition" aria-pressed="false">Nutrition</button><button data-cview="soin" aria-pressed="false">Soin</button></div>
+  <div class="arc-tabs" role="group">${[['semaine', 'Ma semaine'], ['grimoire', 'Grimoire'], ['fiche', 'Fiche']].map(([k, l]) => `<button data-aw="${k}" aria-pressed="${AW.v === k}">${l}</button>`).join('')}</div>`;
+}
+function vArc() {
+  fight(); checkArcUnlocks();
+  const body = AW.v === 'grimoire' ? vGrimoire() : AW.v === 'fiche' ? vFiche() : vSemaine();
+  return `<div class="arc">${arcHead()}${body}</div>`;
+}
+/* Ma semaine */
+function arcTrack() {
+  const cur = fight().arc;
+  return `<div class="arc-track">${ARCS.map(a => { const s = arcStatus(a.id); return `<button class="arc-p ${a.id === cur ? 'cur' : ''} ${s.open ? '' : 'lock'}" data-arc="${a.id}"><span class="arc-pn">${a.roman}</span><b>${a.name}</b><small>${s.open ? a.sub.split(' · ')[0] : 'Scellé'}</small></button>`; }).join('')}</div>`;
+}
+function arcUnlockBlock() {
+  const nx = ARCS.find(a => a.id === fight().arc + 1); if (!nx) return '';
+  const s = arcStatus(nx.id); if (s.open) return '';
+  const fp = arcOf(nx.id - 1).force === 1 ? 'Réveil' : 'Forge';
+  return `<div class="arc-cond"><p class="arc-lbl">Pour briser le sceau de l'arc ${nx.roman}</p>
+    ${condRow(s.fc >= s.need.force, `${s.need.force} séances de force (${fp})`, s.fc / s.need.force, `${Math.min(s.fc, s.need.force)} sur ${s.need.force}`)}
+    ${condRow(s.cc >= s.need.combat, `${s.need.combat} séances de combat`, s.cc / s.need.combat, `${Math.min(s.cc, s.need.combat)} sur ${s.need.combat}`)}
+    ${nx.id === 2 ? `<label class="cell tap gymrow"><span class="lbl">Je suis inscrit à la salle</span><span class="switch"><input type="checkbox" id="gymSw" ${S.body.gym ? 'checked' : ''}><span></span></span></label><p class="hint">La salle se mérite : tu ne paies l'abonnement qu'une fois l'habitude installée.</p>` : ''}</div>`;
+}
+function vPlanner() {
+  const p = planOf(), d = AW.draft || (p ? Object.assign({}, p.d) : {});
+  AW.draft = d; const s = autoTypes(d), mon = mondayOf(new Date());
+  return `<section class="arc-box"><p class="arc-lbl">Ta semaine du ${DAY_MONTH.format(mon)}</p><h2 class="arc-h2">Quand peux-tu t'entraîner ?</h2>
+    <p class="small muted" style="margin:0 0 12px">Pour chaque jour, le temps dont tu disposes. L'app place les séances : la force sur les jours d'au moins 45 min, le reste sur les jours courts.</p>
+    ${DAYN.map((n, i) => `<div class="pl-row"><span class="pl-d">${n}</span><div class="pl-ch">${[[0, 'Repos'], [20, '20 min'], [45, '45'], [75, '75']].map(([v, l]) => `<button data-pld="${i}.${v}" aria-pressed="${(d[i] || 0) === v}">${l}</button>`).join('')}</div>${s[i] ? `<span class="pl-t">${fIcon(s[i], 16)}</span>` : '<span class="pl-t"></span>'}</div>`).join('')}
+    <div class="row" style="gap:8px;margin-top:14px"><button class="arc-btn" data-plsave style="flex:1" ${Object.values(d).some(v => v > 0) ? '' : 'disabled'}>Sceller ma semaine</button>${p ? '<button class="arc-btn ghost" data-plcancel>Annuler</button>' : ''}</div></section>`;
+}
+function vToday() {
+  const tp = todayPlan(), arc = fight().arc, k = todayISO(), done = dayDoneAny(k);
+  if (S.body.active) return `<section class="arc-today"><p class="arc-lbl">En cours</p><h2 class="arc-h2">Séance de force</h2><button class="arc-btn big" data-cview="entrainement" data-cresume>Reprendre</button></section>`;
+  if (!tp || tp.rest) return `<section class="arc-today rest"><p class="arc-lbl">Aujourd'hui</p><h2 class="arc-h2">Repos</h2><p class="small" style="margin:0">Le muscle grandit pendant le repos. Lis une page du grimoire, ou prends une séance libre si tu es frais.</p></section>`;
+  const t = tp.type, B = t === 'force' ? null : buildSession(t, arc, tp.min), ph = phaseOf(arcOf(arc).force), key = nextTpl(ph);
+  return `<section class="arc-today ${done ? 'done' : ''}"><div class="at-ic">${fIcon(t, 34)}</div><p class="arc-lbl">Aujourd'hui${done ? ' · fait' : ''}</p><h2 class="arc-h2">${FTYPES[t].n}</h2>
+    <p class="small" style="margin:0 0 10px">${t === 'force' ? `Séance ${key} · ${ph.name} · ≈ ${estMinutes(ph.tpl[key])} min` : `${FTYPES[t].s} · ≈ ${blocksMin(B)} min`}</p>
+    ${t === 'force' ? `<ul class="at-list">${ph.tpl[key].map(([id, s, lo, hi]) => `<li><span>${esc(exName(id))}</span><b>${s} × ${lo}–${hi}${EX[id].sec ? ' s' : ''}</b></li>`).join('')}</ul>` : `<ul class="at-list">${B.filter(b => b.kind !== 'rest').slice(0, 9).map(b => `<li><span>${esc(b.t)}</span><b>${b.sec ? (b.sec >= 60 ? Math.round(b.sec / 60) + ' min' : b.sec + ' s') : 'max'}</b></li>`).join('')}${B.filter(b => b.kind !== 'rest').length > 9 ? '<li><span>…</span></li>' : ''}</ul>`}
+    <button class="arc-btn big" ${t === 'force' ? 'data-cstart' : `data-fstart="${t}.${tp.min}"`}>${done ? 'Encore une fois' : 'Entrer dans l\'arène'}</button></section>`;
+}
+function vSemaine() {
+  const f = fight(), p = planOf(), mon = mondayOf(new Date()), today = todayISO(), a = arcOf(f.arc);
+  const strip = p ? `<div class="wk-strip">${DAYN.map((n, i) => { const k = iso(addDays(mon, i)), t = p.s[i], dn = dayDoneAny(k), miss = t && !dn && k < today;
+    return `<div class="wk-d ${t ? 't' : ''} ${dn ? 'dn' : ''} ${miss ? 'ms' : ''} ${k === today ? 'td' : ''}"><small>${n.slice(0, 3)}</small>${t ? fIcon(t, 18) : '<i>·</i>'}${dn ? '<b>✓</b>' : miss ? '<b>✕</b>' : ''}</div>`; }).join('')}</div>` : '';
+  const [wd, wt] = weekPlanProgress();
+  const recent = S.body.sessions.map(s => ({ date: s.date, t: 'force', l: `Force · ${s.tpl}`, min: s.min })).concat(f.log.map(l => ({ date: l.date, t: l.type, l: FTYPES[l.type].n, min: l.min }))).sort((x, y) => (x.date < y.date ? 1 : -1)).slice(0, 4);
+  return `${arcTrack()}
+    <div class="arc-story"><p>${a.why}</p>${arcUnlockBlock()}</div>
+    ${!p || AW.edit ? vPlanner() : `<div class="row between" style="align-items:flex-end;margin-top:22px"><h2 class="arc-h2" style="margin:0">Cette semaine</h2><p class="arc-score">${wd}<small>/${wt}</small></p></div>${strip}${vToday()}
+      <button class="link-btn small" data-pledit style="margin-top:10px">Modifier ma semaine</button>`}
+    <section><p class="arc-lbl" style="margin-top:22px">Séance libre</p><div class="free">${Object.keys(FTYPES).map(t => `<button data-free="${t}">${fIcon(t, 20)}<span>${FTYPES[t].n}</span></button>`).join('')}</div>
+      ${AW.free ? `<div class="free-dur">${[20, 45, 75].map(m => `<button class="arc-btn ghost" ${AW.free === 'force' ? 'data-cstart' : `data-fstart="${AW.free}.${m}"`}>${AW.free === 'force' ? 'Lancer la séance' : m + ' min'}</button>`).slice(0, AW.free === 'force' ? 1 : 3).join('')}</div>` : ''}</section>
+    ${f.arc === 1 ? `<section><p class="arc-lbl" style="margin-top:22px">L'équipement de l'arc II</p><p class="small muted" style="margin:0 0 8px">Rien n'est nécessaire maintenant. Prépare-le pour quand le sceau sera brisé.</p><div class="group">${GEAR.map(([id, n, w]) => `<label class="check"><input type="checkbox" data-gear="${id}" ${f.gear[id] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="txt">${n}<small class="muted" style="display:block">${w}</small></span></label>`).join('')}</div></section>` : ''}
+    ${progressRows(phaseOf(a.force))}
+    ${recent.length ? `<section><p class="arc-lbl" style="margin-top:22px">Derniers chapitres</p>${recent.map(r => `<div class="prog-row"><span class="grow">${DAY_LONG.format(parseDate(r.date))}</span><b>${esc(r.l)}</b><span class="small muted" style="text-align:right">${r.min || '—'} min</span></div>`).join('')}</section>` : ''}`;
+}
+/* Grimoire */
+function vGrimoire() {
+  const chips = `<div class="g-chips">${[['tech', 'Techniques'], ['rue', 'Défense de rue'], ['vital', 'Points vitaux'], ['mental', 'Mental']].map(([k, l]) => `<button data-gv="${k}" aria-pressed="${AW.g === k}">${l}</button>`).join('')}</div>`;
+  if (AW.g === 'vital') return chips + vVital();
+  if (AW.g === 'rue' || AW.g === 'mental') return chips + `<div class="lore">${LORE.filter(l => l[1] === AW.g).map(([id, , t, ps]) => { const op = AW.open === id, rd = fight().read[id];
+    return `<article class="lore-c ${op ? 'open' : ''}"><button class="lore-h" data-lore="${id}"><b>${t}</b>${rd ? '<span class="lore-r">lu</span>' : ''}${ICON.chev}</button>${op ? `<div class="lore-b">${ps.map(x => `<p>${esc(x)}</p>`).join('')}</div>` : ''}</article>`; }).join('')}</div>`;
+  const arc = fight().arc;
+  return chips + TCAT.map(([c, l]) => `<p class="arc-lbl" style="margin-top:20px">${l}</p><div class="tlist">${TECH.filter(t => t[2] === c).map(t => { const [id, n, , ta] = t, d = techDays(id), lock = ta > arc, op = AW.open === id;
+    return `<article class="tech ${op ? 'open' : ''} ${lock ? 'lock' : ''}"><button class="tech-h" data-tech="${id}"><span class="tech-n">${n}</span>${lock ? `<span class="tech-arc">Arc ${arcOf(ta).roman}</span>` : `<span class="tech-dots" aria-label="${Math.min(d, T_MASTER)} jours sur ${T_MASTER}">${Array.from({ length: T_MASTER }, (_, k) => `<i class="${k < d ? 'on' : ''}"></i>`).join('')}</span>`}</button>
+      ${op ? `<div class="tech-b"><ol>${t[5].map(s => `<li>${esc(s)}</li>`).join('')}</ol><p class="tech-k">Erreur à éviter</p><p>${esc(t[6])}</p><p class="tech-k">Seul</p><p>${esc(t[7])}</p><p class="tech-k">À deux</p><p>${esc(t[8])}</p>
+        ${lock ? `<p class="hint">Cette technique arrive avec l'arc ${arcOf(ta).roman}. Tu peux déjà la lire.</p>` : `<button class="arc-btn ghost" data-tday="${id}" ${(fight().tech[id] || []).includes(todayISO()) ? 'disabled' : ''}>${(fight().tech[id] || []).includes(todayISO()) ? 'Travaillée aujourd\'hui' : 'Je l\'ai travaillée aujourd\'hui'}</button><p class="hint">Maîtrisée après ${T_MASTER} jours de travail. Elle compte dans ta stat Technique.</p>`}</div>` : ''}</article>`; }).join('')}</div>`).join('');
+}
+function silhouette() {
+  return `<g class="sil"><circle cx="100" cy="42" r="24"/><path d="M90 64h20l2 14H88z"/><path d="M62 86c8-6 24-9 38-9s30 3 38 9l6 70c1 18-6 36-10 46H66c-4-10-11-28-10-46z"/>
+    <path d="M60 88c-10 6-14 20-16 40l-6 62c-1 8 8 10 10 2l10-60 6-30z"/><path d="M140 88c10 6 14 20 16 40l6 62c1 8-8 10-10 2l-10-60-6-30z"/>
+    <path d="M68 200h30l-2 90-6 86c0 8-14 8-14 0l-6-86z"/><path d="M102 200h30l-2 90-6 86c0 8-14 8-14 0l-6-86z"/></g>`;
+}
+function vVital() {
+  const sel = VITAL.find(v => v[0] === AW.vital);
+  return `<p class="small" style="margin:16px 0 6px">Peu de coups, mais au bon endroit. <b style="color:var(--arc-ok)">Vert</b> : pour arrêter et t'échapper. <b style="color:var(--arc-gold)">Or</b> : efficace mais avec contrôle. <b style="color:var(--arc-red)">Rouge</b> : jamais, sauf si ta vie est en jeu.</p>
+    <div class="vital"><svg viewBox="0 0 200 400" aria-label="Silhouette et points vitaux">${silhouette()}${VITAL.map(([id, n, x, y, c]) => `<g class="vp ${c} ${AW.vital === id ? 'sel' : ''}" data-vital="${id}" role="button" tabindex="0" aria-label="${n}"><circle cx="${x}" cy="${y}" r="13" class="hit"/><circle cx="${x}" cy="${y}" r="6"/></g>`).join('')}</svg>
+    ${sel ? `<div class="vcard ${sel[4]}"><p class="arc-lbl">${{ g: 'Pour t\'échapper', o: 'Avec contrôle', r: 'Interdit, sauf danger de mort' }[sel[4]]}</p><h3>${sel[1]}</h3><p><b>${sel[4] === 'r' ? '' : 'Avec : '}</b>${esc(sel[5])}</p><p>${esc(sel[6])}</p></div>` : '<p class="hint" style="text-align:center">Touche un point.</p>'}</div>
+    <p class="small muted">${VITAL_BACK}</p>
+    <p class="hint">Le but n'est jamais de détruire l'autre : c'est de créer une ouverture et de rentrer chez toi. Celui qui frappe plus que nécessaire devient l'agresseur, devant Allah comme devant les hommes.</p>`;
+}
+/* Fiche du personnage */
+function vFiche() {
+  const v = statVals(), { avg, r } = rankOf(v), T = fight().tests, last = T.length ? T[T.length - 1].date : null, due = !last || arcDays(last, todayISO()) >= 28;
+  if (TST.on) return vTests();
+  return `<section class="fiche"><div class="rank"><span class="rank-l">${r[1]}</span><div><p class="arc-lbl" style="margin:0">Rang</p><h2 class="arc-h2" style="margin:0">${r[2]}</h2><p class="small muted" style="margin:2px 0 0">Puissance globale ${avg}/100</p></div></div>
+    ${radar(v)}
+    <div class="stats">${STATS.map(([k, l]) => `<div class="st"><span>${l}</span><div class="st-bar"><i style="width:${v[k] || 0}%"></i></div><b class="num">${v[k] == null ? '?' : v[k]}</b></div>`).join('')}</div>
+    <p class="hint">Force, Vitesse, Souplesse, Endurance et Résistance viennent de tes tests (et de tes défis « jusqu'au bout »). Technique : les techniques maîtrisées du grimoire. Mental : ta régularité sur 4 semaines et tes séances Mental.</p></section>
+    <section class="arc-box"><p class="arc-lbl">Évaluation</p><h2 class="arc-h2">${due ? 'L\'heure de te mesurer' : `Prochaine évaluation dans ${28 - arcDays(last, todayISO())} jours`}</h2>
+      <p class="small muted" style="margin:0 0 12px">${last ? `Dernière : ${DAY_MONTH.format(parseDate(last))}.` : 'Première évaluation : elle fixe ton point de départ.'} Tous les 28 jours, un jour reposé, après un bon échauffement.</p>
+      <button class="arc-btn ${due ? 'big' : 'ghost'}" data-tests>Passer les tests</button></section>
+    ${T.length ? `<section><p class="arc-lbl" style="margin-top:22px">Tes mesures</p>${FTESTS.map(([k, n, u]) => { const vals = T.map(t => t[k]).filter(x => x !== '' && x != null).map(Number); if (!vals.length) return ''; return `<div class="prog-row"><span class="grow">${n}</span><b class="num">${vals[vals.length - 1]} ${u}</b>${spark(k === 'reac' ? vals.map(x => -x) : vals) || '<span></span>'}</div>`; }).join('')}</section>` : ''}`;
+}
+function vTests() {
+  const d = TST.draft;
+  return `<section class="arc-box"><div class="row between" style="align-items:center"><h2 class="arc-h2" style="margin:0">Les tests</h2><button class="link-btn small" data-tests="close">Fermer</button></div>
+    <p class="small muted" style="margin:6px 0 12px">Remplis ce que tu peux faire aujourd'hui, le reste peut rester vide. Repos de 3 minutes entre deux tests.</p>
+    ${FTESTS.map(([k, n, u, h]) => `<div class="tst"><div class="grow"><b>${n}</b><p class="small muted" style="margin:2px 0 0">${h}</p></div>${k === 'reac' ? `<button class="arc-btn ghost sm" data-rxgo>${d.reac ? `${d.reac} ms` : 'Lancer'}</button>` : `<label class="set-f"><input inputmode="${k === 'flex' ? 'text' : 'numeric'}" data-tst="${k}" value="${d[k] ?? ''}" placeholder="—"><span>${u}</span></label>`}</div>`).join('')}
+    <button class="arc-btn big" data-tsave style="margin-top:14px">Enregistrer</button></section>`;
+}
+function arcClick(t) {
+  const c = s => t.closest(s); let el; const f = fight(), rr = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
+  if (fpClick(t) || rxClick(t)) return true;
+  if ((el = c('[data-aw]'))) { AW.v = el.dataset.aw; AW.open = null; TST.on = false; try { localStorage.setItem('sdp-arc-view', AW.v); } catch (e) {} rr(); return true; }
+  if ((el = c('[data-arc]'))) { const id = Number(el.dataset.arc), s = arcStatus(id); if (!s.open) { toast(`Arc ${arcOf(id).roman} scellé. Les conditions sont sous l'histoire de ton arc.`); return true; } if (f.arc !== id) { setArc(id); haptic(); rr(); toast(`Arc ${arcOf(id).roman} · ${arcOf(id).name}`); } return true; }
+  if ((el = c('[data-pld]'))) { const [i, v] = el.dataset.pld.split('.').map(Number); AW.draft = AW.draft || {}; if (v) AW.draft[i] = v; else delete AW.draft[i]; rr(); return true; }
+  if (c('[data-plsave]')) { const d = AW.draft || {}; f.plan[monKey()] = { d, s: autoTypes(d) }; AW.draft = null; AW.edit = false; save(); haptic(); rr(); arcPanel('Semaine scellée', 'Maintenant, tiens parole.'); return true; }
+  if (c('[data-plcancel]')) { AW.draft = null; AW.edit = false; rr(); return true; }
+  if (c('[data-pledit]')) { AW.edit = true; AW.draft = null; rr(); return true; }
+  if ((el = c('[data-fstart]'))) { const [ty, m] = el.dataset.fstart.split('.'); AW.free = null; startFight(ty, Number(m)); return true; }
+  if ((el = c('[data-free]'))) { AW.free = AW.free === el.dataset.free ? null : el.dataset.free; rr(); return true; }
+  if ((el = c('[data-gv]'))) { AW.g = el.dataset.gv; AW.open = null; rr(); return true; }
+  if ((el = c('[data-lore]'))) { const id = el.dataset.lore; AW.open = AW.open === id ? null : id; if (AW.open && !f.read[id]) { f.read[id] = todayISO(); save(); } rr(); return true; }
+  if ((el = c('[data-tech]'))) { const id = el.dataset.tech; AW.open = AW.open === id ? null : id; rr(); return true; }
+  if ((el = c('[data-tday]'))) { const id = el.dataset.tday, a = f.tech[id] = f.tech[id] || []; if (!a.includes(todayISO())) { a.push(todayISO()); save(); reward(new Set(a).size === T_MASTER ? 10 : 2, new Set(a).size === T_MASTER ? { big: true, msg: ['Technique maîtrisée', TECH.find(x => x[0] === id)[1]] } : {}); } rr(); return true; }
+  if ((el = c('[data-vital]'))) { AW.vital = el.dataset.vital; rr(); return true; }
+  if ((el = c('[data-tests]'))) { TST.on = el.dataset.tests !== 'close'; if (TST.on) TST.draft = {}; render(); window.scrollTo(0, 0); return true; }
+  if (c('[data-rxgo]')) { $$('[data-tst]').forEach(i => { TST.draft[i.dataset.tst] = i.value; }); rxStart(); return true; }
+  if (c('[data-tsave]')) { $$('[data-tst]').forEach(i => { TST.draft[i.dataset.tst] = i.value; }); const o = { date: todayISO() }; let n = 0;
+    FTESTS.forEach(([k]) => { const v = String(TST.draft[k] ?? '').replace(',', '.').replace(/[^\d.\-+]/g, ''); if (v !== '' && !isNaN(Number(v))) { o[k] = Number(v); n++; } });
+    if (!n) { toast('Remplis au moins un test.'); return true; }
+    const T = f.tests, i = T.findIndex(x => x.date === o.date); if (i >= 0) T[i] = Object.assign(T[i], o); else T.push(o);
+    TST.on = false; TST.draft = {}; save(); render(); window.scrollTo(0, 0); const { r } = rankOf(statVals()); arcPanel(`Rang ${r[1]}`, `${r[2]}. ${n} test${n > 1 ? 's' : ''} enregistré${n > 1 ? 's' : ''}.`); reward(6); return true; }
+  return false;
+}
+function arcChange(t) { if (t.dataset && t.dataset.gear) { fight().gear[t.dataset.gear] = t.checked; save(); return true; } return false; }
+
 /* ----- Nutrition ----- */
 function calibForm() {
   const pr = S.body.profile;
@@ -2619,6 +3321,25 @@ function addFoods(list) {
   list.forEach(f => { d.log.push([f[0], f[1]]); S.body.fcount[f[0]] = (S.body.fcount[f[0]] || 0) + 1; });
   d.p = d.log.reduce((m, x) => m + x[1], 0); save(); const sy = window.scrollY; render(); window.scrollTo(0, sy);
   const t = bodyTargets(); if (t && d.p >= t.prot && before < t.prot) reward(4, { big: true, msg: [`Protéines atteintes · ${d.p} g`, 'Sans viande, et ton corps a de quoi construire aujourd\'hui.'] }); else toast(`+${d.p - before} g de protéines`);
+}
+/* Saisie des protéines : les repas prévus aujourd'hui, la whey, la créatine, ou un montant libre. */
+function protInput(t, p, day) {
+  const k = todayISO(), wk = iso(mondayOf(new Date())), w = mp().wk[wk], di = (new Date().getDay() + 6) % 7;
+  const meals = w && w.s ? MOM.map(([mo, ml]) => { const id = w.s[`${di}-${mo}`], r = id && recOf(id); return r ? [mo, ml, r] : null; }).filter(Boolean) : [];
+  const has = n => day.log.some(l => l[0] === n), crea = (S.body.crea || {})[k], d = diet();
+  return `<section style="margin-top:18px"><h2 style="margin:0 0 10px">Tes repas du jour</h2>
+    ${meals.length ? `<div class="pmeals">${meals.map(([mo, ml, r]) => `<button class="pmeal ${has(r.n) ? 'on' : ''}" data-fmeal="${esc(r.n)}" data-fg="${r.p}" ${has(r.n) ? 'disabled' : ''}><small>${ml}</small><span>${esc(r.n)}</span><b class="num">${has(r.n) ? '✓' : `+${r.p} g`}</b></button>`).join('')}</div>`
+      : `<p class="small muted" style="margin:0 0 8px">Aucun repas prévu aujourd'hui. Prépare ta semaine de repas : tes plats apparaîtront ici et tu n'auras qu'à toucher « mangé ».</p><button class="btn sm ghost" data-nview="semaine">Ma semaine de repas</button>`}
+    <div class="row" style="gap:8px;margin-top:14px">
+      <button class="btn sm" data-fwhey style="flex:1">Whey <b class="num">+24 g</b></button>
+      <button class="btn sm ${crea ? '' : 'ghost'}" data-fcrea style="flex:1">${crea ? '✓ Créatine prise' : 'Créatine du jour'}</button>
+    </div>
+    <div class="row" style="margin-top:10px;gap:8px">
+      <input id="fCustom" inputmode="numeric" class="famt num" placeholder="+ g" aria-label="Protéines en grammes" style="flex:1;text-align:center">
+      <button class="btn sm" data-fcustom>Ajouter</button>
+    </div>
+    <div class="chips" style="margin-top:14px">${Object.entries(DIET_FAM).map(([kk, l]) => `<button class="chip" data-diet="${kk}" aria-pressed="${!!d[kk]}">${l}</button>`).join('')}</div>
+    <p class="hint">Les puces disent ce que tu manges : elles filtrent les recettes de ta semaine.</p></section>`;
 }
 function dietBlock(t, p) {
   const d = diet(), rem = Math.max(0, t.prot - p), next = Math.min(rem, Math.max(20, Math.round(t.prot / 4 / 5) * 5)), combos = rem ? protCombos(next) : [];
@@ -2987,13 +3708,7 @@ function vNutrition() {
     </svg>
     <div class="fuel-c"><div><b class="num" style="color:var(--${full ? 'mint' : 'ink'})">${p}</b><span>sur ${t.prot} g de protéines</span><br><span>4 prises de ${Math.round(t.prot / 4 / 5) * 5} g environ</span></div></div>
   </div>
-  <div class="foods">${shown.map(([n, g]) => `<button class="food" data-food="${esc(n)}"><span>${esc(n)}</span><b>+${g}</b></button>`).join('')}</div>
-  <div class="row" style="margin-top:10px;gap:8px">
-    <button class="btn sm quiet" data-fall style="flex:1">${C.allFoods ? 'Moins' : 'Tout voir'}</button>
-    <input id="fCustom" inputmode="numeric" class="famt num" placeholder="+ g" aria-label="Protéines en grammes" style="width:84px;text-align:center">
-    <button class="btn sm" data-fcustom>Ajouter</button>
-  </div>
-  ${dietBlock(t, p)}
+  ${protInput(t, p, day)}
   ${day.log.length ? `<div class="flog">${day.log.map((l, i) => `<button data-fdel="${i}" aria-label="Retirer ${esc(l[0])}">${esc(l[0])} · ${l[1]} g <span aria-hidden="true">×</span></button>`).join('')}</div>` : ''}
   <section>
     <div class="row between" style="align-items:flex-end"><h2 style="margin:0">Eau</h2><p class="small muted" style="margin:0">${day.water} / ${t.water} verres · ${String(t.water * .25).replace('.', ',')} L</p></div>
@@ -3907,7 +4622,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.12 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.14.1 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -4438,7 +5153,7 @@ document.addEventListener('input', e => {
 
 function thConf() { const t = S.theme = S.theme && typeof S.theme === 'object' ? S.theme : {}; if (!t.custom || !t.custom.a) t.custom = { a: '#E9C46A', b: '#0F221C' }; THEMES.custom = customTheme(t.custom); if (!THEMES[t.id]) t.id = THEME_DEFAULT; if (!['auto', 'light', 'dark'].includes(t.mode)) t.mode = 'auto'; return t; }
 function applyTheme() {
-  const t = thConf(), dark = document.body.classList.contains('gal-home') || t.mode === 'dark' || (t.mode === 'auto' && tMQ && tMQ.matches), v = dark ? 'd' : 'l';
+  const t = thConf(), dark = (typeof S !== 'undefined' && (S.ui || 'systeme') === 'systeme') || document.body.classList.contains('gal-home') || t.mode === 'dark' || (t.mode === 'auto' && tMQ && tMQ.matches), v = dark ? 'd' : 'l';
   const vals = THEMES[t.id][v].split(' '), r = document.documentElement;
   TKEYS.forEach((k, i) => r.style.setProperty('--' + k, vals[i]));
   Object.entries(Object.assign({}, TSTATE[v], (THEME_EXTRA || {})[v] || {})).forEach(([k, x]) => r.style.setProperty('--' + k, x));
@@ -4448,7 +5163,10 @@ function applyTheme() {
 if (tMQ && tMQ.addEventListener) tMQ.addEventListener('change', () => { if (thConf().mode === 'auto') applyTheme(); });
 function themeBlock() {
   const t = thConf();
-  return `<p class="gt">Apparence</p>
+  return `<p class="gt">Univers de l'app</p>
+    <div class="seg" role="group" aria-label="Univers" style="margin-bottom:8px">${[['systeme', 'Système'], ['galaxie', 'Galaxie']].map(([m, l]) => `<button data-ui="${m}" aria-pressed="${(S.ui || 'systeme') === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
+    <p class="hint" style="margin-bottom:16px">Système : niveau, stats, quête quotidienne et donjons. Galaxie : les planètes et le soleil. Tes données ne changent pas.</p>
+    <p class="gt">Apparence</p>
     <div class="thgrid">${Object.entries(THEMES).map(([id, x]) => { const l = x.l.split(' '), d = x.d.split(' '); return `<button class="thsw" data-theme="${id}" aria-pressed="${t.id === id}"><span class="thdots"><i style="background:${l[0]};box-shadow:inset 0 0 0 1px ${l[7]}"></i><i style="background:${l[9]}"></i><i style="background:${d[0]}"></i><i style="background:${d[9]}"></i></span><span>${x.n}</span></button>`; }).join('')}</div>
     ${t.id === 'custom' ? `<div class="thpick"><label><input type="color" data-tcol="a" value="${t.custom.a}"><span>Couleur principale<small>boutons, chiffres, accents</small></span></label><label><input type="color" data-tcol="b" value="${t.custom.b}"><span>Teinte du fond<small>l'ambiance générale</small></span></label></div><p class="hint" style="margin-top:6px">L'app en tire toute seule une version claire et une version sombre lisibles.</p>` : ''}
     <div class="seg" role="group" aria-label="Mode" style="margin-top:10px">${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([m, l]) => `<button data-tmode="${m}" aria-pressed="${t.mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
@@ -4456,6 +5174,7 @@ function themeBlock() {
 }
 function openSettingsBody() { openSettings(); }
 function themeClick(t) {
+  const u = t.closest('[data-ui]'); if (u) { S.ui = u.dataset.ui; try { localStorage.setItem('sdp-ui', S.ui); } catch (e) {} save(); applyTheme(); render(); const sb = $('#settingsBody'), y = sb ? sb.scrollTop : 0; openSettingsBody(); if (sb) sb.scrollTop = y; haptic(); return true; }
   const el = t.closest('[data-theme],[data-tmode]'); if (!el) return false;
   const c = thConf();
   if (el.dataset.theme) { const was = c.id; c.id = el.dataset.theme; $$('[data-theme]').forEach(b => b.setAttribute('aria-pressed', b === el)); if ((was === 'custom') !== (c.id === 'custom')) { save(); applyTheme(); const sb = $('#settingsBody'), y = sb ? sb.scrollTop : 0; openSettingsBody(); if (sb) sb.scrollTop = y; return true; } }
@@ -5142,7 +5861,11 @@ const CVIEWS = ['entrainement', 'nutrition', 'soin'];
 let tab = 'orbite', missedDismissed = false;
 function render(animate) {
   { const w = chasseActive(), ix = NAV.findIndex(n => n[0] === 'chasse'); if (!w && ix >= 0) NAV.splice(ix, 1); if (w && ix < 0) NAV.push(['chasse', 'Chasse']); }
-  const deco = tab !== 'flux' && tab !== 'z';
+  const arcOn = tab === 'corps' && C.view === 'entrainement';
+  document.body.classList.toggle('arc-on', arcOn);
+  if (arcOn) { const fa = fight(); if (S.body.phase !== arcOf(fa.arc).force) S.body.phase = arcOf(fa.arc).force; }
+  const sysOn = uiSys(); document.body.classList.toggle('sys-on', sysOn);
+  const deco = tab !== 'flux' && tab !== 'z' && !arcOn && !sysOn;
   document.body.classList.toggle('gal-on', deco); document.body.classList.toggle('gal-home', tab === 'orbite'); document.body.classList.toggle('gal-soft', deco && tab !== 'orbite');
   if (deco) ensureGalaxy();
   applyTheme();
@@ -5153,9 +5876,9 @@ function render(animate) {
   checkUnlocks();
   document.documentElement.classList.toggle('flux-on', tab === 'flux');
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
-  app.innerHTML = { qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : vTraining(), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
+  app.innerHTML = { qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : (S.body.active ? vSession() : vArc()), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]();
   coreGlyph();
-  if (tab === 'orbite') { startOrbit(); checkGalaxy(); }
+  if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); } }
   if (tab === 'qibla') requestAnimationFrame(qiblaInit);
   if ((tab === 'orbite' || tab === 'foi') && !missedDismissed) setTimeout(missedOverlay, 700);
   if (tab === 'flux') bindFlux();
@@ -5190,15 +5913,15 @@ const NAV = [['foi', 'Foi'], ['corps', 'Corps'], ['routine', 'Routine'], ['flux'
 const NAV_A0 = -80, NAV_SPAN = 160;
 const W8 = { open: false, hi: null, press: null, lp: 0 };
 const navAngle = i => NAV_A0 + NAV_SPAN / (NAV.length - 1) * i;
-function coreGlyph() { const c = $('#core'); if (c && !c.querySelector('.bh')) { c.classList.add('bhole'); c.insertAdjacentHTML('afterbegin', '<span class="bh" aria-hidden="true"><i class="bh-glow"></i><i class="bh-lens"></i><i class="bh-disk back"><b></b></i><i class="bh-core"></i><i class="bh-disk front"><b></b></i></span>'); } }
+function coreGlyph() { const c = $('#core'); if (c && !c.querySelector('.bh')) { c.classList.add('bhole'); c.insertAdjacentHTML('afterbegin', '<span class="bh" aria-hidden="true"><i class="bh-glow"></i><i class="bh-lens"></i><i class="bh-disk back"><b></b></i><i class="bh-core"></i><i class="bh-disk front"><b></b></i></span><span class="sgem" aria-hidden="true"><i></i></span>'); } }
 function buildWheel() {
   const R = Math.max(112, Math.min(150, innerWidth / 2 - 38));
   $('#wheelItems').innerHTML = NAV.map(([k, n], i) => {
     const [x, y] = polar(R, navAngle(i)), locked = k === 'business' && !S.unlocks.business;
-    const pl = k === 'flux' ? '<circle r="26" fill="url(#gSun)"/><circle r="11" fill="#FFF8E6"/>' : planetSvg(k, gStage(k), 15);
+    const pl = uiSys() ? sysSigil(k) : k === 'flux' ? '<circle r="26" fill="url(#gSun)"/><circle r="11" fill="#FFF8E6"/>' : planetSvg(k, gStage(k), 15);
     return `<button class="w-item wp ${k === tab ? 'cur' : ''} ${locked ? 'locked' : ''}" data-nav="${k}" style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px;--i:${i}" aria-label="${n}${locked ? ', verrouillé' : ''}${k === tab ? ', ouvert' : ''}"><svg viewBox="-27 -27 54 54" aria-hidden="true">${pl}${locked ? `<svg x="-7" y="-7" width="14" height="14" viewBox="0 0 24 24" style="color:#E8C27A">${GLYPH.lock}</svg>` : ''}</svg><span class="w-lbl">${n}</span></button>`;
   }).join('');
-  $('#wheelHint').textContent = tab === 'orbite' ? 'Où va-t-on ?' : 'Appui long : ta galaxie';
+  $('#wheelHint').textContent = uiSys() ? (tab === 'orbite' ? 'Choisis un donjon' : 'Appui long : statut') : tab === 'orbite' ? 'Où va-t-on ?' : 'Appui long : ta galaxie';
   if (!$('#wheelDefs')) $('#wheel').insertAdjacentHTML('afterbegin', `<svg id="wheelDefs" width="0" height="0" style="position:absolute" aria-hidden="true">${GDEFS}</svg>`);
 }
 function openWheel() {
@@ -5216,7 +5939,7 @@ function closeWheel() {
 function highlight(k) {
   if (W8.hi === k) return; W8.hi = k;
   $$('.w-item').forEach(b => b.classList.toggle('hi', b.dataset.nav === k));
-  $('#wheelHint').textContent = k ? NAV.find(n => n[0] === k)[1] : (tab === 'orbite' ? 'Où va-t-on ?' : 'Appui long : ta galaxie');
+  $('#wheelHint').textContent = k ? NAV.find(n => n[0] === k)[1] : (uiSys() ? (tab === 'orbite' ? 'Choisis un donjon' : 'Appui long : statut') : tab === 'orbite' ? 'Où va-t-on ?' : 'Appui long : ta galaxie');
   if (k) haptic();
 }
 (function bindCore() {
@@ -5261,6 +5984,8 @@ function highlight(k) {
 setInterval(() => { const el = $('#sessEl'); if (el && S.body.active) el.textContent = sessLine(); }, 15000);
 
 document.addEventListener('click', e => {
+  if (arcClick(e.target)) return;
+  if (sysClick(e.target)) return;
   const t = e.target, c = sel => t.closest(sel);
   let el;
   if (tjClick(t)) return;
@@ -5353,6 +6078,9 @@ document.addEventListener('click', e => {
   if (c('[data-cbodyx]')) { C.edit = false; render(); return; }
   if (c('[data-cedit]')) { C.edit = true; render(); window.scrollTo(0, 0); return; }
   if ((el = c('[data-food]'))) { const f = FOODS.find(x => x[0] === el.dataset.food); if (f) addFood(f[0], f[1]); return; }
+  if ((el = c('[data-fmeal]'))) { addFood(el.dataset.fmeal, Number(el.dataset.fg) || 0); return; }
+  if (c('[data-fwhey]')) { addFood('Whey, 1 dose', 24); return; }
+  if (c('[data-fcrea]')) { const k = todayISO(); S.body.crea = S.body.crea || {}; if (S.body.crea[k]) delete S.body.crea[k]; else { S.body.crea[k] = 1; reward(1, { noBonus: true }); } save(); const y = window.scrollY; render(); window.scrollTo(0, y); return; }
   if (c('[data-fcustom]')) { const g = Math.round(numv($('#fCustom').value.replace(/\s/g, ''))); if (!(g > 0 && g < 300)) { toast('Indique des grammes de protéines.'); return; } addFood('Autre', g); return; }
   if (c('[data-fall]')) { C.allFoods = !C.allFoods; const sy = window.scrollY; render(); window.scrollTo(0, sy); return; }
   if ((el = c('[data-fdel]'))) { const d = S.body.food[todayISO()]; if (!d) return; const i = Number(el.dataset.fdel), [r] = d.log.splice(i, 1); d.p = d.log.reduce((m, x) => m + x[1], 0); save(); const sy = window.scrollY; render(); window.scrollTo(0, sy); toast(`${r[0]} retiré`, 'Annuler', () => { d.log.splice(i, 0, r); d.p = d.log.reduce((m, x) => m + x[1], 0); save(); render(); }); return; }
@@ -5496,6 +6224,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (t.id === 'bAmount' || t.id === 'bNote')) { e.preventDefault(); addTx(); }
 });
 document.addEventListener('change', e => {
+  if (arcChange(e.target)) return;
   const t = e.target;
   if (hairChange(t)) return;
   if (chasseChange(t)) return;
@@ -5586,14 +6315,19 @@ window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
    ===================================================================== */
 (function intro() {
   const el = document.getElementById('intro'); if (!el) return;
+  let sysI = true; try { sysI = (localStorage.getItem('sdp-ui') || 'systeme') === 'systeme'; } catch (e) {}
   const done = () => { if (el.parentNode) el.remove(); };
+  let awake = true; try { awake = localStorage.getItem('sdp-awake') === '1'; } catch (e) {}
+  if (sysI && !awake) { el.classList.add('sys-i'); awakeIntro(el, done); return; }
+  if (sysI) { el.classList.add('sys-i'); el.innerHTML = sysIntro(); }
   el.addEventListener('click', () => { el.classList.add('skip'); setTimeout(done, 320); });
   el.addEventListener('animationend', e => { if (e.animationName === 'iout') done(); });
-  setTimeout(done, 6800);
+  setTimeout(done, sysI ? 4300 : 6800);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
 })();
 (async function boot() {
   S = await loadState();
+  try { localStorage.setItem('sdp-ui', S.ui || 'systeme'); } catch (e) {}
   save(true);
   let t = location.hash.slice(1);
   if (t === 'arabe' || t === 'habitudes' || t === 'dhikr' || t === 'coeur' || t === 'nafila' || t === 'coran') { setFView(t); t = 'foi'; }
