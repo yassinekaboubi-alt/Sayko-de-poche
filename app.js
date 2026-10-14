@@ -556,14 +556,14 @@ const COACH_SYS = {
   budget: ['Tes ressources', 'Elles tiennent en 3 temps :', ['Tu te paies d\'abord : ton épargne part au coffre en début de mois', 'Tes charges fixes sont mises de côté', 'Le reste est ta réserve du mois, découpée en une ration par jour qui se recalcule à chaque dépense']]
 };
 function coach(key) {
-  if (S.seen[key]) return '';
+  if (S.seen[key] || uiSys()) return '';
   const c = (uiSys() && COACH_SYS[key]) || COACH[key];
   return `<div class="coach" data-coach="${key}"><b>${c[0]}.</b> ${c[1]}${c[2] ? `<ol>${c[2].map(x => `<li>${x}</li>`).join('')}</ol>` : ''}<br><button data-seen="${key}">J'ai compris</button></div>`;
 }
 function pageHead(title, sub, key) {
   return `<header class="top"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>
     <div class="top-actions">
-      ${key && S.seen[key] ? `<button class="icon-btn" data-unseen="${key}" aria-label="Revoir l'explication">${ICON.info}</button>` : ''}
+      ${key && (S.seen[key] || uiSys()) ? `<button class="icon-btn" data-unseen="${key}" aria-label="Revoir l'explication">${ICON.info}</button>` : ''}
       <button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button>
       <button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button>
       <button class="icon-btn" data-open="settings" aria-label="Réglages et sauvegarde">${ICON.gear}</button>
@@ -771,7 +771,8 @@ function checkGalaxy() {
    ===================================================================== */
 function uiSys() { return (S.ui || 'systeme') === 'systeme'; }
 function sysS() { const s = S.sys = S.sys && typeof S.sys === 'object' ? S.sys : {}; if (!s.q || typeof s.q !== 'object') s.q = {}; return s; }
-const xpTotal = () => Object.values(S.nour.log || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+const xpTotal = () => Math.max(0, Object.values(S.nour.log || {}).reduce((a, b) => a + (Number(b) || 0), 0) - (Number((S.sys || {}).loss) || 0));
+const xpLose = n => { const s = sysS(); s.loss = (Number(s.loss) || 0) + n; };
 const xpNeed = n => 60 + 25 * n;
 function lvOf(xp) { let l = 1, rest = xp; while (rest >= xpNeed(l)) { rest -= xpNeed(l); l++; } return { l, rest, need: xpNeed(l) }; }
 const SYS_RANK = [[1, 'E', 'Éveillé'], [5, 'D', 'Apprenti'], [12, 'C', 'Combattant'], [22, 'B', 'Élite'], [35, 'A', 'Vétéran'], [50, 'S', 'Monarque']];
@@ -786,7 +787,7 @@ function sysStats() {
     ['AGILITÉ', cap(5 + (fs.vitesse || 0) * .7 + (fs.souplesse || 0) * .2), 'corps'],
     ['ENDURANCE', cap(5 + ((fs.endurance || 0) + (fs.resistance || 0)) * .45), 'corps'],
     ['SAVOIR', cap(4 + wordsKnown() * .5 + arCount() * 6 + globalPct() * .3), 'arabe'],
-    ['DISCIPLINE', cap(4 + Object.keys(S.days || {}).length * 1.2 + (S.fight ? planStats(4).pct * 30 : 0)), 'routine'],
+    ['DISCIPLINE', cap(4 + Object.keys(S.days || {}).length * 1.2 + (S.fight ? planStats(4).pct * 30 : 0) - (Number((S.sys || {}).disc) || 0)), 'routine'],
     ['RICHESSE', cap(4 + S.money.tx.length * .4 + gStage('argent') * 8), 'argent'],
     ['ESPRIT', cap(4 + Object.keys(S.flux.seen || {}).length * .15 + Object.keys((S.heart && S.heart.c) || {}).length * 4), 'flux']
   ];
@@ -822,17 +823,18 @@ function vSys(now) {
   try { localStorage.setItem('sdp-sysline', JSON.stringify({ lv: L.l, r: r[1], pen: !!(pen && pen.n < pen.goal), done })); } catch (e) {}
   const status = `<div class="sys-id"><div><p class="sys-k">NOM</p><p class="sys-name">SAYKO</p></div><div class="sys-lv"><p class="sys-k">NIVEAU</p><p class="sys-big num">${L.l}</p></div></div>
     <div class="sys-row"><span><b class="sys-k">RANG</b> <span class="sys-r">${r[1]}</span></span><span><b class="sys-k">TITRE</b> ${r[2]}</span></div>
-    <div class="sys-row aura"><span><b class="sys-k">AURA</b> <i class="aura-dot"></i>${AURA[SYS_RANK.indexOf(r)]}</span>${SYS_RANK.indexOf(r) < 5 ? `<span class="sys-xpt" style="margin:0">→ ${AURA[SYS_RANK.indexOf(r) + 1]} au niveau ${SYS_RANK[SYS_RANK.indexOf(r) + 1][0]}</span>` : ''}</div>
+    <div class="sys-row aura"><span><b class="sys-k">AURA</b> <i class="aura-dot"></i>${AURA[SYS_RANK.indexOf(r)]}</span></div>
     <div class="sys-xp"><i style="width:${(L.rest / L.need * 100).toFixed(1)}%"></i></div><p class="sys-xpt num">XP ${L.rest} / ${L.need}</p>
     <div class="sys-stats">${st.map(([n, v, go]) => `<button data-goto="${go === 'flux' ? 'flux' : go}"><span>${n}</span><b class="num">${v}</b></button>`).join('')}</div>`;
   const quest = `<p class="sys-qt">QUÊTE QUOTIDIENNE · FORGER LE JOUEUR</p>
     ${d.list.map(o => `<button class="sys-obj ${o.v >= o.n ? 'ok' : ''}" ${o.manual ? `data-sysm="${o.id}"` : o.go ? `data-goto="${o.go}"` : ''}><span class="sys-box">${o.v >= o.n ? '✓' : ''}</span><span class="grow">${esc(o.t)}</span><b class="num">[${Math.min(o.v, o.n)}/${o.n}]</b></button>`).join('')}
-    <p class="sys-warn">${done ? 'Quête accomplie. Récompense reçue : +30 XP.' : `Temps restant <b class="num" id="sysT">${tLeft()}</b> · Ne pas l'accomplir déclenche une pénalité.`}</p>`;
-  const penW = pen && !(pen.n >= pen.goal) ? sysWin('ALERTE · QUÊTE DE PÉNALITÉ', `<p class="sys-pt">La quête d'hier n'a pas été accomplie.</p><p>100 pompes aujourd'hui, en autant de séries que nécessaire.</p><div class="sys-pbar"><i style="width:${pen.n}%"></i></div><p class="num" style="text-align:center;margin:6px 0 10px">${pen.n} / 100</p><div class="row" style="gap:8px">${[5, 10, 20].map(n => `<button class="sys-btn" data-syspen="${n}">+${n}</button>`).join('')}<button class="sys-btn ghost" data-syspen="-5">−5</button></div>`, 'pen') : '';
+    <p class="sys-warn">${done ? 'Accomplie · +30 XP' : `<b class="num" id="sysT">${tLeft()}</b> · échec = pénalité`}</p>`;
+  const penW = pen && !(pen.n >= pen.goal) ? sysWin('ALERTE · QUÊTE DE PÉNALITÉ', `<p class="sys-pt">Quête d'hier échouée : 100 pompes aujourd'hui.</p><div class="sys-pbar"><i style="width:${pen.n}%"></i></div><p class="num" style="text-align:center;margin:6px 0 10px">${pen.n} / 100</p><div class="row" style="gap:8px">${[5, 10, 20].map(n => `<button class="sys-btn" data-syspen="${n}">+${n}</button>`).join('')}<button class="sys-btn ghost" data-syspen="-5">−5</button></div>`, 'pen') : '';
   const dung = dungList();
   return `<header class="sys-top"><p class="sys-k">◆ SYSTÈME</p><p class="sys-date">${DAY_LONG.format(now).replace(/^./, c => c.toUpperCase())}</p>
       <div class="top-actions"><button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button><button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button><button class="icon-btn" data-open="settings" aria-label="Réglages">${ICON.gear}</button></div></header>
     ${penW}
+    ${pqWin()}
     ${sysWin('STATUT', status)}
     ${sysWin('QUÊTE', quest, done ? 'done' : '')}
     <button class="sys-src" data-goto="flux"><span class="sys-k">LA SOURCE</span><b>Flux · ${S.flux.day.d === todayISO() ? S.flux.day.n : 0}/5</b><span class="num">+${nourDay()} XP aujourd'hui</span></button>
@@ -846,18 +848,18 @@ function sysPing(big) {
 function sysPop(title, html, btn = 'Fermer', cls = '') {
   if ($('.sys-pop')) return; const el = document.createElement('div'); el.className = `sys-pop ${cls}`; el.setAttribute('role', 'dialog');
   el.innerHTML = `<div class="sys-pop-in">${sysWin(title, `${html}<button class="sys-btn big" data-syspop>${btn}</button>`)}</div>`;
-  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on')); sysPing(cls === 'lvl'); try { navigator.vibrate && navigator.vibrate([20, 40, 20]); } catch (e) {}
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on')); sfx(cls === 'lvl' ? 'lvl' : cls === 'pen' ? 'alert' : cls === 'ok' ? 'big' : 'win'); try { navigator.vibrate && navigator.vibrate([20, 40, 20]); } catch (e) {}
   el.addEventListener('click', e => { if (e.target.closest('[data-syspop]') || e.target === el) { el.classList.remove('on'); setTimeout(() => el.remove(), 300); } });
 }
 function sysCheck() {
   const s = sysS(), k = todayISO(); if (!s.start) { s.start = k; save(); }
   const L = lvOf(xpTotal()).l;
-  if (s.lv == null) { s.lv = L; save(); }
+  if (s.lv == null || L < s.lv) { s.lv = L; save(); }
   else if (L > s.lv) { const from = s.lv; s.lv = L; save(); const r = sysRank(L); setTimeout(() => sysPop('NIVEAU SUPÉRIEUR', `<p class="sys-lvup num">${L}</p><p style="text-align:center;margin:0 0 6px">Niveau ${from} → ${L}</p>${sysRank(from)[1] !== r[1] ? `<p class="sys-pt" style="text-align:center">Nouveau rang : ${r[1]} · ${r[2]}</p><p class="sys-li" style="text-align:center">L'aura du Système change : <b>${AURA[SYS_RANK.indexOf(r)]}</b></p>` : ''}<p class="small" style="text-align:center;color:var(--muted)">Toutes tes stats progressent avec tes actes, dans chaque donjon.</p>`, 'Continuer', 'lvl'), 500); return; }
   const d = questDay();
-  if (questDone(d) && !d.q.done) { d.q.done = k; nourAdd(30); save(); setTimeout(() => sysPop('QUÊTE ACCOMPLIE', `<p style="text-align:center">La quête quotidienne est accomplie.</p><p class="sys-pt" style="text-align:center">Récompense : +30 XP</p>`, 'Récupérer'), 500); return; }
+  if (questDone(d) && !d.q.done) { d.q.done = k; nourAdd(30); if (s.disc) s.disc = Math.max(0, s.disc - 1); save(); setTimeout(() => sysPop('QUÊTE ACCOMPLIE', `<p style="text-align:center">La quête quotidienne est accomplie.</p><p class="sys-pt" style="text-align:center">Récompense : +30 XP</p>`, 'Récupérer', 'ok'), 500); return; }
   sysAchCheck();
-  if (s.seen !== k) { s.seen = k; save(); const pen = penaltyToday();
+  if (s.seen !== k) { s.seen = k; save(); sanctionsDaily(); const pen = penaltyToday();
     setTimeout(() => sysPop('NOUVELLE QUÊTE', `<p class="sys-qt" style="text-align:center">QUÊTE QUOTIDIENNE · FORGER LE JOUEUR</p>${d.list.map(o => `<p class="sys-li">— ${esc(o.t)} <b class="num">[${Math.min(o.v, o.n)}/${o.n}]</b></p>`).join('')}${pen ? '<p class="sys-pt" style="color:var(--danger);text-align:center;margin-top:10px">Quête de pénalité active : 100 pompes aujourd\'hui.</p>' : ''}<p class="small" style="text-align:center;color:var(--muted);margin-top:10px">Récompense : +30 XP. Ne pas l'accomplir déclenche une pénalité demain.</p>`, 'Accepter'), 700); }
 }
 function sysCheckLater() { if (document.getElementById('intro')) { setTimeout(sysCheckLater, 600); return; } if (tab === 'orbite' && uiSys()) sysCheck(); }
@@ -901,16 +903,115 @@ function nz(t0, dur, f0, f1, gain, q = 4) {
     s.connect(f).connect(g).connect(c.destination); s.start(t); s.stop(t + dur + .02);
   } catch (e) {}
 }
+/* ----- Les sons du Système (v3.22) -----
+   Moteur commun : compresseur, réverbération courte, écho stéréo (ping-pong).
+   Chaque moment a plusieurs variantes ; le Joueur choisit la sienne dans Réglages → Atelier des sons (S.sfx). */
+const AU = { bus: null };
+function auBus() {
+  const c = actx; if (!c) return null; if (AU.bus) return AU.bus;
+  const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 5; comp.attack.value = .003; comp.release.value = .2;
+  const master = c.createGain(); master.gain.value = 1; comp.connect(master).connect(c.destination);
+  const dry = c.createGain(); dry.connect(comp);
+  const len = Math.floor(c.sampleRate * 1.3), ir = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 5); }
+  const conv = c.createConvolver(); conv.buffer = ir; const rg = c.createGain(); rg.gain.value = .3; conv.connect(rg).connect(comp);
+  /* écho ping-pong */
+  const dl = c.createDelay(1), dr = c.createDelay(1), fb = c.createGain(), hp = c.createBiquadFilter(), ml = c.createChannelMerger(2), eg = c.createGain();
+  dl.delayTime.value = .11; dr.delayTime.value = .17; fb.gain.value = .32; hp.type = 'highpass'; hp.frequency.value = 900; eg.gain.value = .35;
+  const ein = c.createGain(); ein.connect(hp).connect(dl); dl.connect(dr); dr.connect(fb).connect(dl); dl.connect(ml, 0, 0); dr.connect(ml, 0, 1); ml.connect(eg).connect(comp);
+  const curve = (k => { const n = 1024, cv = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i * 2 / n - 1; cv[i] = (1 + k) * x / (1 + k * Math.abs(x)); } return cv; });
+  AU.bus = { dry, conv, ein, soft: curve(3), hard: curve(30) }; return AU.bus;
+}
+function qOut(node, rv = .3, ec = 0) { const b = auBus(); node.connect(b.dry); if (rv) { const g = actx.createGain(); g.gain.value = rv; node.connect(g).connect(b.conv); } if (ec) { const g = actx.createGain(); g.gain.value = ec; node.connect(g).connect(b.ein); } }
+let QV = 1;
+const QVOL = { 'win.holo': 1.7, 'win.scan': 2.2, 'win.tchk': 1.4, 'win.notif': 1.2, 'win.cristal': 1.1, 'ko.warning': 2.2, 'ko.chute': 2, 'ko.sirene': 1.3, 'xp.tick': 3, 'xp.blip': 3.2, 'xp.chirp': 3.5, 'xp.clic': 1.4, 'line': 4, 'beat': 3, 'deny': 1.6, 'awAlert': 1.5 };
+function qEnv(g, t, a, v, d) { v = Math.min(.95, v * QV); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(.0001, t + a + d); }
+/* oscillateur avec options : glissando, filtre (avec balayage et résonance), saturation, écho */
+function qT(t0, type, f, dur, vol, o = {}) {
+  const c = actx, t = c.currentTime + t0, osc = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain(); let n = osc;
+  osc.type = type; osc.frequency.setValueAtTime(f, t); if (o.f2) osc.frequency.exponentialRampToValueAtTime(o.f2, t + (o.gl || dur)); if (o.det) osc.detune.value = o.det;
+  if (o.dist) { const sh = c.createWaveShaper(); sh.curve = auBus()[o.dist]; n.connect(sh); n = sh; }
+  fl.type = o.ft || 'lowpass'; fl.frequency.setValueAtTime(o.cut || 8000, t); if (o.cut2) fl.frequency.exponentialRampToValueAtTime(o.cut2, t + (o.cg || dur)); fl.Q.value = o.q || .7;
+  if (o.trem) { const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = o.trem; lg.gain.value = vol * .6; lfo.connect(lg).connect(g.gain); lfo.start(t); lfo.stop(t + dur + .1); }
+  qEnv(g, t, o.a || .003, vol, dur); n.connect(fl).connect(g); qOut(g, o.rv != null ? o.rv : .3, o.ec || 0); osc.start(t); osc.stop(t + (o.a || .003) + dur + .05);
+}
+function qN(t0, dur, type, f0, f1, vol, o = {}) {
+  const c = actx, t = c.currentTime + t0, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); s.buffer = noiseBuf(c); s.loop = true;
+  f.type = type; f.Q.value = o.q || 1; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + (o.a != null ? o.a : .003)); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(f).connect(g); qOut(g, o.rv != null ? o.rv : .2, o.ec || 0); s.start(t); s.stop(t + dur + .05);
+}
+function qFM(t0, f, dur, vol, ratio = 1.41, idx = 3, o = {}) {
+  const c = actx, t = c.currentTime + t0, car = c.createOscillator(), mod = c.createOscillator(), mg = c.createGain(), g = c.createGain();
+  car.type = o.type || 'sine'; car.frequency.value = f; mod.frequency.value = f * ratio; mg.gain.setValueAtTime(f * idx, t); mg.gain.exponentialRampToValueAtTime(f * .02, t + dur);
+  mod.connect(mg).connect(car.frequency); qEnv(g, t, o.a || .002, vol, dur); car.connect(g); qOut(g, o.rv != null ? o.rv : .3, o.ec || 0); car.start(t); mod.start(t); car.stop(t + dur + .05); mod.stop(t + dur + .05);
+}
+const qSub = (t0, f0, f1, dur, vol) => qT(t0, 'sine', f0, dur, vol, { f2: f1, rv: .05 });
+const qTick = (t0, vol = .3) => qN(t0, .03, 'highpass', 4000, 7000, vol, { rv: .1 });
+/* Les variantes : [nom affiché, fonction] */
+const SFXV = {
+  win: {
+    holo: ['Hologramme', () => { qTick(0, .2); ['sawtooth', 'sawtooth'].forEach((ty, i) => qT(0, ty, 220 * (i ? 1.5 : 1), .32, .07, { det: i ? 8 : -8, cut: 300, cut2: 7000, cg: .1, q: 9, rv: .25, ec: .5 })); qT(.02, 'sine', 1760, .35, .08, { rv: .3, ec: .6 }); qSub(0, 90, 55, .2, .3); }],
+    scan: ['Scanner', () => { [1046.5, 1568, 2093].forEach((f, i) => qT(i * .05, 'square', f, .04, .07, { cut: 6000, rv: .2, ec: .4 })); qSub(0, 100, 60, .15, .25); }],
+    tchk: ['Métal', () => { qTick(0, .3); qFM(0, 1760, .16, .14, 1.41, 6, { ec: .7 }); qSub(0, 110, 60, .15, .3); }],
+    notif: ['Notification', () => { qT(0, 'square', 987.8, .07, .06, { cut: 3500, rv: .3, ec: .5 }); qT(.075, 'square', 1480, .18, .07, { cut: 4000, rv: .35, ec: .6 }); qT(0, 'sine', 987.8, .07, .08); qT(.075, 'sine', 1480, .25, .1, { ec: .5 }); }],
+    impact: ['Impact', () => { qSub(0, 70, 38, .45, .6); qN(0, .05, 'highpass', 1800, 900, .4, { rv: .1 }); [523, 1381, 2187].forEach((f, i) => qT(0, 'square', f, .2 - i * .04, .05, { dist: 'hard', cut: 7000, rv: .3 })); }],
+    cristal: ['Cristal', () => { qN(0, .12, 'highpass', 3000, 9000, .05, { a: .06 }); [2093, 4186].forEach((f, i) => qT(.04, 'sine', f, 1, i ? .05 : .14, { rv: .5 })); }]
+  },
+  ok: {
+    victoire: ['Victoire', () => { qN(0, .3, 'bandpass', 500, 6000, .07, { a: .25 }); [784, 1046.5, 1318.5, 1568].forEach((f, i) => qFM(.08 + i * .07, f, .5, .11, 2, 2.5, { ec: .5 })); qSub(.36, 90, 45, .5, .45); qT(.36, 'sawtooth', 392, .7, .05, { det: 7, cut: 4000, cut2: 800, rv: .4 }); }],
+    power: ['Montée', () => { qT(0, 'sawtooth', 110, .4, .1, { f2: 880, gl: .38, cut: 400, cut2: 6000, q: 6, a: .25 }); qSub(.4, 85, 40, .5, .5); [440, 554.4, 659.3, 880].forEach(f => qT(.4, 'sawtooth', f, .8, .04, { det: 9, cut: 6000, cut2: 1000, rv: .45, ec: .3 })); }],
+    confirm: ['Validation', () => { [659.3, 987.8, 1318.5].forEach((f, i) => { qT(i * .09, 'square', f, .07, .08, { cut: 5000, ec: .4 }); qTick(i * .09, .15); }); qT(.27, 'sawtooth', 659.3, .6, .05, { det: 8, cut: 5000, cut2: 1200, rv: .4, ec: .4 }); qSub(.27, 100, 55, .35, .4); }],
+    sature: ['Saturé', () => { qT(0, 'sawtooth', 110, .45, .12, { f2: 880, gl: .42, dist: 'hard', cut: 600, cut2: 5000, a: .3 }); qSub(.45, 80, 36, .7, .6); [110, 164.8, 220].forEach(f => qT(.45, 'sawtooth', f, .9, .05, { det: 9, dist: 'hard', cut: 2600, cut2: 700 })); }],
+    cristal: ['Cristal', () => { qN(0, .5, 'bandpass', 600, 8000, .06, { a: .45 }); [1046.5, 1318.5, 1568, 2093].forEach((f, i) => qT(.1 + i * .085, 'sine', f, 1.1, .12, { rv: .5 })); }]
+  },
+  ko: {
+    sirene: ['Sirène', () => { [0, .3].forEach(t => { qT(t, 'square', 620, .14, .1, { dist: 'soft', cut: 3000, trem: 30 }); qT(t + .15, 'square', 830, .14, .1, { dist: 'soft', cut: 3000, trem: 30 }); }); qT(0, 'sawtooth', 55, .7, .1, { cut: 300, rv: .1 }); qSub(0, 60, 45, .6, .4); }],
+    warning: ['Avertissement', () => { [0, .2, .4].forEach(t => qT(t, 'square', 1000, .12, .09, { cut: 4000, rv: .15 })); qT(0, 'sawtooth', 60, .6, .1, { cut: 250, rv: .05 }); }],
+    buzzer: ['Buzzer', () => { [0, .42].forEach(t => { qT(t, 'square', 110, .32, .18, { dist: 'hard', cut: 1400 }); qT(t, 'square', 116.5, .32, .12, { dist: 'hard', cut: 1400 }); qSub(t, 70, 55, .32, .5); }); }],
+    chute: ['Effondrement', () => { qT(0, 'sawtooth', 420, .7, .2, { f2: 38, dist: 'hard', cut: 2500, cut2: 200 }); qN(0, .5, 'lowpass', 3000, 150, .12, { a: .01 }); }],
+    grave: ['Grave', () => { [0, .38].forEach((t, i) => { qT(t, 'square', i ? 146.8 : 196, .34, .12, { cut: 900, rv: .3 }); qSub(t, i ? 73.4 : 98, i ? 60 : 80, .34, .4); }); }]
+  },
+  xp: {
+    tick: ['Métal', () => { qFM(0, 2093, .09, .1, 1.41, 4, { ec: .35 }); qTick(0, .15); }],
+    blip: ['Blip', () => { qT(0, 'square', 1318.5, .04, .06, { cut: 5000 }); qT(.045, 'square', 1975.5, .08, .06, { cut: 6000, ec: .4 }); }],
+    chirp: ['Chirp', () => { qT(0, 'sine', 1200, .07, .12, { f2: 3000, ec: .45 }); qT(0, 'square', 1200, .07, .03, { f2: 3000, cut: 5000 }); }],
+    clic: ['Clic', () => { qN(0, .05, 'highpass', 1800, 900, .3, { rv: .1 }); qT(0, 'square', 880, .06, .1, { f2: 1320, dist: 'hard', cut: 5000, rv: .1 }); qSub(0, 120, 70, .12, .25); }]
+  },
+  lvl: {
+    ascension: ['Ascension', () => { qN(0, .9, 'bandpass', 300, 7000, .08, { a: .85 }); qT(0, 'sawtooth', 110, .9, .06, { f2: 880, gl: .88, cut: 400, cut2: 7000, q: 5, a: .7 }); qSub(.9, 85, 32, 1, .7); qN(.9, .06, 'highpass', 2000, 900, .4); [523.3, 659.3, 784, 1046.5].forEach(f => qT(.9, 'sawtooth', f, 1.4, .035, { det: 9, cut: 7000, cut2: 1200, rv: .5, ec: .3 })); [1568, 2093].forEach((f, i) => qFM(.95 + i * .08, f, 1, .07, 2, 2, { ec: .6 })); }],
+    sature: ['Saturé', () => { qT(0, 'sawtooth', 55, 1, .12, { f2: 880, gl: .95, dist: 'hard', cut: 300, cut2: 6000, a: .8 }); qN(0, 1, 'bandpass', 200, 8000, .12, { a: .9 }); qSub(1, 75, 30, 1.2, .8); [110, 164.8, 220, 329.6].forEach(f => qT(1, 'sawtooth', f, 1.4, .05, { det: 9, dist: 'hard', cut: 2600, cut2: 700 })); }],
+    cristal: ['Cristal', () => { qN(0, 1, 'bandpass', 300, 7000, .08, { a: .95 }); [523.3, 784, 1046.5, 1568, 2093].forEach((f, i) => qT(1 + i * .06, 'sine', f, 2, .1, { rv: .5 })); qSub(1, 65, 40, 1.2, .4); }]
+  }
+};
+const SFX_EV = [['win', 'Fenêtre qui s\'ouvre'], ['ok', 'Quête accomplie, bonus'], ['ko', 'Alerte, échec'], ['xp', 'Gain d\'XP'], ['lvl', 'Niveau supérieur, Éveil']];
+const SFX_DEF = { win: 'holo', ok: 'victoire', ko: 'sirene', xp: 'tick', lvl: 'ascension' };
+function sfxSel(ev) { const v = (S.sfx || {})[ev]; return SFXV[ev][v] ? v : SFX_DEF[ev]; }
+function sfxPlay(ev, v) { audioUnlock(); if (!actx) return; const k = v || sfxSel(ev); QV = QVOL[ev + '.' + k] || 1; try { SFXV[ev][k][1](); } catch (e) {} QV = 1; }
+/* Sons spéciaux : refus, minuteur, connexion, moniteur cardiaque, inactivité */
+const SFX_X = {
+  deny: () => { qT(0, 'square', 180, .08, .12, { dist: 'hard', cut: 1200 }); qT(.1, 'square', 120, .16, .12, { dist: 'hard', cut: 1000 }); qSub(0, 90, 55, .25, .35); },
+  tick: () => { [0, .16, .32].forEach((t, i) => { qTick(t, .25); qFM(t, i === 2 ? 1760 : 1318.5, .12, .14, 1.41, 3, { rv: .15 }); }); },
+  boot: () => { qT(0, 'sawtooth', 55, 1.2, .07, { f2: 220, gl: 1.1, cut: 200, cut2: 3000, a: .9, rv: .3 }); qSub(1.1, 80, 40, .5, .4); qN(0, 1.1, 'bandpass', 200, 5000, .05, { a: 1 }); },
+  line: () => { qT(0, 'square', 1568, .035, .05, { cut: 6000, ec: .3 }); },
+  beat: () => { qT(0, 'sine', 1000, .09, .12, { rv: .15 }); qT(0, 'square', 1000, .09, .025, { cut: 3000 }); },
+  awAlert: () => { [0, .25].forEach(t => qT(t, 'square', 740, .2, .1, { dist: 'soft', cut: 2500, rv: .3, ec: .3 })); qT(0, 'sawtooth', 55, 1, .1, { cut: 260 }); qSub(0, 70, 40, .8, .5); },
+  thump: () => { qSub(0, 60, 35, .25, .8); qSub(.2, 55, 32, .3, .6); },
+  inact: () => { qT(0, 'sawtooth', 41.2, 2.6, .16, { det: 6, cut: 300, cut2: 900, a: .6, rv: .4 }); qT(0, 'sawtooth', 43.6, 2.6, .12, { det: -6, cut: 300, cut2: 900, a: .6 }); [0, .9, 1.8].forEach(t => { qT(t, 'square', 466, .5, .07, { dist: 'soft', cut: 1800, trem: 9, rv: .5 }); qT(t, 'square', 494, .5, .05, { dist: 'soft', cut: 1800, trem: 9 }); qSub(t, 55, 30, .5, .6); }); qN(0, 2.4, 'lowpass', 200, 1200, .06, { a: 1.5 }); }
+};
+let FLAT = null;
+function sfxFlat(on) { if (!actx) return; try { if (on && !FLAT) { const c = actx, o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = 1000; g.gain.value = .0001; g.gain.exponentialRampToValueAtTime(.07, c.currentTime + .05); o.connect(g); qOut(g, .1); o.start(); FLAT = { o, g }; } else if (!on && FLAT) { const { o, g } = FLAT, t = actx.currentTime; g.gain.setValueAtTime(g.gain.value, t); g.gain.exponentialRampToValueAtTime(.0001, t + .15); o.stop(t + .2); FLAT = null; } } catch (e) {} }
 function sfx(kind) {
   audioUnlock(); if (!actx) return;
-  if (kind === 'gain') { nz(0, .06, 5000, 9000, .035, 2); tone(1568, 0, .08, .06, 'triangle'); tone(2349.3, .05, .26, .055); tone(4698.6, .05, .14, .01); }
-  else if (kind === 'big') { nz(0, .4, 600, 6000, .05, 1.5); tone(82, 0, .45, .16, 'sine', 50); [1046.5, 1318.5, 1568, 2093].forEach((f, i) => { tone(f, .06 + i * .065, .45, .05, 'triangle'); tone(f * 2.004, .06 + i * .065, .25, .012); }); tone(3136, .36, .8, .025); }
-  else if (kind === 'win') { nz(0, .2, 2500, 9000, .04, 3); tone(1760, .02, .75, .06); tone(1764.5, .02, .75, .045); tone(2637, .09, .5, .02); }
-  else if (kind === 'lvl') { nz(0, .7, 300, 7000, .06, 1.2); tone(65, 0, .9, .2, 'sine', 40); [784, 1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => tone(f, .1 + i * .08, .7, .045, 'triangle')); tone(3520, .6, 1.2, .022); tone(3524, .6, 1.2, .018); }
-  else if (kind === 'deny') { tone(220, 0, .11, .07, 'square', 200); tone(165, .14, .26, .07, 'square', 140); nz(0, .3, 400, 160, .04, 1); }
-  else if (kind === 'alert') { [0, .17, .34].forEach((t, i) => tone(i % 2 ? 740 : 988, t, .13, .05, 'square')); }
-  else if (kind === 'tick') { [0, .13, .26].forEach(t => tone(2093, t, .07, .16, 'square')); }
+  const ev = { gain: 'xp', big: 'ok', win: 'win', lvl: 'lvl', alert: 'ko' }[kind];
+  try { if (ev) return sfxPlay(ev); if (SFX_X[kind]) { QV = QVOL[kind] || 1; SFX_X[kind](); } } catch (e) {} QV = 1;
 }
+/* L'atelier des sons (Réglages) */
+function sfxBlock() {
+  return `<p class="gt">Atelier des sons</p><div class="sfxw">${SFX_EV.map(([ev, n]) => `<div class="sfx-r"><p class="sys-k">${n.toUpperCase()}</p><div class="sfx-c">${Object.entries(SFXV[ev]).map(([k, v]) => `<button class="chip" data-sfx="${ev}.${k}" aria-pressed="${sfxSel(ev) === k}">${v[0]}</button>`).join('')}</div></div>`).join('')}</div>
+    <p class="hint">Touche une variante pour l'écouter : elle devient le son de ce moment. Monte le volume, hors mode silencieux.</p>`;
+}
+function sfxClick(t) { const b = t.closest('[data-sfx]'); if (!b) return false; const [ev, k] = b.dataset.sfx.split('.'); S.sfx = S.sfx || {}; S.sfx[ev] = k; save(); sfxPlay(ev, k); $$(`[data-sfx^="${ev}."]`).forEach(x => x.setAttribute('aria-pressed', x === b)); return true; }
 
 /* ----- Notification du Système (remplace la carte dorée) ----- */
 function sysNote(title, text, src) {
@@ -924,14 +1025,6 @@ function sysNote(title, text, src) {
 
 /* ----- La barre du Système et la fenêtre des Donjons ----- */
 const SNAV = [['orbite', 'Statut'], ['foi', 'Foi'], ['corps', 'Corps'], ['flux', 'Flux']];
-function sysNav() {
-  let n = $('#sysnav');
-  if (!uiSys()) { if (n) n.remove(); return; }
-  if (!n) { n = document.createElement('nav'); n.id = 'sysnav'; n.className = 'sysnav'; n.setAttribute('aria-label', 'Navigation'); document.body.appendChild(n); }
-  const cur = tab === 'z' ? '' : tab;
-  n.innerHTML = SNAV.map(([k, l]) => `<button class="sn-b ${cur === k ? 'on' : ''}" data-snav="${k}" aria-label="${l}"><svg viewBox="0 0 24 24" aria-hidden="true">${GLYPH[k]}</svg><span>${l.toUpperCase()}</span></button>`).join('')
-    + `<button class="sn-b sn-d ${cur && !SNAV.some(x => x[0] === cur) ? 'on' : ''}" data-snav="donjons" aria-label="Donjons"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 8l3.5 2v4L12 16l-3.5-2v-4z" fill="currentColor"/></svg><span>DONJONS</span></button>`;
-}
 function dungList() {
   return DUNG.filter(([k]) => k !== 'chasse' || chasseActive()).map(([k, n]) => { const s = gStage(k), lk = k === 'business' && !S.unlocks.business, f = gFrac(k);
     return `<button class="sys-d ${lk ? 'lk' : ''} ${tab === k ? 'cur' : ''}" data-snav="${k === 'business' && lk ? 'parcours' : k}"><span class="sys-dr">${lk ? '✕' : DRANK[s]}</span><span class="grow"><b>${n}</b><small>${lk ? 'Accès restreint' : `Rang ${DRANK[s]} · ${Math.round(f * 100)} % vers ${DRANK[Math.min(4, s + 1)]}`}</small></span><span class="sys-dp"><b style="width:${lk ? 0 : Math.round(f * 100)}%"></b></span></button>`; }).join('');
@@ -939,7 +1032,7 @@ function dungList() {
 function openDungeons() {
   if ($('.sys-pop')) return;
   const el = document.createElement('div'); el.className = 'sys-pop dpop'; el.setAttribute('role', 'dialog');
-  el.innerHTML = `<div class="sys-pop-in">${sysWin('DONJONS', `<p class="sys-qt">CHOISIS TA PORTE</p>${dungList()}
+  el.innerHTML = `<div class="sys-pop-in">${sysWin('DONJONS', `<div class="dp-more dp-top"><button class="sys-btn" data-snav="orbite">◆ STATUT</button><button class="sys-btn" data-snav="flux">✦ LA SOURCE</button></div><p class="sys-qt" style="margin-top:14px">CHOISIS TA PORTE</p>${dungList()}
     <div class="dp-more"><button class="sys-btn" data-snav="trophies">SUCCÈS</button><button class="sys-btn" data-snav="ideas">IDÉES</button><button class="sys-btn" data-snav="settings">RÉGLAGES</button></div>
     <button class="sys-btn big ghost" data-snav="close">FERMER</button>`)}</div>`;
   document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on')); sfx('win'); haptic();
@@ -1043,7 +1136,7 @@ function prayerQuest(k, d) {
   }).join('');
   const cur = ids.find(id => { const [s, e] = t.win[id]; return isT && s <= now && e > now; });
   return sysWin(`QUÊTE · LES CINQ PRIÈRES [${done}/${ids.length}]`, `<p class="sys-qt">${isT ? (cur ? `${PNAMES[cur].toUpperCase()} EST OUVERTE` : done === ids.length ? 'QUÊTE ACCOMPLIE' : 'LA PROCHAINE PORTE S\'OUVRIRA À SON HEURE') : DAY_LONG.format(parseDate(k)).toUpperCase()}</p>${rows}
-    <p class="sys-warn" style="color:var(--sak)">À la mosquée : récompense maximale. Une prière qui expire sans réponse reste en attente de validation.</p>`, done === ids.length ? 'done' : '');
+`, done === ids.length ? 'done' : '');
 }
 function pqClick(t) {
   const el = t.closest('[data-pqo]'); if (!el) return false;
@@ -1204,10 +1297,10 @@ function vRoutineSys() {
   const last28 = Array.from({ length: 28 }, (_, i) => iso(addDays(new Date(), -i))).filter(x => S.days[x]).length;
   return `${pageHead('Routine', '1 h 30 par jour, calée sur tes deux emplois.', 'routine')}
   ${sysWin(`QUÊTE DE ROUTINE · 1 H 30 [${n}/4]`, `<p class="sys-qt">${n === 4 ? 'JOURNÉE VALIDÉE · LA SÉRIE CONTINUE' : 'TOUCHE UN OBJECTIF QUAND IL EST ACCOMPLI'}</p>${gauge}${objs}
-    <p class="sys-warn" style="color:var(--sak)">Un jour chargé ? Garde au moins l'audio et l'arabe.</p>`, n === 4 ? 'done' : '')}
+`, n === 4 ? 'done' : '')}
   ${sysWin('SÉRIE', `<div class="rt-s"><div><p class="sys-k">SÉRIE</p><p class="rs-big num">${st}<small> j</small></p></div><div><p class="sys-k">RECORD</p><p class="rt-v num">${bestStreak()} j</p></div><div><p class="sys-k">28 JOURS</p><p class="rt-v num">${last28}/28</p></div></div>
     <div class="rt-cal">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<span>${x}</span>`).join('')}${cells}</div>
-    <p class="sys-xpt" style="text-align:left">Plus la case est vive, plus de blocs faits ce jour-là. Touche un jour passé pour le valider ou l'annuler en entier.</p>`)}`;
+`)}`;
 }
 
 /* ----- Parcours en thème Système : la campagne de 12 mois en 4 actes ----- */
@@ -1230,6 +1323,118 @@ function vParcoursSys() {
 }
 
 /* =====================================================================
+   SYSTÈME v3.18 — les sanctions du Système
+   Chaque échec déclenche une ALERTE (fenêtre rouge + son) avec une perte d'XP,
+   et le plus souvent une QUÊTE DE RATTRAPAGE à accomplir avant la fin du lendemain.
+   Une quête de rattrapage non accomplie à temps coûte encore de l'XP.
+   S.sys.pq = [{ id, t, d (créée), due, done, xp }], S.sys.flags = { clé: date } (une seule sanction par événement)
+   ===================================================================== */
+function sysPQ() { const s = sysS(); s.pq = Array.isArray(s.pq) ? s.pq : []; s.flags = s.flags || {}; return s; }
+let SANQ = [];
+function sanction(title, lines, xp, quest) {
+  if (!uiSys()) { if (xp) { nourAdd(-xp); save(); } return; }
+  const s = sysPQ();
+  if (xp) xpLose(xp);
+  if (quest) s.pq.push({ id: uid(), t: quest, d: todayISO(), due: iso(addDays(new Date(), 1)), xp: 10 });
+  save();
+  SANQ.push([title, lines, xp, quest]);
+  if (SANQ.length === 1) setTimeout(sanctionNext, 1300);
+}
+function sanctionNext() {
+  const x = SANQ[0]; if (!x) return;
+  if ($('.sys-pop') || document.getElementById('intro') || document.getElementById('inact')) { setTimeout(sanctionNext, 700); return; }
+  const [title, lines, xp, quest] = x;
+  sysPop(`ALERTE · ${title}`, `${lines.map(l => `<p class="sys-li" style="text-align:center">${l}</p>`).join('')}
+    ${xp ? `<p class="sys-pen-xp num">−${xp} XP</p>` : ''}
+    ${quest ? `<div class="sys-pen-q"><p class="sys-k" style="text-align:center">QUÊTE DE RATTRAPAGE · AVANT DEMAIN MINUIT</p><p class="sys-li" style="text-align:center"><b>${quest}</b></p></div>` : ''}`, 'COMPRIS', 'pen');
+  try { navigator.vibrate && navigator.vibrate([60, 60, 60, 60, 120]); } catch (e) {}
+  const el = $('.sys-pop'); if (el) el.addEventListener('click', ev => { if (ev.target.closest('[data-syspop]') || ev.target === el) { SANQ.shift(); setTimeout(sanctionNext, 450); } });
+}
+/* Contrôles du matin : quête d'hier, séance prévue hier, quêtes de rattrapage expirées */
+function sanctionsDaily() {
+  const s = sysPQ(), k = todayISO(), y = iso(addDays(new Date(), -1)), start = s.start || k;
+  if (y < start) return;
+  inactCheck();
+  /* quête quotidienne d'hier non accomplie */
+  const pen = penaltyToday(); if (pen && !s.flags['q' + y]) { s.flags['q' + y] = k; sanction('QUÊTE ÉCHOUÉE', ['La quête quotidienne d\'hier n\'a pas été accomplie.', 'Le Système applique la pénalité prévue.'], 15, null); }
+  /* séance d'entraînement prévue hier et non faite */
+  try { const yd = addDays(new Date(), -1), p = fight().plan[monKey(yd)], i = (yd.getDay() + 6) % 7;
+    if (p && p.s && p.s[i] && !dayDoneAny(y) && !s.flags['s' + y]) { s.flags['s' + y] = k; sanction('SÉANCE MANQUÉE', [`Hier était prévue une séance « ${FTYPES[p.s[i]] ? FTYPES[p.s[i]].n : p.s[i]} ».`, 'Le corps ne se forge pas en pensée.'], 5, 'Séance de rattrapage · 20 minutes, au choix'); } } catch (e) {}
+  /* quêtes de rattrapage expirées */
+  const exp = s.pq.filter(q => !q.done && q.due < k);
+  if (exp.length) { s.pq = s.pq.filter(q => q.done ? q.d >= iso(addDays(new Date(), -7)) : q.due >= k); exp.forEach(q => sanction('RATTRAPAGE ÉCHOUÉ', ['Une quête de rattrapage n\'a pas été accomplie à temps :', `<b>${esc(q.t)}</b>`], q.xp || 10, null)); }
+  save();
+  if (SANQ.length && tab === 'orbite') { const y0 = window.scrollY; render(); window.scrollTo(0, y0); }
+}
+/* La prière déclarée manquée */
+function sanctionPrayer(id) {
+  const s = sysPQ(), key = `p${todayISO()}${id}`; if (s.flags[key]) { xpLose(5); save(); sfx('deny'); render(); return; } s.flags[key] = todayISO();
+  render();
+  sanction('PRIÈRE MANQUÉE', [`${PNAMES[id]} n'a pas été accomplie.`, 'Le Système retire de l\'XP. La porte du repentir reste ouverte.'], 5, `Rattraper ${PNAMES[id]} (qada) et 100 × astaghfirullah`);
+}
+/* Les ressources épuisées : budget du mois dépassé */
+function sanctionBudget() {
+  if (A.month !== todayISO().slice(0, 7)) return;
+  const b = budgetOf(A.month), s = sysPQ(), key = 'b' + A.month;
+  if (b.reste < 0 && b.free > 0 && !s.flags[key]) { s.flags[key] = todayISO(); sanction('RESSOURCES ÉPUISÉES', [`Ta réserve du mois est dépassée de <b>${eur0(-b.reste)}</b>.`, 'Le Système impose une journée sans dépense.'], 5, 'Une journée entière sans aucune dépense'); }
+}
+/* Fenêtre des quêtes de rattrapage sur le Statut */
+function pqWin() {
+  const s = sysPQ(), L = s.pq.filter(q => !q.done || q.d === todayISO()); if (!L.length) return '';
+  return sysWin('QUÊTES DE RATTRAPAGE', L.map(q => `<button class="sys-obj ${q.done ? 'ok' : ''}" data-pqd="${q.id}"><span class="sys-box">${q.done ? '✓' : ''}</span><span class="grow">${esc(q.t)}<small class="pq-due">${q.done ? 'Accomplie' : q.due === todayISO() ? 'Expire ce soir à minuit' : 'Expire demain à minuit'}</small></span><b class="num">${q.done ? '+3' : `−${q.xp || 10}`}</b></button>`).join('') + '', 'pen');
+}
+function pqdClick(t) {
+  const el = t.closest('[data-pqd]'); if (!el) return false;
+  const q = sysPQ().pq.find(x => x.id === el.dataset.pqd); if (!q) return true;
+  q.done = !q.done; save(); if (q.done) reward(3, { noBonus: true }); else unreward(3);
+  const y = window.scrollY; render(); window.scrollTo(0, y); return true;
+}
+
+/* ----- Inactivité : quand le Joueur disparaît, le Système le remarque -----
+   Au premier passage d'une journée : si aucune activité (XP gagnée ou quête accomplie) depuis 2 jours pleins ou plus,
+   alerte plein écran, perte d'XP (10 par jour, 60 max) et chute de DISCIPLINE (2 par jour, rendue 1 par quête accomplie). */
+const INACT_MIN = 2;
+function inactDays() {
+  const s = sysS(), start = s.start || todayISO(); let n = 0;
+  for (let i = 1; i < 60; i++) { const k = iso(addDays(new Date(), -i)); if (k < start) break; if ((S.nour.log[k] || 0) > 0 || (s.q[k] && s.q[k].done)) break; n++; }
+  return n;
+}
+function inactCheck() {
+  const s = sysPQ(), n = inactDays(); if (n < INACT_MIN) return false;
+  const key = 'i' + iso(addDays(new Date(), -n)); if (s.flags[key]) return false; s.flags[key] = todayISO();
+  const xp = Math.min(60, n * 10), dp = n * 2; xpLose(xp); s.disc = (Number(s.disc) || 0) + dp; save();
+  setTimeout(() => inactAlert(n, xp, dp), 500); return true;
+}
+function inactAlert(n, xp, dp) {
+  if (document.getElementById('intro')) { setTimeout(() => inactAlert(n, xp, dp), 600); return; }
+  const el = document.createElement('div'); el.id = 'inact'; el.className = 'inact'; el.setAttribute('role', 'alertdialog');
+  el.innerHTML = `<div class="in-vig"></div><div class="in-scan"></div>
+    <div class="in-box"><p class="in-warn">⚠ AVERTISSEMENT ⚠</p>
+      <p class="in-t" data-g="INACTIVITÉ DÉTECTÉE">INACTIVITÉ DÉTECTÉE</p>
+      <p class="in-n num">${n}<small> JOUR${n > 1 ? 'S' : ''}</small></p>
+      <p class="in-l">Aucune activité du Joueur.</p>
+      <div class="in-loss"><p><span>DISCIPLINE</span><b class="num">▼ −${dp}</b></p><p><span>XP</span><b class="num">▼ −${xp}</b></p></div>
+      <p class="in-l dim">Si l'inactivité continue, le Système considérera que le Joueur a abandonné.</p>
+      <button class="in-hold" id="inHold"><i></i><span>MAINTIENS POUR REPRENDRE</span></button></div>`;
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+  try { sfx('inact'); navigator.vibrate && navigator.vibrate([400, 150, 400, 150, 800]); } catch (e) {}
+  const btn = el.querySelector('#inHold'), bar = btn.querySelector('i'); let t0 = 0, raf = 0;
+  const step = now => { const k = Math.min(1, (now - t0) / 1500); bar.style.width = (k * 100) + '%'; if (k >= 1) { haptic(); el.classList.remove('on'); setTimeout(() => el.remove(), 400); try { sfx('win'); } catch (e) {} return; } raf = requestAnimationFrame(step); };
+  btn.addEventListener('pointerdown', e => { e.preventDefault(); t0 = performance.now(); raf = requestAnimationFrame(step); try { audioUnlock(); } catch (er) {} });
+  const stop = () => { cancelAnimationFrame(raf); if (bar.style.width !== '100%') bar.style.width = '0%'; };
+  btn.addEventListener('pointerup', stop); btn.addEventListener('pointerleave', stop); btn.addEventListener('pointercancel', stop);
+}
+
+/* ----- Navigation : un seul bouton, DONJONS ----- */
+function sysNav() {
+  let n = $('#sysnav');
+  if (!uiSys()) { if (n) n.remove(); return; }
+  if (!n) { n = document.createElement('button'); n.id = 'sysnav'; n.className = 'sysfab'; n.dataset.snav = 'donjons'; n.setAttribute('aria-label', 'Donjons'); document.body.appendChild(n);
+    n.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l8.2 4.7v9.4L12 21.4l-8.2-4.7V7.3z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 7.6l3.9 2.2v4.4L12 16.4l-3.9-2.2V9.8z" fill="currentColor"/></svg><span>DONJONS</span>`; }
+  n.classList.toggle('hide', tab === 'flux');
+}
+
+/* =====================================================================
    L'ENTRÉE DU SYSTÈME
    - Première fois : l'Éveil. Écran noir, un moniteur cardiaque qui ralentit
      jusqu'à l'arrêt, puis une fenêtre d'alerte du Système propose de devenir
@@ -1249,27 +1454,35 @@ function awakeIntro(el, finish) {
     <div class="aw-ecg"><svg viewBox="0 0 400 120" preserveAspectRatio="none"><path id="awLine" d=""/></svg></div>
     <div class="aw-hud"><span>BPM</span><b id="awBpm">72</b></div>
     <p class="aw-msg" id="awMsg"></p>
-    <div class="aw-win" id="awWin" hidden></div>`;
+    <div class="aw-win" id="awWin" hidden></div>
+    <div class="aw-gate" id="awGate"><p>Un signal très faible…</p><b>TOUCHE L'ÉCRAN</b></div>`;
   const line = el.querySelector('#awLine'), bpmEl = el.querySelector('#awBpm'), msg = el.querySelector('#awMsg'), win = el.querySelector('#awWin');
-  const W = 400, pts = [], t0 = performance.now(); let raf = 0, x = 0, lastBeat = 0, bpm = 72, flat = false, revived = false, beatAmp = 1;
+  const W = 400, pts = []; let t0 = 0, snd = false; let raf = 0, x = 0, lastBeat = 0, bpm = 72, flat = false, revived = false, beatAmp = 1;
   const beatShape = [0, -5, 4, -52, 36, -10, 0, 0, -7, 0];
   let queue = [];
   function frame(now) {
     const t = (now - t0) / 1000;
     if (!revived) { bpm = t < 1 ? 72 : t < 2.6 ? 58 : t < 4 ? 41 : t < 5.4 ? 23 : 0; flat = bpm === 0; }
     const interval = bpm ? 60 / bpm : 1e9;
-    if (!flat && now - lastBeat > interval * 1000) { lastBeat = now; queue = beatShape.map(v => v * beatAmp * (revived ? 1.3 : Math.max(.45, bpm / 72))); }
+    if (!flat && now - lastBeat > interval * 1000) { lastBeat = now; if (snd) { try { sfx(revived ? 'thump' : 'beat'); } catch (e) {} } queue = beatShape.map(v => v * beatAmp * (revived ? 1.3 : Math.max(.45, bpm / 72))); }
     for (let k = 0; k < 2; k++) { const y = queue.length ? queue.shift() : (Math.random() - .5) * (flat ? .4 : 1.2); pts.push(y); if (pts.length > W / 2) pts.shift(); }
     line.setAttribute('d', 'M' + pts.map((y, i) => `${(i * 2).toFixed(0)} ${(60 + y).toFixed(1)}`).join(' L'));
     bpmEl.textContent = revived ? Math.round(118 + Math.sin(t * 3) * 4) : bpm;
+    if (flat && !revived && snd && !askd) sfxFlat(true);
     el.classList.toggle('flat', flat && !revived);
     raf = requestAnimationFrame(frame);
   }
-  raf = requestAnimationFrame(frame);
+  let askd = false, left = 10, iv = 0, refused = false;
+  function go(withSound) {
+    if (t0) return; snd = withSound; if (snd) { try { audioUnlock(); } catch (e) {} }
+    const gate = el.querySelector('#awGate'); if (gate) gate.remove();
+    t0 = performance.now(); raf = requestAnimationFrame(frame);
   const say = (txt, d) => setTimeout(() => { msg.textContent = txt; msg.classList.remove('in'); void msg.offsetWidth; msg.classList.add('in'); }, d);
   say('…', 1200); say('Le rythme ralentit.', 2800); say('', 5600);
-  let left = 10, iv = 0, refused = false;
+  setTimeout(ask, 6900);
+  }
   function ask() {
+    askd = true; sfxFlat(false); if (snd) { try { sfx('awAlert'); } catch (e) {} }
     el.classList.add('glitch'); setTimeout(() => el.classList.remove('glitch'), 500);
     win.hidden = false;
     win.innerHTML = `<div class="sw aw-sw"><i class="sw-c sw-tl"></i><i class="sw-c sw-tr"></i><i class="sw-c sw-bl"></i><i class="sw-c sw-br"></i>
@@ -1281,12 +1494,13 @@ function awakeIntro(el, finish) {
         <p class="aw-t">Temps restant : <b id="awLeft">${left}</b></p>
         <p class="aw-ref" id="awRef"></p>
         <div class="row" style="gap:10px"><button class="sys-btn big" data-aw="yes">ACCEPTER</button><button class="sys-btn big ghost" data-aw="no">REFUSER</button></div></div></div>`;
-    iv = setInterval(() => { left--; const e = win.querySelector('#awLeft'); if (e) e.textContent = Math.max(0, left); if (left <= 0) { clearInterval(iv); accept(true); } }, 1000);
+    iv = setInterval(() => { left--; if (snd && left > 0) { try { sfx('line'); } catch (er) {} } const e = win.querySelector('#awLeft'); if (e) e.textContent = Math.max(0, left); if (left <= 0) { clearInterval(iv); accept(true); } }, 1000);
   }
-  setTimeout(ask, 6900);
+  el.addEventListener('pointerdown', () => go(true), { once: true });
+  setTimeout(() => go(false), 9000);
   function accept(auto) {
     clearInterval(iv); revived = true; flat = false; beatAmp = 1.2; lastBeat = 0;
-    try { audioUnlock(); sysPing(true); } catch (e) {}
+    try { audioUnlock(); sfxFlat(false); sfx('thump'); setTimeout(() => sfx('lvl'), 250); } catch (e) {}
     el.classList.remove('flat'); el.classList.add('revive');
     win.innerHTML = `<div class="sw aw-sw"><i class="sw-c sw-tl"></i><i class="sw-c sw-tr"></i><i class="sw-c sw-bl"></i><i class="sw-c sw-br"></i>
       <header class="sw-h"><span class="sw-dot"></span>ÉVEIL</header>
@@ -1303,7 +1517,7 @@ function awakeIntro(el, finish) {
     if (b.dataset.aw === 'yes') { accept(false); return; }
     if (!refused) { refused = true; const r = win.querySelector('#awRef'); if (r) r.textContent = 'Refus impossible. Le cœur ne repartira pas seul.'; }
     else { const r = win.querySelector('#awRef'); if (r) r.textContent = 'Le Système attend ta réponse.'; }
-    try { audioUnlock(); sysPing(false); } catch (e2) {}
+    try { audioUnlock(); sfx('deny'); } catch (e2) {}
   });
 }
 
@@ -2303,6 +2517,7 @@ function addTx() {
   const t = { id: uid(), kind: A.kind, amount: Math.round(amt * 100) / 100, cat: A.cat, date: $('#bDate').value || todayISO(), note: $('#bNote').value.trim(), created: Date.now() };
   S.money.tx.push(t); save(); askPersist(); haptic();
   render();
+  if (t.kind === 'exp' && uiSys()) sanctionBudget();
   toast(`${t.kind === 'exp' ? '−' : '+'}${eur2(t.amount)} · ${t.kind === 'exp' ? catName(t.cat) : incName(t.cat)}`, 'Annuler', () => { S.money.tx = S.money.tx.filter(x => x.id !== t.id); save(); render(); });
 }
 function potSave(id, custom) {
@@ -2663,8 +2878,9 @@ function setPrayer(k, id, v) {
   const full = dayDone(k) === n;
   save(); askPersist();
   if (today && prev && pv(prev) !== 'x') unreward(prayerPts(id, prev) + (wasFull && !full ? 5 : 0));
-  if (today && prev === 'x') nourAdd(5);
+  if (today && prev === 'x') { if (uiSys()) { const ss = sysS(); ss.loss = Math.max(0, (Number(ss.loss) || 0) - 5); } else nourAdd(5); }
   if (!v) { render(); return; }
+  if (v === 'x' && uiSys()) { sanctionPrayer(id); return; }
   if (v === 'x') { nourAdd(-5); save(); refreshSun(); thud(); try { navigator.vibrate && navigator.vibrate(250); } catch (e) {} return; }
   if (!today) { render(); return; }
   adkAfterPrayer(k, id, v);
@@ -3506,7 +3722,7 @@ const fIcon = (t, sz = 22) => `<svg viewBox="0 0 24 24" width="${sz}" height="${
 function arcHead() {
   const a = arcOf(fight().arc);
   return `<header class="arc-head"><div class="arc-speed" aria-hidden="true"></div>
-    <div class="top-actions">${S.seen.corps ? `<button class="icon-btn" data-unseen="corps" aria-label="Revoir l'explication">${ICON.info}</button>` : ''}<button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button><button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button><button class="icon-btn" data-open="settings" aria-label="Réglages">${ICON.gear}</button></div>
+    <div class="top-actions">${S.seen.corps || uiSys() ? `<button class="icon-btn" data-unseen="corps" aria-label="Revoir l'explication">${ICON.info}</button>` : ''}<button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button><button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button><button class="icon-btn" data-open="settings" aria-label="Réglages">${ICON.gear}</button></div>
     <p class="arc-kicker">${uiSys() ? '◆ DONJON CORPS · ' : ''}ARC ${a.roman}</p><h1 class="arc-title">${a.name}</h1><p class="arc-ch">Chapitre ${chapters()} <span>· ${a.sub}</span></p>
   </header>${coach('corps')}
   <div class="arc-seg" role="group" aria-label="Section"><button data-cview="entrainement" aria-pressed="true">L'Arc</button><button data-cview="nutrition" aria-pressed="false">Nutrition</button><button data-cview="soin" aria-pressed="false">Soin</button></div>
@@ -4909,6 +5125,14 @@ function bindFlux() {
     }
   }), { root: feed, threshold: [0, .3, .6] });
   [...feed.children].forEach(el => FXS.io.observe(el));
+  /* Filet de sécurité (Safari) : la carte visible est aussi déterminée par la position de défilement */
+  const sync = () => { const i = Math.round(feed.scrollTop / Math.max(1, feed.clientHeight)), el = feed.children[i]; if (!el || el.classList.contains('in')) return;
+    if (FXS.cur && FXS.cur !== el && performance.now() - FXS.t0 > 2500 && !FXS.read.has(FXS.cur.dataset.fid)) fxRead(FXS.cur.dataset.fid);
+    [...feed.children].forEach(x => x.classList.toggle('in', x === el)); FXS.cur = el; FXS.t0 = performance.now();
+    $$('#fprog i').forEach((b, k) => b.classList.toggle('on', k <= (i % 15)));
+    if (i >= feed.children.length - 3) fxAppend(5); };
+  feed.addEventListener('scroll', () => { clearTimeout(FXS.sc); FXS.sc = setTimeout(sync, 120); }, { passive: true });
+  requestAnimationFrame(() => requestAnimationFrame(sync));
 }
 function fxAppend(n) {
   const feed = $('#feed'); if (!feed) return;
@@ -5002,7 +5226,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.17.3 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.22 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -5548,7 +5772,7 @@ function themeBlock() {
   return `<p class="gt">Univers de l'app</p>
     <div class="seg" role="group" aria-label="Univers" style="margin-bottom:8px">${[['systeme', 'Système'], ['galaxie', 'Galaxie']].map(([m, l]) => `<button data-ui="${m}" aria-pressed="${(S.ui || 'systeme') === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
     <p class="hint" style="margin-bottom:16px">Système : niveau, stats, quête quotidienne et donjons. Galaxie : les planètes et le soleil. Tes données ne changent pas.</p>
-    ${uiSys() ? `<p class="gt">Apparence</p><p class="hint" style="margin-bottom:16px">En Système, les couleurs ne se choisissent pas : l'aura évolue avec ton rang (aura actuelle : <b>${AURA[auraIdx()]}</b>). Les palettes reviennent en Galaxie.</p><button class="sys-btn big ghost" data-replay-eveil style="margin:0 0 18px">REVOIR L'ÉVEIL</button>` : `<p class="gt">Apparence</p>
+    ${uiSys() ? `<p class="gt">Apparence</p><p class="hint" style="margin-bottom:16px">En Système, les couleurs ne se choisissent pas : l'aura évolue avec ton rang (aura actuelle : <b>${AURA[auraIdx()]}</b>). Les palettes reviennent en Galaxie.</p><button class="sys-btn big ghost" data-replay-eveil style="margin:0 0 18px">REVOIR L'ÉVEIL</button>${sfxBlock()}` : `<p class="gt">Apparence</p>
     <div class="thgrid">${Object.entries(THEMES).map(([id, x]) => { const l = x.l.split(' '), d = x.d.split(' '); return `<button class="thsw" data-theme="${id}" aria-pressed="${t.id === id}"><span class="thdots"><i style="background:${l[0]};box-shadow:inset 0 0 0 1px ${l[7]}"></i><i style="background:${l[9]}"></i><i style="background:${d[0]}"></i><i style="background:${d[9]}"></i></span><span>${x.n}</span></button>`; }).join('')}</div>
     ${t.id === 'custom' ? `<div class="thpick"><label><input type="color" data-tcol="a" value="${t.custom.a}"><span>Couleur principale<small>boutons, chiffres, accents</small></span></label><label><input type="color" data-tcol="b" value="${t.custom.b}"><span>Teinte du fond<small>l'ambiance générale</small></span></label></div><p class="hint" style="margin-top:6px">L'app en tire toute seule une version claire et une version sombre lisibles.</p>` : ''}
     <div class="seg" role="group" aria-label="Mode" style="margin-top:10px">${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([m, l]) => `<button data-tmode="${m}" aria-pressed="${t.mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
@@ -6374,6 +6598,8 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-replay-eveil]')) { try { localStorage.removeItem('sdp-awake'); } catch (er) {} save(true); setTimeout(() => location.reload(), 150); return; }
   if (snavClick(e.target)) return;
   if (pqClick(e.target)) return;
+  if (pqdClick(e.target)) return;
+  if (sfxClick(e.target)) return;
   if (arcClick(e.target)) return;
   if (sysClick(e.target)) return;
   const t = e.target, c = sel => t.closest(sel);
@@ -6546,7 +6772,7 @@ document.addEventListener('click', e => {
   if (c('#impYes')) { applyImport(); return; }
   if (c('#impNo')) { pendingImport = null; $('#importConfirm').innerHTML = ''; return; }
   if ((el = c('[data-seen]'))) { S.seen[el.dataset.seen] = true; save(); const box = c('.coach'); box.style.transition = 'opacity .25s,transform .25s'; box.style.opacity = 0; box.style.transform = 'translateY(-6px)'; setTimeout(() => render(), reduceMotion() ? 0 : 250); return; }
-  if ((el = c('[data-unseen]'))) { delete S.seen[el.dataset.unseen]; save(); render(); return; }
+  if ((el = c('[data-unseen]'))) { if (uiSys()) { const k = el.dataset.unseen, h = COACH_SYS[k] || COACH[k]; if (h) sysPop(`AIDE · ${h[0].toUpperCase()}`, `<p class="sys-li">${h[1]}</p>${h[2] ? `<ol class="sys-ol">${h[2].map(x => `<li>${x}</li>`).join('')}</ol>` : ''}`, 'COMPRIS'); return; } delete S.seen[el.dataset.unseen]; save(); render(); return; }
   if (c('[data-ydone]')) { S.nour.seen = todayISO(); save(); const y = c('.yday'); y.style.transition = 'opacity .25s'; y.style.opacity = 0; setTimeout(() => render(), reduceMotion() ? 0 : 250); return; }
   if ((el = c('[data-goto]'))) { go(el.dataset.goto); return; }
   if ((el = c('[data-calib]'))) {
@@ -6710,7 +6936,18 @@ window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
   const done = () => { if (el.parentNode) el.remove(); };
   let awake = true; try { awake = localStorage.getItem('sdp-awake') === '1'; } catch (e) {}
   if (sysI && !awake) { el.classList.add('sys-i'); awakeIntro(el, done); return; }
-  if (sysI) { el.classList.add('sys-i'); el.innerHTML = sysIntro(); }
+  if (sysI) {
+    /* Reconnexion : l'écran attend un toucher (le son ne peut démarrer qu'après un geste), puis la connexion se joue avec ses sons. */
+    el.classList.add('sys-i', 'wait'); el.innerHTML = sysIntro() + '<p class="sb-gate">TOUCHE POUR TE CONNECTER</p>';
+    let started = false;
+    const start = sound => { if (started) return; started = true; el.classList.remove('wait');
+      if (sound) { try { audioUnlock(); sfx('boot'); [200, 1000, 1700, 2000, 2400].forEach(d => setTimeout(() => { try { sfx('line'); } catch (e) {} }, d)); setTimeout(() => sfx('win'), 2600); } catch (e) {} }
+      setTimeout(done, 4300); };
+    el.addEventListener('click', () => { if (!started) start(true); else { el.classList.add('skip'); setTimeout(done, 320); } });
+    setTimeout(() => start(false), 5000);
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
+    return;
+  }
   el.addEventListener('click', () => { el.classList.add('skip'); setTimeout(done, 320); });
   el.addEventListener('animationend', e => { if (e.animationName === 'iout') done(); });
   setTimeout(done, sysI ? 4300 : 6800);
