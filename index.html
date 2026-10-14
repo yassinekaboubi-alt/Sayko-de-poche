@@ -1896,6 +1896,49 @@ body.sys-on .pq-h small{font-size:.62rem}
 .in-hold i{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,rgba(255,40,70,.5),rgba(255,90,110,.8));box-shadow:0 0 20px #FF2040}
 .in-hold span{position:relative}
 @media (prefers-reduced-motion:reduce){.in-vig,.in-scan,.in-box,.in-t::before,.in-t::after{animation:none!important}}
+
+/* v3.23 — La Source (Flux) en page du Système : une carte à la fois, plus de défilement plein écran */
+.fsys{margin-top:16px}
+.fsys-feed .fc{display:none;position:relative;height:auto!important;min-height:0!important;overflow:visible;scroll-snap-align:none;border:1px solid rgba(var(--sar),.8);border-radius:2px;background:linear-gradient(180deg,rgba(6,16,38,.82),rgba(3,8,22,.88))!important;box-shadow:0 0 16px rgba(var(--sar),.4),inset 0 0 22px rgba(var(--sar),.14)}
+.fsys-feed .fc.cur{display:flex;animation:swIn .45s cubic-bezier(.2,.8,.2,1) both}
+.fsys-feed .fcin{padding:22px 60px 22px 18px!important;max-height:none!important;overflow:visible!important}
+.fsys-feed .frail{right:8px;bottom:16px;top:auto}
+.fsys-feed .fl{display:none}
+.fsys-nav{margin-top:14px}
+
+/* v3.24 — La Source : pile de fragments au doigt */
+.src{padding-top:calc(var(--sat) + 8px)}
+.src-hud{display:flex;align-items:center;gap:10px}.src-hud>div:first-child{flex:1}
+.src-sub{margin:2px 0 0;font:800 1.15rem var(--sysf);letter-spacing:.06em;color:#fff;text-shadow:0 0 12px rgba(var(--sar),.7)}
+.src-r{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.src-combo{font:900 .8rem var(--sysf);letter-spacing:.14em;color:#FFD98A;text-shadow:0 0 10px rgba(255,180,70,.9)}.src-combo.pop{animation:cPop .35s cubic-bezier(.2,.9,.2,1.4)}
+@keyframes cPop{from{transform:scale(1.6)}}
+.src-xp{font:800 .9rem var(--sysf);color:var(--sa2)}
+.src-x{color:#A9BEE4}
+.src-q{display:flex;align-items:center;gap:10px;margin:12px 0 10px}.src-q .sys-k{flex:none}.src-q b{font-size:.8rem;color:#fff}
+.src-seg{flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:3px}.src-seg i{height:5px;background:rgba(var(--sar),.15)}.src-seg i.on{background:var(--sa2);box-shadow:0 0 8px var(--sa)}
+.src-stage{position:relative;height:60vh;overflow:hidden;margin:0 -6px;touch-action:pan-x}
+.src-stage .fc{position:absolute;inset:0;height:auto!important;min-height:0!important;display:flex!important;align-items:stretch;overflow:hidden;border:1px solid rgba(var(--sar),.75);border-radius:4px;background:linear-gradient(180deg,rgba(8,20,46,.92),rgba(3,8,22,.96))!important;box-shadow:0 0 16px rgba(var(--sar),.35),inset 0 0 26px rgba(var(--sar),.12);will-change:transform}
+.src-stage .fcin{position:relative;width:100%;height:100%;padding:16px 58px 18px 18px!important;max-height:none!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:center}
+.src-stage .fl{display:none}
+.src-stage .frail{right:8px;bottom:14px;top:auto}
+.src-badge{display:flex;justify-content:space-between;gap:8px;margin:0 -40px 14px 0;font:800 .6rem var(--sysf);letter-spacing:.16em;color:#8EA3C7}
+.src-stage .fc .rb{color:var(--sa2)}
+.src-stage .fc.r-rare{border-color:#4DB0FF;box-shadow:0 0 18px rgba(77,176,255,.45),inset 0 0 26px rgba(77,176,255,.15)}.src-stage .fc.r-rare .rb{color:#7CC8FF}
+.src-stage .fc.r-epique{border-color:#A46BFF;box-shadow:0 0 22px rgba(164,107,255,.55),inset 0 0 30px rgba(164,107,255,.18)}.src-stage .fc.r-epique .rb{color:#C9A5FF;text-shadow:0 0 8px #A46BFF}
+.src-stage .fc.r-legendaire{border-color:#FFC46B;box-shadow:0 0 26px rgba(255,180,70,.6),inset 0 0 34px rgba(255,180,70,.18);background:linear-gradient(180deg,rgba(40,26,8,.92),rgba(12,7,2,.96))!important}
+.src-stage .fc.r-legendaire .rb{color:#FFD98A;text-shadow:0 0 10px #FFB547}
+.src-stage .fc.r-legendaire::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 35%,rgba(255,230,170,.18) 50%,transparent 65%);background-size:250% 100%;animation:legS 3s linear infinite}
+@keyframes legS{from{background-position:150% 0}to{background-position:-100% 0}}
+.src-tuto{position:absolute;left:50%;bottom:18px;z-index:5;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;width:86%;padding:10px;text-align:center;pointer-events:none;background:rgba(2,6,16,.85);border:1px solid rgba(var(--sar),.6)}
+.src-tuto b{font-size:1.4rem;color:var(--sa2);animation:tuto 1.2s ease-in-out infinite}.src-tuto span{font:800 .7rem var(--sysf);letter-spacing:.2em;color:#fff}.src-tuto small{font-size:.7rem;color:#A9BEE4}
+@keyframes tuto{50%{transform:translateY(-8px)}}
+.src-foot{display:grid;grid-template-columns:1fr 52px 52px 1fr;gap:6px;margin-top:12px}.src-foot .sys-btn{min-height:44px;font-size:.66rem;letter-spacing:.1em;padding:0}
+.cdx{display:grid;grid-template-columns:1fr 70px 46px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(var(--sar),.1);font-size:.82rem;color:#E6F1FF}.cdx b{text-align:right;font-size:.75rem;color:var(--sa2)}
+.cdx-b{height:4px;background:rgba(var(--sar),.15)}.cdx-b i{display:block;height:100%;background:var(--sa2)}
+body.sys-on main:has(.src){padding-bottom:calc(var(--sab) + 20px)}
+.src-stage .fcin{touch-action:pan-y}
+.src-sub{font-size:1rem;white-space:nowrap}
 </style>
 </head>
 <body>
