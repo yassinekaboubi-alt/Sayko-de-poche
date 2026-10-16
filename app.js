@@ -835,6 +835,7 @@ function vSys(now) {
       <div class="top-actions"><button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button><button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button><button class="icon-btn" data-open="settings" aria-label="Réglages">${ICON.gear}</button></div></header>
     ${penW}
     ${pqWin()}
+    ${lookWin()}
     ${sysWin('STATUT', status)}
     ${sysWin('QUÊTE', quest, done ? 'done' : '')}
     <button class="sys-src" data-goto="flux"><span class="sys-k">LA SOURCE</span><b>Flux · ${S.flux.day.d === todayISO() ? S.flux.day.n : 0}/5</b><span class="num">+${nourDay()} XP aujourd'hui</span></button>
@@ -862,7 +863,7 @@ function sysCheck() {
   if (s.seen !== k) { s.seen = k; save(); sanctionsDaily(); const pen = penaltyToday();
     setTimeout(() => sysPop('NOUVELLE QUÊTE', `<p class="sys-qt" style="text-align:center">QUÊTE QUOTIDIENNE · FORGER LE JOUEUR</p>${d.list.map(o => `<p class="sys-li">— ${esc(o.t)} <b class="num">[${Math.min(o.v, o.n)}/${o.n}]</b></p>`).join('')}${pen ? '<p class="sys-pt" style="color:var(--danger);text-align:center;margin-top:10px">Quête de pénalité active : 100 pompes aujourd\'hui.</p>' : ''}<p class="small" style="text-align:center;color:var(--muted);margin-top:10px">Récompense : +30 XP. Ne pas l'accomplir déclenche une pénalité demain.</p>`, 'Accepter'), 700); }
 }
-function sysCheckLater() { if (document.getElementById('intro')) { setTimeout(sysCheckLater, 600); return; } if (tab === 'orbite' && uiSys()) sysCheck(); }
+function sysCheckLater() { if (document.getElementById('intro')) { setTimeout(sysCheckLater, 600); return; } if (tab === 'orbite' && uiSys()) { sysCheck(); setTimeout(lookNag, 2500); } }
 function sysClick(t) {
   const c = s => t.closest(s); let el;
   if ((el = c('[data-sysm]'))) { const q = questDay().q; q.m[el.dataset.sysm] = !q.m[el.dataset.sysm]; save(); if (q.m[el.dataset.sysm]) reward(3); const y = window.scrollY; render(); window.scrollTo(0, y); return true; }
@@ -882,12 +883,18 @@ function sysSigil(k) { const g = GLYPH[k] || GLYPH.corps; return `<polygon point
    ===================================================================== */
 const LUM = () => uiSys() ? 'XP' : '✦';
 const LUMp = n => uiSys() ? `${n} XP` : `✦ ${n}`;
-const AURA = ['Azur', 'Bleu abyssal', 'Indigo', 'Violet', 'Améthyste', 'Pourpre du Monarque'];
-const SR_SW = ['#4DB0FF', '#3F9BFF', '#5A8CFF', '#7C6BFF', '#9B5CFF', '#A43BFF'];
+/* Deux lignées d'aura : le bleu du Monarque (bleu → violet) et l'émeraude impériale (émeraude → or) */
+const AURA_L = { bleu: { n: 'Bleu du Monarque', a: ['Azur', 'Bleu abyssal', 'Indigo', 'Violet', 'Améthyste', 'Pourpre du Monarque'], c: ['#4DB0FF', '#3F9BFF', '#5A8CFF', '#7C6BFF', '#9B5CFF', '#A43BFF'] },
+  em: { n: 'Émeraude impériale', a: ['Émeraude', 'Jade', 'Vert impérial', 'Émeraude profonde', 'Émeraude et or', 'Or de l\'Empereur'], c: ['#2FE0A0', '#26D396', '#16BD80', '#12A673', '#B8C877', '#F2C85C'] } };
+function auraLine() { let v = null; try { v = localStorage.getItem('sdp-aura'); } catch (e) {} if (!v) { try { v = S && S.aura; } catch (e) {} } return AURA_L[v] ? v : 'bleu'; }
+function setAuraLine(v) { try { localStorage.setItem('sdp-aura', v); } catch (e) {} try { S.aura = v; save(); } catch (e) {} applyAura(); }
+const AURA = new Proxy([], { get: (t, k) => AURA_L[auraLine()].a[k] });
+const SR_SW = new Proxy([], { get: (t, k) => k === 'map' ? (f => AURA_L[auraLine()].c.map(f)) : AURA_L[auraLine()].c[k] });
 function auraIdx() { return Math.max(0, SYS_RANK.indexOf(sysRank(lvOf(xpTotal()).l))); }
 function applyAura(i) {
   if (i == null) i = uiSys() ? auraIdx() : 0;
   for (let k = 1; k < 6; k++) document.body.classList.toggle('sr' + k, k === i);
+  document.body.classList.toggle('aura-em', auraLine() === 'em');
 }
 try { const L0 = JSON.parse(localStorage.getItem('sdp-sysline') || 'null'); if (L0 && (localStorage.getItem('sdp-ui') || 'systeme') === 'systeme') applyAura(Math.max(0, SYS_RANK.findIndex(x => x[1] === L0.r))); } catch (e) {}
 
@@ -1199,15 +1206,29 @@ function vQiblaSys() {
     ${ready ? '' : `<div class="qp-start"><p>Le Système a besoin de ta <b>position</b>, de ta <b>boussole</b> et de ta <b>caméra</b> pour placer le marqueur dans ta pièce.</p><button class="sys-btn big" data-qp="go">LANCER LE SCAN</button></div>`}
     <p class="qp-msg" id="qpmsg"></p></div>
   ${QB.err ? `<p class="hint" style="text-align:center">${esc(QB.err)}</p>` : ''}
-  ${ready ? `<div class="dp-more"><button class="sys-btn ${QH.cam ? 'ghost' : ''}" data-qp="cam">${QH.cam ? 'COUPER LA CAMÉRA' : 'ACTIVER LA CAMÉRA'}</button>${sun && sun.alt > 3 ? `<button class="sys-btn ghost" data-qb="sun">${QB.cal ? 'RECALER ☀' : 'VISE ☀ ET TOUCHE'}</button>` : ''}</div>
-    <p class="hint">Tiens le téléphone devant toi comme pour filmer et tourne sur toi-même. Suis la traînée au sol jusqu'au losange : quand il est au centre, la destination se verrouille, tu fais face à la qibla.${QB.cal ? ` Boussole recalée sur le soleil (${QB.off >= 0 ? '+' : ''}${QB.off.toFixed(0)}°).` : ' Loin des objets métalliques, la boussole est plus juste.'}</p>` : ''}`;
+  ${ready ? `<div class="dp-more"><button class="sys-btn ${QH.cam ? 'ghost' : ''}" data-qp="cam">${QH.cam ? 'COUPER LA CAMÉRA' : 'ACTIVER LA CAMÉRA'}</button>${QH.aim ? '' : sun && sun.alt > 3 ? `<button class="sys-btn ghost" data-qp="aim">${QB.cal ? 'RECALER ☀' : 'VISER LE SOLEIL ☀'}</button>` : ''}</div>
+    ${QH.aim ? `<div class="dp-more"><button class="sys-btn" data-qp="aimok">VALIDER LE SOLEIL</button><button class="sys-btn ghost" data-qp="aimx">ANNULER</button></div>` : QB.cal ? `<div class="dp-more"><button class="sys-btn ghost" data-qp="uncal">ANNULER LE RECALAGE</button></div>` : ''}
+    <p class="hint">${QH.aim ? 'Lève le téléphone vers le soleil et centre-le dans le cercle, en regardant l\'écran (jamais le soleil en face). Le cercle pointillé montre où la boussole croit qu\'il est. Puis touche VALIDER.' : `Tiens le téléphone devant toi comme pour filmer et tourne sur toi-même. Suis la traînée au sol jusqu'au losange : quand il est au centre, la destination se verrouille, tu fais face à la qibla.${QB.cal ? ` Boussole recalée sur le soleil (${QB.off >= 0 ? '+' : ''}${QB.off.toFixed(0)}°).` : ' Loin des objets métalliques, la boussole est plus juste.'}`}</p>` : ''}`;
 }
 function qpCamStop() { if (QH.stream) { QH.stream.getTracks().forEach(t => t.stop()); QH.stream = null; } }
 async function qpCamOn() {
   try { QH.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }); QH.cam = true; QH.scan0 = performance.now(); }
   catch (e) { QH.cam = false; toast('Caméra indisponible : le marqueur s\'affiche sur fond noir.'); }
 }
+const QCAL_MAX = 30, QCAL_PITCH = 20;
+function qpSunCheck() {
+  if (QB.head == null) return { err: 'Boussole indisponible : impossible de recaler.' };
+  const s = sunPos(new Date(), QB.lat, QB.lon), off = ((s.az - QB.head + 540) % 360) - 180;
+  if (s.alt <= 3) return { err: 'Le soleil est trop bas pour recaler.' };
+  if (Math.abs(off) > QCAL_MAX) return { err: `Écart de ${Math.abs(off).toFixed(0)}° : tu ne visais pas le soleil. Recalage refusé, la qibla n'a pas bougé.` };
+  if (QB.beta != null && Math.abs(QH.pitch - s.alt) > QCAL_PITCH) return { err: 'Lève le téléphone vers le soleil : il est plus haut (ou plus bas) que ton viseur. Recalage refusé.' };
+  return { off };
+}
 async function qpCam(mode) {
+  if (mode === 'aim') { QH.aim = true; if (!QH.cam) await qpCamOn(); render(); return; }
+  if (mode === 'aimx') { QH.aim = false; render(); return; }
+  if (mode === 'uncal') { QB.off = 0; QB.cal = false; QH.yaw = null; render(); toast('Recalage annulé : boussole brute'); return; }
+  if (mode === 'aimok') { const r = qpSunCheck(); if (r.err) { sfx('deny'); toast(r.err); return; } QB.off = r.off; QB.cal = true; QH.aim = false; QH.yaw = null; sfx('big'); render(); toast(`Boussole recalée sur le soleil (${r.off >= 0 ? '+' : ''}${r.off.toFixed(0)}°)`); return; }
   if (mode === 'go') { qiblaStart(); await qpCamOn(); render(); return; }
   if (QH.cam) { QH.cam = false; qpCamStop(); render(); return; }
   await qpCamOn(); render();
@@ -1223,7 +1244,7 @@ function qhInit() {
   cancelAnimationFrame(QH.raf); QH.raf = requestAnimationFrame(qhLoop);
 }
 function qhLoop(ts) {
-  const cv = $('#qpcv'); if (!cv || tab !== 'qibla') { qpCamStop(); QH.cam = false; QH.scan0 = 0; return; } QH.raf = requestAnimationFrame(qhLoop);
+  const cv = $('#qpcv'); if (!cv || tab !== 'qibla') { qpCamStop(); QH.cam = false; QH.scan0 = 0; QH.aim = false; return; } QH.raf = requestAnimationFrame(qhLoop);
   const x = cv.getContext('2d'), W = QH.W, H = QH.H, cx = W / 2, cy = H / 2, t = ts / 1000;
   const cs = getComputedStyle(document.body), A1 = cs.getPropertyValue('--sa').trim() || '#4DB0FF', A2 = cs.getPropertyValue('--sa2').trim() || '#9AD8FF', AR = cs.getPropertyValue('--sar').trim() || '77,176,255';
   const raw = qiblaHeading(), live = raw != null;
@@ -1243,6 +1264,7 @@ function qhLoop(ts) {
   const sk = (performance.now() - QH.scan0) / 1400;
   if (sk < 1 && has) { const sy = sk * H; const g = x.createLinearGradient(0, sy - 60, 0, sy); g.addColorStop(0, `rgba(${AR},0)`); g.addColorStop(1, `rgba(${AR},.35)`); x.fillStyle = g; x.fillRect(0, sy - 60, W, 60); x.fillStyle = A2; x.fillRect(0, sy, W, 1.5); x.font = '700 10px ui-monospace,Menlo,monospace'; x.textAlign = 'left'; x.fillStyle = A2; x.fillText('SCAN DE LA ZONE…', 14, Math.max(40, sy - 8)); }
   if (b == null || sk < .7) { qpText(has, live, false, null, km); return; }
+  if (QH.aim) { qpAimDraw(x, W, H, cx, cy, P, t, A1, A2, AR); return; }
   const lock = live && !QH.drag && Math.abs(QH.dy) < 1 && Math.abs(diff) <= (QH.lock ? 6 : 4);
   if (lock !== QH.lock) { QH.lock = lock; const q = $('#qp'); if (q) q.classList.toggle('lock', lock); if (lock) { QH.lockT = t; try { navigator.vibrate && navigator.vibrate([20, 60, 30]); } catch (e) {} sfx('lvl'); } }
   const br = b * Math.PI / 180, ux = Math.sin(br), uz = Math.cos(br);
@@ -1275,6 +1297,18 @@ function qhLoop(ts) {
   const close = Math.max(0, 1 - Math.abs(diff) / 30), gap = 44 - close * 18 - (lock ? 6 : 0), L = 12; x.strokeStyle = lock ? '#fff' : `rgba(${AR},${.35 + .5 * close})`; x.lineWidth = 2;
   [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => { const px = cx + sx * gap, py = cy + sy * gap; x.beginPath(); x.moveTo(px, py - sy * L); x.lineTo(px, py); x.lineTo(px - sx * L, py); x.stroke(); });
   qpText(has, live, lock, diff, km);
+}
+function qpAimDraw(x, W, H, cx, cy, P, t, A1, A2, AR) {
+  const s = sunPos(new Date(), QB.lat, QB.lon), az = s.az * Math.PI / 180, al = s.alt * Math.PI / 180, R = 40;
+  const sp = P(Math.sin(az) * Math.cos(al) * R, 1.5 + Math.sin(al) * R, Math.cos(az) * Math.cos(al) * R);
+  if (sp) { x.save(); x.setLineDash([5, 5]); x.strokeStyle = 'rgba(255,217,138,.75)'; x.lineWidth = 2; x.beginPath(); x.arc(sp[0], sp[1], 22, 0, Math.PI * 2); x.stroke(); x.setLineDash([]);
+    x.fillStyle = 'rgba(255,217,138,.9)'; x.font = '700 10px ui-monospace,Menlo,monospace'; x.textAlign = 'center'; x.fillText('☀ ESTIMÉ', sp[0], sp[1] - 30); x.restore(); }
+  const r = 34 + Math.sin(t * 3) * 2; x.strokeStyle = '#fff'; x.lineWidth = 2; x.shadowColor = A1; x.shadowBlur = 14; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.stroke(); x.shadowBlur = 0;
+  x.strokeStyle = A2; [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([a, b]) => { x.beginPath(); x.moveTo(cx + a * (r + 4), cy + b * (r + 4)); x.lineTo(cx + a * (r + 16), cy + b * (r + 16)); x.stroke(); });
+  x.textAlign = 'center'; x.font = '700 11px ui-monospace,Menlo,monospace'; x.fillStyle = A2; x.fillText('VISEUR SOLAIRE', cx, cy + r + 34);
+  const now = performance.now(); if (now - (QH.st || 0) < 200) return; QH.st = now;
+  const mg = $('#qpmsg'), lk = $('#qplock'); if (lk) lk.classList.remove('on');
+  if (mg) { const c = qpSunCheck(); mg.innerHTML = c.err ? (QB.head == null ? c.err : 'Centre le vrai soleil dans le cercle') : 'Soleil dans l\'axe · touche VALIDER'; }
 }
 function qpText(has, live, lock, diff, km) {
   const now = performance.now(); if (now - (QH.st || 0) < 200) return; QH.st = now;
@@ -1558,7 +1592,7 @@ function vOrbite() {
       <button class="today-item" data-goto="parcours">${miniOrb(modPct(cur), 'parcours')}<span><b>Mois ${cm} · ${esc(cur.title)}</b><span class="s">${modDone(cur)} acquis sur ${cur.acq.length}</span></span>${ICON.chev}</button>
       ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">${(() => { const pn = prayerNow(), nx = nextPrayer(); return pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine : ${PNAMES[nx.id]} à ${hm(nx.start)}` : `Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours`; })()}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const td = dkDay(), st = dkStreak(); return `<button class="today-item" data-goto="dhikr">${miniOrb(Math.min(1, td / 33), 'foi', true)}<span><b>${td >= 33 ? `Dhikr · ${td} aujourd'hui` : 'Dhikr · ton premier 33'}</b><span class="s">${st ? `${st} jour${st > 1 ? 's' : ''} d'affilée` : dkF(dk().cur)[2]}</span></span>${ICON.chev}</button>`; })()}
-      ${(() => { const s = hairDays('soin'), c = hairDays('coupe'); const due = s != null && s >= 7 ? 'soin' : c != null && c >= 70 ? 'coupe' : null; if (!due) return ''; return `<button class="today-item" data-goto="soin">${miniOrb(0, 'corps')}<span><b>${due === 'soin' ? 'Jour de soin des cheveux' : 'Pointes à couper'}</b><span class="s">${due === 'soin' ? `Dernier soin il y a ${s} jours` : `Dernière coupe il y a ${Math.round(c / 7)} semaines`}</span></span>${ICON.chev}</button>`; })()}
+      ${(() => { const s = hairDays('soin'), c = hairDays('coupe'); const due = s != null && s >= 7 ? 'soin' : c != null && c >= 70 ? 'coupe' : null; if (!due) return ''; return `<button class="today-item" data-goto="apparence">${miniOrb(0, 'corps')}<span><b>${due === 'soin' ? 'Jour de soin des cheveux' : 'Pointes à couper'}</b><span class="s">${due === 'soin' ? `Dernier soin il y a ${s} jours` : `Dernière coupe il y a ${Math.round(c / 7)} semaines`}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const h = hrt(), x = HEART.find(y => y.k === h.cur) || HEART[0], l = hLevel(x.k), done = !!hc(x.k).days[todayISO()]; return `<button class="today-item" data-goto="coeur">${miniOrb(l / 3, 'foi', true)}<span><b>Cœur · ${x.n}</b><span class="s">${l === 0 ? 'Commence par la leçon' : l === 3 ? 'Ancrée : continue de la pratiquer' : done ? (x.k === 'dua' ? 'Tu Lui as parlé aujourd\'hui' : 'Pratiqué aujourd\'hui') : x.k === 'dua' ? 'Une phrase pour Allah aujourd\'hui' : `Pratique du jour · ${hDays(x.k)} jour${hDays(x.k) > 1 ? 's' : ''} sur 21`}</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="arabe">${miniOrb(wordsKnown() / WORDS.length, 'arabe', true)}<span><b>Réviser 5 mots</b><span class="s">${wordsKnown()} mots maîtrisés sur ${WORDS.length}</span></span>${ICON.chev}</button>
     </div>
@@ -3050,7 +3084,7 @@ const FOODS = [['Œufs ×3', 19, 'egg'], ['Skyr 150 g', 15, 'dairy'], ['Fromage 
 const FITRA = [['ongles', 'Ongles'], ['moustache', 'Moustache'], ['aisselles', 'Aisselles'], ['pubis', 'Poils intimes']];
 const FITRA_MAX = 40;
 const C = { view: 'entrainement', edit: false, allFoods: false, nv: (() => { try { return localStorage.getItem('sdp-nv') || 'jour'; } catch (e) { return 'jour'; } })() };
-try { const v = localStorage.getItem('sdp-corps-view'); if (['entrainement', 'nutrition', 'soin'].includes(v)) C.view = v; } catch (e) {}
+try { const v = localStorage.getItem('sdp-corps-view'); if (['entrainement', 'nutrition', 'soin', 'apparence'].includes(v)) C.view = v; } catch (e) {}
 function setCView(v) { C.view = v; try { localStorage.setItem('sdp-corps-view', v); } catch (e) {} }
 
 function defaultBody() {
@@ -3148,7 +3182,7 @@ function corpsTop(view) {
   <div class="seg seg3" role="group" aria-label="Section" style="margin-top:20px">
     <button data-cview="entrainement" aria-pressed="${view === 'entrainement'}">Entraînement</button>
     <button data-cview="nutrition" aria-pressed="${view === 'nutrition'}">Nutrition</button>
-    <button data-cview="soin" aria-pressed="${view === 'soin'}">Soin</button>
+    <button data-cview="${C.view === 'apparence' ? 'apparence' : 'soin'}" aria-pressed="${view === 'soin'}">Soin</button>
   </div>`;
 }
 
@@ -4380,7 +4414,7 @@ function vSoin() {
   const wake = toMin(S.body.wake || '04:30'), bed5 = wake - 450 - 15, bed4 = wake - 360 - 15;
   const care = S.body.care, cl = care.log[k] || {}, cn = care.list.filter(c => cl[c.id]).length;
   const fri = iso(addDays(mondayOf(new Date()), 4));
-  return `${corpsTop('soin')}
+  return `${corpsTop('soin')}${soinSeg('soin')}
   <section style="margin-top:26px">
     <div class="row between" style="align-items:flex-end"><h2 style="margin:0">Sommeil</h2><p class="small muted" style="margin:0;text-align:right">${logged.length ? `moyenne ${fmtDur(avg)}` : 'objectif 7 à 9 h'}</p></div>
     ${sleepBars()}
@@ -4406,17 +4440,7 @@ function vSoin() {
       <p class="small muted" style="margin:6px 0 0">5 cycles de 90 min (7 h 30) + 15 min pour t'endormir. Soir de Mister Pizza ? Vise au moins <b style="font:inherit;color:var(--ink)">${fmtClock(bed4)}</b> (4 cycles, 6 h) et fais une sieste le lendemain.</p>
     </div>
   </section>
-  <section>
-    <div class="row between" style="align-items:flex-end;margin-bottom:6px"><h2 style="margin:0">Hygiène du jour</h2><p class="small muted" style="margin:0">${cn}/${care.list.length}</p></div>
-    <div class="checks">${care.list.map(c => checkbox(c.id, esc(c.name), 'data-care', !!cl[c.id])).join('')}${checkbox('ghusl', 'Ghusl du vendredi <span class="small muted">· cette semaine</span>', 'data-ghusl', !!S.body.ghusl[fri])}</div>
-    <button class="btn sm ghost" data-caresetup style="margin-top:8px">Modifier la liste</button>
-  </section>
-  <section>
-    <h2>La fitra</h2>
-    <p class="small muted" style="margin:-8px 0 0">Ongles, moustache, aisselles, poils intimes : pas plus de 40 nuits (Muslim). Chaque jauge se vide avec le temps. Touche-la quand c'est fait.</p>
-    <div class="fitra">${FITRA.map(([id, n]) => fitraRing(id, n)).join('')}</div>
-  </section>
-  ${hairBlock()}`;
+  <button class="sys-btn big" data-cview="apparence" style="margin-top:22px">PROTOCOLE D'APPARENCE →</button>`;
 }
 function openCareSetup() {
   $('#ideasBody').innerHTML = `<div class="grab"></div><div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Hygiène du jour</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
@@ -5238,6 +5262,196 @@ function srcCodex() {
     ${Object.entries(cats).sort((a, b) => b[1][1] - a[1][1]).map(([t, [s, n]]) => `<div class="cdx"><span>${esc((FXC[t] || {}).lbl || t)}</span><span class="cdx-b"><i style="width:${(s / n * 100).toFixed(0)}%"></i></span><b class="num">${s}/${n}</b></div>`).join('')}`, 'FERMER');
 }
 
+/* =====================================================================
+   APPARENCE & HYGIÈNE (Corps → Soin → Apparence) — « Protocole d'apparence »
+   Routines du matin et du soir, quêtes de la semaine, raid de régénération toutes les 2 semaines,
+   entraînement du visage guidé, test de peau, équipement, et un codex court par domaine.
+   Discipline : rappels qui insistent (fenêtre sur le Statut + alerte à l'ouverture), petites récompenses d'XP.
+   ===================================================================== */
+const LK_SKIN = {
+  grasse: { n: 'GRASSE', clean: 'Gel nettoyant doux, idéalement avec un peu d\'acide salicylique', hyd: 'Gel-crème léger non comédogène (niacinamide)', exf: 'Exfoliant à l\'acide salicylique (BHA), 2 fois par semaine', mask: 'Masque à l\'argile verte ou au rhassoul', tip: 'Ne décape pas : plus tu agresses une peau grasse, plus elle produit de sébum. Hydrate quand même, en léger.' },
+  mixte: { n: 'MIXTE', clean: 'Gel nettoyant doux sans savon', hyd: 'Fluide hydratant léger', exf: 'Exfoliant doux à l\'acide salicylique, 1 à 2 fois par semaine sur la zone T', mask: 'Argile sur front, nez, menton uniquement', tip: 'Traite la zone T (front, nez, menton) comme une peau grasse et les joues comme une peau normale.' },
+  seche: { n: 'SÈCHE', clean: 'Lait ou crème lavante, sans savon', hyd: 'Crème riche aux céramides ou au beurre de karité', exf: 'Gommage très doux ou exfoliant à l\'acide lactique, 1 fois par semaine', mask: 'Masque hydratant (miel, aloe vera)', tip: 'Eau tiède, jamais chaude. Applique la crème sur peau encore légèrement humide pour garder l\'eau.' },
+  normale: { n: 'NORMALE', clean: 'Gel nettoyant doux', hyd: 'Crème hydratante légère', exf: 'Gommage doux, 1 fois par semaine', mask: 'Masque hydratant ou argile douce, 1 fois par semaine', tip: 'Garde une routine simple et régulière : c\'est la régularité qui fait la peau.' } };
+const LK_AM = [
+  ['m-dents', 'Dents · 2 min + langue', 'Dentifrice fluoré, brosse inclinée vers la gencive, 2 minutes. Puis le gratte-langue, d\'arrière en avant : la mauvaise haleine naît surtout sur la langue.'],
+  ['m-visage', 'Visage · eau fraîche + crème + SPF', s => `Rince à l'eau fraîche (ou nettoyant si peau grasse), puis ${s ? LK_SKIN[s].hyd.toLowerCase() : 'ta crème hydratante'}. Protection solaire SPF 30 à 50 dès qu'il fait beau : à Cannes, le soleil est le premier facteur de vieillissement de la peau.`],
+  ['m-barbe', 'Barbe · brosser + 2 gouttes d\'huile', 'Brosse en poils de sanglier, de haut en bas, pour la faire tomber. 2 à 3 gouttes d\'huile frottées entre les paumes, puis passées dans la barbe et sur la peau dessous.'],
+  ['m-cheveux', 'Cheveux · rafraîchir les boucles', 'Un peu d\'eau et une noisette de soin sans rinçage, puis froisser les boucles sans peigner à sec.'],
+  ['m-deo', 'Déodorant + parfum', 'Déodorant sur aisselles propres et sèches. Parfum : 2 à 4 pulvérisations sur le cou et les poignets, sans frotter.']];
+const LK_PM = [
+  ['s-douche', 'Douche complète', 'Savon doux sur tout le corps, insiste sur aisselles, pieds (entre les orteils), plis et zone intime. Rince bien, puis sèche complètement : l\'humidité dans les plis, c\'est l\'odeur et les champignons.'],
+  ['s-dents', 'Dents · 2 min + fil dentaire', 'Brossage 2 minutes, puis fil dentaire ou brossettes entre chaque dent, puis la langue. Ne rince pas à grande eau : crache seulement, le fluor continue d\'agir.'],
+  ['s-visage', 'Visage · nettoyer + crème de nuit', s => `${s ? LK_SKIN[s].clean : 'Nettoyant doux'}, eau tiède, sèche en tamponnant. Puis la crème. Option : contour des yeux à la caféine, tapoté du bout de l'annulaire.`],
+  ['s-corps', 'Crème hydratante sur le corps', 'Juste après la douche, sur peau encore un peu humide : bras, jambes, coudes, genoux. Peau douce au toucher, et le parfum tient mieux sur une peau hydratée.'],
+  ['s-at', 'Anti-transpirant sur aisselles sèches', 'Le soir, les glandes sudoripares sont au repos : l\'anti-transpirant agit pendant la nuit et tient toute la journée du lendemain, même après la douche.'],
+  ['s-linge', 'Pyjama propre + sous-vêtement prêt', 'Un vrai pyjama, propre, pas un vieux t-shirt. Sors ton sous-vêtement et tes chaussettes de demain.']];
+const LK_WK = [
+  ['w-ghusl', 'Ghusl du vendredi', 1],
+  ['w-barbe', 'Lavage complet de la barbe', 2, 'Shampoing barbe doux, après-shampoing laissé 2 minutes, rinçage. Puis séchage brossé : sèche-cheveux à air tiède en brossant vers le bas. C\'est ce qui fait tomber une barbe bouclée.'],
+  ['w-gommage', 'Gommage du visage', 1],
+  ['w-masque', 'Masque visage', 1],
+  ['w-ongles', 'Ongles mains et pieds', 1, 'Coupés courts, droits pour les pieds, limés pour les mains. Brosse sous les ongles. Compte pour la fitra.'],
+  ['w-taie', 'Taie d\'oreiller changée', 2, 'Ta peau et ta barbe y passent 7 heures par nuit : sébum, bactéries, résidus d\'huile.'],
+  ['w-draps', 'Draps changés', 1],
+  ['w-pieds', 'Pieds : râpe + crème', 1],
+  ['w-outils', 'Nettoyer brosse, peigne, tondeuse', 1]];
+const LK_RAID = [
+  ['r-vap', 'Vapeur', 'Douche très chaude 5 minutes, porte fermée : la vapeur ouvre les pores et ramollit la peau.'],
+  ['r-noir', 'Savon noir', 'Sur tout le corps, laisse poser 5 minutes.'],
+  ['r-kessa', 'Gommage au gant kessa', 'Tout le corps, par mouvements fermes, de bas en haut. Les peaux mortes partent en rouleaux : c\'est normal.'],
+  ['r-visage', 'Masque du visage', 'Argile ou masque hydratant selon ta peau, 10 minutes, puis crème.'],
+  ['r-barbe', 'Soin profond de la barbe', 'Après-shampoing laissé 5 minutes, rinçage, huile, puis séchage brossé.'],
+  ['r-cheveux', 'Masque des cheveux', 'Masque nourrissant sur longueurs et pointes, 10 minutes sous la chaleur de la douche.'],
+  ['r-fitra', 'La fitra complète', 'Ongles, moustache, aisselles, poils intimes. Le tout est noté dans les jauges.'],
+  ['r-pieds', 'Pieds', 'Bain tiède 10 minutes, râpe sur les talons, crème épaisse, chaussettes en coton.'],
+  ['r-karite', 'Hydratation intense', 'Beurre de karité ou crème riche sur tout le corps.'],
+  ['r-lit', 'Lit et tenue', 'Draps propres, pyjama propre, et ton parfum du soir.']];
+const LK_RAID_DAYS = 14;
+const LK_FACE = {
+  degonfle: { n: 'DÉGONFLER · 3 MIN', s: [['Froid', 'Eau très froide sur le visage, ou un glaçon dans un tissu passé sur les joues et sous les yeux.', 30], ['Drainage des joues', 'Du bout des doigts, glisse du nez vers les oreilles, en appuyant légèrement. Lent.', 40], ['Sous les yeux', 'Tapote du bout des annulaires, du coin intérieur vers la tempe.', 30], ['Mâchoire', 'Pouces sous le menton, remonte le long de la mâchoire jusqu\'aux oreilles.', 40], ['Cou', 'Des oreilles vers les clavicules, mains à plat : tout ce qui a été drainé descend.', 40]] },
+  muscle: { n: 'MUSCLER · 5 MIN', s: [['Posture de langue', 'Toute la langue collée au palais, dents légèrement en contact, lèvres fermées. Tiens.', 45], ['Menton rentré', 'Recule le menton droit en arrière (double menton), tiens 3 secondes, relâche. En continu.', 45], ['Regard au plafond', 'Tête en arrière, regarde le plafond et fais un mouvement de baiser exagéré, lèvres en avant. Répète.', 45], ['Joues', 'Gonfle d\'air, fais passer l\'air d\'une joue à l\'autre, lentement.', 40], ['Sourire résisté', 'Grand sourire bouche fermée, doigts sur les coins de la bouche qui résistent. Tiens 5 s, relâche.', 45], ['Mâchoire', 'Ouvre grand la bouche, avance la mâchoire du bas, tiens 3 s, referme. Lent.', 40], ['Relâcher', 'Masse les tempes et la mâchoire en petits cercles.', 30]] } };
+const LK_GEAR = [
+  ['Bouche', [['g-brosse', 'Brosse à dents électrique (ou souple)', 1], ['g-fluor', 'Dentifrice fluoré', 1], ['g-fil', 'Fil dentaire ou brossettes', 1], ['g-langue', 'Gratte-langue', 1], ['g-siwak', 'Siwak', 1], ['g-bdb', 'Bain de bouche sans alcool', 0]]],
+  ['Visage', [['g-net', 'Nettoyant adapté à ta peau', 1], ['g-hyd', 'Crème hydratante adaptée', 1], ['g-spf', 'Protection solaire SPF 30-50', 1], ['g-exf', 'Exfoliant doux', 1], ['g-masq', 'Masque (argile ou hydratant)', 0], ['g-yeux', 'Contour des yeux à la caféine', 0], ['g-levres', 'Baume à lèvres', 1]]],
+  ['Barbe', [['g-shb', 'Shampoing barbe doux', 1], ['g-hb', 'Huile de barbe (jojoba, argan)', 1], ['g-bb', 'Baume à barbe', 1], ['g-sang', 'Brosse en poils de sanglier', 1], ['g-peigne', 'Peigne à dents larges', 1], ['g-seche', 'Sèche-cheveux', 1], ['g-tond', 'Tondeuse', 1], ['g-cis', 'Petits ciseaux (moustache)', 0]]],
+  ['Corps', [['g-savon', 'Savon surgras ou gel douche doux', 1], ['g-int', 'Savon doux sans parfum (zone intime)', 1], ['g-creme', 'Crème hydratante corps', 1], ['g-noir', 'Savon noir + gant kessa', 1], ['g-karite', 'Beurre de karité', 0], ['g-at', 'Anti-transpirant / déodorant', 1], ['g-mains', 'Crème mains', 0], ['g-rape', 'Râpe + crème pieds', 1], ['g-ongles', 'Coupe-ongles + lime', 1]]],
+  ['Linge', [['g-boxer', 'Boxers en coton (10)', 1], ['g-chaus', 'Chaussettes en coton', 1], ['g-pyj', 'Deux ou trois pyjamas soignés', 1], ['g-satin', 'Taie en satin', 0]]]];
+const LK_CODEX = [
+  ['BARBE BOUCLÉE · SUNNAH', `<p>« Laissez pousser la barbe et taillez la moustache. » <span class="src">Bukhari 5892, Muslim 259</span></p><p>Une barbe bouclée ne tombe pas parce qu'elle est <b>sèche</b> et qu'on la laisse sécher à l'air. Trois gestes la transforment :</p><ul><li><b>Hydrater</b> : lavage 2 fois par semaine seulement (le savon de tous les jours l'assèche), après-shampoing, puis huile.</li><li><b>Séchage brossé</b> : sèche-cheveux tiède + brosse en sanglier vers le bas. C'est le geste qui la fait tomber.</li><li><b>Fixer</b> : une noisette de baume chaque matin, peignée vers le bas.</li></ul><p>Moustache dégagée de la lèvre aux ciseaux. Pour les contours des joues et du cou, suis l'avis de ton savant de référence.</p>`],
+  ['VISAGE ET PEAU', `<p>La base tient en 3 gestes : <b>nettoyer, hydrater, protéger du soleil</b>. Tout le reste est secondaire.</p><ul><li>Un seul actif à la fois quand tu débutes, pour voir ce qui marche.</li><li>Les boutons : ne pas percer, changer la taie, ne pas toucher son visage.</li><li>Le sommeil, l'eau et le sucre se voient sur la peau en quelques jours.</li></ul>`],
+  ['YEUX ET REGARD', `<ul><li><b>Cernes et poches</b> : sommeil d'abord, puis froid le matin (eau froide, cuillère au frigo) et contour des yeux à la caféine.</li><li><b>Sourcils</b> : brosse-les vers le haut, propres, sans les épiler.</li><li><b>Écrans</b> : toutes les 20 minutes, regarde au loin 20 secondes.</li></ul><p>« Le meilleur de vos collyres est l'ithmid : il éclaircit la vue et fait pousser les cils. » <span class="src">Abu Dawud, at-Tirmidhi</span></p>`],
+  ['ODEUR CORPORELLE', `<p>La sueur ne sent rien : ce sont les bactéries de la peau qui la transforment. Donc :</p><ul><li>Douche quotidienne et <b>séchage complet</b> (aisselles, pieds, plis).</li><li>Anti-transpirant le <b>soir</b>, déodorant le matin.</li><li>Vêtements en coton ou laine, lavés après chaque port pour ce qui touche la peau.</li><li>Chaussures en rotation : jamais deux jours de suite la même paire.</li><li>Ail et oignon crus, épices fortes : ils ressortent par la peau et l'haleine.</li></ul>`],
+  ['PARFUM', `<p>« On m'a fait aimer de votre monde les femmes et le parfum, et la fraîcheur de mes yeux a été placée dans la prière. » <span class="src">an-Nasa'i</span></p><ul><li>Sur peau <b>hydratée</b> : une crème sans parfum dessous le fait tenir deux fois plus.</li><li>Cou, poignets, intérieur des coudes. <b>Ne frotte pas</b>.</li><li>Conservation : à l'abri de la lumière et de la chaleur, jamais dans la salle de bain.</li><li>Garde <b>un parfum réservé à ta femme</b>, porté seulement pour elle.</li></ul>`],
+  ['BOUCHE ET HALEINE', `<p>« Si je ne craignais pas d'imposer une difficulté à ma communauté, je leur aurais ordonné le siwak à chaque prière. » <span class="src">Bukhari 887, Muslim 252</span></p><ul><li>2 minutes, 2 fois par jour, dentifrice fluoré. Fil dentaire le soir.</li><li>Gratte-langue matin et soir.</li><li>Siwak avant les prières, entre deux brossages.</li><li>Brosse changée tous les 3 mois. Dentiste et détartrage une fois par an.</li></ul>`],
+  ['HYGIÈNE INTIME', `<ul><li>Une toilette par jour à l'eau et au savon doux sans parfum, externe uniquement, rinçage et séchage soigneux.</li><li>Poils intimes et aisselles : pas plus de 40 nuits (la fitra). Tondeuse ou rasoir sur peau mouillée, jamais à sec, dans le sens du poil.</li><li>Après le sport : douche ou au moins changement de sous-vêtement.</li></ul>`],
+  ['SOUS-VÊTEMENTS ET PYJAMA', `<ul><li><b>Boxers en coton</b> (ou modal), à ta taille : ni serrés, ni distendus. Changés chaque jour, remplacés dès qu'ils se détendent ou jaunissent.</li><li>Lavage à 40-60 °C.</li><li><b>Pyjama</b> en coton ou lin, ample et assorti, changé 2 fois par semaine. Un pyjama soigné compte autant qu'une tenue de journée.</li><li>Draps une fois par semaine, taie deux fois.</li></ul>`],
+  ['MAINS ET PIEDS', `<ul><li>Ongles courts et propres : c'est ce que les gens regardent en premier quand tu tends la main.</li><li>Crème mains le soir si elles sont sèches (les gants du travail les abîment).</li><li>Pieds : sécher entre les orteils, chaussettes en coton, râpe une fois par semaine.</li></ul>`],
+  ['NATUREL OU NON', `<p><b>Naturels utiles</b> : savon d'Alep, savon noir et kessa, rhassoul, huiles de jojoba et d'argan, beurre de karité, aloe vera, siwak, musc.</p><p><b>Non naturels mais sûrs</b> : céramides, acide hyaluronique, niacinamide, acide salicylique, protection solaire, dentifrice fluoré, urée.</p><p>« Naturel » ne veut pas dire doux : les huiles essentielles pures irritent souvent la peau. Teste tout nouveau produit sur une petite zone 24 h avant.</p>`],
+  ['POUR TA FEMME', `<p>Ibn 'Abbas disait : « J'aime me faire beau pour ma femme comme j'aime qu'elle se fasse belle pour moi. » <span class="src">at-Tabari, tafsir de 2:228</span></p><ul><li><b>Le toucher</b> : peau hydratée, barbe douce (huile), mains et ongles soignés.</li><li><b>L'odeur</b> : haleine fraîche, corps propre, son parfum à elle.</li><li><b>Le regard</b> : barbe nette, tenue de maison propre, cheveux coiffés même à la maison.</li></ul>`]];
+
+function lkS() { const l = S.look = S.look && typeof S.look === 'object' ? S.look : {}; ['log', 'wk', 'gear', 'raid', 'face'].forEach(k => { if (!l[k] || typeof l[k] !== 'object') l[k] = {}; }); if (!Array.isArray(l.raidLog)) l.raidLog = []; return l; }
+const lkTxt = x => typeof x === 'function' ? x(lkS().skin) : x;
+function lkDay(k = todayISO()) { const l = lkS(); return l.log[k] = l.log[k] || {}; }
+function lkWk() { const l = lkS(), w = iso(mondayOf(new Date())); return l.wk[w] = l.wk[w] || {}; }
+function lkWkVal(id) { if (id === 'w-ghusl') return S.body.ghusl[iso(addDays(mondayOf(new Date()), 4))] ? 1 : 0; return lkWk()[id] || 0; }
+function lkDone(list, d = lkDay()) { return list.filter(x => d[x[0]]).length; }
+function lkRaidDays() { const l = lkS().raidLog, x = l[l.length - 1]; return x ? Math.round((parseDate(todayISO()) - parseDate(x)) / 864e5) : null; }
+function lkWkPending() { return LK_WK.filter(([id, , n]) => lkWkVal(id) < n); }
+/* Ce qui reste à faire maintenant, selon l'heure */
+function lkPending() {
+  const h = new Date().getHours(), d = lkDay(), out = [];
+  if (h >= 5 && h < 13 && lkDone(LK_AM, d) < LK_AM.length) out.push(['am', `Protocole du matin · ${lkDone(LK_AM, d)}/${LK_AM.length}`]);
+  if ((h >= 19 || h < 3) && lkDone(LK_PM, h < 3 ? lkDay(iso(addDays(new Date(), -1))) : d) < LK_PM.length) out.push(['pm', `Protocole du soir · ${lkDone(LK_PM, h < 3 ? lkDay(iso(addDays(new Date(), -1))) : d)}/${LK_PM.length}`]);
+  const dow = (new Date().getDay() + 6) % 7, wp = lkWkPending(); if (dow >= 4 && wp.length) out.push(['wk', `Quêtes de la semaine · ${LK_WK.length - wp.length}/${LK_WK.length}${dow === 6 ? ' · dernier jour' : ''}`]);
+  const rd = lkRaidDays(); if (rd == null || rd >= LK_RAID_DAYS) out.push(['raid', rd == null ? 'Raid de régénération · jamais fait' : `Raid de régénération · ${rd} jours sans`]);
+  return out;
+}
+function lookWin() {
+  const p = lkPending(); if (!p.length) return '';
+  const late = new Date().getHours() >= 22 || new Date().getHours() < 3;
+  return sysWin(late ? 'ALERTE · PROTOCOLE D\'APPARENCE' : 'PROTOCOLE D\'APPARENCE', `${p.map(([k, t]) => `<button class="sys-obj" data-goto="apparence"><span class="sys-box"></span><span class="grow">${t}</span><b class="num">!</b></button>`).join('')}<p class="sys-warn">${late ? 'Tu ne te couches pas avant de l\'avoir fait.' : 'Le Système ne lâchera pas tant que ce n\'est pas fait.'}</p>`, late ? 'pen' : '');
+}
+/* Alerte plein écran à l'ouverture : au plus une fois toutes les 90 minutes */
+function lookNag() {
+  if (tab !== 'orbite' || !uiSys() || $('.sys-pop') || $('#intro') || $('#inact')) return;
+  const p = lkPending().filter(x => x[0] === 'am' || x[0] === 'pm'); if (!p.length) return;
+  let last = 0; try { last = Number(localStorage.getItem('sdp-looknag') || 0); } catch (e) {}
+  if (Date.now() - last < 90 * 60000) return; try { localStorage.setItem('sdp-looknag', String(Date.now())); } catch (e) {}
+  const pm = p[0][0] === 'pm', list = pm ? LK_PM : LK_AM, d = pm && new Date().getHours() < 3 ? lkDay(iso(addDays(new Date(), -1))) : lkDay();
+  sysPop(pm ? 'ALERTE · PROTOCOLE DU SOIR' : 'PROTOCOLE DU MATIN', `<p class="sys-qt" style="text-align:center">${pm ? 'AVANT DE DORMIR' : 'AVANT DE SORTIR'}</p>${list.filter(x => !d[x[0]]).map(x => `<p class="sys-li">— ${esc(x[1])}</p>`).join('')}<p class="sys-pt" style="text-align:center;margin-top:10px">Le Joueur prend soin de son corps. Aucune exception.</p>`, 'Y ALLER', pm && new Date().getHours() >= 22 ? 'pen' : '');
+  const b = $('.sys-pop [data-syspop]'); if (b) b.addEventListener('click', () => setTimeout(() => go('apparence'), 50), { once: true });
+}
+function lkRow(id, t, how, on, attr) { return `<div class="lk-r ${on ? 'ok' : ''}"><button class="sys-obj ${on ? 'ok' : ''}" ${attr}="${id}"><span class="sys-box">${on ? '✓' : ''}</span><span class="grow">${esc(t)}</span></button>${how ? `<button class="lk-q" data-lkhow aria-label="Comment faire">?</button><p class="lk-hp">${how}</p>` : ''}</div>`; }
+function lkRoutine(title, list, key, d) {
+  const n = lkDone(list, d);
+  return sysWin(`${title} [${n}/${list.length}]`, `<div class="sys-xp"><i style="width:${(n / list.length * 100).toFixed(0)}%"></i></div>${list.map(([id, t, how]) => lkRow(id, t, lkTxt(how), !!d[id], 'data-lkd')).join('')}<p class="sys-warn">${n === list.length ? 'Accompli · +3 XP' : 'Complet = +3 XP'}</p>`, n === list.length ? 'done' : '');
+}
+function vLook() {
+  const l = lkS(), h = new Date().getHours(), d = lkDay(), dy = h < 3 ? lkDay(iso(addDays(new Date(), -1))) : d, s = l.skin;
+  const wkN = LK_WK.length - lkWkPending().length, rd = lkRaidDays(), rOn = l.raid.on, rDone = rOn ? LK_RAID.filter(x => l.raid[x[0]]).length : 0;
+  const amFirst = h >= 3 && h < 15;
+  const am = lkRoutine('PROTOCOLE DU MATIN', LK_AM, 'am', d), pm = lkRoutine('PROTOCOLE DU SOIR', LK_PM, 'pm', dy);
+  const skinW = s ? sysWin(`PEAU · ${LK_SKIN[s].n}`, `<div class="lk-sk"><p><b class="sys-k">NETTOYER</b>${LK_SKIN[s].clean}</p><p><b class="sys-k">HYDRATER</b>${LK_SKIN[s].hyd}</p><p><b class="sys-k">EXFOLIER</b>${LK_SKIN[s].exf}</p><p><b class="sys-k">MASQUE</b>${LK_SKIN[s].mask}</p></div><p class="sys-li" style="margin-top:8px">${LK_SKIN[s].tip}</p><button class="sys-btn ghost" data-lkskin style="margin-top:10px">REFAIRE LE TEST</button>`)
+    : sysWin('ANALYSE DE PEAU · REQUISE', `<p class="sys-li">Le Système ne connaît pas encore ton type de peau. 4 questions, 30 secondes : les produits et la routine s'adaptent ensuite.</p><button class="sys-btn big" data-lkskin style="margin-top:10px">LANCER L'ANALYSE</button>`, 'pen');
+  const wk = sysWin(`QUÊTES DE LA SEMAINE [${wkN}/${LK_WK.length}]`, `${LK_WK.map(([id, t, n, how]) => { const v = lkWkVal(id), on = v >= n; return `<div class="lk-r ${on ? 'ok' : ''}"><button class="sys-obj ${on ? 'ok' : ''}" data-lkw="${id}"><span class="sys-box">${on ? '✓' : ''}</span><span class="grow">${esc(t)}</span><b class="num">[${Math.min(v, n)}/${n}]</b></button>${how || id === 'w-gommage' || id === 'w-masque' ? `<button class="lk-q" data-lkhow aria-label="Comment faire">?</button><p class="lk-hp">${how || (id === 'w-gommage' ? (s ? LK_SKIN[s].exf : 'Gommage doux adapté à ta peau') : (s ? LK_SKIN[s].mask : 'Masque adapté à ta peau'))}</p>` : ''}</div>`; }).join('')}<p class="sys-warn">Remise à zéro lundi · +2 XP par quête</p>`);
+  const raid = sysWin('RAID · RÉGÉNÉRATION TOTALE', rOn ? `<p class="sys-qt">EN COURS · ${rDone}/${LK_RAID.length} ÉTAPES · ~60 MIN</p><div class="sys-xp"><i style="width:${(rDone / LK_RAID.length * 100).toFixed(0)}%"></i></div>${LK_RAID.map(([id, t, how]) => lkRow(id, t, how, !!l.raid[id], 'data-lkr')).join('')}<button class="sys-btn ghost" data-lkraid="x" style="margin-top:10px">ABANDONNER LE RAID</button>`
+    : `<div class="lk-raid"><div><p class="sys-k">DERNIER RAID</p><p class="lk-big num ${rd == null || rd >= LK_RAID_DAYS ? 'neg' : ''}">${rd == null ? '—' : rd === 0 ? 'Aujourd\'hui' : `il y a ${rd} j`}</p></div><p class="sys-li" style="margin:0;text-align:right">Toutes les 2 semaines<br>Récompense : <b>+20 XP</b></p></div><p class="sys-li">Vapeur, savon noir, kessa, masques, fitra complète, pieds, hydratation intense. Une heure pour remettre tout le corps à neuf.</p><button class="sys-btn big" data-lkraid="go" style="margin-top:8px">ENTRER DANS LE RAID</button>`, rOn ? 'done' : rd == null || rd >= LK_RAID_DAYS ? 'pen' : '');
+  const fd = l.face[todayISO()];
+  const face = sysWin('ENTRAÎNEMENT DU VISAGE', `<div class="lk-face">${Object.entries(LK_FACE).map(([k, x]) => `<button class="sys-btn ${fd && fd[k] ? 'ghost' : ''}" data-lkface="${k}">${fd && fd[k] ? '✓ ' : ''}${x.n}</button>`).join('')}</div><p class="sys-li" style="margin-top:10px">Guidé, avec minuteur. Dégonfler : le matin, surtout après une nuit courte. Muscler : 4 à 5 fois par semaine, +2 XP.</p><details class="lk-cat lk-wide"><summary><span class="sys-k">CE QU'ON SAIT VRAIMENT</span></summary><p class="lk-cb">Les preuves sont limitées : une étude (JAMA Dermatology, 2018) a observé des joues plus pleines après 20 semaines d'exercices quotidiens. Un visage gonflé vient surtout du manque de sommeil, du sel et du manque d'eau : c'est là que se joue l'essentiel.</p></details>`);
+  const gN = LK_GEAR.reduce((a, [, g]) => a + g.filter(x => l.gear[x[0]]).length, 0), gT = LK_GEAR.reduce((a, [, g]) => a + g.length, 0);
+  const gear = sysWin(`ÉQUIPEMENT [${gN}/${gT}]`, `<p class="sys-li">Coche ce que tu possèdes déjà. ★ = essentiel. Le reste attendra que l'essentiel soit en place.</p>${LK_GEAR.map(([cat, g]) => `<details class="lk-cat"><summary><span class="sys-k">${cat.toUpperCase()}</span><b class="num">${g.filter(x => l.gear[x[0]]).length}/${g.length}</b></summary>${g.map(([id, t, e]) => `<button class="sys-obj ${l.gear[id] ? 'ok' : ''}" data-lkg="${id}"><span class="sys-box">${l.gear[id] ? '✓' : ''}</span><span class="grow">${esc(t)}</span>${e ? '<b class="lk-star">★</b>' : ''}</button>`).join('')}</details>`).join('')}<p class="sys-li" style="margin-top:8px">Parfums : ta collection suffit, rien à acheter.</p>`);
+  const codex = sysWin('CODEX DU SOIN', `${LK_CODEX.map(([t, b]) => `<details class="lk-cat lk-cdx"><summary><span class="sys-k">${t}</span></summary><div class="lk-cb">${b}</div></details>`).join('')}`);
+  return `${corpsTop('soin')}${soinSeg('apparence')}
+    <p class="lk-gem">« Allah est beau et Il aime la beauté. » <span>Muslim 91</span></p>
+    ${amFirst ? am + pm : pm + am}${skinW}${wk}${raid}${face}
+    <section class="lk-fit">${sysWin('LA FITRA', `<p class="sys-li" style="margin-top:0">Ongles, moustache, aisselles, poils intimes : pas plus de 40 nuits (Muslim). Touche une jauge quand c'est fait.</p><div class="fitra">${FITRA.map(([id, n]) => fitraRing(id, n)).join('')}</div>`)}</section>
+    ${hairBlock()}${gear}${codex}`;
+}
+function soinSeg(v) { return `<div class="seg lk-seg" role="group" aria-label="Soin" style="margin-top:12px"><button data-cview="soin" aria-pressed="${v === 'soin'}">Sommeil</button><button data-cview="apparence" aria-pressed="${v === 'apparence'}">Apparence</button></div>`; }
+/* Test de peau */
+const LK_Q = [['Une heure après avoir lavé ton visage, sans rien mettre, ta peau :', ['Tire, inconfortable', 'Normale, rien de spécial', 'Brille sur le front et le nez', 'Brille partout']],
+  ['En fin de journée, ton front et ton nez sont :', ['Mats', 'Un peu brillants', 'Très brillants']],
+  ['Tes pores, sur le nez et les joues :', ['Presque invisibles', 'Visibles sur le nez', 'Visibles partout']],
+  ['Petites peaux, rougeurs ou zones rêches :', ['Souvent', 'Parfois', 'Jamais']]];
+function lkSkinTest(i = 0, a = []) {
+  if (i >= LK_Q.length) {
+    const o = a[0] + a[1] + a[2], dr = (a[0] === 0 ? 2 : 0) + (2 - a[3]);
+    const t = dr >= 3 && o <= 2 ? 'seche' : o >= 6 || a[0] === 3 ? 'grasse' : o >= 3 || a[0] === 2 ? 'mixte' : dr >= 2 ? 'seche' : 'normale';
+    lkS().skin = t; save(); $('.sys-pop') && $('.sys-pop').remove();
+    sysPop('ANALYSE TERMINÉE', `<p class="sys-qt" style="text-align:center">TYPE DE PEAU</p><p class="sys-lvup" style="font-size:2rem">${LK_SKIN[t].n}</p><p class="sys-li">${LK_SKIN[t].tip}</p>`, 'COMPRIS', 'ok');
+    render(); return;
+  }
+  $('.sys-pop') && $('.sys-pop').remove();
+  sysPop(`ANALYSE DE PEAU · ${i + 1}/${LK_Q.length}`, `<p class="sys-li" style="margin-bottom:10px">${LK_Q[i][0]}</p>${LK_Q[i][1].map((x, k) => `<button class="sys-obj" data-lkq="${k}"><span class="sys-box"></span><span class="grow">${x}</span></button>`).join('')}`, 'ANNULER');
+  const pop = $('.sys-pop'); pop.addEventListener('click', e => { const b = e.target.closest('[data-lkq]'); if (!b) return; e.stopPropagation(); lkSkinTest(i + 1, a.concat(Number(b.dataset.lkq))); });
+}
+/* Entraînement du visage guidé */
+function lkFaceRun(k) {
+  const P = LK_FACE[k]; let i = 0, left = P.s[0][2], iv = null;
+  const el = document.createElement('div'); el.className = 'sys-pop on lk-run'; el.setAttribute('role', 'dialog'); document.body.appendChild(el);
+  const draw = () => { const [t, how, sec] = P.s[i]; el.innerHTML = `<div class="sys-pop-in">${sysWin(`${P.n} · ${i + 1}/${P.s.length}`, `<p class="lk-rt">${t}</p><p class="sys-li" style="text-align:center">${how}</p><p class="lk-rc num">${left}</p><div class="sys-xp"><i style="width:${((1 - left / sec) * 100).toFixed(1)}%"></i></div><div class="lk-face" style="margin-top:14px"><button class="sys-btn ghost" data-lkrun="x">ARRÊTER</button><button class="sys-btn" data-lkrun="n">${i + 1 < P.s.length ? 'SUIVANT' : 'TERMINER'}</button></div>`)}</div>`; };
+  const end = ok => { clearInterval(iv); el.remove(); if (!ok) return; const f = lkS().face, d = f[todayISO()] = f[todayISO()] || {}; if (!d[k]) { d[k] = 1; save(); reward(2, { noBonus: true }); } sysNote('Entraînement terminé', `${P.n} · +2 XP`); render(); };
+  const next = () => { i++; if (i >= P.s.length) { try { sfx('big'); } catch (e) {} end(true); return; } left = P.s[i][2]; try { sfx('line'); } catch (e) {} draw(); };
+  el.addEventListener('click', e => { const b = e.target.closest('[data-lkrun]'); if (!b) return; e.stopPropagation(); if (b.dataset.lkrun === 'x') end(false); else next(); });
+  draw(); try { sfx('win'); } catch (e) {}
+  iv = setInterval(() => { if (!document.body.contains(el)) { clearInterval(iv); return; } left--; if (left <= 0) next(); else { const c = el.querySelector('.lk-rc'), b = el.querySelector('.sys-xp i'); if (c) c.textContent = left; if (b) b.style.width = ((1 - left / P.s[i][2]) * 100).toFixed(1) + '%'; if (left <= 3) try { sfx('tick'); } catch (e) {} } }, 1000);
+}
+function lkFitra(ids) { const k = todayISO(); ids.forEach(id => { const h = S.body.fitra[id] = S.body.fitra[id] || []; if (h[h.length - 1] !== k) h.push(k); }); }
+function lookClick(t) {
+  const c = s => t.closest(s); let el;
+  const keep = () => { const y = window.scrollY, all = () => [...document.querySelectorAll('#app details')], op = all().map(x => x.open), rs = () => [...document.querySelectorAll('#app .lk-r')], ro = rs().map(x => x.classList.contains('open')); render(); all().forEach((x, i) => { if (op[i]) x.open = true; }); rs().forEach((x, i) => { if (ro[i]) x.classList.add('open'); }); window.scrollTo(0, y); };
+  if ((el = c('[data-lkd]'))) {
+    const id = el.dataset.lkd, pm = id.startsWith('s-'), list = pm ? LK_PM : LK_AM, h = new Date().getHours(), d = pm && h < 3 ? lkDay(iso(addDays(new Date(), -1))) : lkDay();
+    const was = lkDone(list, d) === list.length; if (d[id]) delete d[id]; else d[id] = 1; const now = lkDone(list, d) === list.length; save(); haptic();
+    if (now && !was) { reward(3, { noBonus: true }); sysNote(pm ? 'Protocole du soir accompli' : 'Protocole du matin accompli', '+3 XP'); try { sfx('big'); } catch (e) {} } else if (was && !now) unreward(3);
+    keep(); return true;
+  }
+  if ((el = c('[data-lkw]'))) {
+    const id = el.dataset.lkw, def = LK_WK.find(x => x[0] === id), n = def[2], v = lkWkVal(id), nv = v >= n ? 0 : v + 1;
+    if (id === 'w-ghusl') { const fri = iso(addDays(mondayOf(new Date()), 4)); if (nv) S.body.ghusl[fri] = 1; else delete S.body.ghusl[fri]; } else { const w = lkWk(); if (nv) w[id] = nv; else delete w[id]; }
+    if (id === 'w-ongles' && nv) lkFitra(['ongles']);
+    save(); haptic(); if (nv >= n && v < n) { reward(2, { noBonus: true }); try { sfx('gain'); } catch (e) {} } else if (v >= n && nv < n) unreward(2);
+    keep(); return true;
+  }
+  if ((el = c('[data-lkraid]'))) {
+    const l = lkS(); if (el.dataset.lkraid === 'go') { l.raid = { on: todayISO() }; save(); sysPop('RAID · RÉGÉNÉRATION TOTALE', `<p class="sys-qt" style="text-align:center">LE RAID COMMENCE</p><p class="sys-li">${LK_RAID.length} étapes, environ une heure. Coche chaque étape quand elle est faite. Récompense : +20 XP.</p>`, 'ENTRER', 'lvl'); }
+    else { l.raid = {}; save(); }
+    keep(); return true;
+  }
+  if ((el = c('[data-lkr]'))) {
+    const l = lkS(), id = el.dataset.lkr; if (l.raid[id]) delete l.raid[id]; else l.raid[id] = 1; haptic();
+    if (LK_RAID.every(x => l.raid[x[0]])) { if (l.raid['r-fitra']) lkFitra(['ongles', 'moustache', 'aisselles', 'pubis']); l.raidLog.push(todayISO()); l.raid = {}; save(); reward(20, { big: true }); setTimeout(() => sysPop('RAID TERMINÉ', `<p class="sys-qt" style="text-align:center">RÉGÉNÉRATION TOTALE</p><p class="sys-pt" style="text-align:center">Récompense : +20 XP</p><p class="sys-li" style="text-align:center">Prochain raid dans ${LK_RAID_DAYS} jours.</p>`, 'RÉCUPÉRER', 'ok'), 200); }
+    else save();
+    keep(); return true;
+  }
+  if ((el = c('[data-lkg]'))) { const g = lkS().gear, id = el.dataset.lkg; if (g[id]) delete g[id]; else g[id] = 1; save(); haptic(); keep(); return true; }
+  if ((el = c('[data-lkhow]'))) { el.closest('.lk-r').classList.toggle('open'); return true; }
+  if (c('[data-lkskin]')) { lkSkinTest(); return true; }
+  if ((el = c('[data-lkface]'))) { lkFaceRun(el.dataset.lkface); return true; }
+  return false;
+}
+
 function fxRead(id) {
   FXS.read.add(id); const d = fluxDay(); d.n++; save();
   if (d.n === 5 && !d.r) { d.r = 1; lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(3, { noBonus: true, msg: ['Rituel du jour', '5 cartes pour nourrir ton esprit plutôt que le vider.'] }); }
@@ -5326,7 +5540,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.24 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.27 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -5872,7 +6086,7 @@ function themeBlock() {
   return `<p class="gt">Univers de l'app</p>
     <div class="seg" role="group" aria-label="Univers" style="margin-bottom:8px">${[['systeme', 'Système'], ['galaxie', 'Galaxie']].map(([m, l]) => `<button data-ui="${m}" aria-pressed="${(S.ui || 'systeme') === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
     <p class="hint" style="margin-bottom:16px">Système : niveau, stats, quête quotidienne et donjons. Galaxie : les planètes et le soleil. Tes données ne changent pas.</p>
-    ${uiSys() ? `<p class="gt">Apparence</p><p class="hint" style="margin-bottom:16px">En Système, les couleurs ne se choisissent pas : l'aura évolue avec ton rang (aura actuelle : <b>${AURA[auraIdx()]}</b>). Les palettes reviennent en Galaxie.</p><button class="sys-btn big ghost" data-replay-eveil style="margin:0 0 18px">REVOIR L'ÉVEIL</button>${sfxBlock()}` : `<p class="gt">Apparence</p>
+    ${uiSys() ? `<p class="gt">Aura du Système</p><div class="seg" role="group" aria-label="Aura" style="margin-bottom:8px">${Object.entries(AURA_L).map(([k, x]) => `<button data-aural="${k}" aria-pressed="${auraLine() === k}"><span class="dot" style="background:${x.c[0]}"></span>${x.n}</button>`).join('')}</div><div class="aura-strip" style="margin-bottom:8px">${SR_SW.map(c => `<i style="--c:${c}" class="ok"></i>`).join('')}</div><p class="hint" style="margin-bottom:16px">L'aura évolue avec ton rang, de E à S (aura actuelle : <b>${AURA[auraIdx()]}</b>).</p><button class="sys-btn big ghost" data-replay-eveil style="margin:0 0 18px">REVOIR L'ÉVEIL</button>${sfxBlock()}` : `<p class="gt">Apparence</p>
     <div class="thgrid">${Object.entries(THEMES).map(([id, x]) => { const l = x.l.split(' '), d = x.d.split(' '); return `<button class="thsw" data-theme="${id}" aria-pressed="${t.id === id}"><span class="thdots"><i style="background:${l[0]};box-shadow:inset 0 0 0 1px ${l[7]}"></i><i style="background:${l[9]}"></i><i style="background:${d[0]}"></i><i style="background:${d[9]}"></i></span><span>${x.n}</span></button>`; }).join('')}</div>
     ${t.id === 'custom' ? `<div class="thpick"><label><input type="color" data-tcol="a" value="${t.custom.a}"><span>Couleur principale<small>boutons, chiffres, accents</small></span></label><label><input type="color" data-tcol="b" value="${t.custom.b}"><span>Teinte du fond<small>l'ambiance générale</small></span></label></div><p class="hint" style="margin-top:6px">L'app en tire toute seule une version claire et une version sombre lisibles.</p>` : ''}
     <div class="seg" role="group" aria-label="Mode" style="margin-top:10px">${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([m, l]) => `<button data-tmode="${m}" aria-pressed="${t.mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
@@ -5880,6 +6094,7 @@ function themeBlock() {
 }
 function openSettingsBody() { openSettings(); }
 function themeClick(t) {
+  const al = t.closest('[data-aural]'); if (al) { setAuraLine(al.dataset.aural); try { sfx('win'); } catch (e) {} applyTheme(); render(); const sb = $('#settingsBody'), y = sb ? sb.scrollTop : 0; openSettingsBody(); if (sb) sb.scrollTop = y; haptic(); return true; }
   const u = t.closest('[data-ui]'); if (u) { S.ui = u.dataset.ui; try { localStorage.setItem('sdp-ui', S.ui); } catch (e) {} save(); applyTheme(); render(); const sb = $('#settingsBody'), y = sb ? sb.scrollTop : 0; openSettingsBody(); if (sb) sb.scrollTop = y; haptic(); return true; }
   const el = t.closest('[data-theme],[data-tmode]'); if (!el) return false;
   const c = thConf();
@@ -6254,7 +6469,7 @@ function qiblaClick(t) {
   { const q = t.closest('[data-qp]'); if (q) { qpCam(q.dataset.qp); return true; } }
   const b = t.closest('[data-qb]'); if (!b) return false;
   if (b.dataset.qb === 'start') { qiblaStart(); return true; }
-  if (b.dataset.qb === 'sun') { if (QB.head == null) return true; const s = sunPos(new Date(), QB.lat, QB.lon); QB.off = ((s.az - QB.head + 540) % 360) - 180; QB.cal = true; render(); toast('Ciel recalé sur le soleil'); return true; }
+  if (b.dataset.qb === 'sun') { const r = qpSunCheck(); if (r.err) { toast(r.err); return true; } QB.off = r.off; QB.cal = true; render(); toast('Ciel recalé sur le soleil'); return true; }
   return false;
 }
 
@@ -6568,7 +6783,7 @@ function coranClick(t) {
    15. RENDU & NAVIGATION
    ===================================================================== */
 const TABS = ['orbite', 'flux', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business', 'qibla', 'chasse'];
-const CVIEWS = ['entrainement', 'nutrition', 'soin'];
+const CVIEWS = ['entrainement', 'nutrition', 'soin', 'apparence'];
 let tab = 'orbite', missedDismissed = false;
 function render(animate) {
   { const w = chasseActive(), ix = NAV.findIndex(n => n[0] === 'chasse'); if (!w && ix >= 0) NAV.splice(ix, 1); if (w && ix < 0) NAV.push(['chasse', 'Chasse']); }
@@ -6587,7 +6802,7 @@ function render(animate) {
   checkUnlocks();
   document.documentElement.classList.toggle('flux-on', tab === 'flux' && !uiSys());
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
-  try { app.innerHTML = { qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : (S.body.active ? vSession() : vArc()), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab](); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
+  try { app.innerHTML = { qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vLook() : (S.body.active ? vSession() : vArc()), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab](); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
   coreGlyph();
   if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); } }
   if (tab === 'qibla') requestAnimationFrame(qiblaInit);
@@ -6712,6 +6927,7 @@ document.addEventListener('click', e => {
   if (mealClick(t)) return;
   if (dkClick(t)) return;
   if (hairClick(t)) return;
+  if (lookClick(t)) return;
   if (adkClick(t) || qiblaClick(t) || chasseClick(t) || trClick(t) || arClick(t) || nafClick(t) || coranClick(t)) return;
   if ((el = c('[data-open]'))) { el.dataset.open === 'settings' ? openSettings() : el.dataset.open === 'trophies' ? openTrophies() : openIdeas(); return; }
   // Foi
