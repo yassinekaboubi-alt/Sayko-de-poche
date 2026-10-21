@@ -2000,6 +2000,34 @@ body.aura-em .sw.pen .sw-h{color:#FFC2CC;text-shadow:0 0 10px rgba(255,64,96,1)}
 .sq-in{display:block;width:100%;margin:0 0 8px;padding:11px 12px;background:rgba(var(--sar),.06);border:1px solid rgba(var(--sar),.35);color:#fff;font:inherit;font-size:.9rem;border-radius:0}
 .sq-in:focus{outline:none;border-color:var(--sa);box-shadow:0 0 12px rgba(var(--sar),.4)}
 .sq-st.ok{color:var(--sok)}.sq-st.ko{color:#FF7A90}
+
+/* v3.29 · Mode Reprise */
+.rep-days{display:flex;gap:6px;justify-content:center;margin:14px 0 4px}
+.rep-days i{width:26px;height:8px;border:1px solid rgba(var(--sar),.45);background:rgba(var(--sar),.06)}
+.rep-days i.ok{background:var(--sa);box-shadow:0 0 10px rgba(var(--sar),.7);border-color:var(--sa)}
+.rep-days i.cur{border-color:#fff}
+.rep-s{display:block;font-size:.72rem;color:var(--sa2);opacity:.8;margin-top:2px}
+
+/* v3.30 · Cap Psychologie */
+.psy-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.psy-tabs button{padding:9px 4px;border:1px solid rgba(var(--sar),.3);background:rgba(var(--sar),.05);color:var(--sa2);font:700 .62rem/1.2 var(--sysm,system-ui);letter-spacing:.08em}
+.psy-tabs button.on{background:rgba(var(--sar),.22);border-color:var(--sa);color:#fff;box-shadow:0 0 12px rgba(var(--sar),.35)}
+.psy-log{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.psy-log button{padding:7px 10px;border:1px solid rgba(var(--sar),.3);background:none;color:var(--sa2);font-size:.75rem}
+.psy-log button.on{background:rgba(var(--sar),.22);color:#fff;border-color:var(--sa)}
+.rep-s.late{color:#FF7A90;opacity:1}
+.sys-obj.ko .sys-box{border-color:#FF7A90;color:#FF7A90}.sys-obj.ko{color:#FFB3C0}
+.psy-err{position:relative;padding:10px 34px 10px 0;border-bottom:1px dashed rgba(var(--sar),.16)}
+.psy-err p{margin:0 0 3px;font-size:.86rem;color:#E4EEFF}.psy-err p.ok{color:var(--sok)}
+.psy-err .lk-q{position:absolute;right:0;top:12px}
+.psy-res{display:block;padding:10px 0;border-bottom:1px dashed rgba(var(--sar),.16);text-decoration:none}
+.psy-res b{display:block;color:#fff;font-size:.92rem}.psy-res span{display:block;font-size:.8rem;color:var(--sa2);margin-top:2px}
+.lk-hp a{color:var(--sa2);font-weight:700}
+.psy-q{margin:6px 0 14px;text-align:center;font:700 1.1rem/1.35 var(--sysm,system-ui);color:#fff}
+.psy-a{margin:0 0 14px;padding:12px;border-left:2px solid var(--sa);background:rgba(var(--sar),.08);color:#E4EEFF;font-size:.95rem;line-height:1.5}
+.psy-ex{margin:8px 0 10px;padding:9px 11px;border:1px dashed rgba(var(--sar),.45);color:#E4EEFF}
+.psy-tabs{grid-template-columns:repeat(4,1fr)}.psy-tabs button{font-size:.56rem;padding:9px 2px}
+a.lk-q{text-decoration:none}
 </style>
 </head>
 <body>

@@ -549,6 +549,7 @@ const COACH = {
   heures: ['Vérifier ta paie', 'Fais glisser les deux poignées du cadran pour ton début et ta fin (la zone sombre, c\'est la nuit). L\'app cumule tes heures du mois, tes heures de nuit et du dimanche, et le compteur d\'heures stockées de la Gare.']
 };
 const COACH_SYS = {
+  psy: ['Cap Psychologie 2027', 'Ton donjon prioritaire jusqu\'à la rentrée. SEMAINE : les séances de la semaine, courtes, faites pour les temps calmes à la gare ; objectif 5 h. MÉTHODE : réapprendre à prendre des notes, faire des fiches, réviser, passer un examen. CARTE L1 : les domaines de la L1, chapitre par chapitre, pour arriver en avance. NIVEAU : les tests de départ, repassés en semaine 4. CARTES : les flashcards à répétition espacée. DÉMARCHES : chaque étape administrative avec sa date limite. ERREURS : ton carnet d\'erreurs. RESSOURCES : tout est gratuit.'],
   qibla: ['Ta quête de direction', 'Lance le scan : à travers ta caméra, un losange de quête flotte dans ta pièce, dans la direction de la Kaaba, avec sa distance. Une traînée lumineuse au sol y mène ; s\'il est hors champ, il se colle au bord de l\'écran pour te montrer où tourner. Centre-le : la destination se verrouille, ton téléphone vibre, tu fais face à la qibla.'],
   arabe: ['Ton arbre de compétences', 'Cinq compétences se débloquent l\'une après l\'autre, des mots à la lecture fluide. Chaque mot du Coran est une rune : elle s\'allume quand tu le maîtrises (3 bonnes réponses). Quelques minutes de quiz par jour suffisent.'],
   foi: ['Ta quête de prière', 'Chaque prière s\'ouvre à son heure : valide-la en disant comment tu l\'as faite. Tes autres habitudes sont tes objectifs secondaires. Atteindre 90 % sur 30 jours est une des deux clés du donjon Business.'],
@@ -638,8 +639,9 @@ const GSTAGE = ['Roche', 'Eau', 'Océans', 'Vie', 'Civilisation'];
 const GNAME = { foi: ['Suhail', 'Canopus, l\'étoile qui guidait les voyageurs arabes dans le désert'], business: ['Altaïr', 'de an-nasr at-tâ\'ir, l\'aigle qui vole'], corps: ['Hamal', 'de al-ḥamal, le bélier : la force'], argent: ['Alnilam', 'de an-nizâm, le collier de perles'], chasse: ['Alnair', 'de an-nayyir, la brillante'], parcours: ['Achernar', 'de âkhir an-nahr, la fin du fleuve'], arabe: ['Fomalhaut', 'de fam al-hût, la bouche du poisson'], routine: ['Deneb', 'de dhanab, la queue du cygne'] };
 const GSIZE = { chasse: 18, foi: 30, business: 26, corps: 24, argent: 24, parcours: 22, arabe: 20, routine: 19 };
 const GPAL = { chasse: ['#D9E8C2', '#6B7F3A', '#141A08'], foi: ['#C6F7E0', '#1F9E6E', '#04261A'], business: ['#F6E2B0', '#C08A3E', '#2A1606'], corps: ['#F7B79A', '#B9472E', '#2A0A05'], argent: ['#FFF1C8', '#D4A84A', '#2E1E06'], parcours: ['#E6F6FF', '#6FA8D6', '#0B1E33'], arabe: ['#E2D6FF', '#6A57C9', '#120A2E'], routine: ['#B5EAF2', '#22709A', '#03111C'] };
-const GGROW = { chasse: [5, 30, 80, 160], foi: [9, 90, 300, 800], arabe: [5, 30, 80, 150], routine: [3, 20, 60, 150], corps: [1, 10, 30, 80], argent: [5, 40, 120, 300], parcours: [5, 25, 50, 90] };
+const GGROW = { psy: [5, 30, 80, 160], chasse: [5, 30, 80, 160], foi: [9, 90, 300, 800], arabe: [5, 30, 80, 150], routine: [3, 20, 60, 150], corps: [1, 10, 30, 80], argent: [5, 40, 120, 300], parcours: [5, 25, 50, 90] };
 function gValue(k) {
+  if (k === 'psy') { try { const p = psyS(); return Math.floor(psyMinTotal() / 30) + Object.values(p.tests).reduce((a, l) => a + l.length, 0) * 3 + Object.values(p.cards).filter(x => x[0] >= 4).length; } catch (e) { return 0; } }
   if (k === 'arabe') return wordsKnown() + arCount() * 40;
   if (k === 'chasse') { const c = S.chasse || {}; return CHQ.filter(x => chMast(x[0])).length * 2 + (c.ex || []).length * 5 + (c.ext || []).length * 3; }
   if (k === 'foi') { let n = 0; Object.values(S.faith.log || {}).forEach(d => Object.values(d || {}).forEach(v => { if (v && v !== 'x') n++; })); return n; }
@@ -786,7 +788,7 @@ function sysStats() {
     ['FORCE', cap(5 + (fs.force || 0) * .8 + S.body.sessions.length * .6), 'corps'],
     ['AGILITÉ', cap(5 + (fs.vitesse || 0) * .7 + (fs.souplesse || 0) * .2), 'corps'],
     ['ENDURANCE', cap(5 + ((fs.endurance || 0) + (fs.resistance || 0)) * .45), 'corps'],
-    ['SAVOIR', cap(4 + wordsKnown() * .5 + arCount() * 6 + globalPct() * .3), 'arabe'],
+    ['SAVOIR', cap(4 + wordsKnown() * .5 + arCount() * 6 + globalPct() * .3 + (typeof psyMinTotal === 'function' && S.psy ? psyMinTotal() / 120 : 0)), 'arabe'],
     ['DISCIPLINE', cap(4 + Object.keys(S.days || {}).length * 1.2 + (S.fight ? planStats(4).pct * 30 : 0) - (Number((S.sys || {}).disc) || 0)), 'routine'],
     ['RICHESSE', cap(4 + S.money.tx.length * .4 + gStage('argent') * 8), 'argent'],
     ['ESPRIT', cap(4 + Object.keys(S.flux.seen || {}).length * .15 + Object.keys((S.heart && S.heart.c) || {}).length * 4), 'flux']
@@ -809,13 +811,13 @@ function questDay(k = todayISO()) {
 const questDone = d => d.list.every(o => o.v >= o.n);
 function penaltyToday() {
   const s = sysS(), y = iso(addDays(new Date(), -1)), start = s.start || todayISO();
-  if (y < start) return null;
+  if (y < start || repOn() || repOn(y)) return null;
   const yd = s.q[y]; if (yd && yd.done) return null;
   const k = todayISO(), q = s.q[k] = s.q[k] || { m: {} }; q.pen = q.pen || { n: 0, goal: 100 }; return q.pen;
 }
 const tLeft = () => { const n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); const s = Math.max(0, Math.floor((m - n) / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; };
 /* Les donjons : chaque module, avec son rang selon ta progression */
-const DUNG = [['foi', 'Foi'], ['corps', 'Corps'], ['arabe', 'Arabe'], ['routine', 'Routine'], ['argent', 'Argent'], ['parcours', 'Parcours'], ['business', 'Business'], ['chasse', 'Chasse']];
+const DUNG = [['foi', 'Foi'], ['psy', 'Psychologie'], ['corps', 'Corps'], ['arabe', 'Arabe'], ['routine', 'Routine'], ['argent', 'Argent'], ['parcours', 'Parcours · en pause'], ['business', 'Business'], ['chasse', 'Chasse']];
 const DRANK = ['E', 'D', 'C', 'B', 'A'];
 function sysWin(title, body, cls = '') { return `<section class="sw ${cls}"><i class="sw-c sw-tl"></i><i class="sw-c sw-tr"></i><i class="sw-c sw-bl"></i><i class="sw-c sw-br"></i><header class="sw-h"><span class="sw-dot"></span>${title}</header><div class="sw-b">${body}</div></section>`; }
 function vSys(now) {
@@ -831,6 +833,11 @@ function vSys(now) {
     <p class="sys-warn">${done ? 'Accomplie · +30 XP' : `<b class="num" id="sysT">${tLeft()}</b> · échec = pénalité`}</p>`;
   const penW = pen && !(pen.n >= pen.goal) ? sysWin('ALERTE · QUÊTE DE PÉNALITÉ', `<p class="sys-pt">Quête d'hier échouée : 100 pompes aujourd'hui.</p><div class="sys-pbar"><i style="width:${pen.n}%"></i></div><p class="num" style="text-align:center;margin:6px 0 10px">${pen.n} / 100</p><div class="row" style="gap:8px">${[5, 10, 20].map(n => `<button class="sys-btn" data-syspen="${n}">+${n}</button>`).join('')}<button class="sys-btn ghost" data-syspen="-5">−5</button></div>`, 'pen') : '';
   const dung = dungList();
+  if (repOn()) return `<header class="sys-top"><p class="sys-k">◆ SYSTÈME · REPRISE</p><p class="sys-date">${DAY_LONG.format(now).replace(/^./, c => c.toUpperCase())}</p>
+      <div class="top-actions"><button class="icon-btn" data-open="settings" aria-label="Réglages">${ICON.gear}</button></div></header>
+    ${repWin()}
+    ${sysWin('STATUT', status)}
+    ${sysWin('DONJONS', dung)}`;
   return `<header class="sys-top"><p class="sys-k">◆ SYSTÈME</p><p class="sys-date">${DAY_LONG.format(now).replace(/^./, c => c.toUpperCase())}</p>
       <div class="top-actions"><button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button><button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button><button class="icon-btn" data-open="settings" aria-label="Réglages">${ICON.gear}</button></div></header>
     ${sqWinHtml()}
@@ -855,6 +862,7 @@ function sysPop(title, html, btn = 'Fermer', cls = '') {
   el.addEventListener('click', e => { if (e.target.closest('[data-syspop]') || e.target === el) { el.classList.remove('on'); setTimeout(() => el.remove(), 300); } });
 }
 function sysCheck() {
+  { const r = repS(); if (r && !r.closed && (repOn() || todayISO() >= r.end)) { repCheck(); return; } }
   const s = sysS(), k = todayISO(); if (!s.start) { s.start = k; save(); }
   const L = lvOf(xpTotal()).l;
   if (s.lv == null || L < s.lv) { s.lv = L; save(); }
@@ -1368,6 +1376,7 @@ function vParcoursSys() {
 function sysPQ() { const s = sysS(); s.pq = Array.isArray(s.pq) ? s.pq : []; s.flags = s.flags || {}; return s; }
 let SANQ = [];
 function sanction(title, lines, xp, quest) {
+  if (repOn()) return;
   if (!uiSys()) { if (xp) { nourAdd(-xp); save(); } return; }
   const s = sysPQ();
   if (xp) xpLose(xp);
@@ -1388,6 +1397,7 @@ function sanctionNext() {
 }
 /* Contrôles du matin : quête d'hier, séance prévue hier, quêtes de rattrapage expirées */
 function sanctionsDaily() {
+  if (repOn()) return;
   const s = sysPQ(), k = todayISO(), y = iso(addDays(new Date(), -1)), start = s.start || k;
   if (y < start) return;
   inactCheck();
@@ -5350,12 +5360,14 @@ function lkPending() {
   return out;
 }
 function lookWin() {
+  if (repOn()) return '';
   const p = lkPending(); if (!p.length) return '';
   const late = new Date().getHours() >= 22 || new Date().getHours() < 3;
   return sysWin(late ? 'ALERTE · PROTOCOLE D\'APPARENCE' : 'PROTOCOLE D\'APPARENCE', `${p.map(([k, t]) => `<button class="sys-obj" data-goto="apparence"><span class="sys-box"></span><span class="grow">${t}</span><b class="num">!</b></button>`).join('')}<p class="sys-warn">${late ? 'Tu ne te couches pas avant de l\'avoir fait.' : 'Le Système ne lâchera pas tant que ce n\'est pas fait.'}</p>`, late ? 'pen' : '');
 }
 /* Alerte plein écran à l'ouverture : au plus une fois toutes les 90 minutes */
 function lookNag() {
+  if (repOn()) return;
   if (tab !== 'orbite' || !uiSys() || $('.sys-pop') || $('#intro') || $('#inact')) return;
   const p = lkPending().filter(x => x[0] === 'am' || x[0] === 'pm'); if (!p.length) return;
   let last = 0; try { last = Number(localStorage.getItem('sdp-looknag') || 0); } catch (e) {}
@@ -5466,7 +5478,7 @@ function lookClick(t) {
    État : S.sq = { since, inst: [], fails, streak, done, failed, titles: [], pts: {}, shield, chain, journal: [], hist: {} }
    ===================================================================== */
 const SQ_R = { c: ['COMMUNE', 5, 3, 60], r: ['RARE', 15, 8, 120], e: ['ÉPIQUE', 40, 20, 240], u: ['URGENCE', 20, 10, 15], l: ['LÉGENDAIRE', 150, 0, 1440] };
-const SQ_TH = { disc: ['DISCIPLINE', ['DISCIPLINE']], corps: ['CORPS', ['FORCE', 'ENDURANCE', 'AGILITÉ']], alim: ['ALIMENTATION', ['ENDURANCE', 'FORCE']], foi: ['FOI', ['FOI']], arabe: ['ARABE', ['SAVOIR']], argent: ['ARGENT', ['RICHESSE']], heures: ['HEURES', ['RICHESSE']], sommeil: ['SOMMEIL', ['ENDURANCE', 'ESPRIT']], look: ['APPARENCE', ['DISCIPLINE', 'ESPRIT']], chasse: ['CHASSE', ['SAVOIR']], biz: ['BUSINESS', ['SAVOIR', 'RICHESSE']], parcours: ['PARCOURS', ['SAVOIR']], mental: ['MENTAL', ['ESPRIT']], liens: ['LIENS', ['ESPRIT', 'FOI']] };
+const SQ_TH = { disc: ['DISCIPLINE', ['DISCIPLINE']], corps: ['CORPS', ['FORCE', 'ENDURANCE', 'AGILITÉ']], alim: ['ALIMENTATION', ['ENDURANCE', 'FORCE']], foi: ['FOI', ['FOI']], arabe: ['ARABE', ['SAVOIR']], argent: ['ARGENT', ['RICHESSE']], heures: ['HEURES', ['RICHESSE']], sommeil: ['SOMMEIL', ['ENDURANCE', 'ESPRIT']], look: ['APPARENCE', ['DISCIPLINE', 'ESPRIT']], chasse: ['CHASSE', ['SAVOIR']], biz: ['BUSINESS', ['SAVOIR', 'RICHESSE']], parcours: ['PARCOURS', ['SAVOIR']], psy: ['PSYCHOLOGIE', ['SAVOIR']], mental: ['MENTAL', ['ESPRIT']], liens: ['LIENS', ['ESPRIT', 'FOI']] };
 const SQ_COLD = [30, 45, 60, 90, 120, 180];
 const sqCold = () => SQ_COLD[Math.max(0, Math.min(5, auraIdx()))];
 let SQ_T = 0; const sqNow = () => SQ_T ? new Date(SQ_T) : new Date();
@@ -5519,10 +5531,13 @@ const SQ_POOL = [
   ['l-chaussures', 'look', 'c', 'Les chaussures', 'Nettoie la paire que tu portes le plus.', {}],
   ['ch-q', 'chasse', 'c', 'Dix questions', '10 questions du permis de chasser, maintenant.', { go: 'chasse', c: () => typeof chasseActive === 'function' && chasseActive() }],
   ['ch-esp', 'chasse', 'c', 'Cinq espèces', 'Révise 5 espèces : reconnaissance, chassable ou protégée.', { go: 'chasse', c: () => typeof chasseActive === 'function' && chasseActive() }],
-  ['b-form', 'parcours', 'r', '20 minutes de formation', 'Avance de 20 minutes dans ton Parcours : un cours, un chapitre ou une vidéo. Note ce que tu retiens.', { k: 'txt', lines: 1, ph: 'Ce que je retiens', go: 'parcours' }],
+  ['b-form', 'psy', 'r', '25 minutes de Cap Psycho', 'Une séance de ta semaine, maintenant. Puis note ce que tu retiens, de mémoire.', { k: 'txt', lines: 1, ph: 'Ce que je retiens', go: 'psy' }],
+  ['p-fc', 'psy', 'c', 'Les cartes du jour', 'Révise tes flashcards dues dans Psychologie.', { go: 'psy' }],
+  ['p-art', 'psy', 'r', 'Un article, cinq lignes', 'Un article Psychologie de The Conversation : lis-le, ferme-le, résume-le en 5 lignes.', { k: 'txt', lines: 1, ph: 'Mon résumé en quelques phrases' }],
+  ['p-err', 'psy', 'c', 'Le carnet d\'erreurs', 'Relis ton carnet d\'erreurs et refais 3 erreurs sans regarder la correction.', { go: 'psy' }],
   ['b-idee', 'biz', 'c', 'Une idée de business', 'En 3 lignes : le problème, le client, comment tu gagnes de l\'argent.', { k: 'txt', lines: 3, ph: ['Le problème', 'Le client', 'Le modèle'] }],
   ['b-nego', 'biz', 'r', 'Négociation', 'Aujourd\'hui, demande quelque chose que tu n\'aurais pas osé demander : une remise, un délai, un avantage.', { until: 22 }],
-  ['b-lire', 'parcours', 'c', 'Dix pages', 'Lis 10 pages d\'un livre utile.', {}],
+  ['b-lire', 'psy', 'c', 'Dix pages', 'Lis 10 pages d\'OpenStax Psychology, ou d\'un livre de psychologie.', {}],
   ['e-muhasaba', 'mental', 'r', 'Muhasaba', 'Le bilan du jour, par écrit : ce que tu as bien fait, ce que tu as raté, ce que tu corriges demain.', { k: 'txt', lines: 3, ph: ['Bien fait', 'Raté', 'Demain je corrige'], c: () => sqH() >= 18 }],
   ['e-grat', 'mental', 'c', 'Trois gratitudes', 'Trois choses précises dont tu es reconnaissant aujourd\'hui. Alhamdulillah.', { k: 'txt', lines: 3, ph: ['1', '2', '3'] }],
   ['e-silence', 'mental', 'c', 'Cinq minutes de silence', 'Assis, sans téléphone, sans musique. Seulement toi et tes pensées.', { k: 'tmr', sec: 300 }],
@@ -5554,11 +5569,11 @@ function sqS() {
 /* Les créneaux du jour, tirés au sort avec la date comme graine : 1 à 3, entre 7 h et 21 h 30, à 90 min d'écart, jamais au début d'une prière */
 function sqRng(seed) { let h = 2166136261; for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 100000) / 100000; }; }
 function sqSlots(k) {
-  const r = sqRng('sq' + k), x = r(), n = x < .2 ? 1 : x < .65 ? 2 : 3, out = [];
+  const soft = S.sq && S.sq.softUntil && k < S.sq.softUntil, r = sqRng('sq' + k), x = r(), n = soft ? 1 : x < .2 ? 1 : x < .65 ? 2 : 3, out = [];
   let pr = []; try { const t = ptDay(k); pr = Object.values(t.win).map(w => w[0].getHours() * 60 + w[0].getMinutes()); } catch (e) {}
   for (let tries = 0; out.length < n && tries < 40; tries++) {
     let m = 420 + Math.floor(r() * 870); if (pr.some(p => m >= p - 10 && m < p + 25)) m += 35;
-    if (out.every(o => Math.abs(o.m - m) >= 90)) out.push({ m, u: r() < .15 });
+    if (out.every(o => Math.abs(o.m - m) >= 90)) out.push({ m, u: !soft && r() < .15 });
   }
   return out.sort((a, b) => a.m - b.m);
 }
@@ -5588,6 +5603,7 @@ function sqMake(def, start, extra = {}) {
 }
 /* Le moteur : appelé toutes les 20 s quand l'app est ouverte */
 function sqTick() {
+  if (repOn()) return;
   if (!uiSys() || typeof S === 'undefined' || !S) return;
   const s = sqS(), now = Date.now(), k = todayISO(); let changed = false;
   /* créneaux du jour (et d'hier, si l'app n'a pas été ouverte) */
@@ -5629,6 +5645,7 @@ function sqTick() {
 function sqAutoDone(q) { if (q.chain === 'prieres') { try { return prayToday(q.day) >= 5; } catch (e) { return false; } } return false; }
 /* L'alerte plein écran d'une nouvelle quête */
 function sqAnnounce() {
+  if (repOn()) return;
   if (!uiSys() || $('.sys-pop') || $('#intro') || $('#inact') || $('.lk-run') || SANQ.length) return;
   const q = sqS().inst.find(x => x.st === 'new' && x.end > Date.now()); if (!q) return;
   const R = SQ_R[q.r], el = document.createElement('div'), urg = q.r === 'u', leg = q.r === 'l';
@@ -5758,6 +5775,411 @@ function sqStart() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(sqTick, 800); });
 }
 
+/* =====================================================================
+   MODE REPRISE (v3.29) — 7 jours, 3 quêtes, aucune sanction
+   Les cinq prières (comptées toutes seules), 10 pompes après Fajr, le soin de base.
+   Pendant la Reprise : pas de sanction, pas de quête surprise, pas de rappel insistant, pas de pénalité du lendemain.
+   À la fin : bilan, puis retour progressif (1 quête surprise par jour, sans urgence, pendant 7 jours) ou prolongation.
+   État : S.rep = { start, end (exclu), log: { date: { pr, po, so, ok } }, closed }
+   ===================================================================== */
+const REP_Q = [['pr', 'Les cinq prières', 'Même en retard. Juste les faire.'], ['po', '10 pompes après Fajr', 'Dix. Pas une de plus obligatoire.'], ['so', 'Douche · dents matin et soir · déodorant', 'Avec ce que tu as déjà.']];
+function repS() { return S.rep && typeof S.rep === 'object' && S.rep.start ? S.rep : null; }
+function repOn(k = todayISO()) { const r = repS(); return !!(r && !r.closed && r.start <= k && k < r.end); }
+function repDayN() { const r = repS(); return r ? Math.round((parseDate(todayISO()) - parseDate(r.start)) / 864e5) + 1 : 0; }
+function repLen() { const r = repS(); return r ? Math.round((parseDate(r.end) - parseDate(r.start)) / 864e5) : 7; }
+function repLog(k = todayISO()) { const r = repS(); r.log = r.log || {}; return r.log[k] = r.log[k] || {}; }
+function repPr(k = todayISO()) { try { return Math.min(5, prayToday(k)); } catch (e) { return 0; } }
+function repVal(id, k = todayISO()) { return id === 'pr' ? repPr(k) >= 5 : !!repLog(k)[id]; }
+function repWin() {
+  const n = REP_Q.filter(([id]) => repVal(id)).length, pr = repPr(), r = repS(), done = Object.values(r.log || {}).filter(x => x.ok).length;
+  return sysWin(`REPRISE · JOUR ${repDayN()}/${repLen()}`, `<p class="sys-qt">TROIS QUÊTES. AUCUNE SANCTION.</p>
+    ${REP_Q.map(([id, t, s]) => { const v = repVal(id); return `<button class="sys-obj ${v ? 'ok' : ''}" ${id === 'pr' ? 'data-goto="foi"' : `data-rep="${id}"`}><span class="sys-box">${v ? '✓' : ''}</span><span class="grow">${t}<small class="rep-s">${s}</small></span><b class="num">${id === 'pr' ? `[${pr}/5]` : `[${v ? 1 : 0}/1]`}</b></button>`; }).join('')}
+    <div class="rep-days">${Array.from({ length: repLen() }, (_, i) => { const k = iso(addDays(parseDate(r.start), i)), x = (r.log || {})[k]; return `<i class="${x && x.ok ? 'ok' : k === todayISO() ? 'cur' : ''}"></i>`; }).join('')}</div>
+    <p class="sys-warn" style="color:var(--sa2)">${n === 3 ? 'Jour accompli. Le Joueur se relève.' : `${done} jour${done > 1 ? 's' : ''} tenu${done > 1 ? 's' : ''} · le reste du Système attend`}</p>`, n === 3 ? 'done' : '');
+}
+/* Récompenses et jour accompli : appelé à l'ouverture du Statut et après chaque case */
+function repCheck() {
+  if (!repS()) return;
+  const r = repS(), k = todayISO();
+  if (!r.closed && k >= r.end) { repEnd(); return; }
+  if (!repOn()) return;
+  const l = repLog(k);
+  if (repPr(k) >= 5 && !l.prX) { l.prX = 1; reward(3, { noBonus: true }); }
+  if (!l.ok && REP_Q.every(([id]) => repVal(id, k))) { l.ok = 1; save(); reward(5, { noBonus: true }); setTimeout(() => sysPop(`JOUR ${repDayN()} ACCOMPLI`, `<p class="sys-li" style="text-align:center">Les trois quêtes sont faites.</p><p class="sys-pt" style="text-align:center">+5 XP</p><p class="sys-li" style="text-align:center;opacity:.8">Petit, mais tenu. C'est comme ça qu'on remonte.</p>`, 'CONTINUER', 'ok'), 300); return; }
+  if (r.seen !== k) { r.seen = k; save(); setTimeout(() => sysPop(`REPRISE · JOUR ${repDayN()}/${repLen()}`, `<p class="sys-qt" style="text-align:center">AUJOURD'HUI, SEULEMENT ÇA</p>${REP_Q.map(([, t]) => `<p class="sys-li">— ${t}</p>`).join('')}<p class="sys-li" style="text-align:center;margin-top:10px;opacity:.8">Pas de sanction. Le Système attend seulement que tu te relèves.</p>`, 'C\'EST PARTI'), 600); }
+  save();
+}
+function repStart() {
+  const k = todayISO(); S.rep = { start: k, end: iso(addDays(new Date(), 7)), log: {}, seen: k };
+  try { sqS().inst.forEach(q => { if (q.st === 'new' || q.st === 'acc') q.st = 'pause'; }); } catch (e) {}
+  SANQ.length = 0; save();
+  sysPop('MODE REPRISE ACTIVÉ', `<p class="sys-li" style="text-align:center">7 jours. Trois quêtes par jour :</p>${REP_Q.map(([, t]) => `<p class="sys-li">— ${t}</p>`).join('')}<p class="sys-li" style="text-align:center;margin-top:10px">Sanctions, quêtes surprises et rappels sont en pause. Le reste de l'app reste ouvert si tu en as envie, mais rien ne t'y oblige.</p>`, 'COMMENCER', 'lvl');
+}
+function repStop(extend) {
+  const r = repS(); if (!r) return;
+  if (extend) { r.end = iso(addDays(parseDate(todayISO()), 7)); r.seen = null; save(); render(); repCheck(); return; }
+  r.closed = todayISO(); r.end = r.end > todayISO() ? todayISO() : r.end;
+  try { const s = sqS(); s.since = Date.now(); s.softUntil = iso(addDays(new Date(), 7)); } catch (e) {}
+  try { const s = sysS(); s.seen = todayISO(); s.lv = lvOf(xpTotal()).l; } catch (e) {}
+  save(); render();
+}
+function repEnd() {
+  if ($('.sys-pop')) { setTimeout(repEnd, 900); return; }
+  const r = repS(), done = Object.values(r.log || {}).filter(x => x.ok).length, len = repLen(), el = document.createElement('div');
+  el.className = 'sys-pop on sq-pop'; el.setAttribute('role', 'dialog');
+  el.innerHTML = `<div class="sys-pop-in">${sysWin('REPRISE TERMINÉE', `<p class="sys-qt" style="text-align:center">BILAN</p><p class="sq-left num">${done} / ${len} jours</p>
+    <p class="sys-li" style="text-align:center">${done >= len - 1 ? 'Tu t\'es relevé. Le Système peut reprendre.' : done >= 3 ? 'Ça remonte. Tu peux reprendre, ou consolider encore une semaine.' : 'C\'était difficile, et ce n\'est pas grave. Une semaine de plus pour consolider ?'}</p>
+    <p class="sys-li" style="text-align:center;opacity:.8">En reprenant : une seule quête surprise par jour, sans urgence, pendant 7 jours. Ajoute une seule nouvelle habitude cette semaine.</p>
+    <div class="lk-face"><button class="sys-btn ghost" data-repe="more">PROLONGER 7 JOURS</button><button class="sys-btn" data-repe="go">REPRENDRE</button></div>`)}</div>`;
+  document.body.appendChild(el); try { sfx('lvl'); } catch (e) {}
+  el.addEventListener('click', e => { const b = e.target.closest('[data-repe]'); if (!b) return; e.stopPropagation(); el.remove(); repStop(b.dataset.repe === 'more'); });
+}
+function repClick(t) {
+  const c = s => t.closest(s); let el;
+  if ((el = c('[data-rep]'))) { if (!repOn()) return true; const l = repLog(), id = el.dataset.rep; if (l[id]) { delete l[id]; unreward(3); } else { l[id] = 1; reward(3, { noBonus: true }); } haptic(); save(); const y = window.scrollY; render(); window.scrollTo(0, y); repCheck(); return true; }
+  if ((el = c('[data-repset]'))) { $('#settingsSheet') && $('#settingsSheet').open && $('#settingsSheet').close(); if (el.dataset.repset === 'on') { if (tab !== 'orbite') go('orbite'); repStart(); render(); } else repStop(false); return true; }
+  return false;
+}
+function repSetting() {
+  const on = repOn();
+  return `<p class="gt">Mode Reprise</p><p class="hint" style="margin-bottom:10px">${on ? `En cours · jour ${repDayN()}/${repLen()}. Sanctions, quêtes surprises et rappels sont en pause.` : 'Quand tout pèse trop : 7 jours, trois quêtes simples, aucune sanction. Puis retour progressif.'}</p><button class="sys-btn big ${on ? 'ghost' : ''}" data-repset="${on ? 'off' : 'on'}" style="margin:0 0 18px">${on ? 'ARRÊTER LA REPRISE' : 'ACTIVER LE MODE REPRISE'}</button>`;
+}
+
+/* =====================================================================
+   CAP PSYCHOLOGIE 2027 (v3.30) — donjon « Psychologie »
+   Objectif : L1 Psychologie, Université Côte d'Azur (campus Carlone, Nice), rentrée septembre 2027.
+   Tout est pensé pour le téléphone : séances courtes et interruptibles (temps calme à la gare),
+   audio pendant les livraisons. Test de niveau, programme semaine par semaine, démarches datées,
+   flashcards à répétition espacée, carnet d'erreurs, ressources gratuites.
+   État : S.psy = { tests: { fr: [{d, s}] }, done: { sessionId: date }, log: [{d, m, sub}], adm: { id: date }, cards: { id: [box, due] }, err: [{d, sub, e, c}], audio: { date: n } }
+   ===================================================================== */
+const PSY_START = '2026-10-26';
+const PSY_RENTREE = '2027-09-01';
+const PSY_GOAL = 300;
+const PSY_SUB = { fr: 'Français', ma: 'Maths & stats', bio: 'Biologie & neuro', psy: 'Psychologie', en: 'Anglais', me: 'Méthode', au: 'Audio' };
+const PSY_RES = {
+  khan: ['Khan Academy (FR)', 'https://fr.khanacademy.org/', 'Maths, statistiques, biologie. Gratuit, exercices corrigés.'],
+  ccdmd: ['CCDMD · exercices de français', 'https://www.ccdmd.qc.ca/fr/', 'Orthographe, grammaire, accords. Gratuit, corrigés immédiats.'],
+  cerveau: ['Le cerveau à tous les niveaux', 'https://lecerveau.mcgill.ca/', 'Neurosciences en français, du débutant à l\'avancé. Université McGill.'],
+  openstax: ['OpenStax · Psychology 2e', 'https://openstax.org/details/books/psychology-2e', 'Manuel d\'introduction complet, gratuit, en anglais : psycho et anglais scientifique en même temps.'],
+  conv: ['The Conversation (FR)', 'https://theconversation.com/fr', 'Articles écrits par des chercheurs. Parfait pour s\'entraîner à résumer.'],
+  lhtl: ['Learning How to Learn (Coursera)', 'https://www.coursera.org/learn/learning-how-to-learn', 'Le cours de référence sur les méthodes d\'apprentissage. Gratuit en audit, sous-titres FR.'],
+  uca: ['Licence Psychologie · UCA', 'https://univ-cotedazur.fr/formation/offre-de-formation/licence-psychologie', 'La fiche officielle de la formation.'],
+  pcs: ['Calendrier Parcoursup', 'https://www.parcoursup.gouv.fr/calendrier', 'Les dates officielles de la campagne 2027.'],
+  canalu: ['Canal-U', 'https://www.canal-u.tv/', 'Cours filmés d\'universités françaises : parfait pour s\'entraîner à prendre des notes.'],
+  bbc: ['BBC Learning English', 'https://www.bbc.co.uk/learningenglish/', 'Anglais gratuit, avec audio.'],
+  cqfd: ['La Science, CQFD (France Culture)', 'https://www.radiofrance.fr/franceculture/podcasts/la-science-cqfd', 'Podcast scientifique, idéal pendant les livraisons.'],
+  hb: ['Hidden Brain (NPR, anglais)', 'https://hiddenbrain.org/', 'Podcast de psychologie en anglais : psycho et oreille en même temps.'] };
+/* Méthode : réapprendre à travailler, une leçon à la fois */
+const PSY_METH = [
+  ['m1', 'Le matériel du retour', '<p>Un classeur A4 avec des intercalaires (un par matière) et des feuilles à grands carreaux, ou un cahier par matière. Trois stylos : noir pour le cours, bleu pour tes ajouts, rouge pour les questions et les corrections. Un seul surligneur. Des fiches bristol A6 pour les révisions.</p>', 'Prépare ton matériel, puis écris à la main une page entière : pourquoi tu reprends tes études.'],
+  ['m2', 'Réveiller l\'écriture', '<p>La main est rouillée, c\'est normal : ça revient en deux ou trois semaines d\'écriture régulière. Écrire à la main oblige à reformuler, et reformuler aide à comprendre.</p><p>En cours, on n\'écrit pas tout : on note les idées, pas les phrases. Abréviations utiles : <b>ex.</b> exemple · <b>cf.</b> voir · <b>≠</b> différent · <b>→</b> entraîne · <b>∴</b> donc · <b>pb</b> problème · <b>qqch</b> quelque chose · <b>tjs</b> toujours · <b>dvpt</b> développement · <b>cog.</b> cognitif · <b>ttt</b> traitement.</p>', 'Écris de mémoire, à la main, en 10 minutes, ce que tu as retenu d\'un podcast de la semaine, avec au moins 5 abréviations.'],
+  ['m3', 'Prendre des notes : la méthode Cornell', '<p>Divise ta page en trois : une colonne d\'environ 5 cm à gauche, une bande de 5 lignes en bas, le reste à droite.</p><ul><li><b>Pendant le cours</b>, à droite : les notes (idées, définitions, auteurs, exemples).</li><li><b>Après le cours</b>, à gauche : les questions auxquelles tes notes répondent.</li><li><b>En bas</b> : le résumé de la page en deux phrases.</li></ul><p>Tu viens de fabriquer ta révision : il suffira de cacher la droite et de répondre aux questions de gauche.</p>', 'Prends en notes, à la main, une vidéo de cours de 10 à 15 minutes sur Canal-U (cherche « psychologie »), puis remplis la colonne des questions et le résumé.'],
+  ['m4', 'Relire dans les 24 heures', '<p>Sans relecture, on oublie très vite l\'essentiel d\'un cours. Relire ses notes le soir même ou le lendemain, 10 minutes, et compléter ce qui manque : c\'est le geste qui rapporte le plus pour le moins de temps.</p>', 'Le lendemain d\'une séance, cache la colonne de droite de tes notes Cornell et réponds à voix basse aux questions de gauche.'],
+  ['m5', 'Faire des fiches', '<p>Une fiche = une notion. Recto : la question. Verso : la réponse courte, avec une définition, un auteur, un exemple. Si ta fiche fait une page, c\'est un cours, pas une fiche.</p>', 'Fais 10 fiches sur le chapitre de la semaine.'],
+  ['m6', 'Réviser : se tester, pas relire', '<p>Relire donne l\'impression de savoir. Se tester oblige à aller chercher l\'information, et c\'est cet effort qui fixe la mémoire.</p><ul><li><b>La feuille blanche</b> : écris tout ce que tu sais, sans rien regarder, puis complète en rouge.</li><li><b>L\'espacement</b> : revois à J+1, J+3, J+7, J+14, J+30 (les flashcards de l\'app le font pour toi).</li><li><b>Le mélange</b> : alterne les matières plutôt que deux heures sur la même.</li></ul>', 'Feuille blanche sur le chapitre de la semaine : 10 minutes sans rien regarder, puis correction en rouge.'],
+  ['m7', 'Lire un article scientifique', '<p>Un article de psychologie suit presque toujours le même plan : <b>Introduction</b> (la question), <b>Méthode</b> (qui, comment), <b>Résultats</b> (les chiffres), <b>Discussion</b> (ce que ça veut dire, les limites). Commence par le résumé, puis la discussion, puis la méthode.</p>', 'Choisis un article de The Conversation qui cite une étude, retrouve-la, et note en une ligne chacune de ses quatre parties.'],
+  ['m8', 'Les examens de L1', '<p>En licence de psychologie, on rencontre souvent des QCM, des questions de cours rédigées et des exercices de statistiques. Les modalités exactes de Nice seront dans ton guide des études à la rentrée.</p><ul><li><b>QCM</b> : lis toutes les propositions, élimine, méfie-toi de « toujours » et « jamais ».</li><li><b>Question de cours</b> : définition, auteur, exemple, limite.</li><li><b>Statistiques</b> : écris chaque étape du calcul, pas seulement le résultat.</li></ul>', 'Le partiel blanc de la semaine 4, dans l\'onglet NIVEAU.'],
+  ['m9', 'Une semaine d\'étudiant qui travaille', '<p>Les <b>CM</b> (cours magistraux, en amphi) : on écoute et on prend des notes. Les <b>TD</b> (travaux dirigés, en petit groupe) : on s\'entraîne, et la présence y est souvent obligatoire. Le travail personnel compte autant que les cours : régulier chaque semaine, pas en rattrapage la veille des partiels.</p>', 'Dessine sur papier ta semaine type de septembre 2027 : cours, Mister Pizza, sommeil, travail personnel, repos.']];
+/* La carte de la L1 : les grands domaines, avec les chapitres d'OpenStax Psychology 2e et la période visée */
+const PSY_L1 = [
+  ['Histoire et grands courants', [[1, 'Introduction à la psychologie', 'nov.']]],
+  ['Méthodes et statistiques', [[2, 'Les méthodes de recherche', 'nov.']]],
+  ['Neurobiologie', [[3, 'Biopsychologie', 'nov.'], [4, 'États de conscience', 'déc.']]],
+  ['Psychologie cognitive', [[5, 'Sensation et perception', 'janv.'], [7, 'Pensée et intelligence', 'févr.'], [8, 'Mémoire', 'févr.']]],
+  ['Apprentissage', [[6, 'Apprentissage', 'janv.']]],
+  ['Psychologie du développement', [[9, 'Le développement tout au long de la vie', 'mars']]],
+  ['Émotion, motivation, personnalité', [[10, 'Émotion et motivation', 'avr.'], [11, 'Personnalité', 'avr.']]],
+  ['Psychologie sociale', [[12, 'Psychologie sociale', 'mai']]],
+  ['Clinique et psychopathologie', [[14, 'Stress, mode de vie et santé', 'juin'], [15, 'Troubles psychologiques', 'juin'], [16, 'Thérapies et traitements', 'juil.']]]];
+const PSY_OS = n => `https://openstax.org/books/psychology-2e/pages/${n}-introduction`;
+/* Le programme des 4 premières semaines : méthode + un thème de L1 + les bases (puis on construit la suite avec les résultats de la semaine 4) */
+const PSY_WEEKS = [
+  { t: 'Semaine 0 · Diagnostic et remise en route', o: 'Mesurer ton niveau réel et reprendre le stylo.', s: [
+    ['w0-fr', 'fr', 20, 'Test de niveau · Français', 'Onglet NIVEAU.'],
+    ['w0-ma', 'ma', 20, 'Test de niveau · Maths & stats', 'Sans calculatrice.'],
+    ['w0-bio', 'bio', 15, 'Test de niveau · Biologie & neuro', 'Réponds sans chercher : on veut ton vrai niveau.'],
+    ['w0-en', 'en', 15, 'Test de niveau · Anglais scientifique', ''],
+    ['w0-m1', 'me', 25, 'Méthode 1 · Le matériel + une page à la main', 'Onglet MÉTHODE, leçon 1.'],
+    ['w0-m2', 'me', 15, 'Méthode 2 · Réveiller l\'écriture', 'Onglet MÉTHODE, leçon 2.'],
+    ['w0-fc', 'psy', 20, 'Flashcards · première découverte', '10 minutes, deux fois.'],
+    ['w0-au', 'au', 0, '2 épisodes de podcast en livraison', 'La Science, CQFD ou Hidden Brain.', 'cqfd']] },
+  { t: 'Semaine 1 · Prendre des notes', o: 'Apprendre la méthode Cornell sur le premier thème de L1 : l\'histoire de la psychologie.', s: [
+    ['w1-m3', 'me', 30, 'Méthode 3 · Cornell sur une vidéo de cours', 'Onglet MÉTHODE, leçon 3. À la main.', 'canalu'],
+    ['w1-ch1', 'psy', 45, 'L1 · Histoire et grands courants (OpenStax ch. 1)', 'Notes Cornell à la main : Wundt, structuralisme, fonctionnalisme, béhaviorisme, psychanalyse, humanisme, cognitivisme.', 'openstax'],
+    ['w1-m4', 'me', 15, 'Méthode 4 · Relecture à J+1', 'Le lendemain : cache la colonne de droite, réponds aux questions.'],
+    ['w1-fr', 'fr', 20, 'Français · accords du participe passé', 'Chaque faute va dans le carnet d\'erreurs.', 'ccdmd'],
+    ['w1-ma1', 'ma', 25, 'Maths · fractions et pourcentages', '', 'khan'],
+    ['w1-ma2', 'ma', 20, 'Maths · proportionnalité', '', 'khan'],
+    ['w1-fc', 'psy', 50, 'Flashcards · 10 min par jour de gare', 'Les cartes dues du jour, pas plus.'],
+    ['w1-au', 'au', 0, '3 épisodes de podcast en livraison', '', 'cqfd']] },
+  { t: 'Semaine 2 · Apprendre à réviser', o: 'Fiches et feuille blanche, sur les méthodes de recherche en psychologie.', s: [
+    ['w2-ch2', 'psy', 45, 'L1 · Les méthodes de recherche (OpenStax ch. 2)', 'Notes Cornell : expérience, corrélation, variables, groupe contrôle, échantillon, éthique.', 'openstax'],
+    ['w2-m5', 'me', 20, 'Méthode 5 · 10 fiches sur le chapitre 2', 'Onglet MÉTHODE, leçon 5.'],
+    ['w2-m6', 'me', 15, 'Méthode 6 · Feuille blanche sur le chapitre 1', 'Ce que tu sais encore du chapitre de la semaine dernière.'],
+    ['w2-ma', 'ma', 30, 'Stats · moyenne, médiane, mode', '', 'khan'],
+    ['w2-fr', 'fr', 30, 'Français · résumer un article en 10 lignes', 'Lis, ferme, résume, compare.', 'conv'],
+    ['w2-fc', 'psy', 50, 'Flashcards · 10 min par jour de gare', ''],
+    ['w2-err', 'me', 15, 'Carnet d\'erreurs du dimanche', ''],
+    ['w2-au', 'au', 0, '3 épisodes de podcast en livraison', '', 'hb']] },
+  { t: 'Semaine 3 · Le cerveau', o: 'La neurobiologie de L1, et lire un article scientifique.', s: [
+    ['w3-ch3', 'bio', 45, 'L1 · Biopsychologie (OpenStax ch. 3)', 'Notes Cornell : neurone, potentiel d\'action, synapse, neurotransmetteurs, système nerveux, lobes.', 'openstax'],
+    ['w3-bio', 'bio', 30, 'Le neurone et la synapse en français', 'Niveau débutant. Dessine un neurone de mémoire, puis vérifie.', 'cerveau'],
+    ['w3-m7', 'me', 25, 'Méthode 7 · Lire un article scientifique', 'Onglet MÉTHODE, leçon 7.', 'conv'],
+    ['w3-ma', 'ma', 30, 'Stats · étendue, variance, écart-type', 'Refais un calcul d\'écart-type à la main.', 'khan'],
+    ['w3-fr', 'fr', 30, 'Français · paragraphe argumenté', '« Peut-on se fier à sa mémoire ? » 15 lignes : idée, argument, exemple, conclusion.'],
+    ['w3-en', 'en', 20, 'Anglais · vocabulaire du chapitre 3', '10 mots de la fin de chapitre en fiches bilingues.', 'openstax'],
+    ['w3-fc', 'psy', 50, 'Flashcards · 10 min par jour de gare', ''],
+    ['w3-au', 'au', 0, '3 épisodes de podcast en livraison', '', 'cqfd']] },
+  { t: 'Semaine 4 · Premier partiel blanc', o: 'Te mettre en situation d\'examen et mesurer le chemin parcouru.', s: [
+    ['w4-m8', 'me', 15, 'Méthode 8 · Les examens de L1', 'Onglet MÉTHODE, leçon 8.'],
+    ['w4-pb', 'psy', 30, 'Partiel blanc · 15 questions (chapitres 1 à 3)', 'Onglet NIVEAU. Conditions réelles : sans notes, d\'une traite.'],
+    ['w4-qc', 'psy', 25, 'Question de cours rédigée, 20 minutes', 'À la main : « Qu\'est-ce qu\'une variable indépendante ? Donne un exemple d\'expérience. » Définition, exemple, limite.'],
+    ['w4-test', 'me', 60, 'Repasser les 4 tests de niveau', 'Compare avec la semaine 0.'],
+    ['w4-m9', 'me', 20, 'Méthode 9 · Ta semaine type de septembre 2027', 'Onglet MÉTHODE, leçon 9.'],
+    ['w4-err', 'me', 20, 'Bilan du carnet d\'erreurs', 'Les erreurs qui reviennent sont tes priorités de décembre.'],
+    ['w4-fc', 'psy', 50, 'Flashcards · 10 min par jour de gare', ''],
+    ['w4-au', 'au', 0, '3 épisodes de podcast en livraison', '', 'hb']] }];
+/* Démarches datées (dates Parcoursup 2027 publiées ; à revérifier au moment d'agir) */
+const PSY_ADM = [
+  ['a-bac', '2026-11-15', 'Retrouver le diplôme et les relevés de notes du bac 2020', 'Introuvables ? Demande une attestation au rectorat de l\'académie où tu as passé le bac.'],
+  ['a-las', '2026-11-15', 'Retrouver les relevés de tes deux années de LAS (2020-2022)', 'Parcoursup demande le parcours depuis le bac.'],
+  ['a-doss', '2026-11-30', 'Dossier numérique complet', 'Scans : pièce d\'identité, bac, relevés, relevés LAS, CV à jour. Un dossier « Parcoursup 2027 » dans Fichiers.'],
+  ['a-mail', '2026-12-15', 'Confirmer la procédure avec l\'université', 'Écris à la responsable des orientations pédagogiques (Émilie Gerbier, emilie.gerbier@univ-cotedazur.fr) : « Bac 2020, deux ans de LAS sans validation, salarié aujourd\'hui : dois-je passer par Parcoursup en formation initiale, ou par la formation continue (fcre@univ-cotedazur.fr) ? Quels frais d\'inscription ? »', 'uca'],
+  ['a-fiche', '2027-01-10', 'Lire la fiche Parcoursup de la L1 Psycho UCA', 'Publiée le 17 décembre 2026 : attendus, capacité d\'accueil, critères d\'examen des dossiers. Note les attendus pour ton projet motivé.', 'pcs'],
+  ['a-proj', '2027-01-15', 'Brouillon du projet de formation motivé', 'Pourquoi la psychologie, ce que ton travail en gare (accueil, PMR, équipe) t\'a appris, comment tu t\'es préparé depuis novembre.'],
+  ['a-insc', '2027-01-25', 'Créer ton dossier Parcoursup', 'Ouverture le 18 janvier 2027.', 'pcs'],
+  ['a-voeux', '2027-03-11', 'Formuler les vœux', 'L1 Psychologie UCA en premier, plus 2 ou 3 licences de psychologie de sécurité. Dernier jour : 11 mars 2027.', 'pcs'],
+  ['a-suivi', '2027-03-20', 'Fiche de suivi avec un conseiller d\'orientation', 'Rendez-vous avec le service d\'orientation de l\'université (ou un CIO) pour qu\'il remplisse ta fiche de suivi Parcoursup. Facultative, modifiable jusqu\'au 1er avril, elle atteste ta démarche de reprise d\'études.'],
+  ['a-conf', '2027-04-01', 'Compléter le dossier et confirmer les vœux', 'Dernier jour : 1er avril 2027. Un vœu non confirmé est perdu.', 'pcs'],
+  ['a-rep', '2027-06-10', 'Répondre aux propositions d\'admission', 'À partir du 1er juin 2027. Chaque proposition a un délai de réponse.', 'pcs'],
+  ['a-dem', '2027-06-30', 'Préparer la démission de la gare', 'Vérifie la durée de préavis dans ton contrat et ta convention collective pour partir fin août.'],
+  ['a-adm', '2027-07-15', 'Inscription administrative à l\'université', 'À partir du 6 juillet 2027 : paiement de la CVEC (messervices.etudiant.gouv.fr), puis inscription. Vérifie les horaires, l\'assiduité et les stages.']];
+/* Tests de niveau : [question, [choix], index de la bonne réponse, explication] */
+const PSY_T = {
+  fr: ['Français', [
+    ['Les résultats que nous avons ___ sont encourageants.', ['obtenus', 'obtenu', 'obtenue'], 0, 'Avec avoir, le participe s\'accorde avec le COD placé avant : « que » = les résultats.'],
+    ['___ tu fasses, fais-le bien.', ['Quoi que', 'Quoique', 'Quoiqu\''], 0, '« Quoi que » = quelle que soit la chose que. « Quoique » = bien que.'],
+    ['Il faut que tu ___ ce chapitre.', ['lises', 'lis', 'lisais'], 0, '« Il faut que » impose le subjonctif.'],
+    ['Ils se sont ___ la main.', ['serré', 'serrés', 'serrée'], 0, 'Le COD (la main) est après le verbe : pas d\'accord.'],
+    ['« Corroborer » signifie :', ['confirmer', 'contredire', 'résumer'], 0, 'Corroborer une hypothèse, c\'est apporter des éléments qui la confirment.'],
+    ['Je ___ ai rendu ___ copies.', ['leur / leurs', 'leurs / leur', 'leur / leur'], 0, '« leur » pronom devant un verbe est invariable ; « leurs » déterminant s\'accorde avec copies.'],
+    ['___ phénomène ___ produit souvent.', ['Ce / se', 'Se / ce', 'Ce / ce'], 0, '« Ce » démonstratif devant un nom ; « se » pronom devant un verbe.'],
+    ['Lequel exprime une opposition ?', ['néanmoins', 'donc', 'ainsi'], 0, 'Néanmoins = cependant. Donc et ainsi expriment une conséquence.'],
+    ['« Contrairement à une idée répandue, la mémoire n\'est pas un enregistrement fidèle : chaque rappel reconstruit le souvenir, ce qui peut l\'altérer. » Selon ce texte :', ['se rappeler un souvenir peut le modifier', 'la mémoire enregistre tout fidèlement', 'se rappeler rend toujours le souvenir plus exact'], 0, 'Le texte dit que le rappel reconstruit, et peut donc altérer.'],
+    ['Quand il est arrivé, nous ___ déjà.', ['avions mangé', 'avons mangé', 'mangions'], 0, 'Une action antérieure à une autre action passée : plus-que-parfait.']]],
+  ma: ['Maths & stats', [
+    ['15 % de 240 =', ['36', '24', '30'], 0, '240 × 0,15 = 36.'],
+    ['3/4 + 1/6 =', ['11/12', '4/10', '1/2'], 0, '9/12 + 2/12 = 11/12.'],
+    ['Moyenne de 8, 12, 15, 9, 11 :', ['11', '10', '12'], 0, '55 / 5 = 11.'],
+    ['Médiane de 3, 9, 4, 12, 7 :', ['7', '9', '4'], 0, 'On range : 3, 4, 7, 9, 12. La valeur du milieu est 7.'],
+    ['2x + 5 = 17, donc x =', ['6', '11', '8,5'], 0, '2x = 12, x = 6.'],
+    ['Un prix passe de 50 € à 60 €. La hausse est de :', ['20 %', '10 %', '16,7 %'], 0, '10 / 50 = 0,2 = 20 %.'],
+    ['4 cahiers coûtent 10 €. 6 cahiers coûtent :', ['15 €', '14 €', '12 €'], 0, '2,50 € le cahier × 6 = 15 €.'],
+    ['Probabilité d\'obtenir 6 avec un dé équilibré :', ['1/6', '1/3', '1/2'], 0, 'Une face favorable sur six.'],
+    ['L\'écart-type mesure :', ['la dispersion autour de la moyenne', 'la valeur la plus fréquente', 'le milieu de la série'], 0, 'Plus il est grand, plus les valeurs sont éloignées de la moyenne.'],
+    ['0,25 =', ['1/4', '2/5', '1/25'], 0, '1 ÷ 4 = 0,25.']]],
+  bio: ['Biologie & neuro', [
+    ['La cellule qui transmet l\'information nerveuse :', ['le neurone', 'le globule rouge', 'le néphron'], 0, 'Le neurone reçoit, intègre et transmet des signaux.'],
+    ['L\'espace entre deux neurones où passe le message :', ['la synapse', 'l\'axone', 'la myéline'], 0, 'À la synapse, le message devient chimique.'],
+    ['Les messagers chimiques entre neurones sont :', ['les neurotransmetteurs', 'les enzymes digestives', 'les anticorps'], 0, 'Dopamine, sérotonine, GABA, glutamate…'],
+    ['La gaine qui accélère l\'influx nerveux :', ['la myéline', 'la dendrite', 'le noyau'], 0, 'La myéline isole l\'axone et accélère la conduction.'],
+    ['Le lobe surtout associé à la vision :', ['occipital', 'frontal', 'temporal'], 0, 'À l\'arrière du crâne.'],
+    ['Un rôle majeur de l\'hippocampe :', ['former de nouveaux souvenirs', 'contrôler la respiration', 'voir les couleurs'], 0, 'Il est essentiel à la mémoire des faits et des événements.'],
+    ['Le système nerveux central, c\'est :', ['l\'encéphale et la moelle épinière', 'les nerfs des bras et des jambes', 'le cœur et les poumons'], 0, 'Les nerfs périphériques forment le système nerveux périphérique.'],
+    ['Le cortex préfrontal est surtout impliqué dans :', ['la planification et le contrôle de soi', 'l\'audition', 'l\'équilibre'], 0, 'Les fonctions exécutives.'],
+    ['L\'ADN se trouve surtout dans :', ['le noyau de la cellule', 'la membrane', 'le plasma sanguin uniquement'], 0, 'Le noyau contient les chromosomes.'],
+    ['La dopamine est notamment impliquée dans :', ['la motivation et la récompense', 'la digestion des graisses', 'la coagulation'], 0, 'Elle intervient aussi dans le mouvement.']]],
+  l1: ['Partiel blanc L1', [
+    ['Le premier laboratoire de psychologie expérimentale :', ['Wundt, Leipzig, 1879', 'Freud, Vienne, 1900', 'Piaget, Genève, 1920'], 0, 'On date souvent la naissance de la psychologie scientifique à ce laboratoire.'],
+    ['Le béhaviorisme étudie surtout :', ['les comportements observables', 'l\'inconscient', 'les rêves'], 0, 'Watson puis Skinner : on étudie ce qui s\'observe et se mesure.'],
+    ['La psychanalyse a été fondée par :', ['Freud', 'Skinner', 'Wundt'], 0, 'Sigmund Freud, à la fin du XIXe siècle.'],
+    ['L\'approche humaniste est associée à :', ['Rogers et Maslow', 'Pavlov et Watson', 'Wundt et Titchener'], 0, 'Elle met l\'accent sur la personne, son potentiel et son libre arbitre.'],
+    ['Le courant cognitiviste étudie l\'esprit comme :', ['un système de traitement de l\'information', 'un ensemble de réflexes', 'une énergie sexuelle'], 0, 'Perception, attention, mémoire, raisonnement.'],
+    ['Dans une expérience, la variable que le chercheur manipule est :', ['indépendante', 'dépendante', 'parasite'], 0, 'La dépendante est celle qu\'il mesure.'],
+    ['Une corrélation de +0,8 entre deux variables signifie :', ['elles varient fortement dans le même sens', 'l\'une cause l\'autre', 'elles sont sans lien'], 0, 'Corrélation ne veut pas dire causalité.'],
+    ['Le groupe contrôle sert à :', ['comparer avec un groupe qui ne reçoit pas la manipulation', 'avoir plus de participants', 'surveiller les chercheurs'], 0, 'Sans lui, impossible de savoir si l\'effet vient de la manipulation.'],
+    ['Une étude en double aveugle :', ['ni les participants ni les expérimentateurs ne savent qui reçoit quoi', 'deux chercheurs observent', 'chaque participant est testé deux fois'], 0, 'Cela limite les attentes des deux côtés.'],
+    ['Le consentement éclairé signifie que le participant :', ['accepte en connaissant le but et les risques', 'laisse le chercheur décider pour lui', 'est informé seulement après l\'étude'], 0, 'C\'est une règle éthique de base de la recherche.'],
+    ['Un échantillon représentatif :', ['reflète les caractéristiques de la population', 'est le plus grand possible', 'ne comprend que des volontaires motivés'], 0, 'La taille ne suffit pas : c\'est la ressemblance qui compte.'],
+    ['Médiane de 2, 5, 9, 10 :', ['7', '6,5', '5'], 0, 'Nombre pair de valeurs : (5 + 9) / 2 = 7.'],
+    ['L\'écart-type d\'une série dont toutes les valeurs sont identiques :', ['0', '1', 'la moyenne'], 0, 'Aucune dispersion autour de la moyenne.'],
+    ['Le message électrique parcourt le neurone le long de :', ['l\'axone', 'la synapse', 'la gaine de l\'encéphale'], 0, 'Puis il devient chimique à la synapse.'],
+    ['Le système nerveux autonome contrôle :', ['les fonctions involontaires, comme le rythme cardiaque', 'les mouvements volontaires', 'le langage'], 0, 'Sympathique (activation) et parasympathique (repos).']]],
+  en: ['Anglais scientifique', [
+    ['« Findings » signifie :', ['résultats', 'trouvailles d\'objets', 'financements'], 0, 'The findings suggest that… = les résultats suggèrent que…'],
+    ['« The sample consisted of 120 participants » :', ['l\'échantillon comprenait 120 participants', 'l\'exemple montrait 120 participants', 'le test a duré 120 minutes'], 0, 'Sample = échantillon.'],
+    ['« However » :', ['cependant', 'donc', 'de plus'], 0, 'Connecteur d\'opposition.'],
+    ['« Significant », en statistiques :', ['statistiquement significatif', 'signifiant', 'important au sens moral'], 0, 'Un effet peu probable s\'il était dû au hasard.'],
+    ['« Behaviour » :', ['comportement', 'apparence', 'croyance'], 0, 'Behavioural science = science du comportement.'],
+    ['« The hypothesis was supported » :', ['les données vont dans le sens de l\'hypothèse', 'l\'hypothèse a été abandonnée', 'l\'hypothèse a été financée'], 0, 'Supported = confortée par les données.'],
+    ['« Whereas » :', ['alors que', 'parce que', 'afin que'], 0, 'Introduit un contraste.'],
+    ['« Mood disorder » :', ['trouble de l\'humeur', 'désordre de la mode', 'trouble moteur'], 0, 'Mood = humeur.'],
+    ['The participants ___ asked to complete a questionnaire.', ['were', 'was', 'is'], 0, 'Participants est pluriel : were.'],
+    ['« Further research is needed » :', ['d\'autres recherches sont nécessaires', 'la recherche est terminée', 'la recherche est trop éloignée'], 0, 'Phrase typique de fin d\'article.']]] };
+/* Flashcards de départ : [id, question, réponse] */
+const PSY_CARDS = [
+  ['k1', 'La psychologie, c\'est…', 'L\'étude scientifique du comportement et des processus mentaux.'],
+  ['k2', 'Psychologie clinique : son objet ?', 'Comprendre, évaluer et accompagner la souffrance psychique et les troubles.'],
+  ['k3', 'Psychologie cognitive : son objet ?', 'Les processus mentaux : perception, attention, mémoire, langage, raisonnement.'],
+  ['k4', 'Psychologie du développement : son objet ?', 'Les changements psychologiques de la naissance à la fin de la vie.'],
+  ['k5', 'Psychologie sociale : son objet ?', 'Comment les autres, le groupe et la situation influencent nos pensées et nos comportements.'],
+  ['k6', 'Wundt, 1879 ?', 'Premier laboratoire de psychologie expérimentale, à Leipzig.'],
+  ['k7', 'Variable indépendante ?', 'Celle que le chercheur manipule.'],
+  ['k8', 'Variable dépendante ?', 'Celle que le chercheur mesure.'],
+  ['k9', 'Groupe contrôle ?', 'Groupe qui ne reçoit pas la manipulation, pour comparer.'],
+  ['k10', 'Corrélation et causalité ?', 'Deux variables liées ne prouvent pas que l\'une cause l\'autre.'],
+  ['k11', 'Échantillon ?', 'La partie de la population réellement étudiée.'],
+  ['k12', 'Médiane ?', 'La valeur qui coupe la série rangée en deux moitiés égales.'],
+  ['k13', 'Écart-type ?', 'La dispersion moyenne des valeurs autour de la moyenne.'],
+  ['k14', 'Synapse ?', 'La zone de communication entre deux neurones.'],
+  ['k15', 'Neurotransmetteur ?', 'Messager chimique libéré dans la synapse.'],
+  ['k16', 'Hippocampe ?', 'Structure clé pour former de nouveaux souvenirs.'],
+  ['k17', 'Amygdale ?', 'Structure clé des émotions, notamment la peur.'],
+  ['k18', 'Cortex préfrontal ?', 'Planification, décision, contrôle de soi (fonctions exécutives).'],
+  ['k19', 'Les 4 stades de Piaget ?', 'Sensori-moteur, préopératoire, opérations concrètes, opérations formelles.'],
+  ['k20', 'Conditionnement classique (Pavlov) ?', 'Un stimulus neutre associé à un stimulus qui déclenche une réponse finit par la déclencher seul.'],
+  ['k21', 'Conditionnement opérant (Skinner) ?', 'Un comportement suivi d\'une conséquence agréable devient plus fréquent.'],
+  ['k22', 'Mémoire de travail ?', 'Mémoire à court terme qui maintient et manipule l\'information quelques secondes.'],
+  ['k23', 'Effet de test ?', 'Se tester (rappel actif) fait mieux retenir que relire.'],
+  ['k24', 'Effet d\'espacement ?', 'Réviser en plusieurs fois espacées fait mieux retenir que tout d\'un coup.'],
+  ['k25', 'Biais de confirmation ?', 'Chercher et retenir surtout ce qui confirme ce qu\'on croit déjà.'],
+  ['k26', 'Dissonance cognitive (Festinger) ?', 'Malaise quand nos actes et nos croyances se contredisent ; on cherche à le réduire.'],
+  ['k27', 'Attachement (Bowlby) ?', 'Lien affectif du nourrisson à une figure qui lui apporte sécurité.'],
+  ['k28', 'Psychologue en France ?', 'Titre protégé : il faut une licence et un master de psychologie avec stage professionnel.'],
+  ['k29', 'Psychopathologie ?', 'L\'étude des troubles psychiques et de leur fonctionnement.'],
+  ['k30', 'Psychométrie ?', 'La mesure des caractéristiques psychologiques par des tests standardisés.'],
+  ['k31', 'Béhaviorisme ?', 'Courant (Watson, Skinner) qui étudie les comportements observables et l\'apprentissage.'],
+  ['k32', 'Psychanalyse ?', 'Théorie et méthode de Freud centrées sur l\'inconscient et les conflits psychiques.'],
+  ['k33', 'Psychologie humaniste ?', 'Courant (Rogers, Maslow) centré sur la personne, son potentiel et ses choix.'],
+  ['k34', 'Cognitivisme ?', 'Courant qui étudie l\'esprit comme un système de traitement de l\'information.'],
+  ['k35', 'Hypothèse ?', 'Prédiction testable sur la relation entre des variables.'],
+  ['k36', 'Double aveugle ?', 'Ni les participants ni les expérimentateurs ne savent qui reçoit quel traitement.'],
+  ['k37', 'Consentement éclairé ?', 'Accord du participant après information sur le but, le déroulement et les risques.'],
+  ['k38', 'Variable confondante ?', 'Variable non contrôlée qui peut expliquer l\'effet à la place de la variable étudiée.'],
+  ['k39', 'Étude longitudinale ?', 'On suit les mêmes personnes sur une longue période.'],
+  ['k40', 'Étude transversale ?', 'On compare au même moment des groupes différents (par exemple, des âges).'],
+  ['k41', 'Fidélité d\'un test ?', 'Il donne des résultats stables quand on le refait.'],
+  ['k42', 'Validité d\'un test ?', 'Il mesure bien ce qu\'il prétend mesurer.'],
+  ['k43', 'Potentiel d\'action ?', 'Signal électrique bref qui parcourt l\'axone.'],
+  ['k44', 'Système nerveux autonome ?', 'Il règle les fonctions involontaires : sympathique (activation) et parasympathique (repos).'],
+  ['k45', 'Lobe frontal ?', 'Mouvement volontaire, planification, langage produit, personnalité.'],
+  ['k46', 'Lobe temporal ?', 'Audition, compréhension du langage, mémoire.'],
+  ['k47', 'Neuroplasticité ?', 'Capacité du cerveau à se réorganiser avec l\'expérience.'],
+  ['k48', 'Méthode Cornell ?', 'Notes à droite, questions à gauche, résumé en bas.'],
+  ['k49', 'Courbe de l\'oubli (Ebbinghaus) ?', 'Sans révision, on oublie vite après l\'apprentissage ; les rappels espacés freinent cet oubli.'],
+  ['k50', 'Méta-analyse ?', 'Étude qui combine statistiquement les résultats de nombreuses études sur une même question.']];
+const PSY_BOX = [0, 1, 3, 7, 14, 30];
+function psyS() { const p = S.psy = S.psy && typeof S.psy === 'object' ? S.psy : {}; ['tests', 'done', 'adm', 'cards', 'audio', 'meth', 'ch'].forEach(k => { if (!p[k] || typeof p[k] !== 'object') p[k] = {}; }); ['log', 'err'].forEach(k => { if (!Array.isArray(p[k])) p[k] = []; }); return p; }
+const PSYV = { tab: 'sem' };
+function psyWeekIdx() { const d = Math.floor((parseDate(todayISO()) - parseDate(PSY_START)) / 864e5); return d < 0 ? -1 : Math.floor(d / 7); }
+function psyWeekMin(i) { const p = psyS(), a = iso(addDays(parseDate(PSY_START), i * 7)), b = iso(addDays(parseDate(PSY_START), i * 7 + 7)); return p.log.filter(x => x.d >= a && x.d < b && x.sub !== 'au').reduce((s, x) => s + x.m, 0); }
+function psyMinTotal() { return psyS().log.filter(x => x.sub !== 'au').reduce((s, x) => s + x.m, 0); }
+function psyDue() { const p = psyS(), k = todayISO(); return PSY_CARDS.filter(c => { const x = p.cards[c[0]]; return !x || x[1] <= k; }); }
+function psyNextAdm() { const p = psyS(); return PSY_ADM.find(a => !p.adm[a[0]]); }
+function psyLast(t) { const l = (psyS().tests[t] || []); return l[l.length - 1]; }
+const psyDays = k => Math.round((parseDate(k) - parseDate(todayISO())) / 864e5);
+const psyDate = k => new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: k.slice(0, 4) !== todayISO().slice(0, 4) ? 'numeric' : undefined }).format(parseDate(k));
+function vPsy() {
+  const p = psyS(), wi = psyWeekIdx(), W = PSY_WEEKS[Math.max(0, Math.min(PSY_WEEKS.length - 1, wi))], na = psyNextAdm(), jr = psyDays(PSY_RENTREE);
+  const head = `${pageHead('Psychologie', `Cap L1 · rentrée septembre 2027`, 'psy')}
+    ${sysWin('CAP PSYCHOLOGIE 2027', `<div class="tw-top"><div><p class="sys-k">RENTRÉE</p><p class="tw-n num">J−${jr}</p></div><div style="text-align:right"><p class="sys-k">TRAVAIL TOTAL</p><p class="tw-n num">${fmtH(psyMinTotal())}</p></div></div>
+      ${na ? `<button class="sys-obj" data-psyt="adm"><span class="sys-box">!</span><span class="grow">${esc(na[2])}<small class="rep-s">avant le ${psyDate(na[1])}${psyDays(na[1]) < 0 ? ' · EN RETARD' : ` · dans ${psyDays(na[1])} j`}</small></span></button>` : ''}
+      <div class="psy-tabs">${[['sem', 'SEMAINE'], ['meth', 'MÉTHODE'], ['l1', 'CARTE L1'], ['fc', `CARTES · ${psyDue().length}`], ['test', 'NIVEAU'], ['adm', 'DÉMARCHES'], ['err', 'ERREURS'], ['res', 'RESSOURCES']].map(([k, l]) => `<button class="${PSYV.tab === k ? 'on' : ''}" data-psyt="${k}">${l}</button>`).join('')}</div>`)}`;
+  let body = '';
+  if (PSYV.tab === 'sem') {
+    if (wi < 0) body = sysWin('AVANT LE DÉPART', `<p class="sys-li">Le programme commence le <b>lundi 26 octobre</b>, à la fin de ta Reprise. D'ici là, rien à faire ici. Si tu veux prendre de l'avance : retrouve ton diplôme du bac (onglet DÉMARCHES).</p>`);
+    else if (wi >= PSY_WEEKS.length) body = sysWin('APRÈS LA SEMAINE 4', `<p class="sys-li">Les 4 premières semaines sont terminées. La suite se construit à partir de tes résultats aux tests de la semaine 4 et de ton carnet d'erreurs : demande à Claude le programme de décembre.</p><p class="sys-li">En attendant : flashcards chaque jour de gare, un résumé d'article par semaine, Khan Academy en statistiques.</p>`);
+    else {
+      const m = psyWeekMin(wi), sess = W.s.filter(x => x[1] !== 'au'), dn = W.s.filter(x => p.done[x[0]]).length;
+      body = sysWin(`${W.t.toUpperCase()} [${dn}/${W.s.length}]`, `<p class="sys-qt">${W.o}</p><div class="sys-xp"><i style="width:${Math.min(100, m / PSY_GOAL * 100).toFixed(0)}%"></i></div><p class="sys-xpt num">${fmtH(m)} / ${fmtH(PSY_GOAL)} cette semaine</p>
+        ${W.s.map(([id, sub, mn, t, how, res]) => { const on = !!p.done[id]; return `<div class="lk-r ${on ? 'ok' : ''}"><button class="sys-obj ${on ? 'ok' : ''}" data-psyd="${id}"><span class="sys-box">${on ? '✓' : ''}</span><span class="grow">${esc(t)}<small class="rep-s">${PSY_SUB[sub]}${mn ? ` · ${mn} min` : ''}</small></span></button>${how || res ? `<button class="lk-q" data-lkhow aria-label="Comment faire">?</button><p class="lk-hp">${how}${res ? `${how ? '<br>' : ''}<a href="${PSY_RES[res][1]}" target="_blank" rel="noopener">→ ${PSY_RES[res][0]}</a>` : ''}</p>` : ''}</div>`; }).join('')}
+        <p class="sys-li" style="margin-top:10px">Une séance de plus ? Note-la :</p>
+        <div class="psy-log">${Object.entries(PSY_SUB).filter(([k]) => k !== 'au').map(([k, l]) => `<button class="${PSYV.sub === k ? 'on' : ''}" data-psysub="${k}">${l}</button>`).join('')}</div>
+        <div class="lk-face" style="margin-top:8px">${[15, 25, 45].map(n => `<button class="sys-btn ghost" data-psymin="${n}">+${n} MIN</button>`).join('')}</div>`, dn === W.s.length ? 'done' : '');
+    }
+  } else if (PSYV.tab === 'meth') {
+    const n = PSY_METH.filter(m => p.meth[m[0]]).length;
+    body = sysWin(`RÉAPPRENDRE À TRAVAILLER [${n}/${PSY_METH.length}]`, `<p class="sys-li">Une leçon courte, puis un exercice à faire sur papier. Le programme de la semaine t'indique laquelle faire.</p><div class="sys-xp"><i style="width:${(n / PSY_METH.length * 100).toFixed(0)}%"></i></div>${PSY_METH.map(([id, t, txt, ex], i) => { const on = !!p.meth[id]; return `<details class="lk-cat lk-cdx"><summary><span class="sys-k">${on ? '✓ ' : ''}${i + 1} · ${esc(t).toUpperCase()}</span></summary><div class="lk-cb">${txt}<p class="psy-ex"><b>Exercice</b> · ${esc(ex)}</p><button class="sys-btn ${on ? 'ghost' : ''}" data-psym="${id}" style="width:100%">${on ? 'FAIT ✓' : 'J\'AI FAIT L\'EXERCICE'}</button></div></details>`; }).join('')}`);
+  } else if (PSYV.tab === 'l1') {
+    const all = PSY_L1.flatMap(x => x[1]), n = all.filter(c => p.ch[c[0]]).length;
+    body = sysWin(`CARTE DE LA L1 [${n}/${all.length}]`, `<p class="sys-li">Les grands domaines de la L1 de psychologie, que la licence de Nice couvre (clinique, cognitive, développement, sociale, méthodes, statistiques, neurobiologie). Un chapitre d'OpenStax par étape, avec le mois visé : à la rentrée, tu auras déjà vu tout le programme une première fois.</p><p class="sys-li">Un chapitre est fait quand il est <b>lu, pris en notes Cornell à la main, et transformé en 10 fiches</b>.</p><div class="sys-xp"><i style="width:${(n / all.length * 100).toFixed(0)}%"></i></div>
+      ${PSY_L1.map(([dom, chs]) => `<p class="sys-k" style="margin:14px 0 2px">${esc(dom).toUpperCase()}</p>${chs.map(([c, t, mo]) => { const on = !!p.ch[c]; return `<div class="lk-r ${on ? 'ok' : ''}"><button class="sys-obj ${on ? 'ok' : ''}" data-psych="${c}"><span class="sys-box">${on ? '✓' : ''}</span><span class="grow">Ch. ${c} · ${esc(t)}<small class="rep-s">visé : ${mo}</small></span></button><a class="lk-q" href="${PSY_OS(c)}" target="_blank" rel="noopener" aria-label="Ouvrir le chapitre">↗</a></div>`; }).join('')}`).join('')}
+      <p class="sys-li" style="margin-top:12px;opacity:.8">Le programme exact des UE de L1 à Nice n'est pas publié en ligne : demande-le dans ton mail à l'université (onglet DÉMARCHES), et on ajustera la carte.</p>`);
+  } else if (PSYV.tab === 'test') {
+    body = sysWin('TEST DE NIVEAU', `<p class="sys-li">10 questions par matière, sans chercher la réponse : on veut ton niveau réel. Tu repasseras les mêmes en semaine 4, avec en plus le partiel blanc de L1.</p>${Object.entries(PSY_T).map(([k, [n]]) => { const l = psyLast(k), f = psyS().tests[k] || []; return `<button class="sys-obj ${l ? 'ok' : ''}" data-psytest="${k}"><span class="sys-box">${l ? '✓' : ''}</span><span class="grow">${n}<small class="rep-s">${k === 'l1' && !l ? 'semaine 4 · chapitres 1 à 3 · ' : ''}${l ? `${l.s}/${PSY_T[k][1].length} · ${l.s / PSY_T[k][1].length >= .8 ? 'solide' : l.s / PSY_T[k][1].length >= .5 ? 'à consolider' : 'priorité'}${f.length > 1 ? ` · avant : ${f[0].s}/${PSY_T[k][1].length}` : ''}` : 'pas encore passé'}</small></span><b class="num">${l ? l.s + '/' + PSY_T[k][1].length : '→'}</b></button>`; }).join('')}`);
+  } else if (PSYV.tab === 'fc') {
+    const due = psyDue(), mast = PSY_CARDS.filter(c => (p.cards[c[0]] || [0])[0] >= 4).length;
+    body = sysWin('FLASHCARDS · RÉPÉTITION ESPACÉE', `<div class="tw-top"><div><p class="sys-k">À REVOIR AUJOURD'HUI</p><p class="tw-n num">${due.length}</p></div><div style="text-align:right"><p class="sys-k">MAÎTRISÉES</p><p class="tw-n num">${mast}/${PSY_CARDS.length}</p></div></div>
+      <p class="sys-li">Lis la question, réponds dans ta tête, puis retourne la carte. Une carte réussie revient de plus en plus tard (1, 3, 7, 14, 30 jours). Une carte ratée revient demain.</p>
+      ${due.length ? `<button class="sys-btn big" data-psyfc>RÉVISER ${Math.min(10, due.length)} CARTES</button>` : '<p class="sys-pt" style="text-align:center">Rien à revoir aujourd\'hui.</p>'}`);
+  } else if (PSYV.tab === 'adm') {
+    body = sysWin(`DÉMARCHES [${PSY_ADM.filter(a => p.adm[a[0]]).length}/${PSY_ADM.length}]`, `<p class="sys-li">Dates Parcoursup 2027 officielles à ce jour. Revérifie-les sur le calendrier au moment d'agir.</p>${PSY_ADM.map(([id, d, t, how, res]) => { const on = !!p.adm[id], dd = psyDays(d); return `<div class="lk-r ${on ? 'ok' : ''}"><button class="sys-obj ${on ? 'ok' : ''}" data-psya="${id}"><span class="sys-box">${on ? '✓' : ''}</span><span class="grow">${esc(t)}<small class="rep-s ${!on && dd < 0 ? 'late' : ''}">avant le ${psyDate(d)}${on ? '' : dd < 0 ? ' · EN RETARD' : ` · J−${dd}`}</small></span></button><button class="lk-q" data-lkhow aria-label="Détails">?</button><p class="lk-hp">${esc(how)}${res ? `<br><a href="${PSY_RES[res][1]}" target="_blank" rel="noopener">→ ${PSY_RES[res][0]}</a>` : ''}</p></div>`; }).join('')}`);
+  } else if (PSYV.tab === 'err') {
+    body = sysWin(`CARNET D'ERREURS · ${p.err.length}`, `<p class="sys-li">Chaque faute d'exercice va ici, avec sa correction. Le dimanche, tu les refais sans regarder.</p>
+      <div class="psy-log">${Object.entries(PSY_SUB).filter(([k]) => k !== 'au').map(([k, l]) => `<button class="${PSYV.esub === k ? 'on' : ''}" data-psyesub="${k}">${l}</button>`).join('')}</div>
+      <input class="sq-in" id="psyE" placeholder="L'erreur (ce que j'ai fait)" maxlength="200"><input class="sq-in" id="psyC" placeholder="La correction (la règle)" maxlength="200"><button class="sys-btn big" data-psyerr>AJOUTER</button>
+      ${p.err.slice().reverse().slice(0, 30).map((x, i) => `<div class="psy-err"><p class="sys-k">${PSY_SUB[x.sub] || ''} · ${psyDate(x.d)}</p><p>✕ ${esc(x.e)}</p><p class="ok">✓ ${esc(x.c)}</p><button class="lk-q" data-psyedel="${p.err.length - 1 - i}" aria-label="Supprimer">×</button></div>`).join('')}`);
+  } else {
+    body = sysWin('RESSOURCES GRATUITES', Object.values(PSY_RES).map(([n, u, d]) => `<a class="psy-res" href="${u}" target="_blank" rel="noopener"><b>${n}</b><span>${d}</span></a>`).join(''))
+      + sysWin('LA MÉTHODE', `<div class="lk-cb"><ul><li><b>Rappel actif</b> : ferme le livre et restitue de mémoire. C'est l'effort de rappel qui fixe le souvenir, pas la relecture.</li><li><b>Répétition espacée</b> : revoir au bon moment (les flashcards le font pour toi).</li><li><b>Exercices avant les cours</b> : en maths, la compréhension vient en faisant.</li><li><b>Carnet d'erreurs</b> : tes fautes sont ton programme.</li><li><b>Séances courtes</b> : 25 minutes concentré, 5 de pause. Parfait pour les temps calmes à la gare.</li><li><b>Le sommeil</b> : c'est la nuit que la mémoire se consolide. Une nuit courte efface une partie du travail.</li></ul></div>`)
+      + sysWin('PSYCHOLOGIE ISLAMIQUE · PLUS TARD', `<div class="lk-cb"><p>Trois choses à ne pas confondre :</p><ul><li><b>La psychologie clinique</b> : scientifique, encadrée par le titre protégé de psychologue.</li><li><b>Les travaux sur la psychologie islamique</b> : un champ théorique et de recherche.</li><li><b>L'accompagnement spirituel</b> : précieux, mais distinct d'une thérapie.</li></ul><p>Un certificat privé ne remplace pas le diplôme et ne donne pas le titre de psychologue. Le CAPI (islam-psychologie.com) est à examiner en détail une fois la L1 lancée : programme, enseignants, tarif, valeur exacte du certificat.</p></div>`);
+  }
+  return head + body;
+}
+/* Test de niveau */
+function psyTest(k) {
+  const [name, Q] = PSY_T[k]; let i = 0, score = 0, ans = []; const el = document.createElement('div'); el.className = 'sys-pop on lk-run'; document.body.appendChild(el);
+  const order = Q.map(q => { const idx = q[1].map((_, j) => j).sort(() => Math.random() - .5); return idx; }), N = Q.length;
+  const draw = (fb) => { const q = Q[i], o = order[i];
+    el.innerHTML = `<div class="sys-pop-in">${sysWin(`TEST · ${name.toUpperCase()} · ${i + 1}/${N}`, `<p class="sys-li" style="font-size:1rem">${esc(q[0])}</p>${o.map(j => `<button class="sys-obj ${fb != null ? (j === q[2] ? 'ok' : j === fb ? 'ko' : '') : ''}" data-psyq="${j}" ${fb != null ? 'disabled' : ''}><span class="sys-box">${fb != null && j === q[2] ? '✓' : fb === j ? '✕' : ''}</span><span class="grow">${esc(q[1][j])}</span></button>`).join('')}
+      ${fb != null ? `<p class="sys-li" style="margin-top:10px">${esc(q[3])}</p><button class="sys-btn big" data-psyn>${i < N - 1 ? 'SUIVANTE' : 'RÉSULTAT'}</button>` : '<button class="sys-btn ghost" data-psyx style="margin-top:10px;width:100%">ARRÊTER</button>'}`)}</div>`; };
+  el.addEventListener('click', e => { e.stopPropagation(); const a = e.target.closest('[data-psyq]'), n = e.target.closest('[data-psyn]'), x = e.target.closest('[data-psyx]');
+    if (x) { el.remove(); return; }
+    if (a && !a.disabled) { const j = Number(a.dataset.psyq); ans[i] = j; if (j === Q[i][2]) { score++; try { sfx('gain'); } catch (er) {} } else { try { sfx('deny'); } catch (er) {} } draw(j); return; }
+    if (n) { i++; if (i < N) { draw(); return; }
+      const p = psyS(); (p.tests[k] = p.tests[k] || []).push({ d: todayISO(), s: score }); const sid = k === 'l1' ? 'w4-pb' : psyWeekIdx() <= 0 ? `w0-${k}` : null, ws = sid && PSY_WEEKS.flatMap(w => w.s).find(s => s[0] === sid); if (ws && !p.done[sid]) { p.done[sid] = todayISO(); p.log.push({ d: todayISO(), m: ws[2], sub: ws[1], id: sid }); }
+      save(); reward(5, { noBonus: true }); el.remove();
+      const r = score / N; sysPop(`RÉSULTAT · ${name.toUpperCase()}`, `<p class="sq-left num">${score}/${N}</p><p class="sys-pt" style="text-align:center">${r >= .8 ? 'SOLIDE' : r >= .5 ? 'À CONSOLIDER' : 'PRIORITÉ'}</p><p class="sys-li" style="text-align:center">${r >= .8 ? 'Bonne base. On ira plus loin plus vite.' : r >= .5 ? 'Les bases sont là, avec des trous. Le programme les comble.' : 'C\'est ici qu\'on va mettre le plus d\'effort, et c\'est normal après six ans.'}</p><p class="sys-li" style="text-align:center;opacity:.8">+5 XP</p>`, 'FERMER', 'ok');
+      render(); } });
+  draw();
+}
+/* Session de flashcards */
+function psyFc() {
+  const p = psyS(), deck = psyDue().slice(0, 10); if (!deck.length) return; let i = 0, flip = false, ok = 0;
+  const el = document.createElement('div'); el.className = 'sys-pop on lk-run'; document.body.appendChild(el);
+  const draw = () => { const c = deck[i]; el.innerHTML = `<div class="sys-pop-in">${sysWin(`CARTE ${i + 1}/${deck.length}`, `<p class="psy-q">${esc(c[1])}</p>${flip ? `<p class="psy-a">${esc(c[2])}</p><div class="lk-face"><button class="sys-btn ghost" data-psyk="0">RATÉ</button><button class="sys-btn" data-psyk="1">JE SAVAIS</button></div>` : '<button class="sys-btn big" data-psyflip>RETOURNER</button>'}<button class="sys-btn ghost" data-psyx style="margin-top:8px;width:100%">ARRÊTER</button>`)}</div>`; };
+  el.addEventListener('click', e => { e.stopPropagation();
+    if (e.target.closest('[data-psyx]')) { el.remove(); save(); render(); return; }
+    if (e.target.closest('[data-psyflip]')) { flip = true; draw(); return; }
+    const k = e.target.closest('[data-psyk]'); if (!k) return;
+    const c = deck[i], x = p.cards[c[0]] || [0, todayISO()], good = k.dataset.psyk === '1', box = good ? (x[0] === 0 ? 2 : Math.min(5, x[0] + 1)) : 1;
+    p.cards[c[0]] = [box, iso(addDays(new Date(), PSY_BOX[box]))]; if (good) ok++;
+    i++; flip = false;
+    if (i >= deck.length) { el.remove(); p.log.push({ d: todayISO(), m: Math.max(5, Math.round(deck.length * .8)), sub: 'psy' }); save(); reward(2, { noBonus: true }); sysNote('Flashcards terminées', `${ok}/${deck.length} sues · +2 XP`); render(); return; }
+    draw(); });
+  draw();
+}
+function psyClick(t) {
+  const c = s => t.closest(s); let el; const keep = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
+  if ((el = c('[data-psyt]'))) { PSYV.tab = el.dataset.psyt; keep(); return true; }
+  if ((el = c('[data-psyd]'))) { const p = psyS(), id = el.dataset.psyd, W = PSY_WEEKS.find(w => w.s.some(s => s[0] === id)), s = W.s.find(x => x[0] === id);
+    if (p.done[id]) { delete p.done[id]; const j = p.log.findIndex(x => x.id === id); if (j >= 0) p.log.splice(j, 1); unreward(2); }
+    else { p.done[id] = todayISO(); if (s[2] || s[1] === 'au') p.log.push({ d: todayISO(), m: s[2], sub: s[1], id }); reward(2, { noBonus: true }); try { sfx('gain'); } catch (e) {} }
+    haptic(); save(); keep(); return true; }
+  if ((el = c('[data-psysub]'))) { PSYV.sub = el.dataset.psysub; keep(); return true; }
+  if ((el = c('[data-psymin]'))) { if (!PSYV.sub) { toast('Choisis d\'abord la matière'); return true; } psyS().log.push({ d: todayISO(), m: Number(el.dataset.psymin), sub: PSYV.sub }); save(); reward(1, { noBonus: true }); toast(`+${el.dataset.psymin} min · ${PSY_SUB[PSYV.sub]}`); keep(); return true; }
+  if ((el = c('[data-psya]'))) { const p = psyS(), id = el.dataset.psya; if (p.adm[id]) delete p.adm[id]; else { p.adm[id] = todayISO(); reward(3, { noBonus: true }); try { sfx('big'); } catch (e) {} } haptic(); save(); keep(); return true; }
+  if ((el = c('[data-psym]'))) { const p = psyS(), id = el.dataset.psym; if (p.meth[id]) delete p.meth[id]; else { p.meth[id] = todayISO(); reward(2, { noBonus: true }); try { sfx('gain'); } catch (e) {} } haptic(); save(); keep(); return true; }
+  if ((el = c('[data-psych]'))) { const p = psyS(), id = el.dataset.psych; if (p.ch[id]) delete p.ch[id]; else { p.ch[id] = todayISO(); reward(5, { noBonus: true }); try { sfx('big'); } catch (e) {} } haptic(); save(); keep(); return true; }
+  if ((el = c('[data-psytest]'))) { psyTest(el.dataset.psytest); return true; }
+  if (c('[data-psyfc]')) { psyFc(); return true; }
+  if ((el = c('[data-psyesub]'))) { PSYV.esub = el.dataset.psyesub; const e = $('#psyE') && $('#psyE').value, k = $('#psyC') && $('#psyC').value; keep(); if ($('#psyE')) { $('#psyE').value = e || ''; $('#psyC').value = k || ''; } return true; }
+  if (c('[data-psyerr]')) { const e = ($('#psyE').value || '').trim(), k = ($('#psyC').value || '').trim(); if (!e || !k) { toast('L\'erreur et sa correction'); return true; } psyS().err.push({ d: todayISO(), sub: PSYV.esub || 'fr', e, c: k }); save(); keep(); return true; }
+  if ((el = c('[data-psyedel]'))) { psyS().err.splice(Number(el.dataset.psyedel), 1); save(); keep(); return true; }
+  return false;
+}
+
 function fxRead(id) {
   FXS.read.add(id); const d = fluxDay(); d.n++; save();
   if (d.n === 5 && !d.r) { d.r = 1; lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(3, { noBonus: true, msg: ['Rituel du jour', '5 cartes pour nourrir ton esprit plutôt que le vider.'] }); }
@@ -5846,7 +6268,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.28.1 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.31 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -6392,7 +6814,7 @@ function themeBlock() {
   return `<p class="gt">Univers de l'app</p>
     <div class="seg" role="group" aria-label="Univers" style="margin-bottom:8px">${[['systeme', 'Système'], ['galaxie', 'Galaxie']].map(([m, l]) => `<button data-ui="${m}" aria-pressed="${(S.ui || 'systeme') === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
     <p class="hint" style="margin-bottom:16px">Système : niveau, stats, quête quotidienne et donjons. Galaxie : les planètes et le soleil. Tes données ne changent pas.</p>
-    ${uiSys() ? `<p class="gt">Aura du Système</p><div class="seg" role="group" aria-label="Aura" style="margin-bottom:8px">${Object.entries(AURA_L).map(([k, x]) => `<button data-aural="${k}" aria-pressed="${auraLine() === k}"><span class="dot" style="background:${x.c[0]}"></span>${x.n}</button>`).join('')}</div><div class="aura-strip" style="margin-bottom:8px">${SR_SW.map(c => `<i style="--c:${c}" class="ok"></i>`).join('')}</div><p class="hint" style="margin-bottom:16px">L'aura évolue avec ton rang, de E à S (aura actuelle : <b>${AURA[auraIdx()]}</b>).</p><button class="sys-btn big ghost" data-replay-eveil style="margin:0 0 18px">REVOIR L'ÉVEIL</button>${sfxBlock()}` : `<p class="gt">Apparence</p>
+    ${uiSys() ? `${repSetting()}<p class="gt">Aura du Système</p><div class="seg" role="group" aria-label="Aura" style="margin-bottom:8px">${Object.entries(AURA_L).map(([k, x]) => `<button data-aural="${k}" aria-pressed="${auraLine() === k}"><span class="dot" style="background:${x.c[0]}"></span>${x.n}</button>`).join('')}</div><div class="aura-strip" style="margin-bottom:8px">${SR_SW.map(c => `<i style="--c:${c}" class="ok"></i>`).join('')}</div><p class="hint" style="margin-bottom:16px">L'aura évolue avec ton rang, de E à S (aura actuelle : <b>${AURA[auraIdx()]}</b>).</p><button class="sys-btn big ghost" data-replay-eveil style="margin:0 0 18px">REVOIR L'ÉVEIL</button>${sfxBlock()}` : `<p class="gt">Apparence</p>
     <div class="thgrid">${Object.entries(THEMES).map(([id, x]) => { const l = x.l.split(' '), d = x.d.split(' '); return `<button class="thsw" data-theme="${id}" aria-pressed="${t.id === id}"><span class="thdots"><i style="background:${l[0]};box-shadow:inset 0 0 0 1px ${l[7]}"></i><i style="background:${l[9]}"></i><i style="background:${d[0]}"></i><i style="background:${d[9]}"></i></span><span>${x.n}</span></button>`; }).join('')}</div>
     ${t.id === 'custom' ? `<div class="thpick"><label><input type="color" data-tcol="a" value="${t.custom.a}"><span>Couleur principale<small>boutons, chiffres, accents</small></span></label><label><input type="color" data-tcol="b" value="${t.custom.b}"><span>Teinte du fond<small>l'ambiance générale</small></span></label></div><p class="hint" style="margin-top:6px">L'app en tire toute seule une version claire et une version sombre lisibles.</p>` : ''}
     <div class="seg" role="group" aria-label="Mode" style="margin-top:10px">${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([m, l]) => `<button data-tmode="${m}" aria-pressed="${t.mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
@@ -7088,7 +7510,7 @@ function coranClick(t) {
 /* =====================================================================
    15. RENDU & NAVIGATION
    ===================================================================== */
-const TABS = ['orbite', 'flux', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business', 'qibla', 'chasse'];
+const TABS = ['orbite', 'flux', 'psy', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business', 'qibla', 'chasse'];
 const CVIEWS = ['entrainement', 'nutrition', 'soin', 'apparence'];
 let tab = 'orbite', missedDismissed = false;
 function render(animate) {
@@ -7108,7 +7530,7 @@ function render(animate) {
   checkUnlocks();
   document.documentElement.classList.toggle('flux-on', tab === 'flux' && !uiSys());
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
-  try { app.innerHTML = { qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vLook() : (S.body.active ? vSession() : vArc()), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab](); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
+  try { app.innerHTML = { psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vNutrition() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vLook() : (S.body.active ? vSession() : vArc()), routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab](); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
   coreGlyph();
   if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); } }
   if (tab === 'qibla') requestAnimationFrame(qiblaInit);
@@ -7222,6 +7644,8 @@ document.addEventListener('click', e => {
   if (pqdClick(e.target)) return;
   if (sfxClick(e.target)) return;
   if (arcClick(e.target)) return;
+  if (psyClick(e.target)) return;
+  if (repClick(e.target)) return;
   if (sqClick(e.target)) return;
   if (sysClick(e.target)) return;
   const t = e.target, c = sel => t.closest(sel);
