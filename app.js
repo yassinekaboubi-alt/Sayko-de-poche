@@ -836,6 +836,7 @@ function vSys(now) {
   if (repOn()) return `<header class="sys-top"><p class="sys-k">◆ SYSTÈME · REPRISE</p><p class="sys-date">${DAY_LONG.format(now).replace(/^./, c => c.toUpperCase())}</p>
       <div class="top-actions"><button class="icon-btn" data-open="settings" aria-label="Réglages">${ICON.gear}</button></div></header>
     ${repWin()}
+    ${exBtn()}
     ${sysWin('STATUT', status)}
     ${sysWin('DONJONS', dung)}`;
   return `<header class="sys-top"><p class="sys-k">◆ SYSTÈME</p><p class="sys-date">${DAY_LONG.format(now).replace(/^./, c => c.toUpperCase())}</p>
@@ -848,6 +849,7 @@ function vSys(now) {
     ${sysWin('QUÊTE', quest, done ? 'done' : '')}
     <button class="sys-src" data-goto="flux"><span class="sys-k">LA SOURCE</span><b>Flux · ${S.flux.day.d === todayISO() ? S.flux.day.n : 0}/5</b><span class="num">+${nourDay()} XP aujourd'hui</span></button>
     ${sqLedger()}
+    ${exBtn()}
     ${sysWin('DONJONS', dung)}`;
 }
 /* Fenêtres plein écran du Système : nouvelle quête, quête accomplie, niveau supérieur */
@@ -3303,6 +3305,7 @@ function vSession() {
       <div class="row between" style="align-items:flex-start"><div class="grow"><p class="eyebrow">${ei + 1}/${tpl.length} · ${sets} × ${lo}–${hi} ${e.sec ? 's' : 'reps'} · repos ${rest >= 60 ? `${Math.floor(rest / 60)} min${rest % 60 ? ' ' + rest % 60 : ''}` : rest + ' s'}</p><h3 class="ex-name">${esc(exName(id))}</h3></div>
       ${e.v ? `<div class="lvl"><button data-lvl="${id}.-1" aria-label="Variante plus facile" ${lvl === 0 ? 'disabled' : ''}>‹</button><button data-lvl="${id}.1" aria-label="Variante plus dure" ${lvl >= e.v.length - 1 ? 'disabled' : ''}>›</button></div>` : ''}</div>
       <p class="small muted" style="margin:0">${e.cue}${e.alt ? ` <i>(${e.alt})</i>` : ''}</p>
+      ${formBox(e.n, '', EX_ERR[id], 'Fais la première série devant un miroir ou filme-toi de profil, puis compare aux points clés.')}
       <p class="sugg ${sg.up ? 'up' : ''}">${sg.txt}</p>
       ${rows}</article>`;
   }).join('');
@@ -3660,7 +3663,7 @@ function fpDraw(anim) {
   const tot = FP.B.length, kind = b.kind || '';
   el.className = `fp on k-${kind} ${anim ? 'enter' : ''} ${FP.paused ? 'paused' : ''}`;
   el.innerHTML = `<div class="fp-lines" aria-hidden="true"></div><div class="fp-tone" aria-hidden="true"></div>
-    <div class="fp-top"><span>${esc(FTYPES[FP.type].n.toUpperCase())} · ${FP.i + 1}/${tot}</span><button class="fp-x" data-fp="stop" aria-label="Arrêter">✕</button></div>
+    <div class="fp-top"><span>${esc(FTYPES[FP.type].n.toUpperCase())} · ${FP.i + 1}/${tot}</span>${kind !== 'rest' && kind !== 'breath' && kind !== 'visu' ? `<button class="fp-chkb ${FP.chk ? 'on' : ''}" data-fp="check">◎ Vérifier</button>` : ''}<button class="fp-x" data-fp="stop" aria-label="Arrêter">✕</button></div>
     <div class="fp-segs">${FP.B.map((x, k) => `<i class="${k < FP.i ? 'd' : k === FP.i ? 'c' : ''} ${x.kind === 'rest' ? 'r' : ''}"></i>`).join('')}</div>
     <div class="fp-main">
       <p class="fp-kind">${{ warm: 'Échauffement', tech: 'Technique', drill: 'Exercice', round: 'Round', rest: 'Repos', fin: 'Finisseur', hold: 'Défi', breath: 'Souffle', stretch: 'Souplesse', visu: 'Visualisation' }[kind] || ''}</p>
@@ -3669,6 +3672,7 @@ function fpDraw(anim) {
       ${b.sec ? '<div class="fp-bar"><i id="fpbar"></i></div>' : ''}
       ${b.kind === 'round' || b.box ? `<p class="fp-call" id="fpcall">${b.box ? 'Inspire' : b.react ? 'Prêt' : 'En garde'}</p>` : ''}
       ${b.steps ? `<ol class="fp-steps">${b.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : `<p class="fp-cue">${esc(b.cue)}</p>`}
+      ${FP.chk && kind !== 'rest' ? fpCheck(b) : ''}
     </div>
     <div class="fp-foot">
       ${b.kind === 'hold' ? `<button class="fp-big" data-fp="held">J'ai lâché</button>` : `<button class="fp-btn" data-fp="pause">${FP.paused ? 'Reprendre' : 'Pause'}</button><button class="fp-btn" data-fp="skip">Suivant</button>`}
@@ -3680,18 +3684,19 @@ function fpDraw(anim) {
 function fpClick(t) {
   const el = t.closest('[data-fp]'); if (!el) return false; const v = el.dataset.fp, b = FP.B[FP.i];
   if (v === 'pause') { if (FP.paused) { FP.end += Date.now() - FP.paused; FP.hold0 += Date.now() - FP.paused; FP.paused = 0; } else FP.paused = Date.now(); fpDraw(); }
-  if (v === 'skip') fpNext();
+  if (v === 'skip') { FP.chk = false; fpNext(); }
+  if (v === 'check') { FP.chk = !FP.chk; if (FP.chk && !FP.paused) { FP.paused = Date.now(); } fpDraw(); }
   if (v === 'voice') { FV = !FV; try { localStorage.setItem('sdp-fvoice', FV ? '1' : '0'); } catch (e) {} fpDraw(); }
   if (v === 'held') { const s = Math.round((Date.now() - FP.hold0) / 1000); FP.held[b.res] = Math.max(FP.held[b.res] || 0, s); sayFr(`${s} secondes`); fpNext(); }
   if (v === 'stop') { if (FP.i < 2 || FP.arm) { FP.arm = 0; fpClose(FP.i >= 2); } else { FP.arm = 1; el.textContent = 'Sûr ?'; el.classList.add('arm'); setTimeout(() => { FP.arm = 0; if (el.isConnected) { el.textContent = '✕'; el.classList.remove('arm'); } }, 2500); } }
   return true;
 }
 function fpClose(keep) {
-  clearInterval(FP.iv); FP.on = false; wakeOff(); try { speechSynthesis.cancel(); } catch (e) {}
+  clearInterval(FP.iv); FP.on = false; FP.chk = false; mirrorOff(); wakeOff(); try { speechSynthesis.cancel(); } catch (e) {}
   const el = $('#fp'); if (el) el.remove(); document.body.classList.remove('fp-on');
   if (keep) fpSave(true); else render();
 }
-function fpFinish() { clearInterval(FP.iv); FP.on = false; wakeOff(); sayFr('Séance terminée. Bravo.'); const el = $('#fp'); if (el) el.remove(); document.body.classList.remove('fp-on'); fpSave(false); }
+function fpFinish() { clearInterval(FP.iv); FP.on = false; FP.chk = false; mirrorOff(); wakeOff(); sayFr('Séance terminée. Bravo.'); const el = $('#fp'); if (el) el.remove(); document.body.classList.remove('fp-on'); fpSave(false); }
 function fpSave(partial) {
   const f = fight(), d = todayISO(), done = FP.B.slice(0, Math.max(0, FP.i + (partial ? 0 : 1)));
   const techs = [...new Set(done.filter(b => b.tech).map(b => b.tech))];
@@ -5724,7 +5729,7 @@ function sqWinHtml() {
     else if (q.k === 'auto') { let n = 0; try { n = prayToday(q.day); } catch (e) {} ctl = `<div class="sys-xp"><i style="width:${n / 5 * 100}%"></i></div><p class="sys-xpt num">${n} / 5 prières</p>${n >= 5 ? `<button class="sys-btn big" data-sqok="${q.uid}">VALIDER L'ÉTAPE</button>` : `<button class="sys-btn ghost" data-goto="foi">OUVRIR LES PRIÈRES</button>`}`; }
     else ctl = `<div class="lk-face">${q.go ? `<button class="sys-btn ghost" data-goto="${q.go}">OUVRIR</button>` : ''}<button class="sys-btn" data-sqok="${q.uid}">ACCOMPLIE</button></div>`;
     if (q.go && q.k !== 'ok' && q.k !== 'auto') ctl += `<button class="sys-btn ghost" data-goto="${q.go}" style="margin-top:8px;width:100%">OUVRIR</button>`;
-    return sysWin(q.r === 'l' ? 'QUÊTE CACHÉE' : q.chain ? 'QUÊTE EN CHAÎNE' : q.r === 'u' ? 'QUÊTE D\'URGENCE' : 'QUÊTE SURPRISE', `<p class="sq-rar r-${q.r}">◆ ${q.chain ? SQ_CHAINS[q.chain].n : R[0]}</p><p class="sq-t">${esc(q.t)}</p><p class="sys-li">${q.d}</p><p class="sq-left num" data-sqt="${q.uid}">${sqLeft(q)}</p>${ctl}`, q.r === 'u' ? 'pen' : q.r === 'l' ? 'done' : '');
+    return sysWin(q.r === 'l' ? 'QUÊTE CACHÉE' : q.chain ? 'QUÊTE EN CHAÎNE' : q.r === 'u' ? 'QUÊTE D\'URGENCE' : 'QUÊTE SURPRISE', `<p class="sq-rar r-${q.r}">◆ ${q.chain ? SQ_CHAINS[q.chain].n : R[0]}</p><p class="sq-t">${esc(q.t)}</p><p class="sys-li">${q.d}</p><p class="sq-left num" data-sqt="${q.uid}">${sqLeft(q)}</p>${ctl}${(() => { const fo = formOf(q.chain === 'glace' ? 'froid' : q.id); return fo ? formBox(fo.n, fo.cue, fo.err) : ''; })()}`, q.r === 'u' ? 'pen' : q.r === 'l' ? 'done' : '');
   }).join('');
 }
 /* Ligne du registre sur le Statut */
@@ -6180,6 +6185,135 @@ function psyClick(t) {
   return false;
 }
 
+/* =====================================================================
+   EXPLOITS LIBRES (v3.32) — ce que tu fais de toi-même, sans attendre une quête
+   Douche froide (chrono selon le rang), gainage (chrono), 50 pompes, 30 min de marche.
+   XP la première fois de la journée pour chaque exploit ; les suivantes sont notées sans XP.
+   Fonctionne aussi pendant la Reprise. État : S.ex = { date: { id: n } }
+   ===================================================================== */
+const EXPL = [
+  ['froid', 'Douche froide', () => `${sqCold()} secondes d'eau froide, chronométrées.`, 5, () => sqCold()],
+  ['gainage', 'Gainage', () => '2 minutes de planche, chronométrées.', 3, () => 120],
+  ['pompes', '50 pompes', () => 'En autant de séries qu\'il faut.', 3, 0],
+  ['marche', '30 minutes de marche', () => 'D\'un pas rapide.', 2, 0]];
+function exS() { const e = S.ex = S.ex && typeof S.ex === 'object' ? S.ex : {}; return e[todayISO()] = e[todayISO()] || {}; }
+function exBtn() { const d = exS(), n = Object.values(d).reduce((a, b) => a + b, 0); return `<button class="sys-src" data-expl><span class="sys-k">EXPLOITS LIBRES</span><b>Douche froide, pompes, gainage…</b><span class="num">${n ? `${n} aujourd'hui` : 'noter un exploit'}</span></button>`; }
+function exOpen() {
+  const d = exS();
+  sysPop('EXPLOITS LIBRES', `<p class="sys-li" style="text-align:center">Fait de toi-même, sans attendre une quête. XP la première fois de la journée.</p>${EXPL.map(([id, t, desc, xp]) => `<button class="sys-obj ${d[id] ? 'ok' : ''}" data-exg="${id}"><span class="sys-box">${d[id] ? '✓' : ''}</span><span class="grow">${t}<small class="rep-s">${desc()}${d[id] ? ` · fait ${d[id]}×` : ''}</small></span><b class="num">${d[id] ? '+0' : '+' + xp}</b></button>`).join('')}`, 'FERMER');
+  const pop = $('.sys-pop'); if (pop) pop.addEventListener('click', e => { const b = e.target.closest('[data-exg]'); if (!b) return; e.stopPropagation(); pop.remove(); exGo(b.dataset.exg); });
+}
+function exDone(id) {
+  const x = EXPL.find(z => z[0] === id), d = exS(), first = !d[id]; d[id] = (d[id] || 0) + 1; save();
+  if (first) reward(x[3], { noBonus: true });
+  try { sfx(first ? 'big' : 'gain'); } catch (e) {}
+  sysNote(`${x[1]} · exploit noté`, first ? `+${x[3]} XP` : 'Déjà récompensé aujourd\'hui · noté quand même');
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+}
+function exGo(id) {
+  const x = EXPL.find(z => z[0] === id), sec = typeof x[4] === 'function' ? x[4]() : x[4];
+  if (!sec) { exDone(id); return; }
+  let left = sec, iv = null, run = false; const el = document.createElement('div'); el.className = 'sys-pop on lk-run'; document.body.appendChild(el);
+  const draw = () => { el.innerHTML = `<div class="sys-pop-in">${sysWin(x[1].toUpperCase(), `<p class="sys-li" style="text-align:center">${x[2]()}</p>${(() => { const fo = formOf(id); return fo ? formBox(fo.n, fo.cue, fo.err) : ''; })()}<p class="lk-rc num">${Math.floor(left / 60)}:${pad(left % 60)}</p><div class="sys-xp"><i style="width:${((1 - left / sec) * 100).toFixed(1)}%"></i></div><div class="lk-face" style="margin-top:14px"><button class="sys-btn ghost" data-ext="x">ANNULER</button>${run ? '' : '<button class="sys-btn" data-ext="go">DÉMARRER</button>'}</div><button class="sys-btn ghost" data-ext="done" style="margin-top:8px;width:100%">DÉJÀ FAIT SANS CHRONO</button>`)}</div>`; };
+  const end = ok => { clearInterval(iv); el.remove(); if (ok) exDone(id); };
+  el.addEventListener('click', e => { const b = e.target.closest('[data-ext]'); if (!b) return; e.stopPropagation();
+    if (b.dataset.ext === 'x') { end(false); return; }
+    if (b.dataset.ext === 'done') { end(true); return; }
+    if (run) return; run = true; draw(); try { sfx('win'); } catch (er) {}
+    iv = setInterval(() => { if (!document.body.contains(el)) { clearInterval(iv); return; } left--; if (left <= 0) { try { sfx('lvl'); } catch (er) {} end(true); return; } const c = el.querySelector('.lk-rc'), b2 = el.querySelector('.sys-xp i'); if (c) c.textContent = `${Math.floor(left / 60)}:${pad(left % 60)}`; if (b2) b2.style.width = ((1 - left / sec) * 100).toFixed(1) + '%'; if (left <= 3) try { sfx('tick'); } catch (er) {} }, 1000); });
+  draw();
+}
+function exClick(t) { if (t.closest('[data-expl]')) { exOpen(); return true; } return false; }
+
+/* =====================================================================
+   BIEN FAIRE L'EXERCICE (v3.33)
+   Pour chaque exercice : les erreurs à éviter, une façon de se vérifier, un miroir (caméra frontale)
+   et une démo vidéo (recherche YouTube sur le nom de l'exercice).
+   Séances de combat (bouton VÉRIFIER, la séance se met en pause), séances de force, quêtes surprises, exploits.
+   ===================================================================== */
+const EX_ERR = {
+  squat_pdc: 'Talons qui décollent, genoux qui rentrent vers l\'intérieur, dos qui s\'arrondit en bas.',
+  pompes: 'Hanches qui tombent ou fesses en l\'air, coudes écartés à 90°, demi-amplitude.',
+  row_table: 'Hanches qui s\'affaissent, tirer avec les bras sans serrer les omoplates.',
+  fentes: 'Genou avant qui part vers l\'intérieur, buste penché en avant, pas trop court.',
+  planche: 'Bassin qui s\'affaisse (le bas du dos se creuse) ou fesses trop hautes, respiration bloquée.',
+  pont: 'Pousser avec le bas du dos au lieu des fessiers, monter trop vite.',
+  pike: 'Hanches trop basses (ça devient une pompe), coudes qui s\'écartent.',
+  superman: 'Tête levée vers le plafond (cou cassé), mouvement saccadé.',
+  deadbug: 'Bas du dos qui décolle du sol, aller trop vite.',
+  squat: 'Talons qui décollent, genoux qui rentrent, dos qui s\'arrondit, descente trop haute.',
+  bench: 'Fesses qui décollent du banc, coudes à 90° du corps, barre qui rebondit sur la poitrine.',
+  rowb: 'Dos rond, buste qui se redresse à chaque répétition, élan avec les jambes.',
+  lat: 'Charge trop lourde avec élan, épaules qui montent vers les oreilles.',
+  curl: 'Balancer le buste, coudes qui avancent, descente non contrôlée.',
+  rdl: 'Dos rond, genoux trop fléchis (ça devient un squat), barre qui s\'éloigne des jambes.',
+  ohp: 'Bas du dos qui se creuse, haltères qui partent vers l\'avant.',
+  pulldown: 'Se pencher en arrière avec élan, tirer derrière la nuque.',
+  lunge: 'Genou avant qui rentre, buste penché, pas trop court.',
+  tri: 'Coudes qui bougent, buste qui se penche pour pousser.',
+  calf: 'Rebonds rapides, amplitude partielle.',
+  incl: 'Banc trop incliné, coudes trop ouverts, rebond en bas.',
+  pullup: 'Demi-amplitude, balancement des jambes, épaules qui montent vers les oreilles.',
+  dips: 'Descendre trop bas (épaules qui partent en avant), coudes qui s\'écartent.',
+  row1: 'Rotation du buste pour tricher, dos rond.',
+  face: 'Coudes trop bas, tirer avec le bas du dos.',
+  hammer: 'Balancer le buste, coudes qui avancent.',
+  ohtri: 'Coudes qui s\'écartent, bas du dos qui se creuse.',
+  press: 'Bas du dos qui décolle du dossier en bas, genoux qui rentrent, genoux verrouillés en haut.',
+  legcurl: 'Hanches qui décollent, mouvement saccadé.',
+  deadlift: 'Dos rond, barre loin des tibias, tirer avec les bras, se pencher en arrière en haut.',
+  bulg: 'Genou avant qui rentre, pied avant trop près du banc.',
+  legext: 'Élan, charge qui retombe sans contrôle.',
+  hipthrust: 'Bas du dos qui se creuse en haut, menton levé.',
+  raises: 'Balancement, jambes qui montent par élan.' };
+/* Blocs de séance sans fiche technique : reconnus par leur titre */
+const FORM_X = [
+  [/chute/i, 'La tête qui touche le sol (rentre le menton), tomber sur le coude ou la main tendue : ce sont les bras, à plat, qui frappent le tapis.'],
+  [/burpee/i, 'Dos qui s\'affaisse en position de planche, réception jambes tendues : amortis, genoux fléchis.'],
+  [/squats? saut|sauts group/i, 'Réception jambes tendues ou bruyante, genoux qui rentrent à la réception.'],
+  [/chaise/i, 'Dos décollé du mur, cuisses au-dessus de la parallèle, genoux qui dépassent les orteils.'],
+  [/planche/i, EX_ERR.planche],
+  [/sprawl/i, 'Tomber sur les genoux, hanches qui restent hautes : jette les jambes en arrière et plaque les hanches au sol.'],
+  [/corde/i, 'Sauter trop haut, faire tourner la corde avec les bras au lieu des poignets.'],
+  [/shadow|round|réflexe/i, 'Mains qui tombent, rester planté sur place, frapper sans revenir en garde, oublier de respirer.'],
+  [/souplesse|étir/i, 'Rebondir dans l\'étirement, forcer jusqu\'à la douleur, bloquer sa respiration.'],
+  [/sac|frappes à fond/i, 'Poignet qui plie (bande-toi les mains), garde qui tombe en fin de série.'],
+  [/uchi|projection/i, 'Entrer le dos rond, rester loin de l\'autre, oublier de baisser le centre de gravité.']];
+const SQ_FORM = {
+  'c-pompes': ['pompes'], 'c-pompes100': ['pompes'], 'c-squats': ['squat_pdc'], 'c-gainage': ['planche'],
+  'c-burpees': [null, 'Accroupi, mains au sol, pieds en arrière en planche, une pompe, retour des pieds, saut bras en l\'air.', 'Dos qui s\'affaisse en planche, réception jambes tendues : amortis, genoux fléchis.', 'Burpee'],
+  'c-etire': [null, 'Chaque position 30 à 45 s, sans à-coups, respiration lente.', 'Rebondir dans l\'étirement, forcer jusqu\'à la douleur.', 'Étirements débutant'],
+  'd-froid': [null, 'Respire lentement par le nez, expire longuement. Commence par les jambes et les bras, puis le corps.', 'Bloquer sa respiration ou respirer trop vite. Arrête-toi en cas de vertige ou de malaise.', 'Douche froide respiration'],
+  'd-froid-u': [null, 'Respire lentement par le nez, expire longuement. Commence par les jambes et les bras, puis le corps.', 'Bloquer sa respiration ou respirer trop vite. Arrête-toi en cas de vertige ou de malaise.', 'Douche froide respiration'],
+  'froid': [null, 'Respire lentement par le nez, expire longuement. Commence par les jambes et les bras, puis le corps.', 'Bloquer sa respiration ou respirer trop vite. Arrête-toi en cas de vertige ou de malaise.', 'Douche froide respiration'],
+  'gainage': ['planche'], 'pompes': ['pompes'] };
+function formOf(key) { const f = SQ_FORM[key]; if (!f) return null; if (f[0]) { const e = EX[f[0]]; return { n: e.n, cue: e.cue, err: EX_ERR[f[0]] }; } return { n: f[3], cue: f[1], err: f[2] }; }
+const demoUrl = n => `https://www.youtube.com/results?search_query=${encodeURIComponent(n + ' bonne technique')}`;
+/* Bloc « bien le faire » réutilisable */
+function formBox(n, cue, err, check) {
+  return `<details class="lk-cat lk-wide fm-box"><summary><span class="sys-k">BIEN LE FAIRE</span></summary><div class="lk-cb">${cue ? `<p><b>Les points clés</b> · ${esc(cue)}</p>` : ''}${err ? `<p><b>Les erreurs à éviter</b> · ${esc(err)}</p>` : ''}<p><b>Te vérifier</b> · ${esc(check || 'Active le miroir ou filme-toi 20 secondes, puis compare point par point. Fais les premières répétitions lentement.')}</p><div class="lk-face"><button class="sys-btn ghost" data-mirror>MIROIR</button><a class="sys-btn ghost fm-demo" href="${demoUrl(n)}" target="_blank" rel="noopener">DÉMO VIDÉO ↗</a></div></div></details>`;
+}
+/* Miroir : la caméra frontale en vignette, inversée comme un vrai miroir. Touche pour l'agrandir. */
+let MIR = null;
+async function mirrorToggle() {
+  if (MIR) { mirrorOff(); return; }
+  let st; try { st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false }); } catch (e) { toast('Caméra indisponible : autorise l\'accès à la caméra dans Réglages > Safari.'); return; }
+  const el = document.createElement('div'); el.id = 'mirror'; el.innerHTML = '<video playsinline muted autoplay></video><button aria-label="Fermer le miroir">✕</button><span>MIROIR · touche pour agrandir</span>';
+  document.body.appendChild(el); const v = el.querySelector('video'); v.srcObject = st; v.play && v.play().catch(() => {});
+  MIR = { el, st };
+  el.addEventListener('click', e => { e.stopPropagation(); if (e.target.closest('button')) { mirrorOff(); return; } el.classList.toggle('big'); });
+}
+function mirrorOff() { if (!MIR) return; MIR.st.getTracks().forEach(t => t.stop()); MIR.el.remove(); MIR = null; }
+/* Le panneau VÉRIFIER du lecteur de séance */
+function fpCheck(b) {
+  const t = b.tech && TECH.find(x => x[0] === b.tech), name = b.t.replace(/^[^·]*· /, '').replace(/^(Technique|Défi de résistance|Finisseur|Self-défense|Le Mur) · /, '');
+  const xf = FORM_X.find(([re]) => re.test(b.t)), err = t ? t[6] : xf ? xf[1] : '';
+  return `<div class="fp-chk"><p class="fp-chk-k">LES ERREURS À ÉVITER</p><p>${esc(err || 'Garde les points ci-dessus en tête et commence lentement : la qualité avant la vitesse.')}</p>
+    <p class="fp-chk-k">TE VÉRIFIER</p><p>${esc(t && t[7] ? t[7] : 'Active le miroir ou filme-toi 20 secondes, puis compare point par point.')}</p>
+    <div class="fp-chk-b"><button class="fp-btn" data-mirror>${MIR ? 'Miroir ✓' : 'Miroir'}</button><a class="fp-btn" href="${demoUrl(name)}" target="_blank" rel="noopener">Démo vidéo ↗</a></div></div>`;
+}
+function formClick(t) { if (t.closest('[data-mirror]')) { mirrorToggle().then(() => { const b = t.closest('[data-mirror]'); if (b && b.classList.contains('fp-btn')) b.textContent = MIR ? 'Miroir ✓' : 'Miroir'; }); return true; } return false; }
+
 function fxRead(id) {
   FXS.read.add(id); const d = fluxDay(); d.n++; save();
   if (d.n === 5 && !d.r) { d.r = 1; lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(3, { noBonus: true, msg: ['Rituel du jour', '5 cartes pour nourrir ton esprit plutôt que le vider.'] }); }
@@ -6268,7 +6402,7 @@ function openSettings() {
     <p class="gt">Parcours</p>
     <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
     <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.31 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v3.33 · fonctionne hors ligne</p>`;
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -7644,6 +7778,8 @@ document.addEventListener('click', e => {
   if (pqdClick(e.target)) return;
   if (sfxClick(e.target)) return;
   if (arcClick(e.target)) return;
+  if (formClick(e.target)) return;
+  if (exClick(e.target)) return;
   if (psyClick(e.target)) return;
   if (repClick(e.target)) return;
   if (sqClick(e.target)) return;
