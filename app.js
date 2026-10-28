@@ -502,6 +502,7 @@ const ICON = {
 };
 /* Mini-icônes des planètes (chemins 24×24) */
 const GLYPH = {
+  psy: '<path d="M12 4v16M6.5 6.5v3a5.5 5.5 0 0 0 11 0v-3M9 20h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   intel: '<path d="M9.5 4.5a3 3 0 0 0-3 3 3 3 0 0 0-2 5.2A3 3 0 0 0 7 17.5a2.5 2.5 0 0 0 5 .5V6a2 2 0 0 0-2.5-1.5zM14.5 4.5a3 3 0 0 1 3 3 3 3 0 0 1 2 5.2 3 3 0 0 1-2.5 4.8 2.5 2.5 0 0 1-5 .5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>',
   parcours: '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 2.4"/><circle cx="12" cy="4" r="2.4" fill="currentColor"/>',
   foi: '<path d="M15.5 4.5a8 8 0 1 0 4 12.5 6.5 6.5 0 1 1-4-12.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
@@ -546,8 +547,10 @@ const COACH = {
   businessOn: ['Ton atelier', 'Un projet = un nom, une étape, et une prochaine action concrète. Rien de plus pour l\'instant.'],
   corps: ['Ton arc de combattant', 'Trois arcs : le Réveil à la maison, la Forge à la salle et au sac, le Tranchant. Chaque lundi, tu indiques tes jours libres : l\'app place tes séances de force, de combat, de vitesse et de mental. Le grimoire t\'apprend les techniques, la défense de rue, les points vitaux et le mental. La fiche mesure tes stats tous les 28 jours. Pendant une séance de combat, garde le téléphone près de toi : la voix t\'annonce les frappes.'],
   nutri: ['Ton carburant', 'Pour prendre du muscle : un léger surplus de calories et assez de protéines. Note tes repas du jour, ta whey et ta créatine : la jauge se remplit. Pèse-toi une fois par semaine : l\'app ajuste ta cible si tu prends trop vite ou trop lentement.'],
+  psy: ['Cap Psychologie 2027', 'Ta planète prioritaire jusqu\'à la rentrée. Semaine : les séances, courtes, pour les temps calmes à la gare (objectif 5 h). Méthode : réapprendre à travailler. Carte L1 : le programme, chapitre par chapitre. Niveau : les tests. Cartes : les flashcards. Démarches : chaque étape administrative et sa date limite.'],
   pvcorps: ['Ton protocole', '15 000 pas minimum chaque jour, et un circuit un jour sur deux : pompes, dips, tractions négatives, chacun jusqu\'à l\'échec, 3 à 4 tours. Note tes répétitions : les chiffres grisés sont ceux de ton dernier circuit, bats-en au moins un. Le jour sans circuit, c\'est la récupération : le muscle grossit là.'],
   pvnutri: ['Perdre 10 à 15 kg, garder le muscle', 'Pèse-toi une fois par semaine : l\'app suit ton rythme (0,5 à 1 % par semaine). En test : un vrai repas par jour (patates douces, patates, œufs, légumes, viande blanche si tu veux), 1 banane, des fraises, 2 à 3 L d\'eau. Sucres, pâtes, riz, soda et pain sont bannis : tout est tenu par défaut, touche seulement en cas d\'écart. Note ton ressenti : au bout de 14 jours, tu décides.'],
+  maison: ['Le foyer', 'Aspirateur chaque jour, vitres et poussière un jour sur deux, draps une fois par semaine, une machine par jour : lancée, étendue, puis pliée. Ce qui n\'est pas dû aujourd\'hui reste grisé.'],
   intel: ['Six seuils', 'Lecture, sudoku, casse-tête, Coran avec son exégèse, écoute du Coran, écriture : 30 minutes chacun au minimum. ▶ lance un chrono. Le sudoku, les casse-tête et l\'écriture se font aussi dans l\'app, et le chrono y tourne tout seul.'],
   soin: ['Réparer et entretenir', 'Le muscle se construit pendant le sommeil. Note tes nuits, calcule ton heure de coucher, et garde un œil sur la fitra : chaque jauge se vide en 40 jours.'],
   heures: ['Vérifier ta paie', 'Fais glisser les deux poignées du cadran pour ton début et ta fin (la zone sombre, c\'est la nuit). L\'app cumule tes heures du mois, tes heures de nuit et du dimanche, et le compteur d\'heures stockées de la Gare.']
@@ -561,6 +564,7 @@ const COACH_SYS = {
   budget: ['Tes ressources', 'Elles tiennent en 3 temps :', ['Tu te paies d\'abord : ton épargne part au coffre en début de mois', 'Tes charges fixes sont mises de côté', 'Le reste est ta réserve du mois, découpée en une ration par jour qui se recalcule à chaque dépense']]
 };
 function coach(key) {
+  return '';
   if (S.seen[key] || uiSys()) return '';
   const c = (uiSys() && COACH_SYS[key]) || COACH[key];
   return `<div class="coach" data-coach="${key}"><b>${c[0]}.</b> ${c[1]}${c[2] ? `<ol>${c[2].map(x => `<li>${x}</li>`).join('')}</ol>` : ''}<br><button data-seen="${key}">J'ai compris</button></div>`;
@@ -568,7 +572,7 @@ function coach(key) {
 function pageHead(title, sub, key) {
   return `<header class="top"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>
     <div class="top-actions">
-      ${key && (S.seen[key] || uiSys()) ? `<button class="icon-btn" data-unseen="${key}" aria-label="Revoir l'explication">${ICON.info}</button>` : ''}
+      ${key && (COACH[key] || COACH_SYS[key]) ? `<button class="icon-btn" data-unseen="${key}" aria-label="Revoir l'explication">${ICON.info}</button>` : ''}
       <button class="icon-btn" data-open="trophies" aria-label="Mes trophées">${ICON.trophy}</button>
       <button class="icon-btn" data-open="ideas" aria-label="Mes idées">${ICON.idea}</button>
       <button class="icon-btn" data-open="settings" aria-label="Réglages et sauvegarde">${ICON.gear}</button>
@@ -580,7 +584,7 @@ const checkbox = (key, label, attr = 'data-chk', on = S.checks[key]) =>
 let toastTimer = null;
 function toast(msg, action, fn, ms = 4000) {
   const t = $('#toast'), b = $('button', t);
-  $('.msg', t).textContent = msg;
+  $('.msg', t).textContent = gx(msg);
   b.hidden = !action; b.textContent = action || ''; b.onclick = () => { hideToast(); fn && fn(); };
   t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, ms);
 }
@@ -603,7 +607,7 @@ const miniOrb = (p, key, mint) => `<svg class="mini-orb" viewBox="-20 -20 40 40"
    8. ORBITE (accueil)
    ===================================================================== */
 const PLANETS = [
-  { key: 'routine', name: 'Routine', r: 66, speed: 9, phase: 210 },
+  { key: 'psy', name: 'Psychologie', r: 66, speed: 9, phase: 210 },
   { key: 'arabe', name: 'Arabe', r: 66, speed: 9, phase: 30 },
   { key: 'foi', name: 'Foi', r: 98, speed: 6, phase: 330, mint: true },
   { key: 'corps', name: 'Corps', r: 98, speed: 6, phase: 150 },
@@ -622,6 +626,7 @@ function planetValue(k) {
   }
   if (k === 'parcours') return [globalPct() / 100, `${globalPct()} %`];
   if (k === 'intel') { const n = pvSeuils(); return [n / 6, `${n}/6 seuils`]; }
+  if (k === 'psy') { let m = 0; try { m = psyMinTotal(); } catch (e) {} return [gFrac('psy'), `${Math.floor(m / 60)} h ${pad(Math.round(m % 60))}`]; }
   if (k === 'foi') { const sc = faithScore(); return [sc.pct / FAITH_GOAL, `${Math.round(sc.pct * 100)} % / 30 j`]; }
   if (k === 'routine') { const d = S.days[todayISO()] ? 4 : todayBlocks(); return [d / 4, `${d}/4 blocs`]; }
   if (k === 'corps') { const n = pvSteps(), g = numv(pvS().goal) || PV_GOAL; return [n / g, `${pvFmt(n)} pas`]; }
@@ -641,9 +646,9 @@ function planetValue(k) {
    ===================================================================== */
 const GSTAGE = ['Roche', 'Eau', 'Océans', 'Vie', 'Civilisation'];
 /* Chaque planète porte le nom d'une étoile au nom arabe, révélé lettre par lettre à mesure qu'elle s'éveille. */
-const GNAME = { foi: ['Suhail', 'Canopus, l\'étoile qui guidait les voyageurs arabes dans le désert'], business: ['Altaïr', 'de an-nasr at-tâ\'ir, l\'aigle qui vole'], corps: ['Hamal', 'de al-ḥamal, le bélier : la force'], argent: ['Alnilam', 'de an-nizâm, le collier de perles'], chasse: ['Alnair', 'de an-nayyir, la brillante'], parcours: ['Achernar', 'de âkhir an-nahr, la fin du fleuve'], arabe: ['Fomalhaut', 'de fam al-hût, la bouche du poisson'], routine: ['Deneb', 'de dhanab, la queue du cygne'], intel: ['Aldébaran', 'de ad-dabarân, celle qui suit : la persévérance'] };
-const GSIZE = { intel: 25, chasse: 18, foi: 30, business: 26, corps: 24, argent: 24, parcours: 22, arabe: 20, routine: 19 };
-const GPAL = { intel: ['#FFD9C2', '#D9603A', '#2A0C04'], chasse: ['#D9E8C2', '#6B7F3A', '#141A08'], foi: ['#C6F7E0', '#1F9E6E', '#04261A'], business: ['#F6E2B0', '#C08A3E', '#2A1606'], corps: ['#F7B79A', '#B9472E', '#2A0A05'], argent: ['#FFF1C8', '#D4A84A', '#2E1E06'], parcours: ['#E6F6FF', '#6FA8D6', '#0B1E33'], arabe: ['#E2D6FF', '#6A57C9', '#120A2E'], routine: ['#B5EAF2', '#22709A', '#03111C'] };
+const GNAME = { foi: ['Suhail', 'Canopus, l\'étoile qui guidait les voyageurs arabes dans le désert'], business: ['Altaïr', 'de an-nasr at-tâ\'ir, l\'aigle qui vole'], corps: ['Hamal', 'de al-ḥamal, le bélier : la force'], argent: ['Alnilam', 'de an-nizâm, le collier de perles'], chasse: ['Alnair', 'de an-nayyir, la brillante'], parcours: ['Achernar', 'de âkhir an-nahr, la fin du fleuve'], arabe: ['Fomalhaut', 'de fam al-hût, la bouche du poisson'], routine: ['Deneb', 'de dhanab, la queue du cygne'], psy: ['Alhena', 'de al-han\'a, la marque : ce qui laisse une trace'], intel: ['Aldébaran', 'de ad-dabarân, celle qui suit : la persévérance'] };
+const GSIZE = { psy: 21, intel: 25, chasse: 18, foi: 30, business: 26, corps: 24, argent: 24, parcours: 22, arabe: 20, routine: 19 };
+const GPAL = { psy: ['#CFF4FF', '#2E9CC9', '#04202E'], intel: ['#FFD9C2', '#D9603A', '#2A0C04'], chasse: ['#D9E8C2', '#6B7F3A', '#141A08'], foi: ['#C6F7E0', '#1F9E6E', '#04261A'], business: ['#F6E2B0', '#C08A3E', '#2A1606'], corps: ['#F7B79A', '#B9472E', '#2A0A05'], argent: ['#FFF1C8', '#D4A84A', '#2E1E06'], parcours: ['#E6F6FF', '#6FA8D6', '#0B1E33'], arabe: ['#E2D6FF', '#6A57C9', '#120A2E'], routine: ['#B5EAF2', '#22709A', '#03111C'] };
 const GGROW = { intel: [5, 30, 90, 200], psy: [5, 30, 80, 160], chasse: [5, 30, 80, 160], foi: [9, 90, 300, 800], arabe: [5, 30, 80, 150], routine: [3, 20, 60, 150], corps: [1, 10, 30, 80], argent: [5, 40, 120, 300], parcours: [5, 25, 50, 90] };
 function gValue(k) {
   if (k === 'psy') { try { const p = psyS(); return Math.floor(psyMinTotal() / 30) + Object.values(p.tests).reduce((a, l) => a + l.length, 0) * 3 + Object.values(p.cards).filter(x => x[0] >= 4).length; } catch (e) { return 0; } }
@@ -704,7 +709,7 @@ const GDEFS = `<defs>
   <radialGradient id="gSun"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".18" stop-color="#FFF4D6"/><stop offset=".4" stop-color="#F3D9A4" stop-opacity=".7"/><stop offset=".7" stop-color="#E8C27A" stop-opacity=".18"/><stop offset="1" stop-color="#E8C27A" stop-opacity="0"/></radialGradient>
 </defs>`;
 const GPL = { arabe: 20, routine: 21, corps: 24, argent: 26, parcours: 22, business: 25 };
-const MOONS = { foi: () => ['Prières', 'Dhikr', 'Cœur'].concat(nafUnlocked() ? ['Surérogatoires'] : []).concat(arDone(5) ? ['Coran'] : []), corps: () => ['Pas', 'Circuit', 'Nutrition', 'Soin'], intel: () => ['Lecture', 'Sudoku', 'Casse-tête', 'Coran', 'Écriture'], argent: () => ['Budget', 'Heures', 'Zakat'], arabe: () => ARP.filter((_, i) => arDone(i + 1)).map(x => x[0]) };
+const MOONS = { foi: () => ['Prières', 'Dhikr', 'Cœur'].concat(nafUnlocked() ? ['Surérogatoires'] : []).concat(arDone(5) ? ['Coran'] : []), corps: () => ['Pas', 'Circuit', 'Nutrition', 'Soin'], psy: () => ['Méthode', 'Carte L1', 'Cartes'], intel: () => ['Lecture', 'Sudoku', 'Casse-tête', 'Coran', 'Écriture'], argent: () => ['Budget', 'Heures', 'Zakat'], arabe: () => ARP.filter((_, i) => arDone(i + 1)).map(x => x[0]) };
 function moonsSvg(k, R) {
   const f = MOONS[k]; if (!f) return ''; const L = f(); if (!L.length) return '';
   return L.map((n, i) => { const rr = R + 9 + i * 4.5, dur = 9 + i * 4, ph = i * 137; return `<g class="moon" style="animation-duration:${dur}s;animation-delay:-${(ph / 360 * dur).toFixed(2)}s" aria-hidden="true"><ellipse rx="${rr}" ry="${(rr * .42).toFixed(1)}" fill="none" stroke="#FFF4D6" stroke-opacity=".06"/><circle cx="${rr}" cy="0" r="${(2.6 - i * .2).toFixed(1)}" fill="${['#E6E1D8', '#C9D7E6', '#E8C27A', '#BFE3D6', '#F3D9A4'][i % 5]}"/></g>`; }).join('');
@@ -778,10 +783,23 @@ function checkGalaxy() {
    Choix du thème : Réglages → Apparence → Univers (Système ou Galaxie).
    S.sys = { lv, q{ date: { m{id:true}, done, pen{ n } } }, seen }
    ===================================================================== */
-function uiSys() { return (S.ui || 'systeme') === 'systeme'; }
+/* v5.0 : l'app est 100 % Galaxie. Le code du thème Système est conservé (archive dans _ne-pas-mettre-en-ligne/archive-systeme) :
+   pour le rouvrir un jour, il suffit de rendre à uiSys() son ancienne ligne : return (S.ui || 'systeme') === 'systeme'; */
+function uiSys() { return false; }
+/* La langue de la galaxie : ce qui reste du vocabulaire du Système est traduit à l'affichage */
+const GX_W = [[/QUÊTES SURPRISES/g, 'COMÈTES'], [/Quêtes surprises/g, 'Comètes'], [/quêtes surprises/g, 'comètes'], [/QUÊTE SURPRISE/g, 'COMÈTE'], [/Quête surprise/g, 'Comète'], [/quête surprise/g, 'comète'],
+  [/QUÊTE CACHÉE/g, 'COMÈTE CACHÉE'], [/QUÊTE D'URGENCE/g, 'COMÈTE D\'URGENCE'], [/QUÊTE EN CHAÎNE/g, 'CONSTELLATION'], [/QUÊTES DE RATTRAPAGE/g, 'MISSIONS DE RATTRAPAGE'], [/QUÊTE DE RATTRAPAGE/g, 'MISSION DE RATTRAPAGE'], [/[Qq]uêtes? de rattrapage/g, m => m[0] === 'Q' ? (m.includes('s ') ? 'Missions de rattrapage' : 'Mission de rattrapage') : (m.includes('s ') ? 'missions de rattrapage' : 'mission de rattrapage')],
+  [/TON SYSTÈME/g, 'TA GALAXIE'], [/Ton système/g, 'Ta galaxie'], [/QUÊTES/g, 'COMÈTES'], [/QUÊTE/g, 'COMÈTE'], [/Quêtes/g, 'Comètes'], [/Quête/g, 'Comète'], [/quêtes/g, 'comètes'], [/quête/g, 'comète'], [/une comète/g, 'une comète'],
+  [/Le Système/g, 'La galaxie'], [/le Système/g, 'la galaxie'], [/du Système/g, 'de la galaxie'], [/au Système/g, 'à la galaxie'], [/SYSTÈME/g, 'GALAXIE'], [/Système/g, 'Galaxie'],
+  [/Le Joueur/g, 'Sayko'], [/le Joueur/g, 'Sayko'], [/du Joueur/g, 'de Sayko'], [/JOUEUR/g, 'SAYKO'], [/Joueur/g, 'Sayko'],
+  [/(\d) XP\b/g, '$1 ✦'], [/\bXP\b/g, '✦'], [/DONJONS?/g, m => m.length > 6 ? 'PLANÈTES' : 'PLANÈTE'], [/([\s>])donjons\b/g, '$1planètes'], [/([\s>])donjon\b/g, '$1planète'], [/ALERTE · /g, ''], [/\[(\d+)\/(\d+)\]/g, '$1/$2']];
+function gx(h) { if (uiSys() || h == null) return h; h = String(h); GX_W.forEach(([a, b]) => { h = h.replace(a, b); }); return h; }
+/* Majuscules du Système → casse normale (on garde L1, SPF, J−12…) */
+function gxCase(t) { if (!/[A-ZÀ-Ý]{3}/.test(t) || t !== t.toUpperCase()) return t; const keep = []; const low = t.replace(/\b([A-Z]+\d+|\d+[A-Z]+|SPF|OFB|FNC|UCA|L[123]|J[−-]\d+)\b/g, m => { keep.push(m); return `\u0000${keep.length - 1}\u0000`; }).toLowerCase().replace(/^(\s*[^a-zà-ÿ\u0000]*)([a-zà-ÿ])/, (m, a, b) => a + b.toUpperCase()); return low.replace(/\u0000(\d+)\u0000/g, (m, i) => keep[i]); }
+function gxBtn(h) { return uiSys() ? h : String(h).replace(/(<button[^>]*class="[^"]*sys-btn[^"]*"[^>]*>)([^<]+)(<)/g, (m, a, t, c) => a + gxCase(t) + c); }
 function sysS() { const s = S.sys = S.sys && typeof S.sys === 'object' ? S.sys : {}; if (!s.q || typeof s.q !== 'object') s.q = {}; return s; }
 const xpTotal = () => Math.max(0, Object.values(S.nour.log || {}).reduce((a, b) => a + (Number(b) || 0), 0) - (Number((S.sys || {}).loss) || 0));
-const xpLose = n => { const s = sysS(); s.loss = (Number(s.loss) || 0) + n; };
+const xpLose = n => { const s = sysS(); s.loss = (Number(s.loss) || 0) + n; if (!uiSys()) nourAdd(-n); };
 const xpNeed = n => 60 + 25 * n;
 function lvOf(xp) { let l = 1, rest = xp; while (rest >= xpNeed(l)) { rest -= xpNeed(l); l++; } return { l, rest, need: xpNeed(l) }; }
 const SYS_RANK = [[1, 'E', 'Éveillé'], [5, 'D', 'Apprenti'], [12, 'C', 'Combattant'], [22, 'B', 'Élite'], [35, 'A', 'Vétéran'], [50, 'S', 'Monarque']];
@@ -824,9 +842,9 @@ function penaltyToday() {
 }
 const tLeft = () => { const n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); const s = Math.max(0, Math.floor((m - n) / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; };
 /* Les donjons : chaque module, avec son rang selon ta progression */
-const DUNG = [['corps', 'Corps'], ['intel', 'Intellect'], ['foi', 'Foi'], ['psy', 'Psychologie'], ['arabe', 'Arabe'], ['routine', 'Routine'], ['argent', 'Argent'], ['business', 'Business'], ['chasse', 'Chasse']];
+const DUNG = [['corps', 'Corps'], ['intel', 'Intellect'], ['foi', 'Foi'], ['psy', 'Psychologie'], ['arabe', 'Arabe'], ['argent', 'Argent'], ['business', 'Business'], ['chasse', 'Chasse']];
 const DRANK = ['E', 'D', 'C', 'B', 'A'];
-function sysWin(title, body, cls = '') { return `<section class="sw ${cls}"><i class="sw-c sw-tl"></i><i class="sw-c sw-tr"></i><i class="sw-c sw-bl"></i><i class="sw-c sw-br"></i><header class="sw-h"><span class="sw-dot"></span><span class="sw-t">${title}</span></header><div class="sw-b">${body}</div></section>`; }
+function sysWin(title, body, cls = '') { title = gx(title); body = gxBtn(gx(body)); if (!uiSys()) title = gxCase(title); return `<section class="sw ${cls}"><i class="sw-c sw-tl"></i><i class="sw-c sw-tr"></i><i class="sw-c sw-bl"></i><i class="sw-c sw-br"></i><header class="sw-h"><span class="sw-dot"></span><span class="sw-t">${title}</span></header><div class="sw-b">${body}</div></section>`; }
 function vSys(now) {
   const xp = xpTotal(), L = lvOf(xp), r = sysRank(L.l), st = sysStats(), d = questDay(), done = questDone(d), pen = penaltyToday();
   try { localStorage.setItem('sdp-sysline', JSON.stringify({ lv: L.l, r: r[1], pen: !!(pen && pen.n < pen.goal), done })); } catch (e) {}
@@ -867,7 +885,7 @@ function sysPing(big) {
 function sysPop(title, html, btn = 'Fermer', cls = '') {
   if ($('.sys-pop')) return; const el = document.createElement('div'); el.className = `sys-pop ${cls}`; el.setAttribute('role', 'dialog');
   el.innerHTML = `<div class="sys-pop-in">${sysWin(title, `${html}<button class="sys-btn big" data-syspop>${btn}</button>`)}</div>`;
-  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on')); sfx(cls === 'lvl' ? 'lvl' : cls === 'pen' ? 'alert' : cls === 'ok' ? 'big' : 'win'); try { navigator.vibrate && navigator.vibrate([20, 40, 20]); } catch (e) {}
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on')); if (uiSys()) sfx(cls === 'lvl' ? 'lvl' : cls === 'pen' ? 'alert' : cls === 'ok' ? 'big' : 'win'); else if (cls === 'pen') thud(); else chime(cls === 'ok' || cls === 'lvl'); try { navigator.vibrate && navigator.vibrate([20, 40, 20]); } catch (e) {}
   el.addEventListener('click', e => { if (e.target.closest('[data-syspop]') || e.target === el) { el.classList.remove('on'); setTimeout(() => el.remove(), 300); } });
 }
 function sysCheck() {
@@ -882,6 +900,10 @@ function sysCheck() {
   if (s.seen !== k) { s.seen = k; save(); sanctionsDaily(); const pen = penaltyToday();
     setTimeout(() => sysPop('NOUVELLE QUÊTE', `<p class="sys-qt" style="text-align:center">QUÊTE QUOTIDIENNE · FORGER LE JOUEUR</p>${d.list.map(o => `<p class="sys-li">— ${esc(o.t)} <b class="num">[${Math.min(o.v, o.n)}/${o.n}]</b></p>`).join('')}${pen ? '<p class="sys-pt" style="color:var(--danger);text-align:center;margin-top:10px">Quête de pénalité active : 100 pompes aujourd\'hui.</p>' : ''}<p class="small" style="text-align:center;color:var(--muted);margin-top:10px">Récompense : +30 XP. Ne pas l'accomplir déclenche une pénalité demain.</p>`, 'Accepter'), 700); }
 }
+function gxDailyLater() { if (document.getElementById('intro')) { setTimeout(gxDailyLater, 600); return; } const s = sysS(), k = todayISO(); if (!s.start) { s.start = k; save(); }
+  { const r = repS(); if (r && !r.closed && (repOn() || k >= r.end)) { try { repCheck(); } catch (e) {} } }
+  if (s.gseen !== k) { s.gseen = k; save(); setTimeout(() => { try { sanctionsDaily(); } catch (e) {} }, 900); }
+  setTimeout(() => { try { lookNag(); } catch (e) {} }, 3500); }
 function sysCheckLater() { if (document.getElementById('intro')) { setTimeout(sysCheckLater, 600); return; } if (tab === 'orbite' && uiSys()) { sysCheck(); setTimeout(lookNag, 2500); } }
 function sysClick(t) {
   const c = s => t.closest(s); let el;
@@ -1386,7 +1408,6 @@ function sysPQ() { const s = sysS(); s.pq = Array.isArray(s.pq) ? s.pq : []; s.f
 let SANQ = [];
 function sanction(title, lines, xp, quest) {
   if (repOn()) return;
-  if (!uiSys()) { if (xp) { nourAdd(-xp); save(); } return; }
   const s = sysPQ();
   if (xp) xpLose(xp);
   if (quest) s.pq.push({ id: uid(), t: quest, d: todayISO(), due: iso(addDays(new Date(), 1)), xp: 10 });
@@ -1411,9 +1432,11 @@ function sanctionsDaily() {
   if (y < start) return;
   inactCheck();
   /* quête quotidienne d'hier non accomplie */
-  const pen = penaltyToday(); if (pen && !s.flags['q' + y]) { s.flags['q' + y] = k; sanction('QUÊTE ÉCHOUÉE', ['La quête quotidienne d\'hier n\'a pas été accomplie.', 'Le Système applique la pénalité prévue.'], 15, null); }
+  if (!uiSys()) { try { const pc = pvDayPct(y); if (y >= pvS().start && pc < .5 && !s.flags['q' + y]) { s.flags['q' + y] = k; sanction('Protocole d\'hier non tenu', [`Hier, ton protocole s'est arrêté à ${Math.round(pc * 100)} %.`, 'Ta lumière baisse. Aujourd\'hui, tu la rallumes.'], 10, null); }
+    const yc = pvS().circ.some(x => x.date === y), y2 = iso(addDays(new Date(), -2)); if (y >= pvS().start && !yc && !pvS().circ.some(x => x.date === y2) && pvS().circ.length && !s.flags['c' + y]) { s.flags['c' + y] = k; sanction('Circuit manqué', ['Hier était un jour de circuit, et il n\'a pas été fait.', 'Le muscle ne se garde pas en pensée.'], 5, 'Circuit aujourd\'hui, sans négocier'); } } catch (e) {} }
+  else { const pen = penaltyToday(); if (pen && !s.flags['q' + y]) { s.flags['q' + y] = k; sanction('QUÊTE ÉCHOUÉE', ['La quête quotidienne d\'hier n\'a pas été accomplie.', 'Le Système applique la pénalité prévue.'], 15, null); } }
   /* séance d'entraînement prévue hier et non faite */
-  try { const yd = addDays(new Date(), -1), p = fight().plan[monKey(yd)], i = (yd.getDay() + 6) % 7;
+  if (uiSys()) try { const yd = addDays(new Date(), -1), p = fight().plan[monKey(yd)], i = (yd.getDay() + 6) % 7;
     if (p && p.s && p.s[i] && !dayDoneAny(y) && !s.flags['s' + y]) { s.flags['s' + y] = k; sanction('SÉANCE MANQUÉE', [`Hier était prévue une séance « ${FTYPES[p.s[i]] ? FTYPES[p.s[i]].n : p.s[i]} ».`, 'Le corps ne se forge pas en pensée.'], 5, 'Séance de rattrapage · 20 minutes, au choix'); } } catch (e) {}
   /* quêtes de rattrapage expirées */
   const exp = s.pq.filter(q => !q.done && q.due < k);
@@ -1463,14 +1486,14 @@ function inactCheck() {
 function inactAlert(n, xp, dp) {
   if (document.getElementById('intro')) { setTimeout(() => inactAlert(n, xp, dp), 600); return; }
   const el = document.createElement('div'); el.id = 'inact'; el.className = 'inact'; el.setAttribute('role', 'alertdialog');
-  el.innerHTML = `<div class="in-vig"></div><div class="in-scan"></div>
+  el.innerHTML = gx(`<div class="in-vig"></div><div class="in-scan"></div>
     <div class="in-box"><p class="in-warn">⚠ AVERTISSEMENT ⚠</p>
-      <p class="in-t" data-g="INACTIVITÉ DÉTECTÉE">INACTIVITÉ DÉTECTÉE</p>
+      <p class="in-t" data-g="INACTIVITÉ DÉTECTÉE">${uiSys() ? 'INACTIVITÉ DÉTECTÉE' : 'Ta lumière s\'est éteinte'}</p>
       <p class="in-n num">${n}<small> JOUR${n > 1 ? 'S' : ''}</small></p>
       <p class="in-l">Aucune activité du Joueur.</p>
       <div class="in-loss"><p><span>DISCIPLINE</span><b class="num">▼ −${dp}</b></p><p><span>XP</span><b class="num">▼ −${xp}</b></p></div>
       <p class="in-l dim">Si l'inactivité continue, le Système considérera que le Joueur a abandonné.</p>
-      <button class="in-hold" id="inHold"><i></i><span>MAINTIENS POUR REPRENDRE</span></button></div>`;
+      <button class="in-hold" id="inHold"><i></i><span>MAINTIENS POUR REPRENDRE</span></button></div>`);
   document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
   try { sfx('inact'); navigator.vibrate && navigator.vibrate([400, 150, 400, 150, 800]); } catch (e) {}
   const btn = el.querySelector('#inHold'), bar = btn.querySelector('i'); let t0 = 0, raf = 0;
@@ -1597,25 +1620,27 @@ function vOrbite() {
   const tb = S.days[todayISO()] ? 4 : todayBlocks();
   if (uiSys()) return `${vSys(now)}${pvHome()}<div class="gglass">${yesterdayCard()}${atStake()}${tjCard()}</div><div class="gglass tjbottom">${tjFeedback()}</div>`;
   return `${vGalaxy(hello, now)}
+  ${repOn() ? `<div class="gglass">${repWin()}</div>` : ''}
+  ${(() => { let h = ''; try { h = sqWinHtml() + pqWin(); } catch (e) {} return h ? `<div class="gglass">${h}</div>` : ''; })()}
   ${pvHome()}
+  ${(() => { try { const pn = prayerNow(), nx = nextPrayer(); const t = pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine prière : ${PNAMES[nx.id]} à ${hm(nx.start)}` : ''; return t ? `<button class="pv-prayline" data-goto="habitudes"><span>☾</span>${t}<em>→</em></button>` : ''; } catch (e) { return ''; } })()}
   <div class="gglass">${yesterdayCard()}${atStake()}${tjCard()}</div>
-  <section class="glass">
-    <h2>Aujourd'hui</h2>
+  <details class="glass pv-more-home"><summary><b>Le reste de ta galaxie</b><span>prières, dhikr, budget, arabe…</span></summary>
     <div class="today-list">
       ${(() => { const p = adk().pending; if (!p || p.k !== todayISO() || adkDone(p.k, p.id)) return ''; return `<button class="today-item" data-adk="open">${miniOrb(0, 'foi', true)}<span><b>Adhkar de ${PNAMES[p.id]}</b><span class="s">En attente · touche pour les faire</span></span>${ICON.chev}</button>`; })()}
       ${(() => { if (!chasseActive()) return ''; const dd = chDays(), c = ch(), m = CHQ.filter(x => chMast(x[0])).length; return `<button class="today-item" data-goto="chasse">${miniOrb(m / CHQ.length, 'corps')}<span><b>${dd != null && dd >= 0 ? `Permis de chasser · J-${dd}` : 'Permis de chasser'}</b><span class="s">${m}/${CHQ.length} questions maîtrisées${c.ex.length ? ` · dernier blanc ${c.ex[c.ex.length - 1].s}/10` : ''}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const d = S.flux.day.d === todayISO() ? S.flux.day.n : 0; return `<button class="today-item" data-goto="flux">${miniOrb(Math.min(1, d / 5), 'flux')}<span><b>${d >= 5 ? 'Esprit nourri aujourd\'hui' : d ? `Flux · ${d} carte${d > 1 ? 's' : ''} sur 5` : 'Flux · 5 cartes pour ton esprit'}</b><span class="s">${d ? `${d} carte${d > 1 ? 's' : ''} lue${d > 1 ? 's' : ''} aujourd'hui` : 'Coran, business, savoir, psychologie'}</span></span>${ICON.chev}</button>`; })()}
       ${isSetUp() ? (() => { const bb = budgetOf(todayISO().slice(0, 7)), dd = bb.daysLeft ? bb.reste / bb.daysLeft : 0; return `<button class="today-item" data-goto="budget">${miniOrb(bb.free > 0 ? Math.max(0, bb.reste) / bb.free : 0, 'argent')}<span><b>${bb.reste > 0 ? `${eur0(dd)} à dépenser aujourd'hui` : 'Budget du mois épuisé'}</b><span class="s">Reste ${eur0(bb.reste)} ce mois</span></span>${ICON.chev}</button>`; })() : ''}
       <button class="today-item" data-goto="heures">${miniOrb(planetValue('heures')[0], 'heures')}<span><b>${wk ? `${fmtH(wk)} cette semaine` : 'Aucun service cette semaine'}</b><span class="s">Noter un service</span></span>${ICON.chev}</button>
-      <button class="today-item" data-goto="routine">${miniOrb(tb / 4, 'routine')}<span><b>${tb === 4 ? 'Routine faite' : `${tb} bloc${tb > 1 ? 's' : ''} sur 4`}</b><span class="s">${streak()} jour${streak() > 1 ? 's' : ''} d'affilée</span></span>${ICON.chev}</button>
       ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">${(() => { const pn = prayerNow(), nx = nextPrayer(); return pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine : ${PNAMES[nx.id]} à ${hm(nx.start)}` : `Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours`; })()}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const td = dkDay(), st = dkStreak(); return `<button class="today-item" data-goto="dhikr">${miniOrb(Math.min(1, td / 33), 'foi', true)}<span><b>${td >= 33 ? `Dhikr · ${td} aujourd'hui` : 'Dhikr · ton premier 33'}</b><span class="s">${st ? `${st} jour${st > 1 ? 's' : ''} d'affilée` : dkF(dk().cur)[2]}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const s = hairDays('soin'), c = hairDays('coupe'); const due = s != null && s >= 7 ? 'soin' : c != null && c >= 70 ? 'coupe' : null; if (!due) return ''; return `<button class="today-item" data-goto="apparence">${miniOrb(0, 'corps')}<span><b>${due === 'soin' ? 'Jour de soin des cheveux' : 'Pointes à couper'}</b><span class="s">${due === 'soin' ? `Dernier soin il y a ${s} jours` : `Dernière coupe il y a ${Math.round(c / 7)} semaines`}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const h = hrt(), x = HEART.find(y => y.k === h.cur) || HEART[0], l = hLevel(x.k), done = !!hc(x.k).days[todayISO()]; return `<button class="today-item" data-goto="coeur">${miniOrb(l / 3, 'foi', true)}<span><b>Cœur · ${x.n}</b><span class="s">${l === 0 ? 'Commence par la leçon' : l === 3 ? 'Ancrée : continue de la pratiquer' : done ? (x.k === 'dua' ? 'Tu Lui as parlé aujourd\'hui' : 'Pratiqué aujourd\'hui') : x.k === 'dua' ? 'Une phrase pour Allah aujourd\'hui' : `Pratique du jour · ${hDays(x.k)} jour${hDays(x.k) > 1 ? 's' : ''} sur 21`}</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="arabe">${miniOrb(wordsKnown() / WORDS.length, 'arabe', true)}<span><b>Réviser 5 mots</b><span class="s">${wordsKnown()} mots maîtrisés sur ${WORDS.length}</span></span>${ICON.chev}</button>
     </div>
-  </section>
-  <div class="gglass tjbottom">${tjFeedback()}</div>`;
+    ${(() => { try { return `<button class="pv-pil" data-sqlog style="margin-top:6px"><span class="pv-ic">☄</span><span class="grow"><b>Comètes</b><small>${sqS().done} attrapée${sqS().done > 1 ? 's' : ''} · ${sqS().failed} manquée${sqS().failed > 1 ? 's' : ''}</small></span></button><button class="pv-pil" data-expl><span class="pv-ic">✦</span><span class="grow"><b>Exploit libre</b><small>Douche froide, gainage, 50 pompes, marche</small></span></button>`; } catch (e) { return ''; } })()}
+    <div class="tjbottom">${tjFeedback()}</div>
+  </details>`;
 }
 /* Animation du système + rotation au doigt avec inertie */
 const orb = { raf: 0, t0: 0, spin: 0, vel: 0, drag: null, last: 0 };
@@ -1815,7 +1840,7 @@ function vArabe1() {
     <div class="quiz"><div class="qcard" id="quiz" aria-live="polite"></div></div>
     <p class="hint">Les mots que tu connais le moins reviennent plus souvent.</p>
   </section>
-  <section>
+  ${pvMO('ar-plus', 'Al-Fatiha, tajwid, sourates', `${nS} sourate${nS > 1 ? 's' : ''} comprise${nS > 1 ? 's' : ''} · ${t.done} module${t.done > 1 ? 's' : ''} de tajwid`)}  <section>
     <div class="row between" style="margin-bottom:4px"><h2 style="margin:0">Al-Fatiha</h2><button class="btn sm quiet" id="toggleFat" aria-pressed="${S.hideFatiha}">${S.hideFatiha ? 'Montrer le sens' : 'Cacher le sens'}</button></div>
     <p class="hint" id="fatHint" style="margin:0 0 10px">${S.hideFatiha ? 'Touche un mot pour révéler sa traduction.' : 'Mot à mot. Cache le sens pour te tester.'}</p>
     <div id="fatiha" class="${S.hideFatiha ? 'hide' : ''}">${fat}</div>
@@ -1832,7 +1857,7 @@ function vArabe1() {
     <div class="row between" style="margin-bottom:6px"><h2 style="margin:0">Sourates comprises</h2><span class="small muted num" id="sourN">${nS} / ${SOURATES.length}</span></div>
     <p class="hint" style="margin:0 0 6px">Coche une sourate quand tu en comprends le sens en la récitant.</p>
     <div class="sour checks">${SOURATES.map(s => `<label class="check"><input type="checkbox" data-sour="${esc(s[1])}" ${S.sourates[s[1]] ? 'checked' : ''}><span class="box">${ICON.tick}</span><span class="sn">${s[0]}</span><span class="txt">${esc(s[1])}</span><span class="ar" lang="ar">${s[2]}</span></label>`).join('')}</div>
-  </section>`;
+  </section>${pvMC}`;
 }
 function pickWord() {
   const weights = WORDS.map((_, i) => { const sc = S.words[i] || 0; return sc >= 3 ? 0.4 : 4 - sc; });
@@ -2066,8 +2091,7 @@ function vHeures() {
   const hol = holidayName(f.date);
   return `${argentTop('heures')}
   ${uiSys() ? hoursHud() : pocketBlock()}
-  ${counterBlock()}
-  <section id="entry" style="margin-top:36px">
+  <section id="entry" style="margin-top:28px">
     <h2>Noter un service</h2>
     <div class="seg" role="group" aria-label="Employeur">${Object.keys(EMP).map(k => `<button data-emp="${k}" aria-pressed="${f.emp === k}"><span class="dot"></span>${EMP[k]}</button>`).join('')}</div>
     ${vDial()}
@@ -2092,8 +2116,8 @@ function vHeures() {
       <p class="small muted num" style="text-align:right">${Object.keys(EMP).map(k => `${EMP[k]} ${fmtH(sumShifts(shiftsWeek(mon, k)).worked)}`).join('<br>')}</p></div>
     ${overs.length ? `<div class="alert">${ICON.warn}<span>Seuil hebdo dépassé chez ${overs.map(k => EMP[k]).join(' et ')}. Vérifie que ces heures sup apparaissent sur ta fiche de paie.</span></div>` : ''}
   </section>
-  <section id="month">${vMonth()}</section>
-  ${vArchive()}
+  ${pvMO('h-mois', 'Le mois, le compteur, l\'archive', 'tous tes services')}${counterBlock()}<section id="month" style="margin-top:10px">${vMonth()}</section>
+  ${vArchive()}${pvMC}
   ${needBackup ? `<div class="nudge"><span>${backupDays === null ? "Tu n'as encore jamais sauvegardé tes données." : `Dernière sauvegarde il y a ${backupDays} jours.`}</span><button class="btn sm quiet" data-export>Sauvegarder</button></div>` : ''}`;
 }
 function vArchive() {
@@ -2498,8 +2522,7 @@ function vBudget() {
     <button class="btn block" id="bAdd" style="margin-top:12px">Ajouter</button>
   </section>` : ''}
 
-  <section>
-    <h2>Ton mois en une ligne</h2>
+  ${pvMO('b-mois', 'Ton mois en une ligne', `revenus, dettes, épargne, charges · reste ${eur0(b.reste)}`)}<section style="margin-top:0">
     <div class="flow">
       <details data-flow="carry" ${A.open.has('carry') ? 'open' : ''}><summary><span>Solde de départ</span><b class="num" style="color:var(--${b.carry < 0 ? 'danger' : b.carry > 0 ? 'mint' : 'muted'})">${b.carry < 0 ? '−' : b.carry > 0 ? '+' : ''}${eur0(Math.abs(b.carry))}</b></summary>
         <div class="flow-in">
@@ -2520,9 +2543,9 @@ function vBudget() {
       <div class="frow total"><span>Reste</span><b class="num" style="color:var(--${b.reste < 0 ? 'danger' : 'gold'})">${eur0(b.reste)}</b></div>
     </div>
     <button class="btn sm ghost" data-bsetup style="margin-top:14px">Modifier mon mois type</button>
-  </section>
+  </section>${pvMC}
 
-  ${envRows ? `<section><h2>Enveloppes</h2><div class="envs">${envRows}</div>
+  ${pvMO('b-env', 'Enveloppes, épargne et fondations', 'sadaqa, conseils du mois')}${envRows ? `<section style="margin-top:0"><h2>Enveloppes</h2><div class="envs">${envRows}</div>
     ${unalloc < 0 ? `<div class="alert">${ICON.warn}<span>Tes enveloppes (${eur0(b.free - unalloc)}) dépassent ton budget libre (${eur0(b.free)}). Baisse un plafond dans ton mois type.</span></div>` : `<p class="hint">Hors enveloppes, il te reste ${eur0(Math.max(0, unalloc - Object.keys(b.byCat).filter(c => !envs.some(e => e.cat === c)).reduce((a, c) => a + b.byCat[c], 0)))} pour tout le reste.</p>`}</section>` : ''}
 
   ${vSadaqa(b, ym)}
@@ -2530,13 +2553,13 @@ function vBudget() {
 
   ${vFoundations(b)}
 
-  ${insights(b, ym)}
+  ${insights(b, ym)}${pvMC}
 
-  <section>
+  ${pvMO('b-mvt', 'Mouvements', `${list.length} ce mois-ci`)}<section style="margin-top:0">
     <div class="row between" style="margin-bottom:10px"><h2 style="margin:0">Mouvements</h2><button class="btn sm ghost" id="bCsv" ${list.length ? '' : 'disabled'}>CSV</button></div>
     ${usedCats.length > 1 ? `<div class="filters"><button class="chip" data-bfilter="all" aria-pressed="${A.catFilter === 'all'}">Tout</button>${usedCats.map(c => `<button class="chip" data-bfilter="${c}" aria-pressed="${A.catFilter === c}">${catName(c)}</button>`).join('')}</div>` : ''}
     <div>${txRows || `<p class="empty">Aucun mouvement en ${monthLabel(ym)}.</p>`}</div>
-  </section>`;
+  </section>${pvMC}`;
 }
 function avgSpend(from) {
   const ms = [1, 2, 3].map(k => { let ym = from || A.month; for (let i = 0; i < k; i++) ym = prevMonth(ym); return txIn(ym, 'exp').reduce((a, t) => a + numv(t.amount), 0); }).filter(Boolean);
@@ -2812,7 +2835,7 @@ function vHabits() {
   </div>
   <p class="hint" style="text-align:center;margin-top:34px">Touche une prière pour dire comment tu l'as faite.</p>`}
   ${others.length ? `${uiSys() ? '<p class="sys-k" style="margin-top:18px">OBJECTIFS SECONDAIRES</p>' : ''}<div class="checks" style="margin-top:6px">${others.map(h => checkbox(h.id, esc(h.name), 'data-habitc', !!d[h.id])).join('')}</div>` : ''}
-  <section>
+  ${pvMO('f-stats', 'Tes prières et ta régularité', `${Math.round(sc.pct * 100)} % sur 30 jours · objectif ${Math.round(FAITH_GOAL * 100)} %`)}  <section>
     <p class="eyebrow">Tes prières · ${MONTH_FMT.format(parseDate(k))}</p>
     <div class="pstats">${[['m', cm], ['g', cg], ['s', cs], ['r', cr], ['x', cx]].map(([w, c]) => `<div class="w-${w}"><i>${PICON(w, 16)}</i><b class="num">${c}</b><span>${PWAY[w][0]}</span></div>`).join('')}</div>
     <p class="small" style="margin-top:12px">${fs ? `<b style="color:var(--gold)">${fs} jour${fs > 1 ? 's' : ''}</b> d'affilée avec Fajr à l'heure.` : 'Fajr à l\'heure demain : la série commence là.'}</p>
@@ -2825,7 +2848,7 @@ function vHabits() {
     <div class="cal cal10" style="margin-top:18px">${cells}</div>
     <p class="hint">Touche un jour pour le corriger. La journée en cours compte dès que tout est coché.</p>
     <button class="btn sm ghost" data-fsetup style="margin-top:12px">Modifier mes habitudes</button>
-  </section>`;
+  </section>${pvMC}`;
 }
 function openFaithSetup() {
   $('#ideasBody').innerHTML = `<div class="grab"></div><div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Mes habitudes</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
@@ -2932,7 +2955,7 @@ function setPrayer(k, id, v) {
   if (today && prev && pv(prev) !== 'x') unreward(prayerPts(id, prev) + (wasFull && !full ? 5 : 0));
   if (today && prev === 'x') { if (uiSys()) { const ss = sysS(); ss.loss = Math.max(0, (Number(ss.loss) || 0) - 5); } else nourAdd(5); }
   if (!v) { render(); return; }
-  if (v === 'x' && uiSys()) { sanctionPrayer(id); return; }
+  if (v === 'x') { sanctionPrayer(id); return; }
   if (v === 'x') { nourAdd(-5); save(); refreshSun(); thud(); try { navigator.vibrate && navigator.vibrate(250); } catch (e) {} return; }
   if (!today) { render(); return; }
   adkAfterPrayer(k, id, v);
@@ -4433,35 +4456,26 @@ function vSoin() {
   const k = todayISO(), m = S.body.sleep[k], nap = (S.body.nap || {})[k] || 0, tot = sleepTot(k), logged = Array.from({ length: 7 }, (_, i) => sleepTot(iso(addDays(new Date(), -i)))).filter(Boolean);
   const avg = logged.length ? Math.round(logged.reduce((a, b) => a + b) / logged.length) : 0;
   const wake = toMin(S.body.wake || '04:30'), bed5 = wake - 450 - 15, bed4 = wake - 360 - 15;
-  const care = S.body.care, cl = care.log[k] || {}, cn = care.list.filter(c => cl[c.id]).length;
-  const fri = iso(addDays(mondayOf(new Date()), 4));
   return `${corpsTop('soin')}${soinSeg('soin')}
-  <section style="margin-top:26px">
-    <div class="row between" style="align-items:flex-end"><h2 style="margin:0">Sommeil</h2><p class="small muted" style="margin:0;text-align:right">${logged.length ? `moyenne ${fmtDur(avg)}` : 'objectif 7 à 9 h'}</p></div>
-    ${sleepBars()}
-    <p class="eyebrow" style="margin-top:14px">Cette nuit</p>
-    <div class="row" style="margin-top:8px;gap:8px">
-      <button class="icon-btn" data-sleep="-15" aria-label="Moins 15 minutes" style="background:var(--surface)">−</button>
-      <p class="num" style="flex:1;text-align:center;margin:0;font:400 2.25rem/1 var(--serif);color:var(--${!m ? 'muted' : m >= 420 ? 'gold' : 'warn'})">${m ? fmtDur(m) : '—'}</p>
-      <button class="icon-btn" data-sleep="15" aria-label="Plus 15 minutes" style="background:var(--surface)">+</button>
+  <section class="glass pv-card">
+    <div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Cette nuit</h2><span class="small muted">${avg ? `moyenne 7 j : ${fmtDur(avg)}` : 'objectif 7 h minimum'}</span></div>
+    <div class="row" style="margin-top:10px;gap:8px">
+      <button class="icon-btn" data-sleep="-15" aria-label="Moins 15 minutes" style="background:var(--raise)">−</button>
+      <p class="num" style="flex:1;text-align:center;margin:0;font:400 2.4rem/1 var(--serif);color:var(--${!m ? 'muted' : m >= 420 ? 'mint' : 'warn'})">${m ? fmtDur(m) : '—'}</p>
+      <button class="icon-btn" data-sleep="15" aria-label="Plus 15 minutes" style="background:var(--raise)">+</button>
     </div>
-    <div class="chips" style="justify-content:center">${[300, 360, 420, 480, 540].map(v => `<button class="chip" data-sleep="=${v}" aria-pressed="${m === v}">${v / 60} h</button>`).join('')}</div>
-    <p class="eyebrow" style="margin-top:18px">Sieste aujourd'hui</p>
-    <div class="chips">${[[0, 'Aucune'], [20, '20 min'], [30, '30 min'], [60, '1 h'], [90, '1 h 30'], [120, '2 h'], [150, '2 h 30'], [180, '3 h']].map(([v, l]) => `<button class="chip" data-nap="${v}" aria-pressed="${nap === v}">${l}</button>`).join('')}</div>
-    ${nap || m ? `<p class="small" style="margin:12px 0 0">Total sur la journée : <b class="num" style="color:var(--${tot >= 420 ? 'gold' : 'warn'})">${fmtDur(tot)}</b>${nap ? ` <span class="muted">(nuit ${m ? fmtDur(m) : '—'} + sieste ${fmtDur(nap)})</span>` : ''}</p>` : ''}
-    <p class="hint">Le matin, note ta nuit. Si tu fais une sieste dans la journée, ajoute-la : elle s'empile en vert sur la barre du jour. Soir de Mister Pizza puis gare ? Une sieste de 20 à 30 min, ou de 90 min (un cycle complet), évite de te réveiller en plein sommeil profond.</p>
-    ${avg && avg < 420 ? `<div class="alert">${ICON.warn}<span>Moins de 7 h en moyenne : le muscle se construit surtout la nuit. Une seule nuit blanche fait chuter d'environ 18 % la fabrication de muscle le lendemain. Après la gare, une sieste de 20 min aide.</span></div>` : ''}
+    <div class="chips" style="justify-content:center">${[360, 420, 480].map(v => `<button class="chip" data-sleep="=${v}" aria-pressed="${m === v}">${v / 60} h</button>`).join('')}</div>
+    <div class="pv-row" style="margin-top:12px"><span>Sieste</span><span class="chips" style="margin:0">${[[0, '0'], [20, '20 min'], [90, '1 h 30']].map(([v, l]) => `<button class="chip" data-nap="${v}" aria-pressed="${nap === v}">${l}</button>`).join('')}</span></div>
+    ${nap ? `<p class="pv-line">Total de la journée : <b class="num">${fmtDur(tot)}</b></p>` : ''}
+    ${avg && avg < 420 ? `<p class="pv-warn">Moins de 7 h en moyenne : en perte de poids, le manque de sommeil fait perdre du muscle et garder du gras.</p>` : ''}
   </section>
-  <section>
-    <h2>Heure de coucher</h2>
-    <div class="bed">
-      <div class="row between"><label for="bedWake" class="small muted">Lever demain</label><input type="time" id="bedWake" value="${esc(S.body.wake || '04:30')}" class="num" style="border:0;background:var(--raise);border-radius:12px;min-height:44px;padding:0 12px;color:var(--ink)"></div>
-      <div class="chips"><button class="chip" data-wake="04:30" aria-pressed="${S.body.wake === '04:30'}">Gare · 4 h 30</button><button class="chip" data-wake="07:30" aria-pressed="${S.body.wake === '07:30'}">Repos · 7 h 30</button></div>
-      <p class="eyebrow" style="margin-top:18px">Au lit à</p><b class="num">${fmtClock(bed5)}</b>
-      <p class="small muted" style="margin:6px 0 0">5 cycles de 90 min (7 h 30) + 15 min pour t'endormir. Soir de Mister Pizza ? Vise au moins <b style="font:inherit;color:var(--ink)">${fmtClock(bed4)}</b> (4 cycles, 6 h) et fais une sieste le lendemain.</p>
-    </div>
+  <section class="glass pv-card"><div class="row between" style="align-items:center"><div><h2 class="pv-h" style="margin:0">Au lit à <span class="num" style="color:var(--gold)">${fmtClock(bed5)}</span></h2><p class="pv-sub" style="margin:2px 0 0">pour 5 cycles (7 h 30) avant ton réveil</p></div></div>
+    <div class="chips"><button class="chip" data-wake="04:30" aria-pressed="${S.body.wake === '04:30'}">Gare · 4 h 30</button><button class="chip" data-wake="07:30" aria-pressed="${S.body.wake === '07:30'}">Repos · 7 h 30</button></div>
   </section>
-  <button class="sys-btn big" data-cview="apparence" style="margin-top:22px">PROTOCOLE D'APPARENCE →</button>`;
+  ${pvMore('Les 7 dernières nuits', avg ? `moyenne ${fmtDur(avg)}` : 'pas encore de données', sleepBars())}
+  ${pvMore('Réglages et conseils', 'heure de lever, siestes, soirs de pizza', `<div class="row between"><label for="bedWake" class="small muted">Lever demain</label><input type="time" id="bedWake" value="${esc(S.body.wake || '04:30')}" class="num" style="border:0;background:var(--raise);border-radius:12px;min-height:44px;padding:0 12px;color:var(--ink)"></div>
+    <div class="chips">${[[30, '30 min'], [60, '1 h'], [120, '2 h'], [150, '2 h 30'], [180, '3 h']].map(([v, l]) => `<button class="chip" data-nap="${v}" aria-pressed="${nap === v}">Sieste ${l}</button>`).join('')}</div>
+    <p class="pv-sub">Soir de Mister Pizza puis gare ? Vise au moins <b>${fmtClock(bed4)}</b> (4 cycles, 6 h) et fais une sieste le lendemain : 20 à 30 min, ou 90 min pour un cycle complet.</p>`)}`;
 }
 function openCareSetup() {
   $('#ideasBody').innerHTML = `<div class="grab"></div><div class="sheet-top"><span style="width:60px"></span><h2 id="ideasTitle">Hygiène du jour</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
@@ -4533,7 +4547,7 @@ function floatTxt(label, big) {
 function gemCard(title, text, src) {
   if (uiSys()) return sysNote(title, text, src);
   let el = $('#gem'); if (!el) { el = document.createElement('div'); el.id = 'gem'; el.className = 'gem'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
-  el.innerHTML = `<p class="gem-t">✦ ${title}</p><p class="gem-q">${text}</p>${src ? `<p class="gem-s">${src}</p>` : ''}`;
+  el.innerHTML = gx(`<p class="gem-t">✦ ${title}</p><p class="gem-q">${text}</p>`) + `${src ? `<p class="gem-s">${src}</p>` : ''}`;
   el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
   clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 5200);
   el.onclick = () => el.classList.remove('on');
@@ -4568,9 +4582,10 @@ function yesterdayCard() {
   const pts = nourDay(y), avg = nourAvg(14), d = S.faith.log[y] || {}, pr = PRAYERS.filter(p => d[p[0]]).length;
   const lost = [];
   const y2 = iso(addDays(new Date(), -2));
-  if (!S.days[y] && S.days[y2]) { let n = 0; for (let i = 2; i < 400 && S.days[iso(addDays(new Date(), -i))]; i++) n++; if (n >= 2) lost.push(`ta série de routine de ${n} jours s'est arrêtée`); }
+
   const heavy = pts === 0 || (avg >= 10 && pts < avg * .35) || lost.length;
-  const bits = [`${pr}/5 prières à l'heure`, S.days[y] ? 'routine faite' : 'routine non faite', S.body.sessions.some(s => s.date === y) ? 'séance faite' : ''].filter(Boolean).join(' · ');
+  let ypc = 0; try { ypc = Math.round(pvDayPct(y) * 100); } catch (e) {}
+  const bits = [`${pr}/5 prières à l'heure`, `protocole à ${ypc} %`].filter(Boolean).join(' · ');
   return `<div class="yday ${heavy ? 'heavy' : ''}">
     <div class="row between"><p class="eyebrow">${uiSys() ? 'RAPPORT D\'HIER' : 'Hier'}</p><button class="link-btn small" data-ydone style="min-width:0;padding:0">OK</button></div>
     <p class="yday-n num">${uiSys() ? `+${pts} XP` : `✦ ${pts}`}</p>
@@ -4578,7 +4593,7 @@ function yesterdayCard() {
       ? `${uiSys() ? (pts === 0 ? 'Aucune XP gagnée hier.' : 'Peu d\'XP gagnée hier.') : pts === 0 ? 'Ta lumière est restée éteinte.' : 'Ta lumière est restée faible.'}${lost.length ? ' Et ' + lost.join(', ') + '.' : ''} Un jour vide rend le suivant plus facile à gâcher. ${uiSys() ? 'Accomplis un seul objectif maintenant.' : 'Allume une seule chose maintenant.'}`
       : pts >= avg ? `Au-dessus de ta moyenne (${LUMp(Math.round(avg))}). Garde ce rythme.` : `Moyenne des 14 derniers jours : ${LUMp(Math.round(avg))}.`}</p>
     <p class="small muted" style="margin:6px 0 0">${bits}</p>
-    ${heavy ? `<button class="btn sm" data-goto="routine" style="margin-top:12px">${uiSys() ? 'Reprendre : un bloc de routine' : 'Allumer : un bloc de routine'}</button>` : ''}
+    ${heavy ? `<button class="btn sm" data-goto="entrainement" style="margin-top:12px">Allumer : marcher 2 000 pas maintenant</button>` : ''}
   </div>`;
 }
 /* Tension du soir : ce qui s'éteint à minuit. */
@@ -4586,9 +4601,9 @@ function atStake() {
   const h = new Date().getHours(), k = todayISO(), items = [], st = streak();
   const pn = prayerNow(); if (pn && prayerTracked(pn.id) && !(S.faith.log[pn.k] || {})[pn.id] && pn.end - new Date() < 60 * 60000) items.push(['habitudes', `${PNAMES[pn.id]} se termine à ${hm(pn.end)}`, `${leftTxt(pn.end - new Date())}`]);
   if (h < 19) return items.length ? `<div class="stake"><p class="eyebrow" style="color:var(--warn)">Maintenant</p>${items.map(i => `<button class="stake-i" data-goto="${i[0]}"><span>${i[1]}</span><b class="num">${i[2]}</b></button>`).join('')}</div>` : '';
-  if (!S.days[k] && st > 0) items.push(['routine', `Ta série de routine (${st} j) s'éteint à minuit`, `${todayBlocks()}/4 blocs`]);
   const n = S.faith.habits.length, dn = dayDone(k); if (dn < n) items.push(['habitudes', `Journée de foi incomplète`, `${dn}/${n}`]);
-  { const pd = pvPeek(), g = numv(pvS().goal) || PV_GOAL; if (numv(pd.water) < PV_EAU[0]) items.push(['nutrition', 'Moins de 2 L d\'eau bus', pvL(numv(pd.water))]); if (pvSteps() < g) items.push(['entrainement', `Il manque ${pvFmt(g - pvSteps())} pas`, `${pvFmt(pvSteps())}`]); if (pvCircDay().due && !pvCircDay().done) items.push(['entrainement', 'Circuit du jour pas fait', 'à faire']); if (pvSeuils() < 6) items.push(['intel', 'Seuils d\'intellect', `${pvSeuils()}/6`]); }
+  { const pd = pvPeek(), g = numv(pvS().goal) || PV_GOAL; if (numv(pd.water) < PV_EAU[0]) items.push(['nutrition', 'Moins de 2 L d\'eau bus', pvL(numv(pd.water))]); if (pvSteps() < g) items.push(['entrainement', `Il manque ${pvFmt(g - pvSteps())} pas`, `${pvFmt(pvSteps())}`]); if (pvCircDay().due && !pvCircDay().done) items.push(['entrainement', 'Circuit du jour pas fait', 'à faire']); { const ld = homeLoad(); if (ld && ld.st === 1) items.push(['maison', 'Linge lancé, pas encore étendu', 'à étendre']); }
+ if (pvSeuils() < 6) items.push(['intel', 'Seuils d\'intellect', `${pvSeuils()}/6`]); }
   if (!items.length) return '';
   return `<div class="stake"><p class="eyebrow" style="color:var(--warn)">Avant minuit</p>${items.map(i => `<button class="stake-i" data-goto="${i[0]}"><span>${i[1]}</span><b class="num">${i[2]}</b></button>`).join('')}</div>`;
 }
@@ -5035,21 +5050,21 @@ function fxPick(type) {
 }
 function fxMe() {
   const opts = [];
-  const cm = currentMonth(), cur = MONTHS[cm - 1], left = cur.acq.length - modDone(cur);
-  if (left) opts.push({ title: `Mois ${cm} · ${cur.title}`, text: `Il te reste ${left} acquis sur ${cur.acq.length} ce mois-ci. Une carte de moins, un acquis de plus ?`, go: 'parcours', btn: 'Ouvrir le parcours' });
-  const st = streak(); if (st >= 2) opts.push({ title: `${st} jours de routine d'affilée`, text: 'Chaque jour qui passe rend le suivant plus facile. Ne casse pas la chaîne ce soir.', go: 'routine', btn: 'Voir ma routine' });
-  const ph = phaseOf(S.body.phase), n = weekSessions().length; if (n < ph.perWeek) opts.push({ title: `${n}/${ph.perWeek} séances cette semaine`, text: `La prochaine, c'est la séance ${nextTpl(ph)} (${ph.name}). Le corps suit ce que l'esprit décide.`, go: 'entrainement', btn: 'Voir la séance' });
-  const pts = nourDay(); opts.push({ title: uiSys() ? `+${pts} XP aujourd'hui` : `✦ ${pts} de lumière aujourd'hui`, text: pts >= nourAvg() ? 'Tu es au-dessus de ta moyenne. Continue sur cette lancée.' : (uiSys() ? `Ta moyenne est de ${Math.round(nourAvg())} XP. Il reste de la journée pour accomplir un objectif.` : `Ta moyenne est de ✦ ${Math.round(nourAvg())}. Il reste de la journée pour allumer quelque chose.`), go: 'orbite', btn: uiSys() ? 'Revenir au Statut' : 'Revenir à l\'orbite' });
+  try { const P = pvPillars(), todo = P.filter(x => x.v < 1);
+    if (todo.length) { const x = todo[0]; opts.push({ title: `Protocole · ${x.n}`, text: `${x.s}. ${todo.length > 1 ? `${todo.length} piliers restent à tenir aujourd'hui.` : 'C\'est le dernier pilier du jour.'}`, go: x.id, btn: 'Y aller' }); }
+    const st = pvStreak(); if (st >= 2) opts.push({ title: `${st} jours de protocole complet`, text: 'Chaque jour tenu rend le suivant plus facile. Ne casse pas la chaîne ce soir.', go: 'orbite', btn: 'Voir le protocole' });
+    const g = numv(pvS().goal) || PV_GOAL, n = pvSteps(); if (n < g) opts.push({ title: `${pvFmt(n)} pas sur ${pvFmt(g)}`, text: `Il en manque ${pvFmt(g - n)}. Pose le téléphone et marche : l'écoute du Coran compte en même temps.`, go: 'entrainement', btn: 'Mes pas' });
+  } catch (e) {}
+  const pts = nourDay(); opts.push({ title: `✦ ${pts} de lumière aujourd'hui`, text: pts >= nourAvg() ? 'Tu es au-dessus de ta moyenne. Continue sur cette lancée.' : `Ta moyenne est de ${Math.round(nourAvg())}. Une action de plus et tu la dépasses.`, go: 'orbite', btn: 'Voir ma galaxie' });
   const o = opts[Math.floor(Math.random() * opts.length)];
   return { id: 'me' + uid(), t: 'me', ...o };
 }
 function fxPause() {
   const k = todayISO(), n = S.faith.habits.length, dn = dayDone(k);
-  let a;
+  let a, todo = []; try { todo = pvPillars().filter(x => x.v < 1); } catch (e) {}
   if (dn < n) a = { text: `Tu as coché ${dn} habitude${dn > 1 ? 's' : ''} de foi sur ${n} aujourd'hui.`, go: 'habitudes', btn: 'Ouvrir mes habitudes' };
-  else if (!S.days[k]) a = { text: `Ta routine en est à ${todayBlocks()}/4 blocs. Un bloc, maintenant ?`, go: 'routine', btn: 'Faire un bloc' };
-  else if (weekSessions().length < phaseOf(S.body.phase).perWeek && !isFastDay()) a = { text: 'Ta séance de la semaine t\'attend. 30 minutes suffisent.', go: 'entrainement', btn: 'Lancer la séance' };
-  else a = { text: 'Tout est fait pour aujourd\'hui. Pose le téléphone, marche 10 minutes ou parle à quelqu\'un.', go: 'orbite', btn: uiSys() ? 'Retour au Statut' : 'Retour à l\'orbite' };
+  else if (todo.length) a = { text: `${todo[0].n} : ${todo[0].s.toLowerCase()}. Un geste, maintenant ?`, go: todo[0].id, btn: 'Y aller' };
+  else a = { text: 'Tout est fait pour aujourd\'hui. Pose le téléphone, marche 10 minutes ou parle à quelqu\'un.', go: 'orbite', btn: 'Retour à ta galaxie' };
   return { id: 'pz' + uid(), t: 'pause', ...a };
 }
 function fxNext() {
@@ -5377,7 +5392,7 @@ function lookWin() {
 /* Alerte plein écran à l'ouverture : au plus une fois toutes les 90 minutes */
 function lookNag() {
   if (repOn()) return;
-  if (tab !== 'orbite' || !uiSys() || $('.sys-pop') || $('#intro') || $('#inact')) return;
+  if (tab !== 'orbite' || $('.sys-pop') || $('#intro') || $('#inact')) return;
   const p = lkPending().filter(x => x[0] === 'am' || x[0] === 'pm'); if (!p.length) return;
   let last = 0; try { last = Number(localStorage.getItem('sdp-looknag') || 0); } catch (e) {}
   if (Date.now() - last < 90 * 60000) return; try { localStorage.setItem('sdp-looknag', String(Date.now())); } catch (e) {}
@@ -5391,27 +5406,46 @@ function lkRoutine(title, list, key, d) {
   return sysWin(`${title} [${n}/${list.length}]`, `<div class="sys-xp"><i style="width:${(n / list.length * 100).toFixed(0)}%"></i></div>${list.map(([id, t, how]) => lkRow(id, t, lkTxt(how), !!d[id], 'data-lkd')).join('')}<p class="sys-warn">${n === list.length ? 'Accompli · +3 XP' : 'Complet = +3 XP'}</p>`, n === list.length ? 'done' : '');
 }
 function vLook() {
-  const l = lkS(), h = new Date().getHours(), d = lkDay(), dy = h < 3 ? lkDay(iso(addDays(new Date(), -1))) : d, s = l.skin;
-  const wkN = LK_WK.length - lkWkPending().length, rd = lkRaidDays(), rOn = l.raid.on, rDone = rOn ? LK_RAID.filter(x => l.raid[x[0]]).length : 0;
-  const amFirst = h >= 3 && h < 15;
-  const am = lkRoutine('PROTOCOLE DU MATIN', LK_AM, 'am', d), pm = lkRoutine('PROTOCOLE DU SOIR', LK_PM, 'pm', dy);
-  const skinW = s ? sysWin(`PEAU · ${LK_SKIN[s].n}`, `<div class="lk-sk"><p><b class="sys-k">NETTOYER</b>${LK_SKIN[s].clean}</p><p><b class="sys-k">HYDRATER</b>${LK_SKIN[s].hyd}</p><p><b class="sys-k">EXFOLIER</b>${LK_SKIN[s].exf}</p><p><b class="sys-k">MASQUE</b>${LK_SKIN[s].mask}</p></div><p class="sys-li" style="margin-top:8px">${LK_SKIN[s].tip}</p><button class="sys-btn ghost" data-lkskin style="margin-top:10px">REFAIRE LE TEST</button>`)
-    : sysWin('ANALYSE DE PEAU · REQUISE', `<p class="sys-li">Le Système ne connaît pas encore ton type de peau. 4 questions, 30 secondes : les produits et la routine s'adaptent ensuite.</p><button class="sys-btn big" data-lkskin style="margin-top:10px">LANCER L'ANALYSE</button>`, 'pen');
-  const wk = sysWin(`QUÊTES DE LA SEMAINE [${wkN}/${LK_WK.length}]`, `${LK_WK.map(([id, t, n, how]) => { const v = lkWkVal(id), on = v >= n; return `<div class="lk-r ${on ? 'ok' : ''}"><button class="sys-obj ${on ? 'ok' : ''}" data-lkw="${id}"><span class="sys-box">${on ? '✓' : ''}</span><span class="grow">${esc(t)}</span><b class="num">[${Math.min(v, n)}/${n}]</b></button>${how || id === 'w-gommage' || id === 'w-masque' ? `<button class="lk-q" data-lkhow aria-label="Comment faire">?</button><p class="lk-hp">${how || (id === 'w-gommage' ? (s ? LK_SKIN[s].exf : 'Gommage doux adapté à ta peau') : (s ? LK_SKIN[s].mask : 'Masque adapté à ta peau'))}</p>` : ''}</div>`; }).join('')}<p class="sys-warn">Remise à zéro lundi · +2 XP par quête</p>`);
-  const raid = sysWin('RAID · RÉGÉNÉRATION TOTALE', rOn ? `<p class="sys-qt">EN COURS · ${rDone}/${LK_RAID.length} ÉTAPES · ~60 MIN</p><div class="sys-xp"><i style="width:${(rDone / LK_RAID.length * 100).toFixed(0)}%"></i></div>${LK_RAID.map(([id, t, how]) => lkRow(id, t, how, !!l.raid[id], 'data-lkr')).join('')}<button class="sys-btn ghost" data-lkraid="x" style="margin-top:10px">ABANDONNER LE RAID</button>`
-    : `<div class="lk-raid"><div><p class="sys-k">DERNIER RAID</p><p class="lk-big num ${rd == null || rd >= LK_RAID_DAYS ? 'neg' : ''}">${rd == null ? '—' : rd === 0 ? 'Aujourd\'hui' : `il y a ${rd} j`}</p></div><p class="sys-li" style="margin:0;text-align:right">Toutes les 2 semaines<br>Récompense : <b>+20 XP</b></p></div><p class="sys-li">Vapeur, savon noir, kessa, masques, fitra complète, pieds, hydratation intense. Une heure pour remettre tout le corps à neuf.</p><button class="sys-btn big" data-lkraid="go" style="margin-top:8px">ENTRER DANS LE RAID</button>`, rOn ? 'done' : rd == null || rd >= LK_RAID_DAYS ? 'pen' : '');
-  const fd = l.face[todayISO()];
-  const face = sysWin('ENTRAÎNEMENT DU VISAGE', `<div class="lk-face">${Object.entries(LK_FACE).map(([k, x]) => `<button class="sys-btn ${fd && fd[k] ? 'ghost' : ''}" data-lkface="${k}">${fd && fd[k] ? '✓ ' : ''}${x.n}</button>`).join('')}</div><p class="sys-li" style="margin-top:10px">Guidé, avec minuteur. Dégonfler : le matin, surtout après une nuit courte. Muscler : 4 à 5 fois par semaine, +2 XP.</p><details class="lk-cat lk-wide"><summary><span class="sys-k">CE QU'ON SAIT VRAIMENT</span></summary><p class="lk-cb">Les preuves sont limitées : une étude (JAMA Dermatology, 2018) a observé des joues plus pleines après 20 semaines d'exercices quotidiens. Un visage gonflé vient surtout du manque de sommeil, du sel et du manque d'eau : c'est là que se joue l'essentiel.</p></details>`);
-  const gN = LK_GEAR.reduce((a, [, g]) => a + g.filter(x => l.gear[x[0]]).length, 0), gT = LK_GEAR.reduce((a, [, g]) => a + g.length, 0);
-  const gear = sysWin(`ÉQUIPEMENT [${gN}/${gT}]`, `<p class="sys-li">Coche ce que tu possèdes déjà. ★ = essentiel. Le reste attendra que l'essentiel soit en place.</p>${LK_GEAR.map(([cat, g]) => `<details class="lk-cat"><summary><span class="sys-k">${cat.toUpperCase()}</span><b class="num">${g.filter(x => l.gear[x[0]]).length}/${g.length}</b></summary>${g.map(([id, t, e]) => `<button class="sys-obj ${l.gear[id] ? 'ok' : ''}" data-lkg="${id}"><span class="sys-box">${l.gear[id] ? '✓' : ''}</span><span class="grow">${esc(t)}</span>${e ? '<b class="lk-star">★</b>' : ''}</button>`).join('')}</details>`).join('')}<p class="sys-li" style="margin-top:8px">Parfums : ta collection suffit, rien à acheter.</p>`);
-  const codex = sysWin('CODEX DU SOIN', `${LK_CODEX.map(([t, b]) => `<details class="lk-cat lk-cdx"><summary><span class="sys-k">${t}</span></summary><div class="lk-cb">${b}</div></details>`).join('')}`);
+  const l = lkS(), h = new Date().getHours(), d = pvDay(), am = h >= 3 && h < 15, now = am ? 'am' : 'pm';
+  const L = pvApList(), cur = L.filter(x => x[4] === now || x[4] === 'day'), other = L.filter(x => x[4] !== now && x[4] !== 'day');
+  const todo = cur.filter(x => !pvApOn(x, d)), done = cur.filter(x => pvApOn(x, d)), oN = other.filter(x => pvApOn(x, d)).length;
+  const [n, tot] = pvApN(d);
+  const row = x => `<div class="pv-hr2">${pvChk(pvApOn(x, d), `data-pvap="${x[0]}"`, x[1], '')}<button class="pv-q2" data-hint aria-label="Comment faire">?</button></div><p class="pv-hint">${x[2]}</p>`;
+  /* à prévoir : seulement ce qui est dû */
+  const due = [], bd = pvBarberDays();
+  if (bd == null || bd >= PV_BARBER) due.push(['Coiffeur', bd == null ? 'pas encore noté' : `il y a ${bd} jours`, `<button class="btn sm" data-pvbarber>Fait</button>`]);
+  { const fd = FITRA.map(([id, nm]) => { const hs = S.body.fitra[id] || [], last = hs[hs.length - 1]; return [id, nm, last ? Math.round((parseDate(todayISO()) - parseDate(last)) / 864e5) : null]; }).filter(x => x[2] == null || x[2] >= FITRA_MAX - 5);
+    if (fd.length) due.push(['Fitra', fd.some(x => x[2] != null && x[2] >= FITRA_MAX) ? 'au-delà de 40 jours : à faire' : fd.every(x => x[2] == null) ? 'touche ce qui est fait pour lancer le suivi' : 'bientôt 40 jours', `<span class="pv-fchips">${fd.map(([id, nm]) => `<button class="chip" data-fitra="${id}">${nm}</button>`).join('')}</span>`]); }
+  const dow = (new Date().getDay() + 6) % 7, wp = lkWkPending(); if (dow >= 4 && wp.length) due.push(['Cette semaine', `${wp.length} geste${wp.length > 1 ? 's' : ''} restant${wp.length > 1 ? 's' : ''} avant lundi`, '<span class="pv-q2">↓</span>']);
+  const rd = lkRaidDays(); if (rd == null || rd >= LK_RAID_DAYS) due.push(['Grand soin (1 h)', rd == null ? 'jamais fait' : `${rd} jours sans`, '<span class="pv-q2">↓</span>']);
+  const p = pvS(), ly = d.ly || {}, fam = p.perf.find(x => x.n === d.perf), ok = fam ? PV_PAIR[fam.f] || [] : [];
+  const wkN = LK_WK.length - wp.length, s = l.skin;
+  const sec = (t, sub, html) => `<details class="pv-det pv-sec" data-k="a-${t}"><summary><b>${t}</b><small>${sub}</small></summary><div class="pv-morein">${html}</div></details>`;
+  const more = [
+    sec('Coiffeur & fitra', bd == null ? 'coiffeur toutes les 2 semaines' : `coiffeur il y a ${bd} j`, `<div class="pv-barber">${pvRing(bd == null ? 0 : Math.max(0, 1 - bd / PV_BARBER))}<div class="grow"><b>Coiffeur</b><small>${bd == null ? 'Pas encore noté' : bd === 0 ? 'Fait aujourd\'hui' : `Il y a ${bd} j`}</small></div><button class="btn sm ghost" data-pvbarber>${bd === 0 ? 'Annuler' : 'Fait'}</button></div><p class="pv-sub">La fitra : pas plus de 40 nuits (Muslim). Touche une jauge quand c'est fait.</p><div class="fitra">${FITRA.map(([id, nm]) => fitraRing(id, nm)).join('')}</div>`),
+    sec('Cette semaine', `${wkN}/${LK_WK.length} · remise à zéro lundi`, LK_WK.map(([id, t, nn, how]) => { const v = lkWkVal(id), on = v >= nn; return `<div class="pv-hr2">${pvChk(on, `data-lkw="${id}"`, `${esc(t)}${nn > 1 ? ` <span class="pv-fq">${Math.min(v, nn)}/${nn}</span>` : ''}`, '')}${how || id === 'w-gommage' || id === 'w-masque' ? '<button class="pv-q2" data-hint aria-label="Comment faire">?</button>' : ''}</div>${how || id === 'w-gommage' || id === 'w-masque' ? `<p class="pv-hint">${how || (id === 'w-gommage' ? (s ? LK_SKIN[s].exf : 'Gommage doux adapté à ta peau') : (s ? LK_SKIN[s].mask : 'Masque adapté à ta peau'))}</p>` : ''}`; }).join('')),
+    sec('Parfum', d.perf ? `aujourd'hui : ${esc(d.perf)}` : `${p.perf.length} parfum${p.perf.length > 1 ? 's' : ''} dans ta collection`, `<div class="pv-layers">${PV_LAYER.map(([id, t, sb], i) => `<button class="pv-ly ${ly[id] ? 'on' : ''}" data-pvly="${id}"><i>${i + 1}</i><span><b>${t}</b><small>${sb}</small></span></button>`).join('')}</div>
+      ${p.perf.length ? `<p class="pv-k">Parfum du jour</p><div class="chips">${p.perf.map(x => `<button class="chip" data-pvperf="${esc(x.n)}" aria-pressed="${d.perf === x.n}">${esc(x.n)}</button>`).join('')}</div>${fam ? `<p class="pv-sub">Famille <b>${PV_FAM[fam.f].toLowerCase()}</b> : crème, musc et huile neutres, musqués, ou ${ok.map(f => PV_FAM[f].toLowerCase()).join(', ')}.</p>` : ''}` : ''}
+      <p class="pv-k">Ma collection</p>${p.perf.map((x, i) => `<div class="pv-hr"><span>${esc(x.n)}</span><span class="muted">${PV_FAM[x.f]}</span><button class="link-btn small" data-pvpdel="${i}">Retirer</button></div>`).join('')}
+      <div class="row" style="gap:8px;margin-top:8px"><input id="pvPn" placeholder="Nom du parfum" aria-label="Nom du parfum" style="flex:1"><select id="pvPf" aria-label="Famille" style="width:auto">${Object.entries(PV_FAM).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div><button class="btn sm" data-pvpadd style="margin-top:8px">Ajouter</button>`),
+    sec('Peau', s ? `peau ${LK_SKIN[s].n.toLowerCase()}` : 'test de peau à faire (30 s)', s ? `<p class="pv-sub"><b>Nettoyer</b> · ${LK_SKIN[s].clean}</p><p class="pv-sub"><b>Hydrater</b> · ${LK_SKIN[s].hyd}</p><p class="pv-sub"><b>Exfolier</b> · ${LK_SKIN[s].exf}</p><p class="pv-sub"><b>Masque</b> · ${LK_SKIN[s].mask}</p><p class="pv-sub">${LK_SKIN[s].tip}</p><button class="btn sm ghost" data-lkskin style="margin-top:10px">Refaire le test</button>` : '<p class="pv-sub">4 questions, et les produits s\'adaptent à ta peau.</p><button class="btn sm" data-lkskin style="margin-top:10px">Faire le test</button>'),
+    sec('Cheveux', `lavage : ${p.wash.map(i => PV_WD[i].toLowerCase()).join(', ') || 'à choisir'}`, `<p class="pv-k">Jours de lavage</p><div class="chips">${PV_WD.map((w, i) => `<button class="chip" data-pvwash="${i}" aria-pressed="${p.wash.includes(i)}">${w}</button>`).join('')}</div><p class="pv-sub">2 lavages par semaine suffisent pour des cheveux bouclés.</p>${hairBlock()}`),
+    sec('Grand soin', rd == null ? 'jamais fait · toutes les 2 semaines' : `il y a ${rd} j · toutes les 2 semaines`, (() => { const rOn = l.raid.on, rDone = rOn ? LK_RAID.filter(x => l.raid[x[0]]).length : 0; return rOn ? `<p class="pv-sub">${rDone}/${LK_RAID.length} étapes · environ 1 h</p>${LK_RAID.map(([id, t, how]) => `<div class="pv-hr2">${pvChk(!!l.raid[id], `data-lkr="${id}"`, esc(t), '')}${how ? '<button class="pv-q2" data-hint aria-label="Comment faire">?</button>' : ''}</div>${how ? `<p class="pv-hint">${how}</p>` : ''}`).join('')}<button class="btn sm ghost" data-lkraid="x" style="margin-top:10px">Abandonner</button>` : `<p class="pv-sub">Vapeur, savon noir, kessa, masques, fitra complète, pieds, hydratation intense : une heure pour remettre tout le corps à neuf.</p><button class="btn sm" data-lkraid="go" style="margin-top:10px">Commencer le grand soin</button>`; })()),
+    sec('Entraînement du visage', 'dégonfler, muscler', `<div class="chips">${Object.entries(LK_FACE).map(([k, x]) => { const fd = l.face[todayISO()]; return `<button class="chip" data-lkface="${k}" aria-pressed="${!!(fd && fd[k])}">${x.n}</button>`; }).join('')}</div><p class="pv-sub">Guidé, avec minuteur. Les preuves sont limitées : un visage gonflé vient surtout du manque de sommeil, du sel et du manque d'eau.</p>`),
+    sec('Habillement', 'les règles', '<p class="pv-sub">La veille au soir : tenue choisie, repassée, posée. Pas de vêtement taché, boulocheux ou délavé. Chaussures propres : c\'est ce qu\'on regarde en premier. Tailles ajustées. Le dimanche : tenues de la semaine et cirage.</p>'),
+    sec('Le codex', 'barbe, peau, odeur, bouche, parfum…', LK_CODEX.map(([t, b2]) => `<details class="pv-det"><summary>${t[0] + t.slice(1).toLowerCase()}</summary><div>${b2}</div></details>`).join(''))
+  ].join('');
   return `${corpsTop('soin')}${soinSeg('apparence')}
-    ${pvLookCard()}
-    <p class="lk-gem">« Allah est beau et Il aime la beauté. » <span>Muslim 91</span></p>
-    ${amFirst ? am + pm : pm + am}${skinW}${wk}${raid}${face}
-    <section class="lk-fit">${sysWin('LA FITRA', `<p class="sys-li" style="margin-top:0">Ongles, moustache, aisselles, poils intimes : pas plus de 40 nuits (Muslim). Touche une jauge quand c'est fait.</p><div class="fitra">${FITRA.map(([id, n]) => fitraRing(id, n)).join('')}</div>`)}</section>
-    ${hairBlock()}<button class="sys-btn big" data-goto="achats" style="margin-top:16px">ACHATS · ${pvBuyN().n}/${pvBuyN().t} →</button>${codex}`;
+    <section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">${am ? 'Ce matin' : 'Ce soir'}</h2><span class="small muted num">${n}/${tot} aujourd'hui</span></div>
+      ${todo.length ? todo.map(row).join('') : '<div class="pv-done" style="margin-top:10px"><b>Tout est fait pour ce moment de la journée.</b></div>'}
+      ${done.length ? `<details class="pv-det" data-k="lk-done"><summary>✓ ${done.length} fait${done.length > 1 ? 's' : ''}</summary>${done.map(row).join('')}</details>` : ''}
+      <details class="pv-det" data-k="lk-other"><summary>${am ? 'Ce soir' : 'Ce matin'} · ${oN}/${other.length}</summary>${other.map(row).join('')}</details></section>
+    ${due.length ? `<section class="glass pv-card"><h2 class="pv-h">À prévoir</h2>${due.map(([t, sb, b2]) => `<div class="pv-row"><span><b>${t}</b><br><small class="muted">${sb}</small></span>${b2}</div>`).join('')}</section>` : ''}
+    ${pvMore('Tout le reste', 'fitra, semaine, parfum, peau, cheveux, grand soin, codex', more)}
+    <button class="pv-buyline" data-goto="achats" style="margin-top:14px">Le matériel · ${pvBuyN().n}/${pvBuyN().t} dans les Achats →</button>`;
 }
+const pvMO = (k, t, sub) => `<details class="pv-more" data-k="${k}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">`, pvMC = '</div></details>';
+function pvMore(t, sub, html) { return `<details class="pv-more" data-k="m-${esc(t)}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">${html}</div></details>`; }
 function soinSeg(v) { return `<div class="seg lk-seg" role="group" aria-label="Soin" style="margin-top:12px"><button data-cview="soin" aria-pressed="${v === 'soin'}">Sommeil</button><button data-cview="apparence" aria-pressed="${v === 'apparence'}">Apparence</button></div>`; }
 /* Test de peau */
 const LK_Q = [['Une heure après avoir lavé ton visage, sans rien mettre, ta peau :', ['Tire, inconfortable', 'Normale, rien de spécial', 'Brille sur le front et le nez', 'Brille partout']],
@@ -5614,7 +5648,7 @@ function sqMake(def, start, extra = {}) {
 /* Le moteur : appelé toutes les 20 s quand l'app est ouverte */
 function sqTick() {
   if (repOn()) return;
-  if (!uiSys() || typeof S === 'undefined' || !S) return;
+  if (typeof S === 'undefined' || !S) return;
   const s = sqS(), now = Date.now(), k = todayISO(); let changed = false;
   /* créneaux du jour (et d'hier, si l'app n'a pas été ouverte) */
   [iso(addDays(new Date(), -1)), k].forEach(day => {
@@ -5656,7 +5690,7 @@ function sqAutoDone(q) { if (q.chain === 'prieres') { try { return prayToday(q.d
 /* L'alerte plein écran d'une nouvelle quête */
 function sqAnnounce() {
   if (repOn()) return;
-  if (!uiSys() || $('.sys-pop') || $('#intro') || $('#inact') || $('.lk-run') || SANQ.length) return;
+  if ($('.sys-pop') || $('#intro') || $('#inact') || $('.lk-run') || SANQ.length) return;
   const q = sqS().inst.find(x => x.st === 'new' && x.end > Date.now()); if (!q) return;
   const R = SQ_R[q.r], el = document.createElement('div'), urg = q.r === 'u', leg = q.r === 'l';
   el.className = `sys-pop on sq-pop ${urg ? 'pen' : ''} ${leg ? 'lvl' : ''}`; el.setAttribute('role', 'dialog');
@@ -6095,7 +6129,7 @@ function vPsy() {
   const head = `${pageHead('Psychologie', `Cap L1 · rentrée septembre 2027`, 'psy')}
     ${sysWin('CAP PSYCHOLOGIE 2027', `<div class="tw-top"><div><p class="sys-k">RENTRÉE</p><p class="tw-n num">J−${jr}</p></div><div style="text-align:right"><p class="sys-k">TRAVAIL TOTAL</p><p class="tw-n num">${fmtH(psyMinTotal())}</p></div></div>
       ${na ? `<button class="sys-obj" data-psyt="adm"><span class="sys-box">!</span><span class="grow">${esc(na[2])}<small class="rep-s">avant le ${psyDate(na[1])}${psyDays(na[1]) < 0 ? ' · EN RETARD' : ` · dans ${psyDays(na[1])} j`}</small></span></button>` : ''}
-      <div class="psy-tabs">${[['sem', 'SEMAINE'], ['meth', 'MÉTHODE'], ['l1', 'CARTE L1'], ['fc', `CARTES · ${psyDue().length}`], ['test', 'NIVEAU'], ['adm', 'DÉMARCHES'], ['err', 'ERREURS'], ['res', 'RESSOURCES']].map(([k, l]) => `<button class="${PSYV.tab === k ? 'on' : ''}" data-psyt="${k}">${l}</button>`).join('')}</div>`)}`;
+      <div class="psy-tabs">${[['sem', 'Semaine'], ['meth', 'Méthode'], ['l1', 'Carte L1'], ['fc', `Cartes · ${psyDue().length}`], ['test', 'Niveau'], ['adm', 'Démarches'], ['err', 'Erreurs'], ['res', 'Ressources']].map(([k, l]) => `<button class="${PSYV.tab === k ? 'on' : ''}" data-psyt="${k}">${l}</button>`).join('')}</div>`)}`;
   let body = '';
   if (PSYV.tab === 'sem') {
     if (wi < 0) body = sysWin('AVANT LE DÉPART', `<p class="sys-li">Le programme commence le <b>lundi 26 octobre</b>, à la fin de ta Reprise. D'ici là, rien à faire ici. Si tu veux prendre de l'avance : retrouve ton diplôme du bac (onglet DÉMARCHES).</p>`);
@@ -6374,38 +6408,28 @@ function pvFoodScore(d) { return [!!d.meal, numv(d.water) >= PV_EAU[0], !!(d.fr 
 function pvCleanStreak() { let n = 0; for (let i = 0; i < 400; i++) { const k = iso(addDays(new Date(), -i)), d = pvS().d[k]; if (!d || !d.meal) { if (i === 0) continue; break; } if (!pvClean(d)) break; n++; } return n; }
 function pvBanStreak(id) { let n = 0; for (let i = 1; i < 400; i++) { const k = iso(addDays(new Date(), -i)); if (k < pvS().start) break; const d = pvS().d[k]; if (d && d.ban && d.ban[id]) break; n++; } return n; }
 function vPvFood() {
-  const d = pvDay(), p = pvS(), t = bodyTargets(), pt = pvProtTarget(), prot = pvProt(d), dayN = Math.round((parseDate(todayISO()) - parseDate(p.start)) / 864e5) + 1;
-  const sc = pvFoodScore(d), w = numv(d.water), wPct = Math.min(1, w / PV_EAU[1]);
-  const meal = pCard('Le repas unique', `
-    <p class="pv-sub">Protocole en test · jour ${dayN}. Note ton ressenti chaque jour : au bout de 14 jours, tu décides s'il reste.</p>
-    ${d.meal ? `<div class="pv-done"><b>Repas pris${d.mealAt ? ` à ${esc(d.mealAt)}` : ''}</b><button class="link-btn small" data-pvf="unmeal">Annuler</button></div>` : '<button class="btn block" data-pvf="meal">J\'ai pris mon repas</button>'}
-    <p class="pv-k">Dans l'assiette</p>
-    <div class="chips">${PV_COMP.map(([id, n]) => id === 'oe' ? '' : `<button class="chip" data-pvc="${id}" aria-pressed="${!!d.comp[id]}">${n}</button>`).join('')}</div>
+  const d = pvDay(), p = pvS(), pt = pvProtTarget(), prot = pvProt(d), dayN = Math.round((parseDate(todayISO()) - parseDate(p.start)) / 864e5) + 1;
+  const w = numv(d.water), wPct = Math.min(1, w / PV_EAU[1]), cs = pvCleanStreak();
+  const meal = `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Le repas</h2><span class="small muted">test · jour ${dayN}/14</span></div>
+    ${d.meal ? `<div class="pv-done" style="margin-top:10px"><b>Pris${d.mealAt ? ` à ${esc(d.mealAt)}` : ''}</b><button class="link-btn small" data-pvf="unmeal">Annuler</button></div>` : '<button class="btn block" data-pvf="meal" style="margin-top:10px">J\'ai pris mon repas</button>'}
+    <div class="chips">${PV_COMP.map(([id, n]) => id === 'oe' ? '' : `<button class="chip" data-pvc="${id}" aria-pressed="${!!d.comp[id]}">${n}</button>`).join('')}<button class="chip" data-pvf="whey" aria-pressed="${!!d.whey}">Whey</button></div>
     <div class="pv-step"><span>Œufs</span><button class="icon-btn" data-pvegg="-1" aria-label="Un œuf de moins">−</button><b class="num">${numv(d.eggs)}</b><button class="icon-btn" data-pvegg="1" aria-label="Un œuf de plus">+</button></div>
-    ${pvChk(d.whey, 'data-pvf="whey"', 'Shaker de whey', `+${PV_WHEY} g de protéines, si le repas n'y suffit pas`)}
-    <div class="pv-prot"><span>Protéines estimées</span><b class="num">≈ ${prot} g${pt ? ` <small>/ ${pt} g</small>` : ''}</b></div>
-    ${pt && d.meal && prot < pt * .7 ? `<p class="pv-warn">Il te manque ≈ ${pt - prot} g de protéines. En perte de poids, c'est ce qui protège ton muscle : un shaker de whey (+${PV_WHEY} g), ${Math.ceil(Math.min(pt - prot, 30) / PV_EGG)} œufs de plus, ou de la viande blanche.</p>` : ''}
-    <p class="pv-k">Ressenti du jour</p>
-    <div class="chips">${['Épuisé', 'Bof', 'Correct', 'Bien', 'En feu'].map((l, i) => `<button class="chip" data-pvfeel="${i + 1}" aria-pressed="${d.feel === i + 1}">${l}</button>`).join('')}</div>
-    ${pvFeelLine()}`);
-  const fruit = pCard('Fruits', `${pvChk(d.fr.fra, 'data-pvfr="fra"', 'Fraises', 'Une poignée, quand c\'est la saison ; surgelées sinon')}${pvChk(d.fr.ban, 'data-pvfr="ban"', '1 banane', 'Une par jour, pas plus')}`);
-  const eau = pCard('Eau', `
-    <div class="pv-water"><div class="pv-wbar"><i style="width:${(wPct * 100).toFixed(0)}%"></i><em style="left:${(PV_EAU[0] / PV_EAU[1] * 100).toFixed(0)}%"></em></div>
-    <div class="row between small"><span class="num"><b>${pvL(w)}</b> bus</span><span class="muted">objectif 2 à 3 L${w > PV_EAU[1] ? ' · dépassé, c\'est bien' : ''}</span></div></div>
-    <div class="pv-btns">${[[250, 'Verre 25 cl'], [500, '50 cl'], [750, '75 cl'], [1000, '1 L']].map(([v, l]) => `<button class="chip" data-pvw="${v}">+ ${l}</button>`).join('')}${w ? '<button class="chip" data-pvw="undo">Annuler</button>' : ''}</div>
-    <p class="pv-sub">L'objectif est un minimum : les jours de 15K pas ou de chaleur, va au-delà de 3 L sans souci.</p>`);
-  const cs = pvCleanStreak();
-  const ban = pCard('Bannis', `<p class="pv-sub">Par défaut, tout est tenu. Touche un aliment seulement si tu as craqué : sois honnête, c'est ta série qui en dépend.</p>
-    <div class="pv-ban">${PV_BAN.map(([id, n]) => `<button class="pv-b ${d.ban[id] ? 'x' : ''}" data-pvban="${id}" aria-pressed="${!!d.ban[id]}"><b>${n}</b><small>${d.ban[id] ? 'écart aujourd\'hui' : `tenu · ${pvBanStreak(id) + 1} j`}</small></button>`).join('')}</div>
-    <p class="pv-line">${pvClean(d) ? '✓ Zéro écart aujourd\'hui' : '✗ Écart noté : demain, on repart propre'}${cs > 1 ? ` · ${cs} jours propres d'affilée` : ''}</p>`);
-  const days = Array.from({ length: 7 }, (_, i) => { const k = iso(addDays(new Date(), i - 6)), x = pvS().d[k], s = x ? pvFoodScore(x).filter(Boolean).length : 0; return `<div class="pv-dd ${s === 4 ? 'ok' : s ? 'mid' : ''}"><i style="height:${(s / 4 * 100).toFixed(0)}%"></i><span>${i === 6 ? 'auj.' : DAY_SHORT.format(parseDate(k)).replace('.', '')}</span></div>`; }).join('');
-  return `${corpsTop('nutrition')}
-    <div class="pv-score"><div>${[['Repas', sc[0]], ['Eau 2 L', sc[1]], ['Fruits', sc[2]], ['Zéro écart', sc[3]]].map(([l, ok]) => `<span class="${ok ? 'ok' : ''}">${ok ? '✓' : '·'} ${l}</span>`).join('')}</div><div class="pv-week">${days}</div></div>
-    ${pvWeightCard()}${meal}${eau}${fruit}${ban}`;
+    <div class="pv-prot"><span>Protéines</span><b class="num">≈ ${prot} g${pt ? ` <small>/ ${pt} g</small>` : ''}</b></div>
+    ${pt && d.meal && prot < pt * .7 ? `<p class="pv-warn">Il manque ≈ ${pt - prot} g : c'est ce qui protège ton muscle. Un shaker de whey (+${PV_WHEY} g) ou ${Math.ceil(Math.min(pt - prot, 30) / PV_EGG)} œufs de plus.</p>` : ''}
+    <div class="pv-row" style="margin-top:6px"><span>Fruits</span><span class="chips" style="margin:0"><button class="chip" data-pvfr="fra" aria-pressed="${!!d.fr.fra}">Fraises</button><button class="chip" data-pvfr="ban" aria-pressed="${!!d.fr.ban}">1 banane</button></span></div>
+    ${d.meal ? `<div class="pv-row"><span>Ressenti</span><span class="chips" style="margin:0">${['Mal', 'Bof', 'Bien', 'Top'].map((l, i) => `<button class="chip" data-pvfeel="${i + 1}" aria-pressed="${d.feel === i + 1}">${l}</button>`).join('')}</span></div>` : ''}</section>`;
+  const eau = `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Eau</h2><span class="num" style="font:400 1.3rem var(--serif);color:var(--${w >= PV_EAU[0] ? 'mint' : 'ink'})">${pvL(w)}<small class="muted" style="font-size:.75rem"> / 2-3 L</small></span></div>
+    <div class="pv-wbar" style="margin-top:10px"><i style="width:${(wPct * 100).toFixed(0)}%"></i><em style="left:${(PV_EAU[0] / PV_EAU[1] * 100).toFixed(0)}%"></em></div>
+    <div class="pv-btns">${[[250, '25 cl'], [500, '50 cl'], [750, '75 cl'], [1000, '1 L']].map(([v, l]) => `<button class="chip" data-pvw="${v}">+ ${l}</button>`).join('')}${w ? '<button class="chip" data-pvw="undo" aria-label="Annuler">↶</button>' : ''}</div></section>`;
+  const ban = `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Zéro écart</h2><span class="small ${pvClean(d) ? '' : 'muted'}" style="color:var(--${pvClean(d) ? 'mint' : 'danger'})">${pvClean(d) ? (cs > 1 ? `${cs} jours propres` : 'tenu') : 'écart noté'}</span></div>
+    <div class="chips">${PV_BAN.map(([id, n]) => `<button class="chip pv-banc ${d.ban[id] ? 'x' : ''}" data-pvban="${id}" aria-pressed="${!!d.ban[id]}">${n}</button>`).join('')}</div>
+    <p class="pv-sub">Touche seulement en cas d'écart.</p></section>`;
+  return `${corpsTop('nutrition')}${pvWeightCard()}${meal}${eau}${ban}
+    ${pvMore('Bilan de la semaine', 'repas, eau, fruits, écarts', `<div class="pv-week">${Array.from({ length: 7 }, (_, i) => { const k = iso(addDays(new Date(), i - 6)), x = pvS().d[k], sc = x ? pvFoodScore(x).filter(Boolean).length : 0; return `<div class="pv-dd ${sc === 4 ? 'ok' : sc ? 'mid' : ''}"><i style="height:${(sc / 4 * 100).toFixed(0)}%"></i><span>${i === 6 ? 'auj.' : DAY_SHORT.format(parseDate(k)).replace('.', '')}</span></div>`; }).join('')}</div>${pvFeelLine()}<p class="pv-sub">Séries sans écart : ${PV_BAN.map(([id, n]) => `${n.toLowerCase()} ${pvBanStreak(id)} j`).join(' · ')}.</p>`)}`;
 }
 function pvFeelLine() {
   const L = Object.entries(pvS().d).filter(([k, x]) => x.feel && x.meal).map(([, x]) => x.feel); if (L.length < 3) return '';
-  const avg = L.reduce((a, b) => a + b, 0) / L.length; return `<p class="pv-sub">Ressenti moyen sur ${L.length} jours : <b>${String(Math.round(avg * 10) / 10).replace('.', ',')} / 5</b>${avg < 2.6 ? '. Plutôt bas : envisage 2 repas.' : avg >= 3.6 ? '. Le protocole te réussit.' : '.'}</p>`;
+  const avg = L.reduce((a, b) => a + b, 0) / L.length; return `<p class="pv-sub">Ressenti moyen sur ${L.length} jours : <b>${String(Math.round(avg * 10) / 10).replace('.', ',')} / 4</b>${avg < 2.2 ? '. Plutôt bas : envisage 2 repas.' : avg >= 3 ? '. Le protocole te réussit.' : '.'}</p>`;
 }
 
 /* ---------- PAS ---------- */
@@ -6417,26 +6441,23 @@ function pvStepStats() {
   return { g, avg7, st, rec, L };
 }
 function pvStride() { const h = numv((S.body.profile || {}).height); return h ? h * .415 / 100 : .75; }
-function pvStepsCard(full) {
+function pvStepsCard() {
   const n = pvSteps(), s = pvStepStats(), g = s.g, km = n * pvStride() / 1000, R = 64;
-  const lvl = n >= g + 10000 ? ['Légendaire', 'mint'] : n >= g + 5000 ? ['Exploit', 'mint'] : n >= g ? ['Objectif atteint', 'mint'] : n >= g * .66 ? ['En route', 'gold'] : ['À marcher', 'gold'];
+  const lvl = n >= g + 10000 ? ['Légendaire', 'mint'] : n >= g + 5000 ? ['Exploit', 'mint'] : n >= g ? ['Objectif atteint', 'mint'] : ['reste ' + pvFmt(g - n), 'gold'];
   const bars = s.L.slice(0, 7).reverse().map((v, i) => { const k = iso(addDays(new Date(), i - 6)); return `<div class="pv-sb ${v >= g ? 'ok' : ''}"><i style="height:${Math.min(100, v / (g * 1.4) * 100).toFixed(0)}%"></i><span>${i === 6 ? 'auj.' : DAY_SHORT.format(parseDate(k)).replace('.', '')}</span></div>`; }).join('');
-  return pCard('15K pas', `
-    <div class="pv-steps"><svg viewBox="-80 -80 160 160" aria-hidden="true"><circle r="${R}" fill="none" stroke="var(--raise)" stroke-width="12"/><circle r="${R}" fill="none" stroke="var(--${n >= g ? 'mint' : 'gold'})" stroke-width="12" stroke-linecap="round" transform="rotate(-90)" ${ringDash(R, n / g)}/>${n > g ? `<circle r="${R - 15}" fill="none" stroke="var(--mint)" stroke-opacity=".5" stroke-width="5" stroke-linecap="round" transform="rotate(-90)" ${ringDash(R - 15, (n - g) / 10000)}/>` : ''}</svg>
-      <div class="pv-sc"><b class="num">${pvFmt(n)}</b><span>sur ${pvFmt(g)}</span><em class="${lvl[1]}">${lvl[0]}</em></div></div>
-    <div class="pv-kp"><div><b class="num">${String(Math.round(km * 10) / 10).replace('.', ',')}</b><span>km</span></div><div><b class="num">${pvFmt(s.avg7)}</b><span>moy. 7 j</span></div><div><b class="num">${s.st}</b><span>jours d'affilée</span></div><div><b class="num">${pvFmt(s.rec)}</b><span>record</span></div></div>
-    <div class="row" style="gap:8px;margin-top:14px"><input id="pvStepIn" inputmode="numeric" class="famt num" placeholder="Pas d'aujourd'hui" aria-label="Nombre de pas aujourd'hui" style="flex:1;text-align:left"><button class="btn sm" data-pvst="set">OK</button></div>
-    <div class="pv-btns"><button class="chip" data-pvst="paste">Coller depuis Santé</button><button class="chip" data-pvst="+1000">+ 1 000</button><button class="chip" data-pvst="+2500">+ 2 500</button></div>
-    ${full ? `<div class="pv-sbars">${bars}</div>
-    <p class="pv-sub">Paliers : ${pvFmt(g)} = objectif (+4 XP) · ${pvFmt(g + 5000)} = exploit (+3 XP) · ${pvFmt(g + 10000)} = légendaire (+5 XP). Les jours de gare comptent : tu marches déjà beaucoup.</p>
-    <details class="pv-det"><summary>Récupérer tes pas sans les taper (Raccourci iPhone)</summary><ol>
-      <li>Ouvre l'app <b>Raccourcis</b> → <b>+</b> → nomme-le « Mes pas ».</li>
-      <li>Ajoute l'action <b>Rechercher des échantillons de santé</b> : type <b>Nombre de pas</b>, date <b>aujourd'hui</b>.</li>
-      <li>Ajoute <b>Calculer les statistiques</b> → <b>Somme</b>, puis <b>Arrondir le nombre</b>.</li>
-      <li>Ajoute <b>Copier dans le presse-papiers</b>, puis <b>Ouvrir l'app</b>… ou simplement ouvre Sayko.</li>
-      <li>Ici, touche <b>Coller depuis Santé</b>. Astuce : Réglages → Accessibilité → Toucher → <b>Toucher le dos</b> (2 tapes) → « Mes pas ».</li></ol>
-      <p class="pv-sub">Une app web ne peut pas lire l'app Santé directement : le Raccourci fait le pont, sans jamais envoyer tes données ailleurs.</p></details>
-    <div class="pv-goal"><span>Objectif quotidien</span><button class="icon-btn" data-pvgoal="-1000" aria-label="Baisser l'objectif">−</button><b class="num">${pvFmt(g)}</b><button class="icon-btn" data-pvgoal="1000" aria-label="Monter l'objectif">+</button></div>` : ''}`);
+  return `<section class="glass pv-card"><div class="pv-stepsrow"><div class="pv-steps sm"><svg viewBox="-80 -80 160 160" aria-hidden="true"><circle r="${R}" fill="none" stroke="var(--raise)" stroke-width="12"/><circle r="${R}" fill="none" stroke="var(--${n >= g ? 'mint' : 'gold'})" stroke-width="12" stroke-linecap="round" transform="rotate(-90)" ${ringDash(R, n / g)}/></svg>
+      <div class="pv-sc"><b class="num">${pvFmt(n)}</b><span>/ ${pvFmt(g)} pas</span></div></div>
+      <div class="grow"><h2 class="pv-h" style="margin:0">15K pas</h2><p class="pv-line" style="margin:2px 0 0;color:var(--${lvl[1]})">${lvl[0]}</p><p class="pv-sub" style="margin:2px 0 0">${String(Math.round(km * 10) / 10).replace('.', ',')} km${s.st ? ` · ${s.st} j d'affilée` : ''}</p></div></div>
+    <div class="row" style="gap:8px;margin-top:12px"><input id="pvStepIn" inputmode="numeric" class="famt num" placeholder="Pas d'aujourd'hui" aria-label="Nombre de pas aujourd'hui" style="flex:1;text-align:left"><button class="btn sm" data-pvst="set">OK</button></div>
+    <div class="pv-btns"><button class="chip" data-pvst="paste">Coller depuis Santé</button><button class="chip" data-pvst="+1000">+ 1 000</button></div>
+    ${pvMore('Statistiques et réglages', `moy. 7 j ${pvFmt(s.avg7)} · record ${pvFmt(s.rec)}`, `<div class="pv-sbars">${bars}</div>
+      <p class="pv-sub">Paliers : ${pvFmt(g)} objectif · ${pvFmt(g + 5000)} exploit · ${pvFmt(g + 10000)} légendaire.</p>
+      <div class="pv-goal"><span>Objectif quotidien</span><button class="icon-btn" data-pvgoal="-1000" aria-label="Baisser l'objectif">−</button><b class="num">${pvFmt(g)}</b><button class="icon-btn" data-pvgoal="1000" aria-label="Monter l'objectif">+</button></div>
+      <details class="pv-det" data-k="shortcut"><summary>Récupérer tes pas sans les taper</summary><ol>
+      <li>App <b>Raccourcis</b> → <b>+</b> → nomme-le « Mes pas ».</li>
+      <li>Action <b>Rechercher des échantillons de santé</b> : <b>Nombre de pas</b>, <b>aujourd'hui</b>.</li>
+      <li><b>Calculer les statistiques</b> → <b>Somme</b>, puis <b>Arrondir le nombre</b>, puis <b>Copier dans le presse-papiers</b>.</li>
+      <li>Lance-le, ouvre Sayko, touche <b>Coller depuis Santé</b>. Astuce : Réglages → Accessibilité → Toucher → <b>Toucher le dos</b> → « Mes pas ».</li></ol></details>`)}</section>`;
 }
 function pvSetSteps(n) {
   const p = pvS(), g = numv(p.goal) || PV_GOAL; n = Math.max(0, Math.min(150000, Math.round(n))); p.steps[todayISO()] = n; save();
@@ -6464,16 +6485,16 @@ function pvCircCard() {
   if (!PVC.r) PVC.r = [['', '', ''], ['', '', ''], ['', '', '']];
   const ph = (i, j) => prev && prev.r[i] ? prev.r[i][j] : '';
   const head = st.done ? `<div class="pv-done"><b>Circuit fait aujourd'hui · ${pvTot(last.r).reduce((a, b) => a + b, 0)} reps</b></div>`
-    : st.due ? `<p class="pv-big">Jour de circuit</p><p class="pv-sub">${PV_EXO.map(x => x[1]).join(' → ')}, chacun à l'échec. Enchaîne sans pause entre les exercices, 2 min de repos entre les tours. 3 tours minimum, 4 si tu peux.</p>`
-    : `<p class="pv-big">Repos · récupération</p><p class="pv-sub">À l'échec, les muscles se réparent en 48 h. En perte de poids, c'est le circuit qui dit au corps de garder ton muscle : la récupération en fait partie. Prochain circuit demain. Les 15K pas restent dus.</p>`;
+    : st.due ? `<p class="pv-sub" style="margin-top:0">Chacun à l'échec, sans pause entre les exercices, 2 min de repos entre les tours. 3 tours minimum.</p>`
+    : `<p class="pv-big">Repos</p><p class="pv-sub">Le muscle se répare en 48 h : c'est ce qui le protège pendant ta perte de poids. Circuit demain.</p>`;
   const grid = st.done ? pvCircHist() : `<div class="pv-grid"><span></span>${PV_EXO.map(x => `<b>${x[1].split(' ')[0]}</b>`).join('')}
     ${PVC.r.map((r, i) => `<span class="pv-tr">Tour ${i + 1}</span>${r.map((v, j) => `<input class="num" inputmode="numeric" data-pvr="${i}.${j}" value="${esc(v)}" placeholder="${esc(ph(i, j))}" aria-label="${PV_EXO[j][1]}, tour ${i + 1}">`).join('')}`).join('')}</div>
     <div class="pv-btns">${PVC.r.length < 4 ? '<button class="chip" data-pvcirc="add">+ 4ᵉ tour</button>' : '<button class="chip" data-pvcirc="del">− 4ᵉ tour</button>'}<button class="chip" data-pvcirc="rest">${PVC.rest ? `Repos <span id="pvRest" class="num">${pvRestTxt()}</span>` : 'Lancer 2 min de repos'}</button></div>
     ${prev ? `<p class="pv-sub">Les chiffres grisés : ton dernier circuit (${DAY_MONTH.format(parseDate(prev.date))}). Bats-en au moins un.</p>` : ''}
-    <button class="btn block" data-pvcirc="save" style="margin-top:12px">${st.due ? 'Valider le circuit' : 'Valider quand même'}</button>${pvCircHist()}`;
-  const tips = `<details class="pv-det"><summary>Bien faire chaque exercice</summary>${PV_EXO.map(([, n, k, cue]) => `<p><b>${n}</b> · ${esc(cue)}</p><p class="pv-sub">À éviter : ${esc(EX_ERR[k] || '')}</p>`).join('')}<div class="pv-btns"><button class="chip" data-mirror>Miroir</button>${PV_EXO.map(x => `<a class="chip" href="${demoUrl(x[1])}" target="_blank" rel="noopener">Démo ${x[1].split(' ')[0].toLowerCase()} ↗</a>`).join('')}</div>
-    <p class="pv-sub">Matériel : une barre de traction de porte et deux chaises stables. Quand tu fais plus de 8 tractions négatives lentes, passe aux vraies tractions.</p></details>`;
-  return pCard('Circuit · 1 jour sur 2', head + grid + tips, st.due && !st.done ? 'pv-hot' : '');
+    <button class="btn block" data-pvcirc="save" style="margin-top:12px">${st.due ? 'Valider le circuit' : 'Valider quand même'}</button>`;
+  const tips = pvMore('Bien faire et historique', `${pvS().circ.length} circuit${pvS().circ.length > 1 ? 's' : ''} notés`, `${st.done ? '' : pvCircHist()}${PV_EXO.map(([, n, k, cue]) => `<p><b>${n}</b> · ${esc(cue)}</p><p class="pv-sub">À éviter : ${esc(EX_ERR[k] || '')}</p>`).join('')}<div class="pv-btns"><button class="chip" data-mirror>Miroir</button>${PV_EXO.map(x => `<a class="chip" href="${demoUrl(x[1])}" target="_blank" rel="noopener">Démo ${x[1].split(' ')[0].toLowerCase()} ↗</a>`).join('')}</div>
+    <p class="pv-sub">Matériel : une barre de traction de porte et deux chaises stables. Plus de 8 tractions négatives lentes : passe aux vraies tractions.</p>`);
+  return pCard(st.due && !st.done ? 'Circuit du jour' : 'Circuit · 1 jour sur 2', head + (st.due || st.done ? grid : '') + tips, st.due && !st.done ? 'pv-hot' : '');
 }
 function pvCircHist() {
   const c = pvS().circ.slice(-5).reverse(); if (!c.length) return '';
@@ -6491,7 +6512,7 @@ function pvCircSave() {
   pvCheckDay(); render(); scrollTo(0, 0);
 }
 function vPvTrain() {
-  return `${corpsTop('entrainement')}${pvStepsCard(true)}${pvCircCard()}`;
+  return `${corpsTop('entrainement')}${pvStepsCard()}${pvCircCard()}<button class="pv-buyline" data-expl style="margin-top:14px">✦ Noter un exploit libre (douche froide, gainage…) →</button>`;
 }
 
 /* ---------- APPARENCE ---------- */
@@ -6674,24 +6695,30 @@ function pvPillars(k = todayISO()) {
     { id: 'entrainement', n: 'Circuit', v: c || !due ? 1 : 0, t: c ? 'fait' : due ? 'à faire' : 'repos', s: c ? 'Validé aujourd\'hui' : due ? 'Pompes, dips, tractions négatives' : 'Récupération, circuit demain', rest: !due && !c },
     { id: 'apparence', n: 'Apparence', v: at ? an / at : 0, t: `${an}/${at}`, s: (() => { const b = pvBarberDays(); return b == null || b >= PV_BARBER ? 'Coiffeur à prévoir' : 'Barbe, cheveux, tenue, parfum'; })() },
     { id: 'sante', n: 'Santé · puff', v: !ph ? 0 : pn <= ph.lim ? 1 : 0, t: !ph ? '—' : ph.free ? (pn ? 'rechute' : 'libre') : `${pn}/${ph.lim}`, s: !ph ? 'Lancer le plan d\'arrêt' : ph.free ? `${puffFreeStreak()} jour${puffFreeStreak() > 1 ? 's' : ''} sans puff` : `${ph.n} · jour J dans ${ph.left} j` },
+    (() => { const [ho, hd] = homeScore(k), ld = homeLoad(k); return { id: 'maison', n: 'Maison', v: hd ? ho / hd : 0, t: `${ho}/${hd}`, s: ho === hd ? 'Tout est propre' : !ld ? 'Machine du jour à lancer' : ld.st < 2 ? 'Linge à étendre' : 'Ménage du jour' }; })(),
     { id: 'intel', n: 'Intellect', v: it / 6, t: `${it}/6`, s: `${Math.round(PV_IT.reduce((a, [id]) => a + (k === todayISO() ? pvMinLive(id) : pvMin(id, k)), 0))} min aujourd'hui` }
   ];
 }
 const pvDayPct = k => { const P = pvPillars(k); return P.reduce((a, x) => a + Math.min(1, x.v), 0) / P.length; };
 function pvStreak() { let n = 0; for (let i = pvDayPct(todayISO()) >= 1 ? 0 : 1; i < 400; i++) { const k = iso(addDays(new Date(), -i)); if (k < pvS().start) break; if (pvDayPct(k) >= 1) n++; else break; } return n; }
-function pvCheckDay() { if (pvDayPct(todayISO()) >= 1) pvOnce('all', 10, ['Protocole complet', 'Les six piliers sont tenus aujourd\'hui. C\'est exactement comme ça qu\'on se transforme.'], true); }
+function pvCheckDay() { if (pvDayPct(todayISO()) >= 1) pvOnce('all', 10, ['Protocole complet', 'Les sept piliers sont tenus aujourd\'hui. C\'est exactement comme ça qu\'on se transforme.'], true); }
 function pvHome() {
-  const P = pvPillars(), pct = pvDayPct(todayISO()), st = pvStreak(), R = 30;
-  const row = x => `<button class="pv-pil ${x.v >= 1 ? 'ok' : ''} ${x.rest ? 'rest' : ''}" data-goto="${x.id}">${pvRing(Math.min(1, x.v))}<span class="grow"><b>${x.n}</b><small>${x.s}</small></span><em class="num">${x.t}</em></button>`;
-  const body = `<div class="pv-top"><svg viewBox="-40 -40 80 80" aria-hidden="true"><circle r="${R}" fill="none" stroke="var(--raise)" stroke-width="6"/><circle r="${R}" fill="none" stroke="var(--${pct >= 1 ? 'mint' : 'gold'})" stroke-width="6" stroke-linecap="round" transform="rotate(-90)" ${ringDash(R, pct)}/><text y="5" text-anchor="middle" style="font:400 17px var(--serif);fill:var(--ink)">${Math.round(pct * 100)}%</text></svg>
-    <div><b>${pct >= 1 ? 'Protocole tenu' : 'Protocole du jour'}</b><small>${st ? `${st} jour${st > 1 ? 's' : ''} complet${st > 1 ? 's' : ''} d'affilée` : 'Les six piliers, chaque jour'}</small></div></div>${P.map(row).join('')}${(() => { const b = pvBuyN(); return `<button class="pv-pil pv-buy" data-goto="achats">${pvRing(b.e / b.et)}<span class="grow"><b>Achats</b><small>${b.e < b.et ? `${b.et - b.e} essentiels à acheter` : 'Essentiels réunis'}</small></span><em class="num">${b.n}/${b.t}</em></button>`; })()}`;
-  return uiSys() ? sysWin('PROTOCOLE DU JOUR', body, pct >= 1 ? 'done' : '') : `<section class="glass pv-home">${body}</section>`;
+  const P = pvPillars(), pct = pvDayPct(todayISO()), st = pvStreak(), R = 26;
+  const todo = P.filter(x => x.v < 1), done = P.filter(x => x.v >= 1), b = pvBuyN();
+  const row = x => `<button class="pv-pil" data-goto="${x.id}">${pvRing(Math.min(1, x.v))}<span class="grow"><b>${x.n}</b><small>${x.s}</small></span><em class="num">${x.t}</em></button>`;
+  return `<section class="glass pv-home"><div class="pv-top"><svg viewBox="-34 -34 68 68" aria-hidden="true"><circle r="${R}" fill="none" stroke="var(--raise)" stroke-width="5"/><circle r="${R}" fill="none" stroke="var(--${pct >= 1 ? 'mint' : 'gold'})" stroke-width="5" stroke-linecap="round" transform="rotate(-90)" ${ringDash(R, pct)}/><text y="5" text-anchor="middle" style="font:400 15px var(--serif);fill:var(--ink)">${Math.round(pct * 100)}%</text></svg>
+    <div><b>${pct >= 1 ? 'Protocole tenu' : 'Protocole du jour'}</b><small>${st ? `${st} jour${st > 1 ? 's' : ''} complet${st > 1 ? 's' : ''} d'affilée` : `${done.length}/${P.length} piliers tenus`}</small></div></div>
+    ${todo.map(row).join('')}
+    ${done.length ? `<div class="pv-donechips">${done.map(x => `<button class="chip" data-goto="${x.id}">✓ ${x.n}</button>`).join('')}</div>` : ''}
+    ${b.e < b.et ? `<button class="pv-buyline" data-goto="achats">Achats · ${b.et - b.e} essentiels à trouver →</button>` : ''}</section>`;
 }
 
 /* ---------- CLICS ---------- */
 function pvRe() { const y = scrollY; render(); scrollTo(0, y); }
 function pvClick(t) {
+  { const hb = t.closest('[data-hint]'); if (hb) { const r = hb.closest('.pv-hr2'), n = r && r.nextElementSibling; if (n && n.classList.contains('pv-hint')) n.classList.toggle('on'); return true; } }
   if (puffClick(t)) return true;
+  if (homeClick(t)) return true;
   const c = s => t.closest(s); let el;
   if ((el = c('[data-pvbuy]'))) { const g = lkS().gear, id = el.dataset.pvbuy; if (g[id]) delete g[id]; else { g[id] = 1; const b = pvBuyN(); if (b.e === b.et && PV_BUY.some(([, L]) => L.some(x => x[0] === id && x[2]))) reward(5, { big: true, msg: ['Essentiels réunis', 'Tu as tout ce qu\'il faut pour tenir le protocole.'] }); } save(); haptic(); pvRe(); return true; }
   if ((el = c('[data-pvbuyf]'))) { BUY.ess = el.dataset.pvbuyf === '1'; pvRe(); return true; }
@@ -6799,50 +6826,38 @@ const pvKg = v => String(Math.round(v * 10) / 10).replace('.', ',');
 function pvProtTarget() { const w = bodyWeight(); return w ? Math.round(w * 1.8 / 5) * 5 : null; }
 function pvWeightCard() {
   const g = pvWG(), w = bodyWeight(), ws = sortedWeights(), lastW = ws[ws.length - 1], t = bodyTargets();
-  const head = `<div class="row" style="margin-top:4px;gap:8px"><input id="wIn" inputmode="decimal" class="famt num" placeholder="${lastW ? pvKg(numv(lastW.kg)) : 'Ton poids en kg'}" aria-label="Poids du jour en kg" style="flex:1;text-align:left"><button class="btn sm" data-wsave>Enregistrer</button></div>`;
-  if (!numv(g.start) || !w) return pCard('Objectif · −10 à −15 kg', `<p class="pv-sub">Pèse-toi une première fois (le matin, à jeun, après les toilettes) : ce sera ton point de départ.</p>${head}`, 'pv-hot');
-  const lost = g.start - w, f = Math.max(0, Math.min(1, lost / PV_LOSS[1])), r = pvRate();
-  let verdict = '<p class="pv-sub">Il faut 2 pesées à au moins 10 jours d\'écart pour juger ton rythme.</p>';
-  if (r && !r.wait) {
-    const loss = -r.pct, lbl = `${r.kgw <= 0 ? '−' : '+'}${pvKg(Math.abs(r.kgw))} kg par semaine`;
-    verdict = loss > 1.1 ? `<p class="pv-warn"><b>${lbl}</b> : trop rapide. Au-delà de 1 % de ton poids par semaine, tu perds aussi du muscle. Ajoute des protéines (œufs, whey) et un peu de patates.</p>`
-      : loss >= .4 ? `<div class="pv-done" style="margin-top:10px"><b>${lbl} : le bon rythme, ne change rien.</b></div>`
-      : `<p class="pv-warn"><b>${lbl}</b> : trop lent. Vérifie les écarts (sucres, pain), tiens tes 15K pas, et garde le repas raisonnable.</p>`;
-    if (loss > .2 && lost < PV_LOSS[0]) verdict += `<p class="pv-sub">À ce rythme, −10 kg vers le <b>${DAY_MONTH.format(addDays(new Date(), Math.round((PV_LOSS[0] - lost) / Math.abs(r.kgw) * 7)))}</b>.</p>`;
-  }
+  const input = `<div class="row" style="margin-top:12px;gap:8px"><input id="wIn" inputmode="decimal" class="famt num" placeholder="${lastW ? pvKg(numv(lastW.kg)) : 'Ton poids en kg'}" aria-label="Poids du jour en kg" style="flex:1;text-align:left"><button class="btn sm" data-wsave>Peser</button></div>`;
+  if (!numv(g.start) || !w) return `<section class="glass pv-card pv-hot"><h2 class="pv-h">Objectif · −10 à −15 kg</h2><p class="pv-sub">Une première pesée, le matin à jeun : ce sera ton point de départ.</p>${input}</section>`;
+  const lost = g.start - w, f = Math.max(0, Math.min(1, lost / PV_LOSS[1])), r = pvRate(), since = lastW ? Math.round((parseDate(todayISO()) - parseDate(lastW.date)) / 864e5) : 99;
+  let verdict = '';
+  if (r && !r.wait) { const loss = -r.pct, lbl = `${r.kgw <= 0 ? '−' : '+'}${pvKg(Math.abs(r.kgw))} kg/sem.`; verdict = loss > 1.1 ? `<p class="pv-warn"><b>${lbl}</b> : trop vite, tu perds du muscle. Ajoute des protéines.</p>` : loss >= .4 ? `<p class="pv-line" style="color:var(--mint)">${lbl} : le bon rythme${lost < PV_LOSS[0] && loss > .2 ? ` · −10 kg vers le ${DAY_MONTH.format(addDays(new Date(), Math.round((PV_LOSS[0] - lost) / Math.abs(r.kgw) * 7)))}` : ''}</p>` : `<p class="pv-warn"><b>${lbl}</b> : trop lent. Vérifie les écarts et tes 15K pas.</p>`; }
   const kc = t ? Math.max(1700, Math.round((t.maint - 500) / 50) * 50) : null, pt = pvProtTarget();
-  return pCard('Objectif · −10 à −15 kg', `
-    <div class="pv-kp"><div><b class="num">${pvKg(g.start)}</b><span>départ (kg)</span></div><div><b class="num">${pvKg(w)}</b><span>aujourd'hui</span></div><div><b class="num" style="color:var(--${lost > 0 ? 'mint' : 'ink'})">${lost > 0 ? '−' : ''}${pvKg(Math.abs(lost))}</b><span>kg perdus</span></div></div>
+  return `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">−10 à −15 kg</h2><span class="num" style="font:400 1.3rem var(--serif);color:var(--${lost > 0 ? 'mint' : 'ink'})">${lost > 0 ? '−' : ''}${pvKg(Math.abs(lost))} kg</span></div>
     <div class="pv-lbar"><i style="width:${(f * 100).toFixed(1)}%"></i><em style="left:${(PV_LOSS[0] / PV_LOSS[1] * 100).toFixed(1)}%"><span>−10</span></em><em style="left:100%"><span>−15</span></em></div>
-    <p class="pv-sub">Cible : <b>${pvKg(g.start - PV_LOSS[1])} à ${pvKg(g.start - PV_LOSS[0])} kg</b>. Le bon rythme : 0,5 à 1 % de ton poids par semaine, soit ${pvKg(w * .005)} à ${pvKg(w * .01)} kg.</p>
-    ${verdict}
-    ${t ? weightChart({ lo: -w * .01, hi: -w * .005 }) : ''}
-    ${head}
-    <details class="pv-det"><summary>Perdre le gras sans perdre le muscle</summary>
-      <p><b>1. Protéines</b> : ${pt ? `≈ ${pt} g par jour` : '1,8 g par kilo de ton poids'}. C'est le signal qui dit au corps de garder le muscle. En un seul repas, c'est dur : la whey t'aide.</p>
-      <p><b>2. Le circuit</b> : c'est lui qui prouve au corps que le muscle sert encore. Ne le saute jamais pour « brûler plus » en marchant.</p>
-      <p><b>3. Un déficit modéré</b>${kc ? ` : environ <b>${kc.toLocaleString('fr-FR')} kcal</b> par jour (ton maintien ≈ ${t.maint.toLocaleString('fr-FR')} − 500). C'est un ordre de grandeur, la balance tranche` : ' : environ 500 kcal sous ton maintien'}.</p>
-      <p><b>4. Le sommeil</b> : 7 h minimum. En manque de sommeil, le corps perd plus de muscle et garde plus de gras.</p>
-      <p><b>5. Se peser juste</b> : même jour, le matin à jeun. Le poids bouge de ±1 kg d'un jour à l'autre (eau, sel) : seule la tendance compte.</p></details>
-    ${lastW ? `<button class="link-btn small" data-wdel style="color:var(--muted);min-width:0;padding:0;margin-top:10px">Supprimer la dernière pesée (${DAY_MONTH.format(parseDate(lastW.date))})</button>` : ''}
-    <button class="link-btn small" data-pvwgreset style="color:var(--muted);min-width:0;padding:0;margin-top:6px;display:block">Repartir de mon poids actuel</button>`);
+    <p class="pv-sub" style="margin-top:2px">${pvKg(g.start)} → <b>${pvKg(w)} kg</b> · cible ${pvKg(g.start - PV_LOSS[1])} à ${pvKg(g.start - PV_LOSS[0])} kg</p>
+    ${verdict}${since >= 7 ? `<p class="pv-k" style="margin-top:12px">Pesée de la semaine</p>${input}` : ''}
+    ${pvMore('Courbe et conseils', 'garder le muscle en perdant le gras', `${t ? weightChart({ lo: -w * .01, hi: -w * .005 }) : ''}${since < 7 ? input : ''}
+      <p class="pv-sub"><b>Le bon rythme</b> : 0,5 à 1 % du poids par semaine (${pvKg(w * .005)} à ${pvKg(w * .01)} kg).</p>
+      <p class="pv-sub"><b>Protéines</b> ${pt ? `≈ ${pt} g/jour` : '1,8 g/kg'} · <b>circuit</b> jamais sauté · <b>déficit</b> ${kc ? `≈ ${kc.toLocaleString('fr-FR')} kcal/jour` : 'modéré'} · <b>sommeil</b> 7 h. La balance bouge de ±1 kg d'un jour à l'autre : seule la tendance compte.</p>
+      ${lastW ? `<button class="link-btn small" data-wdel style="color:var(--muted);min-width:0;padding:0;margin-top:8px">Supprimer la dernière pesée (${DAY_MONTH.format(parseDate(lastW.date))})</button>` : ''}
+      <button class="link-btn small" data-pvwgreset style="color:var(--muted);min-width:0;padding:0;margin-top:6px;display:block">Repartir de mon poids actuel</button>`)}</section>`;
 }
 
 /* ---------- Apparence : groupes (bouche et peau partagées avec les protocoles matin/soir) ---------- */
+/* Liste unifiée : [id, nom, comment faire, lié aux protocoles matin/soir (S.look.log), moment : am / pm / day] */
 const PV_APG = [
-  ['Bouche', [['m-dents', 'Dents · matin', '2 min, dentifrice fluoré, puis gratte-langue', 1], ['s-dents', 'Dents · soir', '2 min + fil dentaire. Crache sans rincer : le fluor continue d\'agir', 1], ['siwak', 'Siwak', 'Avant les prières, au moins une fois par jour (sunnah)'], ['bdb', 'Bain de bouche', 'Le soir, sans alcool, 30 s, pas juste après le brossage']]],
-  ['Peau', [['m-visage', 'Visage · matin', 'Eau fraîche ou nettoyant, crème hydratante, SPF quand il fait beau', 1], ['s-visage', 'Visage · soir', 'Nettoyant doux, eau tiède, crème de nuit', 1]]],
-  ['Barbe', [['barbe-b', 'Brossage', 'Brosse en poils de sanglier dans le sens de la pousse, puis peigne'], ['barbe-h', 'Huile', 'Quelques gouttes sur barbe humide, masse jusqu\'à la peau']]],
-  ['Cheveux', [['ch-h', 'Huile', 'Longueurs et cuir chevelu, le soir ou avant lavage'], ['gum', 'Gummies', 'Avec ton repas']]],
-  ['Style', [['tenue', 'Tenue soignée', 'Préparée la veille, repassée, chaussures nettes'], ['parfum', 'Parfum en couches', 'Les 4 couches ci-dessous']]]];
+  ['Bouche', [['m-dents', 'Dents', '2 min, dentifrice fluoré, brosse inclinée vers la gencive, puis gratte-langue d\'arrière en avant.', 1, 'am'], ['s-dents', 'Dents + fil', '2 min, puis fil dentaire ou brossettes. Crache sans rincer : le fluor continue d\'agir.', 1, 'pm'], ['siwak', 'Siwak', 'Avant les prières, au moins une fois par jour : c\'est la sunnah. Frotte dents et gencives, puis coupe 1 cm d\'extrémité tous les 2-3 jours.', 0, 'day'], ['bdb', 'Bain de bouche', 'Sans alcool, 30 s, le soir, à distance du brossage (pas juste après, sinon il rince le fluor).', 0, 'pm']]],
+  ['Peau', [['m-visage', 'Visage', 'Eau fraîche (ou nettoyant si peau grasse), crème hydratante, puis SPF 30 à 50 dès qu\'il fait beau.', 1, 'am'], ['s-visage', 'Visage', 'Nettoyant doux, eau tiède, sèche en tamponnant, puis crème de nuit.', 1, 'pm']]],
+  ['Corps', [['s-douche', 'Douche complète', 'Savon doux partout, insiste sur aisselles, pieds et plis. Sèche complètement.', 1, 'pm'], ['s-corps', 'Crème corps', 'Sur peau encore humide : bras, jambes, coudes, genoux. Le parfum tient mieux ensuite.', 1, 'pm'], ['s-at', 'Anti-transpirant', 'Le soir sur aisselles sèches : il agit la nuit et tient toute la journée du lendemain.', 1, 'pm']]],
+  ['Barbe & cheveux', [['m-barbe', 'Barbe · brosser + huile', 'Brosse en poils de sanglier vers le bas, puis 2-3 gouttes d\'huile entre les paumes, jusqu\'à la peau.', 1, 'am'], ['m-cheveux', 'Boucles rafraîchies', 'Un peu d\'eau et une noisette de soin sans rinçage, froisser sans peigner à sec.', 1, 'am'], ['ch-h', 'Huile cheveux', 'Longueurs et cuir chevelu, le soir ou avant le lavage.', 0, 'pm'], ['gum', 'Gummies cheveux', 'Avec ton repas.', 0, 'day']]],
+  ['Style', [['m-deo', 'Déo + parfum en couches', 'Crème parfumée, déodorant, musc ou huile de barbe parfumée, puis parfum (pouls, cou, barbe), sans frotter.', 1, 'am'], ['tenue', 'Tenue de demain prête', 'Choisie, repassée, posée. Chaussures nettes.', 0, 'pm'], ['s-linge', 'Pyjama propre', 'Un vrai pyjama, et tes sous-vêtements de demain sortis.', 1, 'pm']]]];
 const PV_AP = PV_APG.reduce((a, g) => a.concat(g[1]), []);
-function pvApList() { return PV_AP.concat(pvWashDay() ? [['lavage', 'Jour de lavage', 'Shampoing doux, après-shampoing, masque si c\'est le jour']] : []); }
+function pvApList() { return PV_AP.concat(pvWashDay() ? [['lavage', 'Lavage des cheveux', 'Shampoing doux sans sulfates, après-shampoing, masque si c\'est le jour. Sèche en tamponnant.', 0, 'day']] : []); }
 const pvApOn = (x, d, k = todayISO()) => x[3] ? !!((lkS().log[k] || {})[x[0]]) : !!(d.ap || {})[x[0]];
 function pvApN(d = pvPeek(), k = todayISO()) { const L = pvApList(); return [L.filter(x => pvApOn(x, d, k)).length, L.length]; }
 function pvApToggle(id) {
   const x = pvApList().find(y => y[0] === id); if (!x) return; const d = pvDay();
   if (x[3]) { const l = lkDay(); if (l[id]) delete l[id]; else l[id] = 1; } else d.ap[id] = !d.ap[id];
-  if (d.ap['barbe-b'] && d.ap['barbe-h']) lkDay()['m-barbe'] = 1;
   save();
 }
 
@@ -6853,17 +6868,18 @@ const PV_BUY = LK_GEAR.map(([c, L]) => [c, L.map(x => [x[0], x[1], x[2]])]).conc
   ['Habillement', [['b-fer', 'Fer à repasser ou défroisseur vapeur', 1], ['b-cint', 'Cintres', 1], ['b-roul', 'Rouleau anti-peluches', 1], ['b-cir', 'Cirage + brosse à chaussures', 1], ['b-chb', 'Chaussures de marche confortables (15K pas)', 1]]],
   ['Entraînement', [['b-barre', 'Barre de traction de porte', 1], ['b-dips', 'Barres à dips (ou 2 chaises solides)', 1], ['b-tapis', 'Tapis de sol', 0], ['b-elas', 'Élastique d\'assistance pour tractions', 0]]],
   ['Nutrition & santé', [['b-bal', 'Pèse-personne', 1], ['b-gourde', 'Gourde de 1 L', 1], ['b-shak', 'Shaker', 1], ['b-balc', 'Balance de cuisine', 0], ['b-gomme', 'Chewing-gums sans sucre (contre l\'envie de puff)', 1]]],
+  ['Maison', [['b-aspi', 'Aspirateur', 1], ['b-micro', 'Chiffons microfibre (lot)', 1], ['b-vitre', 'Produit vitres ou raclette', 1], ['b-multi', 'Nettoyant multi-surfaces', 1], ['b-lessive', 'Lessive', 1], ['b-etend', 'Étendoir à linge', 1], ['b-pinces', 'Pinces à linge', 1], ['b-panier', 'Panier à linge', 1], ['b-draps', 'Une 2ᵉ parure de draps (pour changer chaque semaine)', 1], ['b-vinaigre', 'Vinaigre blanc', 0]]],
   ['Intellect', [['b-sidd', 'Siddhartha, Hermann Hesse (poche)', 1], ['b-sudo', 'Carnet de sudoku', 1], ['b-ct', 'Casse-tête (cube, casse-tête en bois)', 1], ['b-cah', 'Cahier + stylo pour l\'écriture', 1], ['b-mus', 'Mushaf avec traduction française', 1], ['b-taf', 'Un tafsir en français (as-Sa\'di ou Ibn Kathir abrégé)', 1], ['b-ecou', 'Écouteurs', 1]]]]);
-const BUY = { ess: false };
+const BUY = { ess: true };
 function pvBuyN() { const g = lkS().gear; let n = 0, t = 0, e = 0, et = 0; PV_BUY.forEach(([, L]) => L.forEach(x => { t++; if (g[x[0]]) n++; if (x[2]) { et++; if (g[x[0]]) e++; } })); return { n, t, e, et }; }
 function vAchats() {
   const g = lkS().gear, s = pvBuyN();
   return `${pageHead('Achats', 'Tout ce qu\'il faut pour tenir le protocole.', null)}
     <div class="pv-score"><div><span class="${s.e === s.et ? 'ok' : ''}">★ ${s.e}/${s.et} essentiels</span><span>${s.n}/${s.t} au total</span></div><div class="pv-wbar" style="margin-top:10px"><i style="width:${(s.n / s.t * 100).toFixed(0)}%;background:linear-gradient(90deg,var(--gold),var(--gold-hi))"></i></div></div>
-    <div class="seg" role="group" aria-label="Filtre" style="margin-top:14px"><button data-pvbuyf="0" aria-pressed="${!BUY.ess}"><span class="dot"></span>Tout</button><button data-pvbuyf="1" aria-pressed="${BUY.ess}"><span class="dot"></span>★ Essentiels d'abord</button></div>
+    <div class="seg" role="group" aria-label="Filtre" style="margin-top:14px"><button data-pvbuyf="1" aria-pressed="${BUY.ess}"><span class="dot"></span>★ Essentiels</button><button data-pvbuyf="0" aria-pressed="${!BUY.ess}"><span class="dot"></span>Tout</button></div>
     ${PV_BUY.map(([c, L]) => { const LL = BUY.ess ? L.filter(x => x[2]) : L; if (!LL.length) return ''; const n = L.filter(x => g[x[0]]).length;
-      return pCard(`${c} · ${n}/${L.length}`, LL.map(([id, t, e]) => pvChk(g[id], `data-pvbuy="${id}"`, `${esc(t)}${e ? ' <span class="pv-star">★</span>' : ''}`, '')).join(''), n === L.length ? 'pv-full' : ''); }).join('')}
-    <p class="pv-sub" style="margin-top:16px">★ = indispensable pour tenir le protocole. Achète les essentiels d'abord, en marque de distributeur : ça suffit largement. Tu possèdes déjà quelque chose ? Coche-le.</p>`;
+      return pvMore(`${c}`, n === L.length ? '✓ complet' : `${n}/${L.length}${BUY.ess ? ` · ${LL.filter(x => !g[x[0]]).length} essentiel${LL.filter(x => !g[x[0]]).length > 1 ? 's' : ''} à acheter` : ''}`, LL.map(([id, t, e]) => pvChk(g[id], `data-pvbuy="${id}"`, `${esc(t)}${e && !BUY.ess ? ' <span class="pv-star">★</span>' : ''}`, '')).join('')); }).join('')}
+    <p class="pv-sub" style="margin-top:16px">Marque de distributeur : ça suffit largement. Tu possèdes déjà quelque chose ? Coche-le.</p>`;
 }
 
 /* ---------- Santé : arrêter la puff (dégressif puis arrêt) ---------- */
@@ -6937,6 +6953,59 @@ function puffClick(t) {
 }
 setInterval(() => { if (!PF.sos) return; const e = $('#pfSos'); if (!e) return; const s = Math.max(0, 240 - Math.floor((Date.now() - PF.t0) / 1000)); e.textContent = `${Math.floor(s / 60)}:${pad(s % 60)}`; if (s % 60 === 0 && tab === 'sante') pvRe(); }, 1000);
 
+/* =====================================================================
+   v4.2 · MAISON — ménage et hygiène du foyer
+   Vitres 1 jour sur 2 · draps 1x/semaine · une machine par jour (lancer, étendre, plier) ·
+   aspirateur chaque jour · poussière 1 jour sur 2.
+   S.pv.home = { last{ id: [dates] }, loads[ { d, st } ] }  (st : 1 lancée, 2 étendue, 3 pliée)
+   ===================================================================== */
+const PV_HOME = [['aspi', 'Aspirateur', 1, 'Toutes les pièces, sous le lit et derrière les portes. Commence par le fond de l\'appartement et termine vers la sortie.'],
+  ['vitres', 'Vitres', 2, 'Microfibre humide puis microfibre sèche (ou raclette), de haut en bas. Évite le plein soleil : ça laisse des traces.'],
+  ['pouss', 'Poussière', 2, 'Du haut vers le bas : étagères, meubles, écrans, plinthes. Microfibre légèrement humide, elle capture au lieu de disperser.'],
+  ['draps', 'Changer les draps', 7, 'Draps, housse de couette et taies. Lavage à 60 °C pour éliminer acariens et bactéries. Aère le matelas 10 minutes.']];
+const PV_LOAD = ['Lancer la machine', 'Étendre le linge', 'Plier et ranger', 'Terminé'];
+function homeS() { const p = pvS(); if (!p.home || typeof p.home !== 'object') p.home = {}; const h = p.home; if (!h.last || typeof h.last !== 'object') h.last = {}; if (!Array.isArray(h.loads)) h.loads = []; return h; }
+const homeLast = id => { const L = homeS().last[id] || []; return L[L.length - 1] || null; };
+const homeAgo = (id, k = todayISO()) => { const L = (homeS().last[id] || []).filter(x => x <= k), l = L[L.length - 1]; return l ? Math.round((parseDate(k) - parseDate(l)) / 864e5) : null; };
+const homeDoneOn = (id, k) => (homeS().last[id] || []).includes(k);
+/* Une tâche est due ce jour-là si sa dernière exécution (avant ce jour) date d'au moins sa fréquence */
+function homeDue(id, f, k = todayISO()) { const L = (homeS().last[id] || []).filter(x => x < k), l = L[L.length - 1]; return !l || Math.round((parseDate(k) - parseDate(l)) / 864e5) >= f; }
+const homeLoad = (k = todayISO()) => homeS().loads.find(x => x.d === k);
+function homeScore(k = todayISO()) {
+  let due = 0, ok = 0;
+  PV_HOME.forEach(([id, , f]) => { if (homeDue(id, f, k) || homeDoneOn(id, k)) { due++; if (homeDoneOn(id, k)) ok++; } });
+  const ld = homeLoad(k); due++; if (ld && ld.st >= 2) ok++;
+  return [ok, due];
+}
+function vMaison() {
+  const h = homeS(), k = todayISO(), [ok, due] = homeScore(), ld = homeLoad();
+  const pend = h.loads.filter(x => x.st < 3 && x.d !== k);
+  const rows = PV_HOME.map(([id, n, f, tip]) => {
+    const done = homeDoneOn(id, k), d = homeDue(id, f), ago = homeAgo(id), late = !done && d && ago != null && ago > f;
+    const sub = done ? 'Fait aujourd\'hui' : d ? (ago == null ? 'À faire aujourd\'hui' : late ? `En retard · dernier il y a ${ago} jours` : 'À faire aujourd\'hui') : `Fait il y a ${ago} j · prochain dans ${f - ago} j`;
+    return `<div class="pv-hm ${done ? "hm-on" : d ? "hm-due" : "hm-rest"} ${late ? "hm-late" : ""}">${pvChk(done, `data-hm="${id}"`, `${n} <span class="pv-fq">${f === 1 ? 'chaque jour' : f === 7 ? '1x / semaine' : `1 jour sur ${f}`}</span>`, sub)}<details class="pv-tip"><summary aria-label="Comment faire">?</summary><p>${tip}</p></details></div>`;
+  }).join('');
+  const loadCard = (x, today) => `<div class="pv-load ${x.st >= 3 ? 'ok' : ''}"><div class="pv-lsteps">${[1, 2, 3].map(i => `<i class="${x.st >= i ? 'on' : ''}">${['Lancée', 'Étendue', 'Pliée'][i - 1]}</i>`).join('')}</div>
+    ${x.st < 3 ? `<button class="btn ${today ? '' : 'sm'} block" data-hload="${x.d}">${PV_LOAD[x.st]}${today ? '' : ` · machine du ${DAY_MONTH.format(parseDate(x.d))}`}</button>` : '<p class="pv-line">✓ Linge propre, plié, rangé.</p>'}
+    ${x.st ? `<button class="link-btn small" data-hundo="${x.d}" style="min-width:0;padding:0;margin-top:6px;color:var(--muted)">Annuler la dernière étape</button>` : ''}</div>`;
+  const machine = pCard('Une machine par jour', `${pend.length ? `<p class="pv-warn">Linge en attente d'une machine précédente : ${pend.length > 1 ? `${pend.length} machines` : 'une machine'}. Plie-le avant qu'il ne s'accumule.</p>${pend.map(x => loadCard(x, false)).join('')}<p class="pv-k">Aujourd'hui</p>` : ''}
+    ${ld ? loadCard(ld, true) : `<button class="btn block" data-hload="new">Lancer la machine du jour</button>`}
+    <details class="pv-det"><summary>Bien laver</summary><p>Étends dès la fin du cycle, plie dès que c'est sec. Trie : blanc, couleurs, foncés. 30 °C pour le quotidien, 40 °C pour le linge de sport, 60 °C pour les draps, serviettes et sous-vêtements. Pas trop de lessive : une dose, sinon ça laisse des résidus et des odeurs. Laisse le hublot entrouvert après le lavage.</p></details>`);
+  return `${pageHead('Maison', 'Un foyer propre, un esprit clair.', 'maison')}
+    ${pCard(`Le ménage · ${ok}/${due}`, rows)}
+    ${machine}
+    <button class="pv-buyline" data-goto="achats" style="margin-top:14px">Le matériel dans les Achats →</button>`;
+}
+function homeStreak() { let n = 0; for (let i = homeScore()[0] === homeScore()[1] ? 0 : 1; i < 400; i++) { const k = iso(addDays(new Date(), -i)); if (k < pvS().start) break; const [o, d] = homeScore(k); if (o === d) n++; else break; } return n; }
+function homeClick(t) {
+  const c = s => t.closest(s); let el; const h = homeS(), k = todayISO();
+  if ((el = c('[data-hm]'))) { const id = el.dataset.hm, L = h.last[id] = h.last[id] || []; const i = L.indexOf(k); if (i >= 0) L.splice(i, 1); else { L.push(k); L.sort(); if (L.length > 120) L.splice(0, L.length - 120); haptic(); } save(); homeCheck(); pvCheckDay(); pvRe(); return true; }
+  if ((el = c('[data-hload]'))) { const d = el.dataset.hload; if (d === 'new') h.loads.push({ d: k, st: 1 }); else { const x = h.loads.find(y => y.d === d); if (x && x.st < 3) x.st++; } if (h.loads.length > 60) h.loads.splice(0, h.loads.length - 60); haptic(); save(); homeCheck(); pvCheckDay(); pvRe(); return true; }
+  if ((el = c('[data-hundo]'))) { const x = h.loads.find(y => y.d === el.dataset.hundo); if (x) { x.st--; if (!x.st) h.loads.splice(h.loads.indexOf(x), 1); } save(); pvRe(); return true; }
+  return false;
+}
+function homeCheck() { const [o, d] = homeScore(); if (o === d) pvOnce('home', 4, ['Maison au propre', 'Toutes les tâches du jour sont faites.']); }
+
 function fxRead(id) {
   FXS.read.add(id); const d = fluxDay(); d.n++; save();
   if (d.n === 5 && !d.r) { d.r = 1; lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(3, { noBonus: true, msg: ['Rituel du jour', '5 cartes pour nourrir ton esprit plutôt que le vider.'] }); }
@@ -7003,7 +7072,7 @@ function openSettings() {
       <div class="cell"><label for="set-counterStart">Démarre en</label><input type="month" id="set-counterStart" data-set="counterStart" value="${esc(S.settings.counterStart || '')}"></div>
     </div>
     <p class="hint">Chaque mois, tes heures au-delà de la base s'ajoutent au compteur, et celles en dessous (repos de rattrapage) se retirent. Mets en solde de départ celui de ta fiche de paie, avec un « - » s'il est négatif.</p>` : ''}`;
-  $('#settingsBody').innerHTML = `<div class="grab"></div>
+  $('#settingsBody').innerHTML = gxBtn(gx(`<div class="grab"></div>
     <div class="sheet-top"><span style="width:60px"></span><h2 id="settingsTitle">Réglages</h2><button class="link-btn" data-close style="text-align:right">OK</button></div>
     ${themeBlock()}
     <p class="gt">Sauvegarde</p>
@@ -7022,10 +7091,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="gt">Parcours</p>
-    <div class="group"><div class="cell"><label for="sStart">Date de début</label><input type="date" id="sStart" value="${S.start}"></div></div>
-    <p class="hint">Sert à calculer le mois en cours. Tes cases cochées sont conservées si tu la changes.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v4.1 · fonctionne hors ligne</p>`;
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.0 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -7201,9 +7267,9 @@ function vZakat() {
   <div class="zkcard"><p class="eyebrow" style="margin:0">Zakat al-mal</p><div style="margin-top:8px">${status}</div>
     ${drop ? `<div class="alert" style="margin-top:12px">${ICON.warn}<span>Ton patrimoine est repassé sous le nisab pendant l'année. Pour la majorité des savants, le compte recommence quand tu repasses au-dessus ; pour l'école hanafite, seuls le début et la fin de l'année comptent.</span></div><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn sm ghost" data-zkreset>Recommencer le compte</button></div>` : ''}
   </div>
-  <section><h2>Quand la zakat est-elle due ?</h2>
+${pvMO('z-quand', 'Quand est-elle due ?', 'nisab, année lunaire')}  <section style="margin-top:0"><h2>Quand la zakat est-elle due ?</h2>
     <p class="small">Trois conditions : posséder au moins le <b>nisab</b> (la valeur de 85 g d'or, ou de 595 g d'argent), le garder au-dessus pendant une <b>année lunaire complète</b> (354 jours), puis donner <b>2,5 %</b> de ton patrimoine net. Elle concerne l'épargne, l'argent sur tes comptes et en espèces, l'or et l'argent, les investissements et l'argent qu'on te doit et qui sera remboursé. Pas ta maison, ta voiture ni tes affaires personnelles.</p>
-  </section>
+  </section>${pvMC}
   <section><h2>Ton patrimoine</h2>
     <div class="group">
       ${row('Épargne (tes cagnottes)', eur0(r.pots))}
@@ -7225,8 +7291,8 @@ function vZakat() {
     <div class="seg" style="margin-top:12px" role="group" aria-label="Nisab"><button data-zkbasis="or" aria-pressed="${z.basis === 'or'}"><span class="dot"></span>Or · 85 g</button><button data-zkbasis="argent" aria-pressed="${z.basis === 'argent'}"><span class="dot"></span>Argent · 595 g</button></div>
     <p class="hint">${r.priced ? `Nisab actuel : ${eur0(r.nisab)}. ` : ''}Beaucoup de savants contemporains retiennent l'or pour l'argent épargné ; d'autres l'argent, plus bas et donc plus favorable aux pauvres. Mets à jour le cours de temps en temps, et demande à une personne de savoir en cas de doute.</p>
   </section>
-  <section><h2>À qui la donner</h2><p class="small">Aux huit catégories du Coran (9:60), d'abord les pauvres et les nécessiteux, à commencer par ceux de ton entourage, ou par une association de confiance qui la redistribue. Elle ne se donne pas à ses parents, ses enfants ni sa femme, dont on a déjà la charge.</p>
-  ${z.paid.length ? `<p class="small muted" style="margin-top:10px">Dernière zakat payée le ${DAY_LONG.format(parseDate(z.paid[z.paid.length - 1].d))}.</p>` : ''}</section>`;
+${pvMO('z-qui', 'À qui la donner', 'les huit catégories')}  <section style="margin-top:0"><h2>À qui la donner</h2><p class="small">Aux huit catégories du Coran (9:60), d'abord les pauvres et les nécessiteux, à commencer par ceux de ton entourage, ou par une association de confiance qui la redistribue. Elle ne se donne pas à ses parents, ses enfants ni sa femme, dont on a déjà la charge.</p>
+  ${z.paid.length ? `<p class="small muted" style="margin-top:10px">Dernière zakat payée le ${DAY_LONG.format(parseDate(z.paid[z.paid.length - 1].d))}.</p>` : ''}</section>${pvMC}`;
 }
 function zkTick() {
   const z = zkConf(), r = zkCalc();
@@ -7475,8 +7541,8 @@ function vHeart() {
       ${cur.refl.map((q, i) => `<label class="zlbl" for="hr-${i}">${q}</label><textarea id="hr-${i}" data-hrefl="${i}" rows="2" ${lv < 1 ? 'disabled' : ''}>${esc(c.refl[i] || '')}</textarea>`).join('')}
       ${c.anch ? `<p class="small" style="color:var(--mint);margin-top:10px">Ancrée le ${DAY_LONG.format(parseDate(c.anch))}. Continue de la pratiquer : une compétence ancrée s'entretient.</p>` : `<button class="btn sm" data-hanch style="margin:10px 0 14px" ${canAnchor ? '' : 'disabled'}>${canAnchor ? 'Ancrer cette compétence' : nd < 21 ? `Encore ${21 - nd} jour${21 - nd > 1 ? 's' : ''} de pratique` : 'Réponds aux deux questions'}</button>`}</details>
   </section>
-  ${cur.moments ? `<section><h2>Les moments où l'invocation est exaucée</h2><div class="group">${cur.moments.map(([t, s]) => `<div class="cell" style="flex-direction:column;align-items:flex-start;gap:2px"><span class="lbl">${t}</span><span class="small muted">${s}</span></div>`).join('')}</div></section>` : ''}
-  ${cur.k === 'dua' && (c.journal || []).length ? `<section><h2>Mon carnet de duʿa</h2><p class="small muted" style="margin:-6px 0 10px">Tes mots à Allah, du plus récent au premier. Ils restent sur ton téléphone.</p>${c.journal.slice().reverse().slice(0, 30).map(e => `<div class="djent"><p>${esc(e.t)}</p><time>${DAY_LONG.format(parseDate(e.d))}</time></div>`).join('')}</section>` : ''}`;
+  ${cur.moments || (cur.k === 'dua' && (c.journal || []).length) ? `${pvMO('h-plus', 'Moments exaucés et carnet', 'quand invoquer, tes mots à Allah')}` : ''}${cur.moments ? `<section><h2>Les moments où l'invocation est exaucée</h2><div class="group">${cur.moments.map(([t, s]) => `<div class="cell" style="flex-direction:column;align-items:flex-start;gap:2px"><span class="lbl">${t}</span><span class="small muted">${s}</span></div>`).join('')}</div></section>` : ''}
+  ${cur.k === 'dua' && (c.journal || []).length ? `<section><h2>Mon carnet de duʿa</h2><p class="small muted" style="margin:-6px 0 10px">Tes mots à Allah, du plus récent au premier. Ils restent sur ton téléphone.</p>${c.journal.slice().reverse().slice(0, 30).map(e => `<div class="djent"><p>${esc(e.t)}</p><time>${DAY_LONG.format(parseDate(e.d))}</time></div>`).join('')}</section>` : ''}${cur.moments || (cur.k === 'dua' && (c.journal || []).length) ? pvMC : ''}`;
 }
 /* Duʿa : 4 marches selon les jours de pratique, et le carnet. */
 function duaSteps(cur, c, nd) {
@@ -7568,9 +7634,7 @@ function applyTheme() {
 if (tMQ && tMQ.addEventListener) tMQ.addEventListener('change', () => { if (thConf().mode === 'auto') applyTheme(); });
 function themeBlock() {
   const t = thConf();
-  return `<p class="gt">Univers de l'app</p>
-    <div class="seg" role="group" aria-label="Univers" style="margin-bottom:8px">${[['systeme', 'Système'], ['galaxie', 'Galaxie']].map(([m, l]) => `<button data-ui="${m}" aria-pressed="${(S.ui || 'systeme') === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
-    <p class="hint" style="margin-bottom:16px">Système : niveau, stats, quête quotidienne et donjons. Galaxie : les planètes et le soleil. Tes données ne changent pas.</p>
+  return `${repSetting()}<p class="gt">Couleurs</p>
     ${uiSys() ? `${repSetting()}<p class="gt">Aura du Système</p><div class="seg" role="group" aria-label="Aura" style="margin-bottom:8px">${Object.entries(AURA_L).map(([k, x]) => `<button data-aural="${k}" aria-pressed="${auraLine() === k}"><span class="dot" style="background:${x.c[0]}"></span>${x.n}</button>`).join('')}</div><div class="aura-strip" style="margin-bottom:8px">${SR_SW.map(c => `<i style="--c:${c}" class="ok"></i>`).join('')}</div><p class="hint" style="margin-bottom:16px">L'aura évolue avec ton rang, de E à S (aura actuelle : <b>${AURA[auraIdx()]}</b>).</p><button class="sys-btn big ghost" data-replay-eveil style="margin:0 0 18px">REVOIR L'ÉVEIL</button>${sfxBlock()}` : `<p class="gt">Apparence</p>
     <div class="thgrid">${Object.entries(THEMES).map(([id, x]) => { const l = x.l.split(' '), d = x.d.split(' '); return `<button class="thsw" data-theme="${id}" aria-pressed="${t.id === id}"><span class="thdots"><i style="background:${l[0]};box-shadow:inset 0 0 0 1px ${l[7]}"></i><i style="background:${l[9]}"></i><i style="background:${d[0]}"></i><i style="background:${d[9]}"></i></span><span>${x.n}</span></button>`; }).join('')}</div>
     ${t.id === 'custom' ? `<div class="thpick"><label><input type="color" data-tcol="a" value="${t.custom.a}"><span>Couleur principale<small>boutons, chiffres, accents</small></span></label><label><input type="color" data-tcol="b" value="${t.custom.b}"><span>Teinte du fond<small>l'ambiance générale</small></span></label></div><p class="hint" style="margin-top:6px">L'app en tire toute seule une version claire et une version sombre lisibles.</p>` : ''}
@@ -7816,7 +7880,7 @@ function vChasse() {
     <div class="zside"><p class="num" style="font:400 2.4rem/1 var(--serif);color:var(--${last && last.elim && last.s >= 8 ? 'mint' : 'gold'});margin:0">${last ? last.s : '–'}<small style="font-size:1rem;color:var(--muted)">/10</small></p><p class="small muted" style="margin:4px 0 0">dernier examen blanc${best ? ` · record ${best}` : ''}</p></div></div>
   <div class="row" style="gap:8px;margin-top:16px"><button class="btn" data-chgo="train" style="flex:1">S'entraîner</button><button class="btn ghost" data-chgo="exam" style="flex:1">Examen blanc</button></div>
   ${dd != null && dd <= 0 ? '' : ''}
-  <section><h2>Le jour J</h2><div class="group">
+  ${pvMO('ch-plus', 'Le jour J, les thèmes, tes scores', 'date, inscription, examens blancs')}  <section><h2>Le jour J</h2><div class="group">
     <label class="cell"><span class="lbl">Date de l'examen</span><input type="date" data-chdate value="${c.date || ''}" style="max-width:150px"></label>
     ${[['inscr', 'Inscription validée par l\'OFB'], ['form', 'Formation théorique suivie'], ['formp', 'Formation pratique suivie']].map(([k, l]) => `<label class="cell"><span class="lbl">${l}</span><input type="checkbox" data-chchk="${k}" ${c.prat[k] ? 'checked' : ''}></label>`).join('')}
   </div><p class="hint">À l'examen : 4 ateliers pratiques sur 21 points, puis 10 questions sur 10 points. Reçu à 25 points sur 31, sans faute éliminatoire et avec la bonne réponse à la question de sécurité.</p></section>
@@ -7825,7 +7889,7 @@ function vChasse() {
     <div class="row" style="gap:8px"><input id="chExt" inputmode="numeric" placeholder="Score sur 10" style="flex:1"><button class="btn sm" data-chext>Noter</button></div>
     ${ext.length ? `<div class="chbars">${ext.map(e => `<div><i style="height:${e.s * 10}%" class="${e.s >= 8 ? 'ok' : ''}"></i><span>${e.s}</span></div>`).join('')}</div><p class="small muted" style="margin:6px 0 0">Tes ${ext.length} derniers scores sur ton appli de révision.</p>` : '<p class="small muted" style="margin:8px 0 0">Note ici le score de chaque examen blanc fait sur ton appli : tu verras ta courbe monter.</p>'}</section>
   <section><button class="btn block ghost" data-chwin>J'ai obtenu mon permis de chasser</button></section>
-  <p class="hint">Ces questions sont écrites pour Sayko d'après les thèmes officiels ; les 400 questions officielles sont dans le manuel de la FNC et de l'OFB et dans ton appli de révision.</p>`;
+  <p class="hint">Ces questions sont écrites pour Sayko d'après les thèmes officiels ; les 400 questions officielles sont dans le manuel de la FNC et de l'OFB et dans ton appli de révision.</p>${pvMC}`;
 }
 function chasseClick(t) {
   const c = s => t.closest(s); let el;
@@ -8267,7 +8331,7 @@ function coranClick(t) {
 /* =====================================================================
    15. RENDU & NAVIGATION
    ===================================================================== */
-const TABS = ['orbite', 'intel', 'sante', 'achats', 'flux', 'psy', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business', 'qibla', 'chasse'];
+const TABS = ['orbite', 'intel', 'sante', 'achats', 'maison', 'flux', 'psy', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business', 'qibla', 'chasse'];
 const CVIEWS = ['entrainement', 'nutrition', 'soin', 'apparence'];
 let tab = 'orbite', missedDismissed = false;
 function render(animate) {
@@ -8287,9 +8351,11 @@ function render(animate) {
   checkUnlocks();
   document.documentElement.classList.toggle('flux-on', tab === 'flux' && !uiSys());
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
-  try { app.innerHTML = { psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vPvFood() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vLook() : vPvTrain(), intel: vIntel, sante: vSante, achats: vAchats, routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab](); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
+  const _openK = render._t === tab + (C.view || '') ? new Set([...app.querySelectorAll('details[data-k][open]')].map(d => d.dataset.k)) : new Set(); render._t = tab + (C.view || '');
+  try { app.innerHTML = gx({ psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vPvFood() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vLook() : vPvTrain(), intel: vIntel, sante: vSante, achats: vAchats, maison: vMaison, routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]()); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
+  if (_openK.size) app.querySelectorAll('details[data-k]').forEach(d => { if (_openK.has(d.dataset.k)) d.open = true; });
   coreGlyph();
-  if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); } }
+  if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); gxDailyLater(); } }
   if (tab === 'qibla') requestAnimationFrame(qiblaInit);
   if ((tab === 'orbite' || tab === 'foi') && !missedDismissed) setTimeout(missedOverlay, 700);
   if (tab === 'flux') bindFlux();
@@ -8321,7 +8387,7 @@ function go(t) {
    Toucher le noyau : la roue s'ouvre, on touche un module.
    Appuyer et glisser : on vise un module et on relâche pour y aller.
    Appui long, ou toucher le noyau quand la roue est ouverte : retour à l'orbite. */
-const NAV = [['corps', 'Corps'], ['intel', 'Intellect'], ['foi', 'Foi'], ['routine', 'Routine'], ['flux', 'Flux'], ['argent', 'Argent'], ['business', 'Business']];
+const NAV = [['corps', 'Corps'], ['intel', 'Intellect'], ['psy', 'Psycho'], ['foi', 'Foi'], ['flux', 'Flux'], ['argent', 'Argent'], ['business', 'Business']];
 const NAV_A0 = -80, NAV_SPAN = 160;
 const W8 = { open: false, hi: null, press: null, lp: 0 };
 const navAngle = i => NAV_A0 + NAV_SPAN / (NAV.length - 1) * i;
@@ -8583,7 +8649,7 @@ document.addEventListener('click', e => {
   if (c('#impYes')) { applyImport(); return; }
   if (c('#impNo')) { pendingImport = null; $('#importConfirm').innerHTML = ''; return; }
   if ((el = c('[data-seen]'))) { S.seen[el.dataset.seen] = true; save(); const box = c('.coach'); box.style.transition = 'opacity .25s,transform .25s'; box.style.opacity = 0; box.style.transform = 'translateY(-6px)'; setTimeout(() => render(), reduceMotion() ? 0 : 250); return; }
-  if ((el = c('[data-unseen]'))) { if (uiSys()) { const k = el.dataset.unseen, h = COACH_SYS[k] || COACH[k]; if (h) sysPop(`AIDE · ${h[0].toUpperCase()}`, `<p class="sys-li">${h[1]}</p>${h[2] ? `<ol class="sys-ol">${h[2].map(x => `<li>${x}</li>`).join('')}</ol>` : ''}`, 'COMPRIS'); return; } delete S.seen[el.dataset.unseen]; save(); render(); return; }
+  if ((el = c('[data-unseen]'))) { if (true) { const k = el.dataset.unseen, h = COACH[k] || COACH_SYS[k]; if (h) sysPop(`AIDE · ${h[0].toUpperCase()}`, `<p class="sys-li">${h[1]}</p>${h[2] ? `<ol class="sys-ol">${h[2].map(x => `<li>${x}</li>`).join('')}</ol>` : ''}`, 'COMPRIS'); return; } delete S.seen[el.dataset.unseen]; save(); render(); return; }
   if (c('[data-ydone]')) { S.nour.seen = todayISO(); save(); const y = c('.yday'); y.style.transition = 'opacity .25s'; y.style.opacity = 0; setTimeout(() => render(), reduceMotion() ? 0 : 250); return; }
   if ((el = c('[data-goto]'))) { go(el.dataset.goto); return; }
   if ((el = c('[data-calib]'))) {
