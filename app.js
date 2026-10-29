@@ -6694,7 +6694,7 @@ function pvPillars(k = todayISO()) {
     { id: 'entrainement', n: '15K pas', v: st / g, t: pvFmt(st), s: st >= g ? 'Objectif atteint' : `Reste ${pvFmt(g - st)} pas` },
     { id: 'entrainement', n: 'Circuit', v: c || !due ? 1 : 0, t: c ? 'fait' : due ? 'à faire' : 'repos', s: c ? 'Validé aujourd\'hui' : due ? 'Pompes, dips, tractions négatives' : 'Récupération, circuit demain', rest: !due && !c },
     { id: 'apparence', n: 'Apparence', v: at ? an / at : 0, t: `${an}/${at}`, s: (() => { const b = pvBarberDays(); return b == null || b >= PV_BARBER ? 'Coiffeur à prévoir' : 'Barbe, cheveux, tenue, parfum'; })() },
-    { id: 'sante', n: 'Santé · puff', v: !ph ? 0 : pn <= ph.lim ? 1 : 0, t: !ph ? '—' : ph.free ? (pn ? 'rechute' : 'libre') : `${pn}/${ph.lim}`, s: !ph ? 'Lancer le plan d\'arrêt' : ph.free ? `${puffFreeStreak()} jour${puffFreeStreak() > 1 ? 's' : ''} sans puff` : `${ph.n} · jour J dans ${ph.left} j` },
+    (() => { const fm = ph && !ph.free ? puffFreeMin(k) : 0; return { id: 'sante', n: 'Santé · puff', v: !ph ? 0 : ph.free ? (pn ? 0 : 1) : Math.min(1, fm / (ph.target * 60)), t: !ph ? '—' : ph.free ? (pn ? 'rechute' : 'libre') : `${Math.floor(fm / 60)}/${ph.target} h`, s: !ph ? 'Lancer le plan d\'arrêt' : ph.free ? `${puffFreeStreak()} jour${puffFreeStreak() > 1 ? 's' : ''} sans puff` : puffS().run ? 'Rangée · le chrono tourne' : `${ph.target} h sans puff · jour J dans ${ph.left} j` }; })(),
     (() => { const [ho, hd] = homeScore(k), ld = homeLoad(k); return { id: 'maison', n: 'Maison', v: hd ? ho / hd : 0, t: `${ho}/${hd}`, s: ho === hd ? 'Tout est propre' : !ld ? 'Machine du jour à lancer' : ld.st < 2 ? 'Linge à étendre' : 'Ménage du jour' }; })(),
     { id: 'intel', n: 'Intellect', v: it / 6, t: `${it}/6`, s: `${Math.round(PV_IT.reduce((a, [id]) => a + (k === todayISO() ? pvMinLive(id) : pvMin(id, k)), 0))} min aujourd'hui` }
   ];
@@ -6883,53 +6883,59 @@ function vAchats() {
 }
 
 /* ---------- Santé : arrêter la puff (dégressif puis arrêt) ---------- */
-const PUFF_STEP = [[.7, 'Semaine 1 · −30 %', 'Pas de puff la première heure après le réveil, ni au lit, ni dans la chambre.'], [.4, 'Semaine 2 · −60 %', 'Passe à une puff moins dosée en nicotine si tu peux. Plus de puff au travail.'], [.15, 'Semaine 3 · −85 %', 'Nicotine la plus faible possible. Seulement aux moments les plus durs.']];
-const PUFF_TRIG = ['Ennui', 'Stress', 'Après le repas', 'Pause au travail', 'Au réveil', 'Avec des amis', 'Écran / téléphone', 'Fatigue'];
+/* v5.1 : la puff est en main presque toute la journée, on ne compte plus les prises mais le TEMPS SANS PUFF.
+   Bouton « Je range la puff » → chrono ; « Je la reprends » → arrêt. Seules les heures de 4 h à minuit comptent (le sommeil ne compte pas). */
+const PUFF_STEP = [[4, 'Semaine 1 · 4 h sans puff', 'Jamais en conduisant. Rien la première heure après le réveil. Rangée, c\'est dans le sac ou la boîte à gants, pas dans la poche.'], [8, 'Semaine 2 · 8 h sans puff', 'Au travail, seulement pendant les pauses. Toujours rien en conduisant.'], [12, 'Semaine 3 · 12 h sans puff', 'Seulement 3 moments choisis dans la journée. Entre les deux, elle reste rangée.']];
+const PUFF_TRIG = ['Ennui', 'Stress', 'Après le repas', 'Pause au travail', 'Au réveil', 'En conduisant', 'Écran / téléphone', 'Fatigue'];
 const PF = { sos: 0, t0: 0 };
-function puffS() { const p = pvS(); if (!p.puff || typeof p.puff !== 'object') p.puff = {}; const f = p.puff; if (!f.log || typeof f.log !== 'object') f.log = {}; if (!Array.isArray(f.crav)) f.crav = []; return f; }
+function puffS() { const p = pvS(); if (!p.puff || typeof p.puff !== 'object') p.puff = {}; const f = p.puff; ['log', 'free'].forEach(x => { if (!f[x] || typeof f[x] !== 'object') f[x] = {}; }); if (!Array.isArray(f.crav)) f.crav = []; return f; }
 function puffPhase(k = todayISO()) {
   const f = puffS(); if (!f.start) return null; const d = Math.floor((parseDate(k) - parseDate(f.start)) / 864e5), jd = f.jday || iso(addDays(parseDate(f.start), 21));
-  if (k >= jd) return { free: true, lim: 0, n: 'Libre', since: Math.round((parseDate(k) - parseDate(jd)) / 864e5) };
-  const i = Math.max(0, Math.min(2, Math.floor(d / 7))), st = PUFF_STEP[i]; return { i, lim: Math.max(1, Math.round(numv(f.base) * st[0])), n: st[1], rule: st[2], left: Math.round((parseDate(jd) - parseDate(k)) / 864e5) };
+  if (k >= jd) return { free: true, target: 20, n: 'Libre', since: Math.round((parseDate(k) - parseDate(jd)) / 864e5) };
+  const i = Math.max(0, Math.min(2, Math.floor(d / 7))), st = PUFF_STEP[i]; return { i, target: st[0], n: st[1], rule: st[2], left: Math.round((parseDate(jd) - parseDate(k)) / 864e5) };
 }
+/* Minutes « éveillées » (4 h → minuit) d'un intervalle [a, b] tombant dans le jour k */
+function puffOverlap(a, b, k) { const d0 = parseDate(k).getTime(), lo = d0 + 4 * 3600e3, hi = d0 + 24 * 3600e3; return Math.max(0, (Math.min(b, hi) - Math.max(a, lo)) / 60000); }
+function puffFreeMin(k = todayISO()) { const f = puffS(); let m = numv(f.free[k]); if (f.run) m += puffOverlap(f.run, Date.now(), k); return m; }
+function puffStop() { const f = puffS(); if (!f.run) return; const a = f.run, b = Date.now(); for (let t = parseDate(iso(new Date(a))).getTime(); t <= b; t += 864e5) { const k = iso(new Date(t)); const m = puffOverlap(a, b, k); if (m) f.free[k] = Math.round((numv(f.free[k]) + m) * 10) / 10; } f.run = null; }
 const puffN = (k = todayISO()) => numv(puffS().log[k]);
-function puffOk(k = todayISO()) { const ph = puffPhase(k); if (!ph) return false; return puffN(k) <= ph.lim; }
+function puffOk(k = todayISO()) { const ph = puffPhase(k); if (!ph) return false; return ph.free ? puffN(k) === 0 : puffFreeMin(k) >= ph.target * 60; }
+const puffH = m => `${Math.floor(m / 60)} h ${pad(Math.floor(m % 60))}`;
 function puffFreeStreak() { const f = puffS(); if (!f.start) return 0; const jd = f.jday || iso(addDays(parseDate(f.start), 21)); let n = 0; for (let i = 0; i < 2000; i++) { const k = iso(addDays(new Date(), -i)); if (k < jd) break; if (puffN(k) > 0) break; n++; } return n; }
 function vSante() {
   const f = puffS(), ph = puffPhase();
   const head = `${pageHead('Santé', 'Arrêter la puff, pour de bon.', null)}`;
-  if (!ph) return head + pCard('Ton plan d\'arrêt', `<p class="pv-sub">Méthode choisie : <b>dégressif sur 3 semaines, puis arrêt total</b>. Réponds honnêtement : le plan se calcule sur ces chiffres.</p>
-    <p class="pv-k">Combien de prises par jour, aujourd'hui ?</p><p class="pv-sub" style="margin-top:0">Une prise = tu sors la puff et tu tires quelques bouffées d'affilée.</p>
-    <div class="chips">${[10, 20, 30, 50, 80].map(n => `<button class="chip" data-puffb="${n}" aria-pressed="${numv(f.base) === n}">${n}</button>`).join('')}</div>
-    <p class="pv-k">Combien de puffs achètes-tu par semaine, et à quel prix ?</p>
-    <div class="row" style="gap:8px"><input id="pfW" inputmode="decimal" class="famt num" placeholder="Puffs / semaine" value="${f.perWeek || ''}" aria-label="Puffs par semaine" style="flex:1;text-align:left"><input id="pfP" inputmode="decimal" class="famt num" placeholder="Prix (€)" value="${f.price || ''}" aria-label="Prix d'une puff en euros" style="flex:1;text-align:left"></div>
-    <button class="btn block" data-puffgo style="margin-top:14px">Commencer aujourd'hui</button>
-    <p class="pv-sub">Jour J (arrêt total) : dans 21 jours. Tu pourras le déplacer.</p>`, 'pv-hot');
-  const n = puffN(), over = !ph.free && n > ph.lim, money = numv(f.perWeek) * numv(f.price) / 7;
+  if (!ph) return head + pCard('Ton plan d\'arrêt', `<p class="pv-sub" style="margin-top:0">Dégressif sur 3 semaines, puis arrêt total. On ne compte pas tes bouffées : on compte le <b>temps où la puff est rangée</b>. Chaque semaine, ce temps augmente.</p>
+    <div class="pv-plan">${PUFF_STEP.map(([h, n, r]) => `<div><b>${n.split(' · ')[0]}</b><span>${h} h sans puff · ${r.split('.')[0].toLowerCase()}</span></div>`).join('')}<div><b>Jour J</b><span>arrêt total</span></div></div>
+    <p class="pv-k">Combien elle te coûte</p>
+    <div class="row" style="gap:8px"><input id="pfW" inputmode="decimal" class="famt num" placeholder="Puffs / sem." value="${f.perWeek ? String(f.perWeek).replace('.', ',') : ''}" aria-label="Puffs par semaine" style="flex:1;text-align:left"><input id="pfP" inputmode="decimal" class="famt num" placeholder="Prix (€)" value="${f.price || ''}" aria-label="Prix d'une puff en euros" style="flex:1;text-align:left"></div>
+    <p class="pv-sub">Une puff qui dure 2 à 3 semaines : écris 0,4.</p>
+    <button class="btn block" data-puffgo style="margin-top:14px">Commencer aujourd'hui</button>`, 'pv-hot');
+  const money = numv(f.perWeek) * numv(f.price) / 7;
   let main;
   if (ph.free) {
-    const st = puffFreeStreak(), saved = Math.round(money * ph.since);
+    const st = puffFreeStreak(), n = puffN(), saved = Math.round(money * ph.since);
     main = pCard('Libre', `<div class="pv-steps" style="height:170px;width:170px"><svg viewBox="-80 -80 160 160" aria-hidden="true"><circle r="64" fill="none" stroke="var(--raise)" stroke-width="12"/><circle r="64" fill="none" stroke="var(--mint)" stroke-width="12" stroke-linecap="round" transform="rotate(-90)" ${ringDash(64, Math.min(1, st / 30))}/></svg><div class="pv-sc"><b class="num">${st}</b><span>jour${st > 1 ? 's' : ''} sans puff</span><em class="mint">${st >= 30 ? 'Un mois' : st >= 21 ? '3 semaines' : st >= 7 ? 'Une semaine' : st >= 3 ? 'Le pic est passé' : 'Tiens bon'}</em></div></div>
       ${money ? `<div class="pv-kp"><div><b class="num">${saved} €</b><span>économisés</span></div><div><b class="num">${Math.round(money * 365)} €</b><span>par an</span></div></div>` : ''}
-      ${n ? `<p class="pv-warn">Une prise aujourd'hui. Une rechute n'efface pas ce que tu as fait : c'est une information. Qu'est-ce qui l'a déclenchée ? Jette ce qui reste, et le compteur repart demain.</p>` : ''}
-      <button class="btn block ghost" data-puff="+1" style="margin-top:12px">J'ai craqué (noter une prise)</button>`, n ? 'pen' : 'done');
+      ${n ? `<p class="pv-warn">Rechute aujourd'hui. Ça n'efface pas ce que tu as fait : c'est une information. Qu'est-ce qui l'a déclenchée ? Jette ce qui reste, le compteur repart demain.</p>` : ''}
+      <button class="btn block ghost" data-puff="+1" style="margin-top:12px">J'ai craqué</button>`, n ? 'pen' : 'done');
   } else {
-    main = pCard(`${ph.n}`, `<div class="pv-steps" style="height:170px;width:170px"><svg viewBox="-80 -80 160 160" aria-hidden="true"><circle r="64" fill="none" stroke="var(--raise)" stroke-width="12"/><circle r="64" fill="none" stroke="var(--${over ? 'danger' : 'gold'})" stroke-width="12" stroke-linecap="round" transform="rotate(-90)" ${ringDash(64, Math.min(1, n / ph.lim))}/></svg><div class="pv-sc"><b class="num" style="color:var(--${over ? 'danger' : 'ink'})">${n}</b><span>sur ${ph.lim} prises max</span><em class="${over ? '' : 'gold'}" style="${over ? 'color:var(--danger)' : ''}">${over ? 'Limite dépassée' : `reste ${ph.lim - n}`}</em></div></div>
-      <div class="pv-btns" style="justify-content:center"><button class="btn" data-puff="+1">+1 prise</button>${n ? '<button class="chip" data-puff="-1">Annuler</button>' : ''}</div>
-      <p class="pv-sub"><b>La règle de la semaine</b> : ${ph.rule}</p>
-      <p class="pv-sub">Jour J dans <b>${ph.left} jour${ph.left > 1 ? 's' : ''}</b> (${DAY_MONTH.format(parseDate(f.jday || iso(addDays(parseDate(f.start), 21))))}) : arrêt total, et tu jettes ou donnes tout ce qui reste.</p>
-      <div class="pv-week">${Array.from({ length: 7 }, (_, i) => { const k = iso(addDays(new Date(), i - 6)), p2 = puffPhase(k), c = puffN(k); return `<div class="pv-dd ${p2 && k >= f.start ? (c <= p2.lim ? 'ok' : 'x') : ''}"><i style="height:${p2 && k >= f.start ? Math.min(100, c / Math.max(1, numv(f.base)) * 100).toFixed(0) : 0}%"></i><span>${i === 6 ? 'auj.' : DAY_SHORT.format(parseDate(k)).replace('.', '')}</span></div>`; }).join('')}</div>`, over ? 'pen' : '');
+    const m = puffFreeMin(), tg = ph.target * 60, ok = m >= tg, run = !!f.run;
+    main = pCard(ph.n, `<div class="pv-steps" style="height:170px;width:170px"><svg viewBox="-80 -80 160 160" aria-hidden="true"><circle r="64" fill="none" stroke="var(--raise)" stroke-width="12"/><circle r="64" fill="none" stroke="var(--${ok ? 'mint' : 'gold'})" stroke-width="12" stroke-linecap="round" transform="rotate(-90)" ${ringDash(64, m / tg)}/></svg><div class="pv-sc"><b class="num" id="pfFree">${puffH(m)}</b><span>sans puff aujourd'hui</span><em class="${ok ? 'mint' : 'gold'}">${ok ? 'objectif tenu' : `objectif ${ph.target} h`}</em></div></div>
+      ${run ? `<p class="pv-line" style="text-align:center;color:var(--mint)">Rangée depuis <b class="num" id="pfRun">${puffH((Date.now() - f.run) / 60000)}</b></p><button class="btn block ghost" data-puffrun="off" style="margin-top:8px">Je la reprends</button>`
+        : '<button class="btn block" data-puffrun="on" style="margin-top:8px">Je range la puff</button>'}
+      <p class="pv-sub"><b>Règle de la semaine</b> : ${ph.rule}</p>
+      <p class="pv-sub">Jour J dans <b>${ph.left} jour${ph.left > 1 ? 's' : ''}</b> (${DAY_MONTH.format(parseDate(f.jday || iso(addDays(parseDate(f.start), 21))))}) : arrêt total, et tu jettes ou donnes ce qui reste.</p>
+      <div class="pv-week">${Array.from({ length: 7 }, (_, i) => { const k = iso(addDays(new Date(), i - 6)), p2 = puffPhase(k), fm = puffFreeMin(k), on = p2 && k >= f.start; return `<div class="pv-dd ${on ? (puffOk(k) ? 'ok' : fm ? 'mid' : '') : ''}"><i style="height:${on && p2.target ? Math.min(100, fm / (p2.target * 60) * 100).toFixed(0) : 0}%"></i><span>${i === 6 ? 'auj.' : DAY_SHORT.format(parseDate(k)).replace('.', '')}</span></div>`; }).join('')}</div>`, ok ? 'done' : '');
   }
-  const sos = PF.sos ? pvSosBody() : `<p class="pv-sub">Une envie dure 3 à 5 minutes, puis elle retombe d'elle-même. Tu n'as pas à la vaincre : juste à la laisser passer.</p><button class="btn block" data-puffsos>J'ai envie · SOS 4 minutes</button>
-    <p class="pv-line">${f.crav.length ? `${f.crav.filter(x => x.ok).length} envie${f.crav.filter(x => x.ok).length > 1 ? 's' : ''} surmontée${f.crav.filter(x => x.ok).length > 1 ? 's' : ''} depuis le début` : 'Chaque envie surmontée te rapporte de l\'XP.'}</p>${puffTrigTop()}`;
-  const know = `<details class="pv-det"><summary>Ce qui va se passer</summary>
-    <p><b>Les 3 premiers jours sans nicotine</b> sont les plus durs : irritabilité, envies fortes, sommeil agité, faim. C'est le manque, il est normal et il passe.</p>
-    <p><b>En 2 à 4 semaines</b>, la plupart des symptômes ont nettement baissé. Les envies deviennent plus rares, liées à des moments (café, pause, stress).</p>
-    <p><b>Les déclencheurs</b> durent plus longtemps que le manque : repère-les et prépare un geste de remplacement (siwak, gomme sans sucre, 500 pas, verre d'eau).</p>
-    <p><b>Besoin d'aide ?</b> Tabac Info Service : <b>39 89</b> (appel gratuit), un tabacologue t'accompagne gratuitement, vapoteuse comprise. En pharmacie, les substituts nicotiniques sont remboursés sur ordonnance si le dégressif ne suffit pas.</p></details>
+  const sos = PF.sos ? pvSosBody() : `<p class="pv-sub" style="margin-top:0">Une envie dure 3 à 5 minutes, puis retombe. Tu n'as pas à la vaincre : juste à la laisser passer.</p><button class="btn block" data-puffsos>J'ai envie · SOS 4 minutes</button>
+    <p class="pv-line">${f.crav.filter(x => x.ok).length ? `${f.crav.filter(x => x.ok).length} envie${f.crav.filter(x => x.ok).length > 1 ? 's' : ''} surmontée${f.crav.filter(x => x.ok).length > 1 ? 's' : ''}` : 'Chaque envie surmontée rapporte de la lumière.'}</p>${puffTrigTop()}`;
+  const know = `<p class="pv-sub" style="margin-top:0"><b>Les 3 premiers jours sans nicotine</b> sont les plus durs : irritabilité, envies, sommeil agité, faim. C'est le manque, il passe. <b>En 2 à 4 semaines</b>, la plupart des symptômes ont nettement baissé.</p>
+    <p class="pv-sub"><b>Les déclencheurs</b> durent plus longtemps que le manque : prépare un geste de remplacement (siwak, gomme sans sucre, 500 pas, verre d'eau).</p>
+    <p class="pv-sub"><b>Besoin d'aide ?</b> Tabac Info Service : <b>39 89</b> (gratuit), un tabacologue t'accompagne, vapoteuse comprise. Les substituts nicotiniques sont remboursés sur ordonnance si le dégressif ne suffit pas.</p>
     <div class="row between" style="margin-top:12px"><span class="pv-sub" style="margin:0">Déplacer le jour J</span><span><button class="icon-btn" data-puffj="-1" aria-label="Un jour plus tôt">−</button> <button class="icon-btn" data-puffj="1" aria-label="Un jour plus tard">+</button></span></div>
     <button class="link-btn small" data-puffreset style="color:var(--muted);min-width:0;padding:0;margin-top:8px">Recommencer le plan</button>`;
-  return head + main + pCard('Une envie ?', sos) + pCard('Comprendre le sevrage', know);
+  return head + main + pCard('Une envie ?', sos) + pvMore('Comprendre le sevrage', 'le manque, les déclencheurs, l\'aide', know);
 }
 function pvSosBody() {
   const s = Math.max(0, 240 - Math.floor((Date.now() - PF.t0) / 1000)), stepI = Math.min(3, Math.floor((240 - s) / 60));
@@ -6941,16 +6947,17 @@ function pvSosBody() {
 function puffTrigTop() { const c = {}; puffS().crav.forEach(x => { if (x.trig) c[x.trig] = (c[x.trig] || 0) + 1; }); const L = Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3); return L.length ? `<p class="pv-sub">Tes déclencheurs principaux : ${L.map(([t, n]) => `<b>${t}</b> (${n})`).join(', ')}. Prépare ton geste de remplacement pour ces moments-là.</p>` : ''; }
 function puffClick(t) {
   const c = s => t.closest(s); let el; const f = puffS();
-  if ((el = c('[data-puffb]'))) { f.base = Number(el.dataset.puffb); save(); pvRe(); return true; }
-  if (c('[data-puffgo]')) { if (!numv(f.base)) { toast('Choisis ton nombre de prises par jour'); return true; } f.perWeek = numv(($('#pfW') || {}).value); f.price = numv(($('#pfP') || {}).value); f.start = todayISO(); f.jday = iso(addDays(new Date(), 21)); save(); reward(5, { big: true, msg: ['Le plan commence', 'Trois semaines pour descendre, puis tu es libre.'] }); render(); scrollTo(0, 0); return true; }
-  if ((el = c('[data-puff]'))) { const k = todayISO(), v = Number(el.dataset.puff); f.log[k] = Math.max(0, puffN() + v); save(); if (v > 0) { const ph = puffPhase(); if (ph && !ph.free && puffN() === ph.lim) toast('Dernière prise autorisée pour aujourd\'hui'); else if (ph && puffN() > ph.lim) toast('Limite dépassée. Demain, on tient.'); else haptic(); } pvRe(); return true; }
+  if ((el = c('[data-puffrun]'))) { if (el.dataset.puffrun === 'on') { f.run = Date.now(); toast('Rangée. Le chrono tourne.'); } else { puffStop(); const ph = puffPhase(); if (ph && !ph.free && puffFreeMin() >= ph.target * 60) pvOnce('puff', 4, ['Objectif sans puff tenu', `${ph.target} h sans puff aujourd'hui.`]); } save(); haptic(); pvCheckDay(); pvRe(); return true; }
+  if (c('[data-puffgo]')) { f.perWeek = numv(($('#pfW') || {}).value); f.price = numv(($('#pfP') || {}).value); f.start = todayISO(); f.jday = iso(addDays(new Date(), 21)); f.mode = 'temps'; save(); reward(5, { big: true, msg: ['Le plan commence', 'Trois semaines pour la ranger de plus en plus longtemps, puis tu es libre.'] }); render(); scrollTo(0, 0); return true; }
+  if ((el = c('[data-puff]'))) { const k = todayISO(), v = Number(el.dataset.puff); f.log[k] = Math.max(0, puffN() + v); save(); if (v > 0) toast('Noté. Demain, on repart.'); pvRe(); return true; }
   if (c('[data-puffsos]')) { PF.sos = 1; PF.t0 = Date.now(); PF.trig = ''; pvRe(); return true; }
   if ((el = c('[data-pufftrig]'))) { PF.trig = el.dataset.pufftrig; pvRe(); return true; }
-  if ((el = c('[data-puffend]'))) { const ok = el.dataset.puffend === '1'; f.crav.push({ d: todayISO(), ok, trig: PF.trig || '' }); PF.sos = 0; if (ok) reward(2, { msg: ['Envie surmontée', 'Chaque envie qui passe sans céder affaiblit la suivante.'] }); else { f.log[todayISO()] = puffN() + 1; toast('Noté. Ce n\'est pas fini : la prochaine, tu la laisses passer.'); } save(); pvRe(); return true; }
+  if ((el = c('[data-puffend]'))) { const ok = el.dataset.puffend === '1'; f.crav.push({ d: todayISO(), ok, trig: PF.trig || '' }); PF.sos = 0; if (ok) reward(2, { msg: ['Envie surmontée', 'Chaque envie qui passe sans céder affaiblit la suivante.'] }); else { const ph = puffPhase(); if (ph && ph.free) f.log[todayISO()] = puffN() + 1; else if (f.run) puffStop(); toast('Noté. La prochaine, tu la laisses passer.'); } save(); pvRe(); return true; }
   if ((el = c('[data-puffj]'))) { const j = f.jday || iso(addDays(parseDate(f.start), 21)), nj = iso(addDays(parseDate(j), Number(el.dataset.puffj))); if (nj > todayISO()) { f.jday = nj; save(); } else toast('Le jour J doit rester dans le futur'); pvRe(); return true; }
-  if (c('[data-puffreset]')) { f.start = null; f.jday = null; save(); pvRe(); return true; }
+  if (c('[data-puffreset]')) { puffStop(); f.start = null; f.jday = null; save(); pvRe(); return true; }
   return false;
 }
+setInterval(() => { try { const f = S.pv && S.pv.puff; if (f && f.run && tab === 'sante') { const a = $('#pfRun'), b = $('#pfFree'); if (a) a.textContent = puffH((Date.now() - f.run) / 60000); if (b) b.textContent = puffH(puffFreeMin()); } } catch (e) {} }, 15000);
 setInterval(() => { if (!PF.sos) return; const e = $('#pfSos'); if (!e) return; const s = Math.max(0, 240 - Math.floor((Date.now() - PF.t0) / 1000)); e.textContent = `${Math.floor(s / 60)}:${pad(s % 60)}`; if (s % 60 === 0 && tab === 'sante') pvRe(); }, 1000);
 
 /* =====================================================================
@@ -7091,7 +7098,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.0 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.1 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
