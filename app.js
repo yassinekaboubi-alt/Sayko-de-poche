@@ -714,7 +714,7 @@ function moonsSvg(k, R) {
   const f = MOONS[k]; if (!f) return ''; const L = f(); if (!L.length) return '';
   return L.map((n, i) => { const rr = R + 9 + i * 4.5, dur = 9 + i * 4, ph = i * 137; return `<g class="moon" style="animation-duration:${dur}s;animation-delay:-${(ph / 360 * dur).toFixed(2)}s" aria-hidden="true"><ellipse rx="${rr}" ry="${(rr * .42).toFixed(1)}" fill="none" stroke="#FFF4D6" stroke-opacity=".06"/><circle cx="${rr}" cy="0" r="${(2.6 - i * .2).toFixed(1)}" fill="${['#E6E1D8', '#C9D7E6', '#E8C27A', '#BFE3D6', '#F3D9A4'][i % 5]}"/></g>`; }).join('');
 }
-function vGalaxy(hello, now) {
+function vGalaxyOld(hello, now) {
   const L = sunLevel(), sunR = 26 + 10 * L, glow = 100 + 70 * L, K = 1.08, RY = .74;
   const planets = PLANETS.filter(p => p.key !== 'chasse' || chasseActive()).map(p => {
     const v = p.key === 'arabe' ? wordsKnown() / WORDS.length : p.key === 'chasse' ? CHQ.filter(x => chMast(x[0])).length / CHQ.length : planetValue(p.key)[0], st = gStage(p.key), locked = p.key === 'business' && !S.unlocks.business, R = GSIZE[p.key] || 20;
@@ -1621,7 +1621,6 @@ function vOrbite() {
   if (uiSys()) return `${vSys(now)}${pvHome()}<div class="gglass">${yesterdayCard()}${atStake()}${tjCard()}</div><div class="gglass tjbottom">${tjFeedback()}</div>`;
   return `${vGalaxy(hello, now)}
   ${repOn() ? `<div class="gglass">${repWin()}</div>` : ''}
-  ${pvHome()}
   ${(() => { try { const pn = prayerNow(), nx = nextPrayer(); const t = pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine prière : ${PNAMES[nx.id]} à ${hm(nx.start)}` : ''; return t ? `<button class="pv-prayline" data-goto="habitudes"><span>☾</span>${t}<em>→</em></button>` : ''; } catch (e) { return ''; } })()}
   ${tjCard() ? `<div class="gglass">${tjCard()}</div>` : ''}
   <details class="glass pv-more-home"><summary><b>Le reste de ta galaxie</b><span>prières, dhikr, budget, arabe…</span></summary>
@@ -1646,6 +1645,7 @@ const orb = { raf: 0, t0: 0, spin: 0, vel: 0, drag: null, last: 0 };
 function startOrbit() {
   stopOrbit();
   const g = $('#planets'); if (!g) return;
+  if ($('#stage.cosmos')) { csOrbit(); bindOrbitTouch(); return; }
   const st0 = $('#stage'), back = $('#planetsBack'), nodes = PLANETS.map(p => $(`[data-planet="${p.key}"]`, st0));
   const still = reduceMotion();
   orb.t0 = performance.now() - (orb.elapsed || 0); orb.last = performance.now();
@@ -1664,6 +1664,9 @@ function startOrbit() {
     orb.raf = requestAnimationFrame(frame);
   };
   orb.raf = requestAnimationFrame(frame);
+  bindOrbitTouch();
+}
+function bindOrbitTouch() {
   const stage = $('#stage');
   stage.addEventListener('pointerdown', e => { orb.drag = { x: e.clientX, y: e.clientY, moved: false, t: performance.now() }; orb.vel = 0; });
   stage.addEventListener('pointermove', e => {
@@ -1674,7 +1677,7 @@ function startOrbit() {
   });
   const end = e => {
     const d = orb.drag; orb.drag = null;
-    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); else if (e.target.closest && e.target.closest('[data-sun]')) go('flux'); }
+    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); else if (e.target.closest && e.target.closest('[data-sun]')) jgTap(); }
   };
   stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', () => { orb.drag = null; });
 }
@@ -6745,7 +6748,7 @@ function pvPillars(k = todayISO()) {
 const pvDayPct = k => { const P = pvPillars(k); return P.reduce((a, x) => a + Math.min(1, x.v), 0) / P.length; };
 function pvStreak() { let n = 0; for (let i = pvDayPct(todayISO()) >= 1 ? 0 : 1; i < 400; i++) { const k = iso(addDays(new Date(), -i)); if (k < pvS().start) break; if (pvDayPct(k) >= 1) n++; else break; } return n; }
 function pvCheckDay() { if (pvDayPct(todayISO()) >= 1) pvOnce('all', 10, ['Protocole complet', 'Les sept piliers sont tenus aujourd\'hui. C\'est exactement comme ça qu\'on se transforme.'], true); }
-function pvHome() {
+function pvHomeOld() {
   const P = pvPillars(), pct = pvDayPct(todayISO()), st = pvStreak(), R = 26;
   const todo = P.filter(x => x.v < 1), done = P.filter(x => x.v >= 1), b = pvBuyN();
   const row = x => `<button class="pv-pil" data-goto="${x.id}">${pvRing(Math.min(1, x.v))}<span class="grow"><b>${x.n}</b><small>${x.s}</small></span><em class="num">${x.t}</em></button>`;
@@ -6759,6 +6762,7 @@ function pvHome() {
 /* ---------- CLICS ---------- */
 function pvRe() { const y = scrollY; render(); scrollTo(0, y); }
 function pvClick(t) {
+  if (apClick(t)) return true;
   if (bpClick(t)) return true;
   if (pfClick(t)) return true;
   { const hb = t.closest('[data-hint]'); if (hb) { const r = hb.closest('.pv-hr2'), n = r && r.nextElementSibling; if (n && n.classList.contains('pv-hint')) n.classList.toggle('on'); return true; } }
@@ -7077,6 +7081,10 @@ const PF_P = {
   odyssey: { n: 'Odyssey Dubai Chocolat', b: 'Armaf', f: 'Gourmand pistache-chocolat', notes: 'pistache, chocolat, praliné, vanille', pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Froid, extérieur, cocooning' },
   mecg: { n: 'La Mecque · oriental gourmand', b: 'Achat à La Mecque', f: 'Oriental avec une touche gourmande', notes: 'oriental, chaud, sucré', pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Hiver, Jumu\'a, famille' },
   mecr: { n: 'La Mecque · rose d\'Arabie', b: 'Achat à La Mecque', f: 'Rose sèche, florale', notes: 'rose d\'Arabie, floral sec', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '1 à 2', when: 'Mosquée, Aïd, occasions' },
+  hatim: { n: 'Hatim', b: 'Al Absar', f: 'Boisé ambré, chaleureux', notes: 'cardamome, vanille, caramel, oud, ambre, musc', pw: 2, cr: 'sdj', sp: '3', when: 'Automne-hiver, journée et soirée, sorties' },
+  raghba: { n: 'Raghba Wood Intense', b: 'Lattafa', f: 'Encens et bois fumé', notes: 'encens façon bakhour, bois, feu de bois en forêt l\'hiver', pw: 3, cr: 'neutre', sp: '1 à 2', when: 'Soirs d\'hiver, dehors, ambiance feu de bois' },
+  seoul: { n: 'Seoul', b: 'Zara', f: 'Aromatique, frais et chaud (eau de toilette)', notes: 'noisette, poivre, ambre', pw: 1, cr: 'neutre', mu: 'abiyad', sp: '4 à 5', when: 'Tous les jours, journée tranquille, mi-saison' },
+  lisboa: { n: 'Lisboa', b: 'Zara', f: 'Frais, agrumes, aquatique (eau de toilette)', notes: 'orange, citron, notes vertes, jasmin, musc', pw: 1, cr: 'neutre', mu: 'abiyad', sp: '4 à 5', when: 'Été, journée, livraisons' },
   br540: { n: 'Dupe Baccarat Rouge 540', b: 'Dupe', f: 'Ambré, safrané, aérien', notes: 'safran, jasmin, ambre, bois', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '2 à 3', when: 'Toute l\'année, sorties' }
 };
 const PF_CR = { sdj: ['Sol de Janeiro', 'gourmande (pistache, caramel, vanille) : elle chauffe et prolonge les parfums sucrés'], neutre: ['Atoderm Crème Ultra', 'sans parfum : elle hydrate sans rien ajouter à l\'odeur'] };
@@ -7092,6 +7100,8 @@ const PF_OC = [
   ['soir', 'Soirée dehors', '✨', 'Sortie chic le soir'],
   ['chill', 'Journée chill', '🛋', 'À la maison, tranquille'],
   ['home', 'Soirée à la maison', '🕯', 'Cocooning, en couple'],
+  ['dehors', 'Journée dehors', '🚶', 'Courses, balade, en ville'],
+  ['feu', 'Soir d\'hiver dehors', '🔥', 'Froid, plein air, ambiance feu de bois'],
   ['mosq', 'Mosquée', '🕌', 'Prière, Jumu\'a'],
   ['aid', 'Aïd · famille', '🌙', 'Grandes occasions, visites']
 ];
@@ -7102,13 +7112,15 @@ function pfPlan(oc, sn) {
   const P = {
     gare1: { p: 'infinite', sp: '2 à 3', zones: 'cou et poitrine, sous le col', when: 'à la maison, juste après la douche (vers 4 h 15)', why: 'Tu es au contact des voyageurs, souvent de près, pendant 9 heures : il faut une odeur fraîche, propre, qui ne dérange personne et qui tient. Bottled Infinite fait exactement ça.', avoid: 'Pas de gourmand ni d\'oriental lourd le matin dans un espace fermé : ça écœure vite les gens qui t\'approchent.', alt: 'gris' },
     gare2: { p: W ? 'gris' : 'infinite', sp: '3', zones: 'cou, nuque et poitrine', when: '20 à 30 minutes avant de partir', why: W ? 'Gris Dior est élégant et poudré, assez présent pour tenir jusqu\'à 23 h, mais jamais agressif : parfait pour un service d\'après-midi et de soirée en hiver.' : 'Frais et propre pendant tout le service, même quand il fait chaud.', avoid: 'Évite les parfums très puissants : en fin de service, une odeur trop forte devient lourde.', alt: W ? 'infinite' : 'gris' },
-    pizza: { p: 'infinite', sp: '2', zones: 'sur le t-shirt et le torse, sous la veste', when: 'avant de partir', why: 'En livraison, tu es dehors, au vent, sous un casque, et tu croises les clients quelques secondes à leur porte. Un parfum frais vaporisé sur les vêtements tient malgré le vent, et sent propre sans se mélanger à l\'odeur des pizzas.', avoid: 'Aucun gourmand (pistache, vanille) : avec l\'odeur de pizza dans le sac, c\'est écœurant.', alt: null, altSp: '' },
+    pizza: { p: 'infinite', sp: '2', zones: 'sur le t-shirt et le torse, sous la veste', when: 'avant de partir', why: 'En livraison, tu es dehors, au vent, sous un casque, et tu croises les clients quelques secondes à leur porte. Un parfum frais vaporisé sur les vêtements tient malgré le vent, et sent propre sans se mélanger à l\'odeur des pizzas.', avoid: 'Aucun gourmand (pistache, vanille) : avec l\'odeur de pizza dans le sac, c\'est écœurant.', alt: 'lisboa', altSp: '4 à 5' },
     love: { p: W ? 'velvet' : 'br540', lay: W ? null : 'ispahan', sp: W ? '3' : '2', zones: 'cou, derrière les oreilles, dans la barbe et sur les poignets', when: '30 minutes avant de sortir', why: W ? 'La violette poudrée de Velvet Oud, adoucie par la vanille de la Sol de Janeiro et renforcée par Narjis : c\'est ton « Oud Satin Mood » maison. Chaud, velouté, on a envie de s\'approcher.' : 'Le duo dupe Baccarat Rouge 540 et Oud Ispahan : ambre safrané et rose profonde, un classique qui marque.', avoid: 'Ne vaporise pas trop : en intime, la personne est près de toi. Mieux vaut qu\'elle te découvre en s\'approchant.', alt: 'sheikh' },
     rdv: { p: 'gris', sp: '2 à 3', zones: 'cou et poignets', when: '30 minutes avant', why: 'Gris Dior dit « soigné et sérieux » sans en faire trop. Dans un bureau, l\'odeur doit être une bonne impression discrète, pas un sujet de conversation.', avoid: 'Pas d\'oriental puissant ni de gourmand : dans une petite pièce, ça peut gêner.', alt: 'infinite' },
-    potes: { p: 'br540', sp: '3', zones: 'cou, nuque, poitrine et un peu sur les vêtements', when: '20 minutes avant de sortir', why: 'Le dupe de Baccarat Rouge 540 est l\'odeur qui fait réagir : aérienne, reconnaissable, elle diffuse autour de toi. C\'est le parfum à compliments.', avoid: 'Ne le mélange pas avec un gourmand : il perd sa signature.', alt: W ? 'sheikh' : 'infinite' },
-    soir: { p: W ? 'sheikh' : 'br540', lay: W ? null : 'ispahan', sp: W ? '4' : '3', zones: 'cou, nuque, poitrine, poignets', when: '30 minutes avant de sortir', why: W ? 'Sheikh, c\'est ta signature de soirée d\'hiver : riche, épicé, sucré. Avec la Sol de Janeiro dessous, il retrouve la densité de ta Luxe Edition et tient toute la nuit.' : 'Ambre safrané et rose-oud : élégant, puissant, parfait pour une soirée d\'été.', avoid: 'Une seule couche de parfum fort suffit : ne rajoute rien par-dessus.', alt: W ? 'ispahan' : 'sheikh' },
-    chill: { p: null, sp: '0', zones: 'crème neutre, puis Musk Abiyad (1 vaporisation)', when: 'après la douche', why: 'À la maison, garde tes parfums pour les vrais moments : une peau hydratée et un musc propre suffisent pour te sentir bien.', avoid: 'Inutile de gâcher un parfum puissant à la maison toute la journée.', alt: 'infinite', altSp: '1 à 2 vaporisations' },
+    potes: { p: 'br540', sp: '3', zones: 'cou, nuque, poitrine et un peu sur les vêtements', when: '20 minutes avant de sortir', why: 'Le dupe de Baccarat Rouge 540 est l\'odeur qui fait réagir : aérienne, reconnaissable, elle diffuse autour de toi. C\'est le parfum à compliments.', avoid: 'Ne le mélange pas avec un gourmand : il perd sa signature.', alt: W ? 'hatim' : 'infinite' },
+    soir: { p: W ? 'sheikh' : 'br540', lay: W ? null : 'ispahan', sp: W ? '4' : '3', zones: 'cou, nuque, poitrine, poignets', when: '30 minutes avant de sortir', why: W ? 'Sheikh, c\'est ta signature de soirée d\'hiver : riche, épicé, sucré. Avec la Sol de Janeiro dessous, il retrouve la densité de ta Luxe Edition et tient toute la nuit.' : 'Ambre safrané et rose-oud : élégant, puissant, parfait pour une soirée d\'été.', avoid: 'Une seule couche de parfum fort suffit : ne rajoute rien par-dessus.', alt: W ? 'hatim' : 'sheikh' },
+    chill: { p: null, sp: '0', zones: 'crème neutre, puis Musk Abiyad (1 vaporisation)', when: 'après la douche', why: 'À la maison, garde tes parfums pour les vrais moments : une peau hydratée et un musc propre suffisent pour te sentir bien.', avoid: 'Inutile de gâcher un parfum puissant à la maison toute la journée.', alt: W ? 'seoul' : 'lisboa', altSp: '3 à 4' },
     home: { p: W ? 'odyssey' : 'velvet', sp: W ? '1 à 2' : '2', zones: W ? 'sur le torse ou les vêtements, pas partout' : 'cou et poignets', when: 'une heure avant, pour qu\'il soit doux', why: W ? 'Le pistache-chocolat d\'Odyssey est fait pour le cocooning d\'hiver : réconfortant, gourmand, chaleureux. À dose légère, c\'est le parfum « canapé et plaid ».' : 'Velvet Oud léger : une ambiance douce et veloutée pour une soirée à deux.', avoid: W ? 'Pas plus de 2 vaporisations : il envoie fort, et dans une pièce fermée ça sature vite.' : 'Reste léger, l\'espace est petit.', alt: W ? 'velvet' : 'odyssey' },
+    dehors: { p: W ? 'hatim' : 'lisboa', sp: W ? '3' : '4 à 5', zones: W ? 'cou, nuque et poitrine' : 'cou, poitrine et vêtements (une eau de toilette se dose plus)', when: 'juste avant de sortir', why: W ? 'Hatim a ce côté « parfum d\'homme » chaleureux, dans l\'esprit de Stronger With You : cardamome, vanille, bois. Parfait pour une journée en ville quand il fait frais, sans en faire trop.' : 'Lisboa est frais, citronné, léger : idéal quand il fait chaud et que tu marches. Comme c\'est une eau de toilette, tu peux en mettre plus et en remettre l\'après-midi.', avoid: W ? 'Pas de layering : il se suffit à lui-même.' : 'Pas d\'oriental lourd en plein soleil : la chaleur le rend écœurant.', alt: W ? 'seoul' : 'infinite' },
+    feu: { p: W ? 'raghba' : 'lisboa', sp: W ? '1 à 2' : '4', zones: W ? 'sur l\'écharpe, le manteau et un peu au cou' : 'cou et poitrine', when: 'avant de sortir dans le froid', why: W ? 'Raghba Wood Intense, c\'est le bakhour et le feu de bois d\'un soir d\'hiver en forêt. Le froid le rend plus doux, et sur la laine d\'une écharpe il tient des heures.' : 'En été, l\'encens fumé est trop lourd : reste sur du frais.', avoid: 'Très puissant : 1 à 2 vaporisations, jamais plus, et pas dans un espace fermé.', alt: W ? 'hatim' : 'seoul' },
     mosq: { p: 'mecr', sp: '1 à 2', zones: 'cou, barbe et vêtements', when: 'à la maison, avant de partir', why: 'Se parfumer pour la prière est une sunnah, surtout le vendredi. La rose d\'Arabie est faite pour ça : noble, florale, sans sucre. À petite dose, pour ne pas incommoder tes voisins dans les rangs.', avoid: 'Pas de parfum puissant en grande quantité : les rangs sont serrés. Pas de gourmand.', alt: 'narjis', altSp: 'quelques gouttes d\'huile' },
     aid: { p: W ? 'ispahan' : 'mecr', lay: W ? 'br540' : null, sp: '2 à 3', zones: 'cou, barbe, poitrine et vêtements', when: 'le matin, avant la prière de l\'Aïd ou la visite', why: W ? 'Oud Ispahan, c\'est ton parfum de grande occasion : rose et oud, noble et profond. Une touche du dupe de Baccarat par-dessus le rend plus lumineux.' : 'La rose d\'Arabie, élégante et traditionnelle : parfaite pour la famille.', avoid: 'Une seule combinaison. Tu vas faire des accolades : pas besoin d\'en mettre beaucoup.', alt: W ? 'mecg' : 'ispahan' }
   };
@@ -7158,7 +7170,7 @@ function vParfum() {
   const rules = `<p class="pv-sub" style="margin-top:0"><b>L'ordre</b> : douche, crème, musc, parfum. Toujours.</p>
     <p class="pv-sub"><b>La crème</b> : Sol de Janeiro pour les parfums chauds et gourmands, Atoderm pour les frais, poudrés et floraux.</p>
     <p class="pv-sub"><b>Le layering</b> : 2 parfums maximum, de la même famille. Le plus léger d'abord.</p>
-    <p class="pv-sub"><b>La dose</b> : on doit te sentir quand on s'approche, pas à trois mètres. Les puissants (Odyssey, La Mecque) : 1 à 2 vaporisations.</p>
+    <p class="pv-sub"><b>La dose</b> : on doit te sentir quand on s'approche, pas à trois mètres. Les puissants (Odyssey, La Mecque, Raghba Wood Intense) : 1 à 2 vaporisations. Les eaux de toilette Zara (Seoul, Lisboa) : 4 à 5, et tu peux en remettre.</p>
     <p class="pv-sub"><b>Ne frotte jamais</b> tes poignets. Vaporise aussi sur les vêtements : l'odeur y tient plus longtemps.</p>
     <p class="pv-sub"><b>Conserve tes flacons</b> à l'abri de la lumière et de la chaleur (pas dans la salle de bain ni la voiture).</p>`;
   return `${corpsTop('soin')}${soinSeg('parfum')}
@@ -7229,6 +7241,7 @@ function bpS() {
   const B = M.bp;
   if (!B.seeded) { B.seeded = 1; if (!B.m['2026-11']) B.m['2026-11'] = bpNov(); }
   if (!B.mig1) { B.mig1 = 1; try { bpMigWifey(B); } catch (e) {} }
+  if (!B.mig2) { B.mig2 = 1; try { bpMigSadaqa(B); } catch (e) {} }
   return B;
 }
 /* v5.6 · cadeaux de novembre pour ta femme (prix vérifiés le 31/10/2026) */
@@ -7247,6 +7260,18 @@ function bpMigWifey(B) {
   const a = mp.steps.find(x => x.to === 'adp'), w = mp.steps.find(x => x.to === 'wifey'), extra = 4.51;
   if (a && w && !a.done && !w.done) { a.amt = Math.round((numv(a.amt) - extra) * 100) / 100; w.amt = Math.round((numv(w.amt) + extra) * 100) / 100; w.n = 'Dont 4,51 € pris sur ton argent de poche pour les cadeaux'; w.next = { amt: 52, n: '' }; if (a.next) a.n = a.n + ' · moins 4,51 € pour les cadeaux de ta femme'; }
   else m.tx.push({ id: uid(), d: todayISO(), k: 'mv', pk: 'adp', to: 'wifey', amt: extra, n: 'Complément pour les cadeaux de ta femme' });
+}
+/* v5.11 · Sadaqa : 20 € chaque mois, petite mais régulière (« Les œuvres les plus aimées d'Allah sont les plus régulières, même si elles sont peu nombreuses. » al-Bukhârî et Muslim). Prise sur la paie Mister Pizza (épargne 450 → 430). */
+function bpMigSadaqa(B) {
+  if (!B.pk.some(p => p.id === 'sadaqa')) B.pk.splice(1, 0, { id: 'sadaqa', n: 'Sadaqa', ico: '🤲', h: 'Donnée chaque mois' });
+  Object.keys(B.m).filter(ym => ym >= '2026-11').forEach(ym => {
+    const m = B.m[ym];
+    if (!m.fix.some(f => f.pk === 'sadaqa')) m.fix.unshift({ id: uid(), n: 'Donner la sadaqa du mois', amt: 20, pk: 'sadaqa', paid: false, note: 'Petite mais régulière : c\'est ce qu\'Allah aime le plus' });
+    const mp = m.inc.find(i => i.id === 'mister'); if (!mp || mp.steps.some(x => x.to === 'sadaqa')) return;
+    const ep = mp.steps.find(x => x.to === 'epar');
+    if (ep && !ep.done) { ep.amt = Math.round((numv(ep.amt) - 20) * 100) / 100; mp.steps.unshift({ id: uid(), to: 'sadaqa', amt: 20, n: 'Tu donnes d\'abord', done: false }); }
+    else m.tx.push({ id: uid(), d: todayISO(), k: 'mv', pk: 'epar', to: 'sadaqa', amt: 20, n: 'Sadaqa du mois' });
+  });
 }
 const BPU = { m: null, k: 'exp', pk: 'adp', to: 'epar', recv: null };
 const bpMonths = () => Object.keys(bpS().m).sort();
@@ -7487,6 +7512,377 @@ document.addEventListener('change', e => {
   save(); pvRe();
 });
 
+/* =====================================================================
+   v5.8 · APPARENCE EN SITUATIONS (Corps → Soin → Apparence)
+   Comme le conseiller parfum : un sous-onglet par soin (Barbe, Peau,
+   Cheveux, Dents, Mains), des boutons de situation, et l'app dit quoi
+   faire, étape par étape. « C'est fait » coche les gestes du protocole.
+   Soin de la semaine : le vendredi (jour du Jumu'a).
+   Marques : ['ap', id] geste du jour · ['wk', id] geste de la semaine ·
+   ['fitra', id] · ['barber'] coiffeur.
+   ===================================================================== */
+const AP_TABS = [['barbe', 'Barbe', '🧔'], ['peau', 'Peau', '✨'], ['cheveux', 'Cheveux', '💇'], ['dents', 'Dents', '🦷'], ['mains', 'Mains', '✋'], ['liste', 'Ma liste', '📋']];
+const AP_FRI = 4; /* vendredi (lundi = 0) */
+const AP = {
+  barbe: [
+    { id: 'am', n: 'Matin', ic: '☀️', t: 'Barbe du matin', mk: [['ap', 'm-barbe']], s: [
+      ['Mouille-la', 'Un peu d\'eau tiède avec les mains : les boucles se détendent et se laissent coiffer.'],
+      ['Huile', '3 à 4 gouttes chauffées entre les paumes, passées jusqu\'à la peau, puis sur les longueurs.'],
+      ['Baume', 'Une petite noisette par-dessus : c\'est lui qui tient les boucles en place toute la journée.'],
+      ['Démêle puis brosse', 'Peigne à dents larges en partant des pointes, puis brosse en poils de sanglier, vers le bas.']],
+      why: 'Une barbe très bouclée ne tombe pas toute seule : il faut l\'hydrater (eau + huile) puis la discipliner (baume + brosse). Sèche, elle gonfle et frisotte.' },
+    { id: 'pm', n: 'Soir', ic: '🌙', t: 'Barbe du soir', mk: [], s: [
+      ['Rince', 'À l\'eau tiède, en même temps que ton visage : poussière, sueur du casque, miettes de la journée.'],
+      ['Sèche sans frotter', 'Serviette en tamponnant. Frotter casse les boucles et fait des nœuds.'],
+      ['2 gouttes sur la peau', 'Masse la peau sous la barbe du bout des doigts : moins de démangeaisons, moins de pellicules.']],
+      why: 'Le soir, on nettoie et on nourrit la peau dessous. Pas de shampoing tous les jours : il assèche la barbe.' },
+    { id: 'fri', n: 'Vendredi', ic: '🕌', t: 'Le grand soin du vendredi', fri: 1, mk: [['wk', 'w-barbe']], s: [
+      ['Shampoing barbe', 'Une noisette de shampoing doux, masse la peau et les poils, rince bien.'],
+      ['Après-shampoing', 'Laisse poser 2 à 3 minutes : c\'est ce qui rend une barbe bouclée douce et disciplinée.'],
+      ['Séchage brossé', 'Tamponne, puis sèche-cheveux à air tiède en brossant vers le bas. C\'est LE geste qui fait tomber une barbe bouclée.'],
+      ['Huile + baume', 'Comme le matin, sur barbe sèche.'],
+      ['Nettoie tes outils', 'Brosse et peigne à l\'eau savonneuse, une fois par semaine.']],
+      why: 'Une fois par semaine (deux au maximum), un vrai lavage. Le vendredi, tu arrives propre et soigné au Jumu\'a.' },
+    { id: 'out', n: 'Avant de sortir', ic: '✨', t: 'Barbe impeccable en 2 minutes', mk: [], s: [
+      ['Un peu d\'eau', 'Sur les mains, passées dans la barbe pour réveiller les boucles.'],
+      ['Brosse vers le bas', 'Quelques coups de brosse pour remettre la forme.'],
+      ['1 goutte de Narjis', 'Ton huile de musc à la violette, frottée entre les doigts puis dans la barbe : elle sent bon quand on s\'approche.']],
+      why: 'Rapide, pour un rendez-vous, la mosquée ou un moment à deux.' },
+    { id: 'frz', n: 'Elle frisotte', ic: '🌀', t: 'Barbe qui gonfle ou frisotte', mk: [], s: [
+      ['Humidifie', 'Eau en spray ou mains mouillées : on ne coiffe jamais une barbe bouclée à sec.'],
+      ['Baume', 'Une noisette de plus, bien répartie, surtout sur les côtés.'],
+      ['Ne touche plus', 'Chaque passage de main dans la journée la refait gonfler.']],
+      why: 'Le frisottis vient presque toujours du manque d\'hydratation. Plus d\'huile et de baume, moins de shampoing.' },
+    { id: 'itch', n: 'Ça gratte', ic: '🤚', t: 'Démangeaisons ou pellicules', mk: [], s: [
+      ['Huile sur la peau', 'Pas sur les poils : sur la peau dessous, en massant 30 secondes, matin et soir.'],
+      ['Brosse la peau', 'La brosse en sanglier décolle les petites peaux mortes sous la barbe.'],
+      ['Lavage 1 à 2 fois par semaine', 'Pas plus : trop de shampoing assèche et ça gratte encore plus.'],
+      ['Taie propre', 'Change-la au moins une fois par semaine.']],
+      why: 'Ça gratte quand la peau dessous est sèche. Si des plaques rouges persistent plus de 2 semaines, montre-les à un médecin.' }],
+  peau: [
+    { id: 'am', n: 'Matin', ic: '☀️', t: 'Peau du matin', mk: [['ap', 'm-visage']], s: [
+      ['Eau fraîche', 'Le matin, l\'eau suffit. Un peu de gel doux sur le nez seulement s\'il brille.'],
+      ['Sèche en tamponnant', 'Serviette propre, sans frotter.'],
+      ['Crème Atoderm', 'Une petite noisette sur tout le visage : ta peau normale n\'a besoin de rien de plus.'],
+      ['SPF s\'il fait soleil', 'Indice 30 à 50, même en hiver à Cannes si tu es dehors longtemps (livraisons).']],
+      why: 'Ta peau est normale (test du 31/10) : routine simple, c\'est la régularité qui fait la différence.' },
+    { id: 'pm', n: 'Soir', ic: '🌙', t: 'Peau du soir', mk: [['ap', 's-visage']], s: [
+      ['Gel nettoyant doux', 'Une noisette, 30 secondes de massage, surtout sur le nez et le front.'],
+      ['Eau tiède', 'Jamais chaude : elle dessèche.'],
+      ['Sèche en tamponnant', 'Avec une serviette réservée au visage.'],
+      ['Crème Atoderm', 'Une noisette. Tu peux tapoter un peu de crème autour des yeux avec l\'annulaire.']],
+      why: 'Le soir, on enlève la sueur, la pollution et le sébum de la journée : c\'est ce qui évite les pores dilatés sur le nez.' },
+    { id: 'fri', n: 'Vendredi', ic: '🕌', t: 'Le soin du vendredi', fri: 1, mk: [['wk', 'w-gommage'], ['wk', 'w-masque']], s: [
+      ['Gommage doux', 'Sur peau mouillée, petits cercles sur le nez, le front et le menton, 30 secondes. Rince.'],
+      ['Masque', 'Argile douce sur le nez (pores), masque hydratant sur les joues. 10 minutes.'],
+      ['Rince et crème', 'Eau tiède, puis ta crème Atoderm.']],
+      why: '1 fois par semaine suffit pour une peau normale. Plus souvent, tu l\'irrites.' },
+    { id: 'serv', n: 'Après le service', ic: '🛵', t: 'Après une longue journée dehors', mk: [], s: [
+      ['Lave ton visage', 'Gel doux : le casque, la sueur et la pollution bouchent les pores.'],
+      ['Crème', 'Atoderm, surtout si tu as eu froid ou du vent.'],
+      ['Lèvres', 'Un peu de baume si elles tirent.']],
+      why: 'Le casque frotte et retient la chaleur : c\'est là que naissent les boutons sur le front et le menton.' },
+    { id: 'spot', n: 'Un bouton', ic: '🔴', t: 'Un bouton qui sort', mk: [], s: [
+      ['Ne le perce pas', 'C\'est ce qui laisse les marques et propage l\'infection.'],
+      ['Nettoie', 'Gel doux, puis sèche en tamponnant.'],
+      ['Patch hydrocolloïde', 'Collé dessus pour la nuit : il aspire et protège des doigts.'],
+      ['Laisse faire', 'En 2 à 4 jours, il part tout seul.']],
+      why: 'Mains loin du visage, taie propre, téléphone nettoyé : les trois causes les plus courantes.' },
+    { id: 'cold', n: 'Froid et vent', ic: '❄️', t: 'Quand il fait froid', mk: [], s: [
+      ['Crème plus généreuse', 'Double la dose d\'Atoderm le matin.'],
+      ['Baume à lèvres', 'Avant de sortir.'],
+      ['Douche moins chaude', 'L\'eau brûlante dessèche la peau du visage et du corps.']],
+      why: 'Le froid et le vent du scooter assèchent la peau même normale : on nourrit un peu plus.' }],
+  cheveux: [
+    { id: 'am', n: 'Matin', ic: '☀️', t: 'Boucles du matin', mk: [['ap', 'm-cheveux']], s: [
+      ['Un peu d\'eau', 'En spray ou mains mouillées : réveille les boucles écrasées par la nuit.'],
+      ['Soin sans rinçage', 'Une noisette sur les longueurs, surtout les mèches décolorées.'],
+      ['Froisse', 'Serre les boucles dans ta main de bas en haut. Jamais de peigne à sec.']],
+      why: 'Des cheveux bouclés se coiffent mouillés. À sec, peigne et brosse cassent les boucles et font gonfler.' },
+    { id: 'wash', n: 'Jour de lavage', ic: '🚿', t: 'Le lavage', mk: [['ap', 'lavage']], s: [
+      ['Shampoing doux sans sulfates', 'Sur le cuir chevelu seulement, massé du bout des doigts. Les longueurs se lavent avec la mousse qui coule.'],
+      ['Après-shampoing', 'Sur les longueurs, démêle sous l\'eau avec les doigts ou un peigne à dents larges.'],
+      ['Rince', 'Eau tiède, puis un dernier jet frais : les boucles brillent plus.'],
+      ['Tamponne', 'Avec un t-shirt en coton, pas une serviette (elle fait frisotter).'],
+      ['Soin sans rinçage', 'Sur cheveux encore mouillés, puis sèche à l\'air ou au diffuseur.']],
+      why: '2 lavages par semaine suffisent pour des boucles. Plus souvent, elles s\'assèchent, surtout les mèches décolorées.' },
+    { id: 'pm', n: 'Soir', ic: '🌙', t: 'Avant de dormir', mk: [['ap', 'ch-h']], s: [
+      ['Huile', 'Quelques gouttes sur les pointes et les mèches décolorées.'],
+      ['Protège', 'Taie en satin ou bonnet en satin : le coton frotte et emmêle.']],
+      why: 'La nuit, le frottement sur l\'oreiller est ce qui abîme le plus des boucles.' },
+    { id: 'fri', n: 'Vendredi', ic: '🕌', t: 'Le masque du vendredi', fri: 1, mk: [], s: [
+      ['Lavage', 'Shampoing doux sur le cuir chevelu.'],
+      ['Masque nourrissant', 'À la place de l\'après-shampoing, sur longueurs et pointes, 10 minutes sous la chaleur de la douche.'],
+      ['Rince et soin sans rinçage', 'Puis séchage à l\'air ou au diffuseur.']],
+      why: 'Les mèches décolorées ont perdu leur protection : un masque par semaine les garde douces et évite la casse.' },
+    { id: 'helm', n: 'Après le casque', ic: '🛵', t: 'Cheveux écrasés par le casque', mk: [], s: [
+      ['Eau', 'Mains mouillées dans les boucles.'],
+      ['Froisse', 'De bas en haut, sans peigne.'],
+      ['Astuce', 'Un sous-casque ou un bonnet en satin sous le casque : les boucles restent en forme.']],
+      why: 'Le casque écrase et fait transpirer : on réhydrate au lieu de recoiffer à sec.' },
+    { id: 'barber', n: 'Coiffeur', ic: '💈', t: 'Le coiffeur', mk: [['barber']], s: [
+      ['Toutes les 2 semaines', 'C\'est ton rythme : la coupe reste nette en permanence.'],
+      ['Dis-lui', 'Que tu veux garder tes boucles : coupe aux ciseaux sur le dessus, pas de dégradé effilé qui fait gonfler.'],
+      ['Après', 'Touche « C\'est fait » : le compteur repart pour 14 jours.']],
+      why: 'Une coupe régulière fait plus pour ton apparence que n\'importe quel produit.' }],
+  dents: [
+    { id: 'am', n: 'Matin', ic: '☀️', t: 'Dents du matin', mk: [['ap', 'm-dents']], s: [
+      ['2 minutes', 'Dentifrice fluoré, brosse inclinée vers la gencive, petits mouvements.'],
+      ['La langue', 'Gratte-langue d\'arrière en avant : la mauvaise haleine naît surtout là.'],
+      ['Crache, ne rince pas', 'Le fluor continue d\'agir.']],
+      why: 'Brosse avant le petit-déjeuner ou 30 minutes après : juste après un café ou un fruit acide, l\'émail est fragilisé.' },
+    { id: 'pm', n: 'Soir', ic: '🌙', t: 'Dents du soir', mk: [['ap', 's-dents']], s: [
+      ['Fil dentaire', 'Entre chaque dent, en arc autour de la dent. C\'est là que la brosse ne passe pas.'],
+      ['2 minutes de brossage', 'Toutes les faces, sans oublier le fond.'],
+      ['La langue', 'Gratte-langue.'],
+      ['Crache sans rincer', 'Pas de bain de bouche juste après : il enlève le fluor.']],
+      why: 'Le brossage du soir est le plus important : la nuit, la salive ne protège presque plus les dents.' },
+    { id: 'siwak', n: 'Avant la prière', ic: '🕌', t: 'Le siwak', mk: [['ap', 'siwak']], s: [
+      ['Frotte', 'Dents et gencives, quelques secondes, avant la prière.'],
+      ['Entretiens-le', 'Coupe 1 cm d\'extrémité tous les 2 à 3 jours pour garder des fibres propres.']],
+      why: '« Si ce n\'était pas trop difficile pour ma communauté, je leur aurais ordonné le siwak à chaque prière. » (al-Bukhârî et Muslim)' },
+    { id: 'meal', n: 'Après manger', ic: '🍽️', t: 'Après un repas ou un café', mk: [], s: [
+      ['Rince à l\'eau', 'Un verre d\'eau en bouche, comme un bain de bouche.'],
+      ['Chewing-gum sans sucre', '10 minutes : il relance la salive qui protège l\'émail.'],
+      ['Attends 30 min', 'Avant de te brosser les dents si c\'était acide (café, soda, agrumes).']],
+      why: 'Simple, et ça évite les taches de café et la plaque.' },
+    { id: 'fresh', n: 'Haleine fraîche', ic: '💬', t: 'Avant un rendez-vous', mk: [], s: [
+      ['La langue', 'Gratte-langue : c\'est la cause n°1 de mauvaise haleine.'],
+      ['Bois de l\'eau', 'Une bouche sèche sent plus fort.'],
+      ['Chewing-gum sans sucre', 'Ou le siwak.']],
+      why: 'Évite café, oignon et ail juste avant. L\'haleine compte plus que le parfum de près.' },
+    { id: 'year', n: 'Une fois par an', ic: '🦷', t: 'Le dentiste', mk: [], s: [
+      ['Détartrage', 'Une fois par an chez le dentiste : remboursé par la Sécurité sociale.'],
+      ['Change ta brosse', 'Tous les 3 mois, ou dès que les poils s\'écartent.']],
+      why: 'Le tartre ne part pas au brossage : seul le détartrage l\'enlève.' }],
+  mains: [
+    { id: 'am', n: 'Matin', ic: '☀️', t: 'Mains du matin', mk: [], s: [
+      ['Après les ablutions', 'Sèche bien tes mains et entre les doigts.'],
+      ['Crème mains', 'Une petite noisette, massée jusqu\'à pénétration complète, y compris autour des ongles.']],
+      why: 'Les ablutions répétées assèchent les mains. Une crème qui pénètre ne forme pas de couche imperméable, contrairement au vernis.' },
+    { id: 'pm', n: 'Soir', ic: '🌙', t: 'Mains du soir', mk: [], s: [
+      ['Huile à cuticules', 'Une goutte sur chaque ongle, massée 10 secondes.'],
+      ['Crème épaisse', 'Une bonne dose sur les mains, surtout le dos et les jointures.'],
+      ['Laisse agir', 'Pendant que tu lis ou avant de dormir.']],
+      why: 'C\'est le soin qui fait disparaître les petites peaux en 2 à 3 semaines.' },
+    { id: 'fri', n: 'Vendredi', ic: '🕌', t: 'La manucure du vendredi', fri: 1, mk: [['wk', 'w-ongles'], ['fitra', 'ongles']], s: [
+      ['Après la douche', 'La peau est souple : c\'est le bon moment.'],
+      ['Coupe courts', 'Ongles des mains coupés courts, ceux des pieds bien droits.'],
+      ['Lime', 'Dans un seul sens, pour lisser les bords : rien à attraper avec les dents.'],
+      ['Repousse les cuticules', 'Avec un bâtonnet, doucement. Coupe seulement les petites peaux qui dépassent, jamais la cuticule entière.'],
+      ['Huile + crème', 'Pour finir.']],
+      why: 'Couper les ongles fait partie de la fitra, à ne pas dépasser 40 jours (Muslim). Un ongle net et limé, c\'est moins d\'envie de le ronger.' },
+    { id: 'bite', n: 'Envie de ronger', ic: '😬', t: 'Quand l\'envie de ronger arrive', mk: [], s: [
+      ['Repère le moment', 'Stress, ennui, écran ? Remarquer le déclencheur, c\'est déjà la moitié du travail.'],
+      ['Occupe tes mains', 'Une balle anti-stress, un casse-tête, un stylo.'],
+      ['Lime au lieu de ronger', 'Garde une petite lime dans ta poche : un bord lisse ne donne plus envie.'],
+      ['Crème', 'Les mains grasses de crème, tu ne les mets pas à la bouche.']],
+      why: 'On arrête de ronger en remplaçant le geste, pas en se l\'interdisant.' },
+    { id: 'serv', n: 'Après le service', ic: '🛵', t: 'Après le travail', mk: [], s: [
+      ['Lave-les', 'Savon doux, eau tiède.'],
+      ['Crème', 'Le froid et le guidon les abîment.'],
+      ['Gants l\'hiver', 'Pour le scooter : mains protégées, peau intacte.']],
+      why: 'Des mains douces se remarquent, surtout quand on les tient.' }]
+};
+const APU = { t: (() => { try { return localStorage.getItem('sdp-apt') || 'barbe'; } catch (e) { return 'barbe'; } })(), s: {} };
+function apS() { const l = lkS(); if (!l.apl || typeof l.apl !== 'object') l.apl = {}; return l.apl; }
+const apDone = (t, id, k = todayISO()) => !!((apS()[k] || {})[t + '-' + id]);
+const apIsFri = () => (new Date().getDay() + 6) % 7 === AP_FRI;
+function apDefault(t) {
+  const L = AP[t], h = new Date().getHours();
+  if (t === 'cheveux' && pvWashDay() && !apDone('cheveux', 'wash')) return 'wash';
+  if (apIsFri()) { const f = L.find(x => x.fri); if (f && !apDone(t, f.id)) return f.id; }
+  const has = id => L.some(x => x.id === id);
+  return h >= 3 && h < 15 && has('am') ? 'am' : has('pm') ? 'pm' : L[0].id;
+}
+function apMark(mk, on) {
+  mk.forEach(m => {
+    if (m[0] === 'ap') { const x = pvApList().find(y => y[0] === m[1]); if (!x) return; if (x[3]) { const l = lkDay(); if (on) l[m[1]] = 1; else delete l[m[1]]; } else { const d = pvDay(); d.ap = d.ap || {}; d.ap[m[1]] = !!on; } }
+    else if (m[0] === 'wk') { const def = LK_WK.find(x => x[0] === m[1]); if (!def) return; const w = lkWk(), v = w[m[1]] || 0; if (on) w[m[1]] = Math.min(def[2], v + 1); else if (v > 1) w[m[1]] = v - 1; else delete w[m[1]]; }
+    else if (m[0] === 'fitra') { const h = S.body.fitra[m[1]] = S.body.fitra[m[1]] || [], k = todayISO(); if (on && h[h.length - 1] !== k) { h.push(k); if (h.length > 8) h.shift(); } else if (!on && h[h.length - 1] === k) h.pop(); }
+    else if (m[0] === 'barber') { const b = pvS().barber, k = todayISO(); if (on && b[b.length - 1] !== k) b.push(k); else if (!on && b[b.length - 1] === k) b.pop(); }
+  });
+}
+function vApparence() {
+  const t = APU.t;
+  const tabs = `<div class="ap-tabs" role="tablist">${AP_TABS.map(([id, n, ic]) => `<button class="ap-tab ${t === id ? 'on' : ''}" data-apt="${id}" role="tab" aria-selected="${t === id}"><span aria-hidden="true">${ic}</span>${n}</button>`).join('')}</div>`;
+  if (t === 'liste') return vLook().replace(soinSeg('apparence'), soinSeg('apparence') + tabs);
+  const L = AP[t], cur = APU.s[t] || apDefault(t), x = L.find(y => y.id === cur) || L[0], done = apDone(t, x.id);
+  let extra = '';
+  if (t === 'cheveux') { const bd = pvBarberDays(); extra = `<p class="ap-meta">Lavage : ${pvS().wash.map(i => PV_WD[i].toLowerCase()).join(', ') || 'jours à choisir dans Ma liste'} · coiffeur ${bd == null ? 'pas encore noté' : bd === 0 ? 'fait aujourd\'hui' : `il y a ${bd} j`}</p>`; }
+  if (t === 'mains') { const hs = S.body.fitra.ongles || [], last = hs[hs.length - 1], dd = last ? Math.round((parseDate(todayISO()) - parseDate(last)) / 864e5) : null; extra = `<p class="ap-meta">Ongles coupés ${dd == null ? ': pas encore noté' : dd === 0 ? 'aujourd\'hui' : `il y a ${dd} j`} · fitra : 40 jours maximum</p>`; }
+  const sub = s => s.fri ? (apIsFri() ? 'aujourd\'hui' : 'soin de la semaine') : s.id === 'wash' ? (pvWashDay() ? 'aujourd\'hui' : pvS().wash.map(i => PV_WD[i].toLowerCase()).join(', ')) : '';
+  const res = `<section class="glass pv-card pf-res ap-res">
+    <p class="pv-k" style="margin-top:0">${x.ic} ${x.n}${x.fri && apIsFri() ? ' · c\'est aujourd\'hui' : ''}</p>
+    <h2 class="pf-title">${esc(x.t)}</h2>
+    <ol class="ap-steps">${x.s.map(([a, b]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span></li>`).join('')}</ol>
+    <div class="pv-btns"><button class="btn sm ${done ? 'ghost' : ''}" data-apdone="${x.id}" style="flex:1">${done ? '✓ Fait' : 'C\'est fait'}</button></div>
+    <details class="pv-det" data-k="ap-why-${t}"><summary>Pourquoi ?</summary><p>${esc(x.why)}</p></details></section>`;
+  const grid = `<div class="pf-oc">${L.map(s => `<button class="pf-occ ${s.id === x.id ? 'on' : ''} ${apDone(t, s.id) ? 'done' : ''}" data-aps="${s.id}" aria-pressed="${s.id === x.id}"><span class="pf-ic" aria-hidden="true">${apDone(t, s.id) ? '✓' : s.ic}</span><b>${s.n}</b>${sub(s) ? `<small>${esc(sub(s))}</small>` : ''}</button>`).join('')}</div>`;
+  return `${corpsTop('soin')}${soinSeg('apparence')}${tabs}${extra}
+    ${res}
+    <section class="glass pv-card"><h2 class="pv-h">Quel moment ?</h2>${grid}</section>`;
+}
+function apClick(t) {
+  let el;
+  if ((el = t.closest('[data-apt]'))) { APU.t = el.dataset.apt; try { localStorage.setItem('sdp-apt', APU.t); } catch (e) {} pvRe(); return true; }
+  if ((el = t.closest('[data-aps]'))) { APU.s[APU.t] = el.dataset.aps; pvRe(); const r = document.querySelector('.ap-res'); if (r) r.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return true; }
+  if ((el = t.closest('[data-apdone]'))) {
+    const tb = APU.t, id = el.dataset.apdone, x = AP[tb].find(y => y.id === id); if (!x) return true;
+    const L = apS(), k = todayISO(), day = L[k] = L[k] || {}, key = tb + '-' + id, on = !day[key];
+    if (on) day[key] = 1; else delete day[key];
+    apMark(x.mk, on);
+    Object.keys(L).sort().slice(0, -60).forEach(d => delete L[d]);
+    save(); haptic(); if (on) { pvOnce('ap-' + key, 1); pvCheckDay(); toast(`${x.t} : c'est fait.`); }
+    pvRe(); return true;
+  }
+  return false;
+}
+
+/* =====================================================================
+   v5.8 · LA JAUGE DU JOUR (accueil) : remplace « Protocole du jour ».
+   Un orbe de verre se remplit de lumière liquide au fil des piliers tenus ;
+   7 lunes (une par pilier) s'allument autour. Un seul bouton : la prochaine étape.
+   ===================================================================== */
+let JG_SEEN = false;
+function jgWave(y, amp, len) { let d = `M-240 ${y}`; for (let x = -240; x < 240; x += len) d += ` q${len / 4} ${-amp} ${len / 2} 0 t${len / 2} 0`; return d + ' L240 70 L-240 70 Z'; }
+function pvHome() {
+  const P = pvPillars(), pct = Math.min(1, pvDayPct(todayISO())), st = pvStreak(), R = 56;
+  const todo = P.filter(x => x.v < 1), nx = todo[0], full = pct >= 1, pc = Math.round(pct * 100);
+  const dy = ((1 - pct) * (2 * R + 8)).toFixed(1);
+  const msg = full ? 'Journée accomplie' : pct === 0 ? 'Ta journée commence' : pct < .35 ? 'La lumière monte' : pct < .7 ? 'Plus de la moitié' : 'Presque plein';
+  const moons = P.map((x, i) => { const a = (-90 + i * 360 / P.length) * Math.PI / 180, mx = Math.cos(a) * 84, my = Math.sin(a) * 26 - 4, on = x.v >= 1; return { on, back: Math.sin(a) < 0, svg: `<g class="jg-moon ${on ? 'on' : ''}" transform="translate(${mx.toFixed(1)} ${my.toFixed(1)})" style="--d:${(i * .12).toFixed(2)}s"><circle r="${on ? 9 : 0}" class="jg-mh"/><circle r="4.2"/></g>` }; });
+  const anim = JG_SEEN ? '' : 'jg-anim'; JG_SEEN = true;
+  return `<section class="glass pv-home jg ${full ? 'full' : ''} ${anim}">
+    <button class="jg-orb" ${nx ? `data-goto="${nx.id}"` : ''} aria-label="Ta journée : ${pc} %">
+      <svg viewBox="-110 -86 220 172" aria-hidden="true">
+        <defs>
+          <clipPath id="jgClip"><circle r="${R}"/></clipPath>
+          <linearGradient id="jgLiq" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF4D6"/><stop offset=".35" stop-color="#E8C27A"/><stop offset="1" stop-color="#9A6A2A"/></linearGradient>
+          <radialGradient id="jgGlass" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#1D3A36"/><stop offset=".7" stop-color="#0A1615"/><stop offset="1" stop-color="#050A0A"/></radialGradient>
+          <radialGradient id="jgHalo"><stop offset="0" stop-color="#FFE9B8" stop-opacity=".55"/><stop offset="1" stop-color="#E8C27A" stop-opacity="0"/></radialGradient>
+        </defs>
+        <ellipse class="jg-orbit" rx="84" ry="26" cy="-4"/>
+        ${moons.filter(m => m.back).map(m => m.svg).join('')}
+        <circle class="jg-halo" r="${R + 30}" fill="url(#jgHalo)" style="opacity:${(.15 + pct * .85).toFixed(2)}"/>
+        <circle r="${R}" fill="url(#jgGlass)"/>
+        <g clip-path="url(#jgClip)"><g class="jg-liq" style="--y:${dy}px;transform:translateY(${dy}px)">
+          <g class="jg-w2"><path d="${jgWave(-R - 2, 5, 60)}" fill="#B8863B" opacity=".55"/></g>
+          <g class="jg-w1"><path d="${jgWave(-R, 4, 80)}" fill="url(#jgLiq)"/></g>
+          ${[[-18, 30, 2.2, 0], [12, 40, 1.6, 1.3], [26, 22, 1.2, 2.1], [-30, 46, 1.4, .6]].map(([x, y, r, d]) => `<circle class="jg-bub" cx="${x}" cy="${y}" r="${r}" style="animation-delay:${d}s"/>`).join('')}
+        </g></g>
+        <ellipse cx="-20" cy="-30" rx="20" ry="11" fill="#fff" opacity=".1" transform="rotate(-30 -20 -30)"/>
+        <circle r="${R}" fill="none" stroke="#E8C27A" stroke-opacity=".45" stroke-width="1.2"/>
+        <text class="jg-pc ${pct >= .55 ? 'dark' : ''}" y="8">${pc}<tspan dy="-14" font-size="13">%</tspan></text>
+        ${moons.filter(m => !m.back).map(m => m.svg).join('')}
+      </svg>
+    </button>
+    <p class="jg-msg">${msg}</p>
+    <p class="jg-sub">${full ? 'Les sept piliers sont tenus.' : `${P.length - todo.length} pilier${P.length - todo.length > 1 ? 's' : ''} sur ${P.length}`}${st ? ` · 🔥 ${st} jour${st > 1 ? 's' : ''} d'affilée` : ''}</p>
+    ${nx ? `<button class="jg-next" data-goto="${nx.id}"><span><small>Prochaine étape</small><b>${esc(nx.n)}</b></span><em>${esc(nx.s)}</em>${ICON.chev}</button>` : '<p class="jg-done">✦ Repose-toi, tu l\'as mérité.</p>'}
+  </section>`;
+}
+
+/* =====================================================================
+   v5.9 · LE COSMOS : la jauge du jour devient le soleil de la galaxie.
+   L'orbe de verre se remplit de lumière liquide au fil des piliers ; plus
+   il est plein, plus il éclaire la galaxie. Une couronne de 7 arcs (un par
+   pilier) l'entoure. Les modules orbitent autour, en couleur, avec leur
+   symbole. Toucher l'orbe : la prochaine étape (ou le Flux si tout est fait).
+   ===================================================================== */
+/* Moteur du cosmos : les planètes endormies flottent sur place ; chaque pilier tenu en éveille une,
+   qui se met à orbiter (accélération douce). Journée pleine : toutes orbitent plus vite et s'illuminent. */
+const CSO = { a: {}, f: {}, waved: false };
+function csOrbit() {
+  const g = $('#planets'), back = $('#planetsBack'), st0 = $('#stage'); if (!g || !st0) return;
+  const list = PLANETS.filter(p => p.key !== 'chasse' || chasseActive());
+  const nodes = list.map(p => $(`[data-planet="${p.key}"]`, st0));
+  let awake = new Set(); try { awake = new Set(JSON.parse(st0.dataset.awake || '[]')); } catch (e) {}
+  const full = st0.classList.contains('full'), still = reduceMotion();
+  list.forEach(p => { if (CSO.a[p.key] == null) CSO.a[p.key] = p.phase; if (CSO.f[p.key] == null) CSO.f[p.key] = awake.has(p.key) ? 1 : 0; });
+  orb.last = performance.now(); const t0 = orb.last;
+  const frame = now => {
+    const dt = Math.min(50, now - orb.last) / 1000; orb.last = now; const t = (now - t0) / 1000;
+    if (!orb.drag && Math.abs(orb.vel) > 0.01) { orb.spin += orb.vel * dt; orb.vel *= Math.pow(0.04, dt); }
+    list.forEach((p, i) => {
+      const el = nodes[i]; if (!el) return;
+      const tg = awake.has(p.key) ? 1 : 0, f = CSO.f[p.key] = still ? tg : CSO.f[p.key] + (tg - CSO.f[p.key]) * Math.min(1, dt * .7);
+      if (!still) CSO.a[p.key] += p.speed * (full ? 1.7 : 1) * f * dt;
+      const ang = CSO.a[p.key] + orb.spin * (70 / p.r), R2 = (p.r + 18) * 1.08, [x, y] = polar(R2, ang);
+      const fl = still ? 0 : 1 - f, bob = Math.sin(t * .9 + i * 1.7) * 5 * fl, sway = Math.sin(t * .55 + i * 2.3) * 3 * fl;
+      const yy = y * .74 + bob, sc = .74 + .34 * ((y * .74 / (R2 * .74)) + 1) / 2;
+      el.setAttribute('transform', `translate(${(x + sway).toFixed(2)} ${yy.toFixed(2)}) scale(${sc.toFixed(3)})`);
+      el.style.opacity = (.45 + .55 * f).toFixed(2);
+      el.classList.toggle('awake', f > .5);
+      if (back) { const want = y * .74 < -4 ? back : g; if (el.parentNode !== want) want.appendChild(el); }
+    });
+    orb.raf = requestAnimationFrame(frame);
+  };
+  orb.raf = requestAnimationFrame(frame);
+}
+function jgData() {
+  const P = pvPillars(), pct = Math.min(1, pvDayPct(todayISO())), todo = P.filter(x => x.v < 1);
+  return { P, pct, todo, nx: todo[0], full: pct >= 1, pc: Math.round(pct * 100), st: pvStreak() };
+}
+function jgTap() { let d; try { d = jgData(); } catch (e) { go('flux'); return; } go(d.nx ? d.nx.id : 'flux'); }
+function jgOrbSvg(R, d) {
+  const dy = ((1 - d.pct) * (2 * R + 10)).toFixed(1), glow = (R * 1.9 + R * 1.6 * d.pct).toFixed(0);
+  const seg = 2 * Math.PI * (R + 9) / d.P.length, gap = 5;
+  const crown = d.P.map((x, i) => `<circle class="cs-seg ${x.v >= 1 ? 'on' : x.v > 0 ? 'mid' : ''}" r="${R + 9}" stroke-dasharray="${(seg - gap).toFixed(1)} ${(2 * Math.PI * (R + 9) - seg + gap).toFixed(1)}" transform="rotate(${(-90 + i * 360 / d.P.length + gap / 2 / (R + 9) * 57.3).toFixed(1)})"/>`).join('');
+  const rays = d.full ? `<g class="cs-rays">${Array.from({ length: 12 }, (_, i) => `<line y1="${-(R + 18)}" y2="${-(R + 34 + (i % 2) * 12)}" transform="rotate(${i * 30})"/>`).join('')}</g>` : '';
+  return `<defs>
+      <clipPath id="csClip"><circle r="${R}"/></clipPath>
+      <linearGradient id="csLiq" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6DD"/><stop offset=".3" stop-color="#F0CF86"/><stop offset=".75" stop-color="#C8923F"/><stop offset="1" stop-color="#8A5A20"/></linearGradient>
+      <radialGradient id="csGlass" cx=".38" cy=".32" r=".8"><stop offset="0" stop-color="#21423D"/><stop offset=".65" stop-color="#0B1817"/><stop offset="1" stop-color="#040909"/></radialGradient>
+      <radialGradient id="csRim" cx=".5" cy=".5" r=".5"><stop offset=".82" stop-color="#E8C27A" stop-opacity="0"/><stop offset=".97" stop-color="#FFE9B8" stop-opacity=".35"/><stop offset="1" stop-color="#FFE9B8" stop-opacity="0"/></radialGradient>
+    </defs>
+    <circle class="cs-glow" r="${glow}" fill="url(#gSun)" style="opacity:${(.18 + .82 * d.pct).toFixed(2)}"/>
+    ${rays}
+    <g class="cs-orb" data-sun role="button" tabindex="0" aria-label="Ta journée : ${d.pc} %. ${d.nx ? `Prochaine étape : ${esc(d.nx.n)}` : 'Ouvrir le Flux'}">
+      <circle r="${R + 16}" fill="transparent"/>
+      <circle class="cs-wave" r="${R}"/>
+      <circle r="${R}" fill="url(#csGlass)"/>
+      <g clip-path="url(#csClip)"><g class="cs-liq" style="transform:translateY(${dy}px)">
+        <g class="jg-w2"><path d="${jgWave(-R - 3, 6, 64)}" fill="#B8863B" opacity=".6"/></g>
+        <g class="jg-w1"><path d="${jgWave(-R, 5, 90)}" fill="url(#csLiq)"/></g>
+        ${[[-20, 34, 2.4, 0], [14, 44, 1.8, 1.4], [28, 24, 1.3, 2.2], [-34, 50, 1.5, .7], [4, 56, 1.1, 3]].map(([x, y, r, dl]) => `<circle class="jg-bub" cx="${x}" cy="${y}" r="${r}" style="animation-delay:${dl}s"/>`).join('')}
+      </g></g>
+      <circle r="${R}" fill="url(#csRim)"/>
+      <ellipse cx="${-R * .36}" cy="${-R * .5}" rx="${R * .36}" ry="${R * .17}" fill="#fff" opacity=".11" transform="rotate(-32 ${-R * .36} ${-R * .5})"/>
+      <circle r="${R}" fill="none" stroke="#F3D9A4" stroke-opacity="${(.35 + .5 * d.pct).toFixed(2)}" stroke-width="1.2"/>
+    </g>`;
+}
+function vGalaxy(hello, now) {
+  const K = 1.08, RY = .74, OR = 54;
+  let d; try { d = jgData(); } catch (e) { d = { P: [], pct: 0, todo: [], full: false, pc: 0, st: 0 }; }
+  const planets = PLANETS.filter(p => p.key !== 'chasse' || chasseActive()).map(p => {
+    const st = gStage(p.key), R = Math.round((GSIZE[p.key] || 20) * .7);
+    return `<g class="gplanet cs-pl" data-planet="${p.key}" aria-label="${p.name}">
+      <circle r="${R + 10}" fill="transparent"/><circle class="cs-aura" r="${R + 7}" fill="url(#gatm-${p.key})"/>${planetSvg(p.key, Math.max(2, st), R)}</g>`;
+  }).join('');
+  const radii = [...new Set(PLANETS.map(p => p.r))];
+  const vis = PLANETS.filter(p => p.key !== 'chasse' || chasseActive()).slice().sort((a, b) => a.r - b.r || a.phase - b.phase);
+  const nAw = d.full ? vis.length : Math.min(vis.length, Math.floor(d.pct * vis.length + 1e-6));
+  const awake = vis.slice(0, nAw).map(p => p.key);
+  const wave = d.full && !CSO.waved ? (CSO.waved = true, 'wave') : '';
+  return `${pageHead(`${hello}, <em>Sayko</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite')}
+  <div class="orbit-stage gal cosmos ${d.full ? 'full' : ''} ${wave}" id="stage" data-awake='${JSON.stringify(awake)}'><svg viewBox="-205 -190 410 380" aria-label="Ta galaxie : au centre, ta journée qui se remplit ; autour, tes modules qui s'éveillent">
+    ${GDEFS}
+    ${d.full ? radii.map((r, i) => `<ellipse class="cs-trail" style="animation-delay:${(.3 + i * .25).toFixed(2)}s" rx="${((r + 18) * K).toFixed(0)}" ry="${((r + 18) * K * RY).toFixed(0)}"/>`).join('') : ''}
+    <g id="planetsBack"></g>
+    ${jgOrbSvg(OR, d)}
+    <g id="planets">${planets}</g>
+  </svg></div>
+  ${jgStrip(d)}`;
+}
+function jgStrip(d) {
+  if (!d.P.length) return '';
+  const msg = d.full ? 'Journée accomplie' : d.pct === 0 ? 'Ta galaxie dort encore' : d.pct < .5 ? 'Ta galaxie s\'éveille' : d.pct < .85 ? 'Plus de la moitié' : 'Presque plein';
+  return `<div class="cs-strip"><p class="jg-msg">${msg}</p>
+    <p class="jg-sub">${d.full ? 'Ton soleil brille : les sept piliers sont tenus.' : `${d.P.length - d.todo.length} pilier${d.P.length - d.todo.length > 1 ? 's' : ''} sur ${d.P.length}`}${d.st ? ` · 🔥 ${d.st} jour${d.st > 1 ? 's' : ''} d'affilée` : ''}</p>
+    ${d.nx ? `<button class="jg-next" data-goto="${d.nx.id}"><span><small>Prochaine étape</small><b>${esc(d.nx.n)}</b></span><em>${esc(d.nx.s)}</em>${ICON.chev}</button>` : ''}</div>`;
+}
+
 function fxRead(id) {
   FXS.read.add(id); const d = fluxDay(); d.n++; save();
   if (d.n === 5 && !d.r) { d.r = 1; lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(3, { noBonus: true, msg: ['Rituel du jour', '5 cartes pour nourrir ton esprit plutôt que le vider.'] }); }
@@ -7572,7 +7968,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.7 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.11 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -8833,7 +9229,7 @@ function render(animate) {
   document.documentElement.classList.toggle('flux-on', tab === 'flux' && !uiSys());
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
   const _openK = render._t === tab + (C.view || '') ? new Set([...app.querySelectorAll('details[data-k][open]')].map(d => d.dataset.k)) : new Set(); render._t = tab + (C.view || '');
-  try { app.innerHTML = gx({ psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vPvFood() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vLook() : C.view === 'parfum' ? vParfum() : vPvTrain(), intel: vIntel, sante: vSante, achats: vAchats, maison: vMaison, routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vPlan(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]()); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
+  try { app.innerHTML = gx({ psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vPvFood() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vApparence() : C.view === 'parfum' ? vParfum() : vPvTrain(), intel: vIntel, sante: vSante, achats: vAchats, maison: vMaison, routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vPlan(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]()); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
   if (_openK.size) app.querySelectorAll('details[data-k]').forEach(d => { if (_openK.has(d.dataset.k)) d.open = true; });
   coreGlyph();
   if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); gxDailyLater(); } }
@@ -9191,7 +9587,7 @@ document.addEventListener('keydown', e => {
   const t = e.target;
   if ((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-planet],[data-moon],.seg-arc,[data-phase],[data-sun]')) {
     e.preventDefault();
-    if (t.hasAttribute('data-sun')) { go('flux'); return; }
+    if (t.hasAttribute('data-sun')) { jgTap(); return; }
     if (t.dataset.phase) { t.dispatchEvent(new MouseEvent('click', { bubbles: true })); return; }
     if (t.dataset.planet) go(t.dataset.planet); else if (t.dataset.moon) selectMonth(Number(t.dataset.moon)); else toggleBlock(Number(t.dataset.block));
   }
