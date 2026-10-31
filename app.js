@@ -902,8 +902,7 @@ function sysCheck() {
 }
 function gxDailyLater() { if (document.getElementById('intro')) { setTimeout(gxDailyLater, 600); return; } const s = sysS(), k = todayISO(); if (!s.start) { s.start = k; save(); }
   { const r = repS(); if (r && !r.closed && (repOn() || k >= r.end)) { try { repCheck(); } catch (e) {} } }
-  if (s.gseen !== k) { s.gseen = k; save(); setTimeout(() => { try { sanctionsDaily(); } catch (e) {} }, 900); }
-  setTimeout(() => { try { lookNag(); } catch (e) {} }, 3500); }
+  }
 function sysCheckLater() { if (document.getElementById('intro')) { setTimeout(sysCheckLater, 600); return; } if (tab === 'orbite' && uiSys()) { sysCheck(); setTimeout(lookNag, 2500); } }
 function sysClick(t) {
   const c = s => t.closest(s); let el;
@@ -1407,6 +1406,7 @@ function vParcoursSys() {
 function sysPQ() { const s = sysS(); s.pq = Array.isArray(s.pq) ? s.pq : []; s.flags = s.flags || {}; return s; }
 let SANQ = [];
 function sanction(title, lines, xp, quest) {
+  if (!uiSys()) return; /* v5.2 : plus aucune alerte de sanction */
   if (repOn()) return;
   const s = sysPQ();
   if (xp) xpLose(xp);
@@ -1621,16 +1621,15 @@ function vOrbite() {
   if (uiSys()) return `${vSys(now)}${pvHome()}<div class="gglass">${yesterdayCard()}${atStake()}${tjCard()}</div><div class="gglass tjbottom">${tjFeedback()}</div>`;
   return `${vGalaxy(hello, now)}
   ${repOn() ? `<div class="gglass">${repWin()}</div>` : ''}
-  ${(() => { let h = ''; try { h = sqWinHtml() + pqWin(); } catch (e) {} return h ? `<div class="gglass">${h}</div>` : ''; })()}
   ${pvHome()}
   ${(() => { try { const pn = prayerNow(), nx = nextPrayer(); const t = pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine prière : ${PNAMES[nx.id]} à ${hm(nx.start)}` : ''; return t ? `<button class="pv-prayline" data-goto="habitudes"><span>☾</span>${t}<em>→</em></button>` : ''; } catch (e) { return ''; } })()}
-  <div class="gglass">${yesterdayCard()}${atStake()}${tjCard()}</div>
+  ${tjCard() ? `<div class="gglass">${tjCard()}</div>` : ''}
   <details class="glass pv-more-home"><summary><b>Le reste de ta galaxie</b><span>prières, dhikr, budget, arabe…</span></summary>
     <div class="today-list">
       ${(() => { const p = adk().pending; if (!p || p.k !== todayISO() || adkDone(p.k, p.id)) return ''; return `<button class="today-item" data-adk="open">${miniOrb(0, 'foi', true)}<span><b>Adhkar de ${PNAMES[p.id]}</b><span class="s">En attente · touche pour les faire</span></span>${ICON.chev}</button>`; })()}
       ${(() => { if (!chasseActive()) return ''; const dd = chDays(), c = ch(), m = CHQ.filter(x => chMast(x[0])).length; return `<button class="today-item" data-goto="chasse">${miniOrb(m / CHQ.length, 'corps')}<span><b>${dd != null && dd >= 0 ? `Permis de chasser · J-${dd}` : 'Permis de chasser'}</b><span class="s">${m}/${CHQ.length} questions maîtrisées${c.ex.length ? ` · dernier blanc ${c.ex[c.ex.length - 1].s}/10` : ''}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const d = S.flux.day.d === todayISO() ? S.flux.day.n : 0; return `<button class="today-item" data-goto="flux">${miniOrb(Math.min(1, d / 5), 'flux')}<span><b>${d >= 5 ? 'Esprit nourri aujourd\'hui' : d ? `Flux · ${d} carte${d > 1 ? 's' : ''} sur 5` : 'Flux · 5 cartes pour ton esprit'}</b><span class="s">${d ? `${d} carte${d > 1 ? 's' : ''} lue${d > 1 ? 's' : ''} aujourd'hui` : 'Coran, business, savoir, psychologie'}</span></span>${ICON.chev}</button>`; })()}
-      ${isSetUp() ? (() => { const bb = budgetOf(todayISO().slice(0, 7)), dd = bb.daysLeft ? bb.reste / bb.daysLeft : 0; return `<button class="today-item" data-goto="budget">${miniOrb(bb.free > 0 ? Math.max(0, bb.reste) / bb.free : 0, 'argent')}<span><b>${bb.reste > 0 ? `${eur0(dd)} à dépenser aujourd'hui` : 'Budget du mois épuisé'}</b><span class="s">Reste ${eur0(bb.reste)} ce mois</span></span>${ICON.chev}</button>`; })() : ''}
+      ${(() => { try { const H = bpHero(bpDefM()); if (!H) return ''; return `<button class="today-item" data-goto="budget">${miniOrb(H.end > 0 ? 1 : 0, 'argent')}<span><b>${H.days ? `${bpE(H.perDay)} par jour` : 'Budget'}</b><span class="s">Argent de poche · ${bpE(H.now)} sur la pocket</span></span>${ICON.chev}</button>`; } catch (e) { return ''; } })()}
       <button class="today-item" data-goto="heures">${miniOrb(planetValue('heures')[0], 'heures')}<span><b>${wk ? `${fmtH(wk)} cette semaine` : 'Aucun service cette semaine'}</b><span class="s">Noter un service</span></span>${ICON.chev}</button>
       ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">${(() => { const pn = prayerNow(), nx = nextPrayer(); return pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine : ${PNAMES[nx.id]} à ${hm(nx.start)}` : `Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours`; })()}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const td = dkDay(), st = dkStreak(); return `<button class="today-item" data-goto="dhikr">${miniOrb(Math.min(1, td / 33), 'foi', true)}<span><b>${td >= 33 ? `Dhikr · ${td} aujourd'hui` : 'Dhikr · ton premier 33'}</b><span class="s">${st ? `${st} jour${st > 1 ? 's' : ''} d'affilée` : dkF(dk().cur)[2]}</span></span>${ICON.chev}</button>`; })()}
@@ -1638,7 +1637,7 @@ function vOrbite() {
       ${(() => { const h = hrt(), x = HEART.find(y => y.k === h.cur) || HEART[0], l = hLevel(x.k), done = !!hc(x.k).days[todayISO()]; return `<button class="today-item" data-goto="coeur">${miniOrb(l / 3, 'foi', true)}<span><b>Cœur · ${x.n}</b><span class="s">${l === 0 ? 'Commence par la leçon' : l === 3 ? 'Ancrée : continue de la pratiquer' : done ? (x.k === 'dua' ? 'Tu Lui as parlé aujourd\'hui' : 'Pratiqué aujourd\'hui') : x.k === 'dua' ? 'Une phrase pour Allah aujourd\'hui' : `Pratique du jour · ${hDays(x.k)} jour${hDays(x.k) > 1 ? 's' : ''} sur 21`}</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="arabe">${miniOrb(wordsKnown() / WORDS.length, 'arabe', true)}<span><b>Réviser 5 mots</b><span class="s">${wordsKnown()} mots maîtrisés sur ${WORDS.length}</span></span>${ICON.chev}</button>
     </div>
-    ${(() => { try { return `<button class="pv-pil" data-sqlog style="margin-top:6px"><span class="pv-ic">☄</span><span class="grow"><b>Comètes</b><small>${sqS().done} attrapée${sqS().done > 1 ? 's' : ''} · ${sqS().failed} manquée${sqS().failed > 1 ? 's' : ''}</small></span></button><button class="pv-pil" data-expl><span class="pv-ic">✦</span><span class="grow"><b>Exploit libre</b><small>Douche froide, gainage, 50 pompes, marche</small></span></button>`; } catch (e) { return ''; } })()}
+    ${(() => { try { return `<button class="pv-pil" data-expl><span class="pv-ic">✦</span><span class="grow"><b>Exploit libre</b><small>Douche froide, gainage, 50 pompes, marche</small></span></button>`; } catch (e) { return ''; } })()}
     <div class="tjbottom">${tjFeedback()}</div>
   </details>`;
 }
@@ -2427,7 +2426,7 @@ function budgetOf(ym) {
 const isSetUp = () => S.money.incomes.some(i => String(i.amount).trim() !== '') || S.money.fixed.some(f => numv(f.amount) > 0) || Object.values(S.money.months).some(m => m.inc && Object.keys(m.inc).length);
 
 function argentTop(view) {
-  const sub = view === 'budget' ? 'Tu donnes et tu te paies d\'abord, le reste est à toi.' : view === 'zakat' ? 'Purifier ton bien, au bon moment.' : 'Chaque heure notée, chaque compteur à jour.';
+  const sub = view === 'budget' ? 'Chaque euro a sa place. Toi, tu suis le plan.' : view === 'zakat' ? 'Purifier ton bien, au bon moment.' : 'Chaque heure notée, chaque compteur à jour.';
   return `${pageHead('Argent', sub, view === 'budget' ? 'budget' : view === 'zakat' ? 'zakat' : 'heures')}
   <div class="seg" role="group" aria-label="Section" style="margin-top:20px">
     <button data-aview="budget" aria-pressed="${view === 'budget'}"><span class="dot"></span>Budget</button>
@@ -2955,7 +2954,7 @@ function setPrayer(k, id, v) {
   if (today && prev && pv(prev) !== 'x') unreward(prayerPts(id, prev) + (wasFull && !full ? 5 : 0));
   if (today && prev === 'x') { if (uiSys()) { const ss = sysS(); ss.loss = Math.max(0, (Number(ss.loss) || 0) - 5); } else nourAdd(5); }
   if (!v) { render(); return; }
-  if (v === 'x') { sanctionPrayer(id); return; }
+  if (v === 'x' && uiSys()) { sanctionPrayer(id); return; }
   if (v === 'x') { nourAdd(-5); save(); refreshSun(); thud(); try { navigator.vibrate && navigator.vibrate(250); } catch (e) {} return; }
   if (!today) { render(); return; }
   adkAfterPrayer(k, id, v);
@@ -3223,7 +3222,7 @@ function corpsTop(view) {
   <div class="seg seg3" role="group" aria-label="Section" style="margin-top:20px">
     <button data-cview="entrainement" aria-pressed="${view === 'entrainement'}">Entraînement</button>
     <button data-cview="nutrition" aria-pressed="${view === 'nutrition'}">Nutrition</button>
-    <button data-cview="${C.view === 'apparence' ? 'apparence' : 'soin'}" aria-pressed="${view === 'soin'}">Soin</button>
+    <button data-cview="${C.view === 'apparence' || C.view === 'parfum' ? C.view : 'soin'}" aria-pressed="${view === 'soin'}">Soin</button>
   </div>`;
 }
 
@@ -5000,7 +4999,50 @@ const FX_ASTRES = [
   ['as14', 'Pourquoi Mars est rouge', 'La surface de Mars est couverte de poussière riche en oxyde de fer : de la rouille, en quelque sorte. C\'est elle qui lui donne cette couleur.', 'Quand Mars est visible, elle se reconnaît à son éclat orangé, qui ne scintille presque pas.'],
   ['as15', 'Les étoiles pour se guider', '« C\'est Lui qui a fait pour vous les étoiles, pour que vous vous guidiez par elles dans les ténèbres de la terre et de la mer. » (Coran 6:97) Pendant des siècles, marins et caravaniers ont fait exactement ça.', 'Apprends à trouver l\'étoile Polaire : elle indique le nord.']
 ];
+const FX_STYLE = [
+  ['st1', 'Parfum', 'L\'ordre qui fait tenir', 'Une peau sèche « boit » le parfum : il s\'évapore plus vite. Crème d\'abord, musc ensuite, parfum en dernier. Chaque couche s\'accroche à la précédente.', 'Ce soir, mets ta crème 2 minutes avant ton parfum et compare la tenue demain.'],
+  ['st2', 'Parfum', 'Ne frotte jamais tes poignets', 'Frotter chauffe la peau et brusque l\'évaporation des notes de tête. Le parfum perd son ouverture et paraît plus plat. Vaporise, puis laisse sécher à l\'air.', 'Vaporise, compte jusqu\'à 20, et ne touche à rien.'],
+  ['st3', 'Parfum', 'Tête, cœur, fond', 'Un parfum se joue en trois temps. Les notes de tête (agrumes, épices fraîches) durent quelques minutes. Le cœur (fleurs, épices) tient quelques heures. Le fond (bois, oud, musc, vanille) reste jusqu\'au lendemain.', 'Sens ton poignet à 5 min, à 1 h puis à 4 h : tu sentiras les trois étages.'],
+  ['st4', 'Parfum', 'On doit te découvrir, pas te sentir arriver', 'La règle des élégants : ton parfum se remarque quand on est à portée de bras, pas à trois mètres. Un sillage qui envahit une pièce fatigue les autres.', 'Demande à quelqu\'un de proche à quelle distance il te sent.'],
+  ['st5', 'Parfum', 'Le nez s\'habitue', 'Au bout de quelques minutes, ton cerveau cesse de remarquer ton propre parfum : c\'est l\'adaptation olfactive. Les autres le sentent encore très bien. C\'est pour ça qu\'on en remet trop.', 'Ne rajoute jamais de parfum juste parce que tu ne le sens plus.'],
+  ['st6', 'Parfum', 'Les points chauds', 'Le cou, l\'arrière des oreilles, le creux du coude, le torse : la peau y est plus chaude et diffuse mieux. Le cou porte le sillage, le torse le garde pour les proches.', 'Essaie une vaporisation sur le torse sous le t-shirt : discret et durable.'],
+  ['st7', 'Parfum', 'Les vêtements gardent l\'odeur', 'Le tissu retient le parfum bien plus longtemps que la peau, mais il évolue moins que sur la peau. Évite la soie et les tissus clairs, qui peuvent tacher.', 'Pour une longue journée, une vaporisation sur l\'écharpe ou la veste.'],
+  ['st8', 'Parfum', 'Chaud ou froid ?', 'La chaleur amplifie le parfum, le froid l\'étouffe. L\'été, privilégie le frais et le léger, avec moins de vaporisations. L\'hiver, les ambrés, gourmands et boisés prennent toute leur place.', 'Range tes parfums en deux colonnes dans ta tête : été et hiver.'],
+  ['st9', 'Parfum', 'Où ranger tes flacons', 'La lumière, la chaleur et l\'air abîment un parfum. La salle de bain, avec ses écarts de température et son humidité, est le pire endroit. Une armoire fraîche et sombre est le meilleur.', 'Déplace tes flacons hors de la salle de bain.'],
+  ['st10', 'Parfum', 'Le layering', 'Superposer deux senteurs crée une signature unique. La règle : une base simple (musc, crème) et un parfum principal. Deux parfums puissants ensemble se battent au lieu de s\'accorder.', 'Teste ton musc seul, puis avec ton parfum : note ce qui change.'],
+  ['st11', 'Parfum', 'Les familles olfactives', 'Boisé (cèdre, santal, oud), oriental ou ambré (résines, vanille, épices), aromatique (lavande, herbes), frais (agrumes, notes marines), floral (rose, violette), gourmand (chocolat, pistache, caramel). Connaître les familles aide à choisir.', 'Range chacun de tes parfums dans une famille.'],
+  ['st12', 'Parfum', 'Eau de toilette ou eau de parfum ?', 'La différence tient surtout à la concentration en essences : souvent autour de 5 à 15 % pour une eau de toilette, 15 à 20 % pour une eau de parfum, plus pour un extrait. Plus concentré veut souvent dire plus tenace, pas forcément plus fort.', 'Regarde la mention sur chacun de tes flacons.'],
+  ['st13', 'Parfum', 'Tester avant d\'acheter', 'Un parfum ne se juge pas sur la touche en papier ni dans les cinq premières minutes. Porte-le sur la peau, laisse-le vivre quelques heures, et décide le lendemain.', 'Avant tout achat, demande un échantillon et porte-le une journée.'],
+  ['st14', 'Parfum', 'Le parfum dans la Sunna', 'Le Prophète ﷺ aimait le bon parfum et ne le refusait pas quand on le lui offrait (rapporté par al-Bukhârî). Se parfumer pour le vendredi fait partie des actes recommandés.', 'Garde un parfum dédié au vendredi.'],
+  ['st15', 'Parfum', 'Moins, c\'est plus', 'Deux à quatre vaporisations suffisent pour la plupart des eaux de parfum. Pour les jus très puissants, une ou deux. L\'élégance est dans la retenue, pas dans la quantité.', 'Enlève une vaporisation à ta dose habituelle demain.'],
+  ['st16', 'Parfum', 'Le parfum au travail', 'Au contact de clients ou dans un espace fermé, choisis du frais ou du propre, en dose légère. Les gens ne choisissent pas de te sentir : respecte leur espace.', 'Pour les livraisons, reste sur une senteur fraîche et légère.'],
+  ['st17', 'Maintien', 'Se tenir droit', 'Épaules basses et ouvertes, menton parallèle au sol, poitrine légèrement sortie. Une bonne posture fait paraître plus grand, plus calme et plus sûr de soi, avant même d\'avoir parlé.', 'Chaque fois que tu passes une porte aujourd\'hui, redresse-toi.'],
+  ['st18', 'Maintien', 'Marcher avec calme', 'Une démarche posée, sans précipitation, dégage de l\'assurance. Le Coran décrit les serviteurs du Tout Miséricordieux comme ceux qui « marchent humblement sur terre » (25:63) : ni arrogance, ni nonchalance.', 'Ralentis ton pas de 10 % sur ton prochain trajet.'],
+  ['st19', 'Maintien', 'Le regard', 'Regarder les gens dans les yeux montre que tu es présent et sincère. Mais fixer sans pause met mal à l\'aise : on regarde, on détourne un instant, on revient.', 'Dans ta prochaine conversation, garde le contact visuel pendant que l\'autre parle.'],
+  ['st20', 'Maintien', 'La poignée de main', 'Ferme mais sans écraser, paume contre paume, une à deux secondes, en regardant la personne. Une main molle ou un broyage laissent tous deux une mauvaise impression.', 'Fais attention à ta prochaine poignée de main.'],
+  ['st21', 'Maintien', 'Les mains', 'Les mains dans les poches ou qui tripotent le téléphone trahissent la gêne. Des mains calmes, visibles, qui accompagnent la parole sans s\'agiter, donnent une impression de maîtrise.', 'Pendant une conversation, laisse ton téléphone dans ta poche.'],
+  ['st22', 'Maintien', 'Prendre de la place, sans l\'imposer', 'S\'asseoir dans le fond de la chaise, dos droit, sans s\'avachir ni s\'étaler. On occupe son espace avec aisance, sans empiéter sur celui des autres.', 'Ce soir, observe comment tu t\'assieds.'],
+  ['st23', 'Manières', 'Parler moins fort, plus lentement', 'Une voix posée, sans hausser le ton, se fait mieux écouter qu\'une voix forte. Luqman conseille à son fils : « baisse ta voix » (Coran 31:19). Les pauses donnent du poids aux mots.', 'Fais une petite pause avant de répondre à une question.'],
+  ['st24', 'Manières', 'Écouter vraiment', 'La plupart des gens écoutent pour répondre, pas pour comprendre. Laisser l\'autre finir, poser une question sur ce qu\'il vient de dire : c\'est rare, et c\'est ce qu\'on retient de toi.', 'Aujourd\'hui, ne coupe la parole à personne.'],
+  ['st25', 'Manières', 'Retenir les prénoms', 'Le prénom d\'une personne est un mot qu\'elle aime entendre. Le répéter une fois en le recevant (« Enchanté, Karim ») aide à le mémoriser et montre de l\'attention.', 'Répète le prénom de la prochaine personne que tu rencontres.'],
+  ['st26', 'Manières', 'La ponctualité', 'Arriver à l\'heure, c\'est dire à l\'autre que son temps compte. Prévenir avant d\'être en retard, et non après, est la base du respect.', 'Pour ton prochain rendez-vous, vise 5 minutes d\'avance.'],
+  ['st27', 'Manières', 'Le téléphone à table', 'Poser son téléphone sur la table, même face cachée, signale qu\'on est prêt à être interrompu. Le garder dans sa poche est un vrai signe d\'attention.', 'Au prochain repas avec quelqu\'un, téléphone dans la poche.'],
+  ['st28', 'Manières', 'Manger avec tenue', 'Bouche fermée en mâchant, on ne parle pas la bouche pleine, on attend que tout le monde soit servi. Manger de la main droite et dire Bismillah font aussi partie des bonnes manières enseignées par le Prophète ﷺ.', 'Au prochain repas, mange un peu plus lentement que d\'habitude.'],
+  ['st29', 'Manières', 'Le sourire', '« Ton sourire à ton frère est une aumône » (rapporté par at-Tirmidhî). Un sourire sincère ouvre plus de portes que n\'importe quelle tenue.', 'Souris à chaque client que tu livres aujourd\'hui.'],
+  ['st30', 'Manières', 'Savoir dire merci et pardon', 'Remercier précisément (« merci d\'avoir attendu ») vaut plus qu\'un merci machinal. S\'excuser simplement, sans se justifier pendant cinq minutes, montre de la force, pas de la faiblesse.', 'Remercie quelqu\'un aujourd\'hui en nommant ce qu\'il a fait.'],
+  ['st31', 'Manières', 'Le calme dans la colère', '« Le fort n\'est pas celui qui terrasse les autres, le fort est celui qui se maîtrise lors de la colère » (al-Bukhârî et Muslim). Ne pas répondre à chaud est la marque d\'un homme posé.', 'La prochaine fois qu\'on t\'agace, respire avant de répondre.'],
+  ['st32', 'Tenue', 'La coupe avant la marque', 'Un vêtement simple bien ajusté fait plus élégant qu\'une pièce chère trop grande. Épaules à la bonne place, manches qui s\'arrêtent au poignet, pantalon sans trop de plis sur la chaussure.', 'Regarde où tombent les coutures d\'épaule de ta veste.'],
+  ['st33', 'Tenue', 'Trois couleurs maximum', 'Une tenue avec trois couleurs au plus, dont des neutres (marine, gris, blanc, noir, beige), est presque toujours harmonieuse. La couleur vive se garde pour une seule pièce.', 'Compte les couleurs de ta tenue de demain.'],
+  ['st34', 'Tenue', 'Les chaussures disent tout', 'On regarde souvent les chaussures. Propres, entretenues, adaptées à la tenue : c\'est un détail qui révèle le soin que tu portes à toi-même.', 'Nettoie tes chaussures ce soir.'],
+  ['st35', 'Tenue', 'Accorder ses métaux', 'Montre, bague, boucle de ceinture : garde un seul métal, argent ou doré. Ta montre argentée et ton alliance en argent vont ensemble ; une ceinture dorée casserait l\'harmonie.', 'Vérifie que tes accessoires sont dans le même métal.'],
+  ['st36', 'Tenue', 'Un vêtement repassé', 'Un t-shirt froissé dévalorise même une belle tenue. Plier le linge à la sortie de la machine, ou le défroisser à la vapeur, change tout pour presque rien.', 'Plie ton linge dès qu\'il est sec.'],
+  ['st37', 'Tenue', 'La propreté, première élégance', 'Ongles propres, barbe nette, cheveux entretenus, haleine fraîche : aucun vêtement ne compense un défaut d\'hygiène. « Allah est beau et Il aime la beauté » (rapporté par Muslim).', 'Ce soir, passe deux minutes sur tes ongles.'],
+  ['st38', 'Manières', 'Tenir la porte', 'Tenir la porte à la personne derrière toi, laisser sortir avant d\'entrer, céder sa place : ces petits gestes coûtent une seconde et disent beaucoup.', 'Tiens la porte à quelqu\'un aujourd\'hui.'],
+  ['st39', 'Maintien', 'Rester humble', 'L\'élégance véritable ne cherche pas à impressionner. On ne parle pas de ce qu\'on possède, on ne se vante pas. L\'assurance calme attire plus que l\'étalage.', 'Dans ta prochaine conversation, parle plus de l\'autre que de toi.'],
+  ['st40', 'Parfum', 'Le musc blanc', 'Le musc moderne est synthétique : il imite l\'odeur propre de la peau et du linge frais. C\'est la base idéale pour une odeur discrète ou pour prolonger un parfum, et il se porte même à la mosquée.', 'Porte ton musc seul une journée et remarque les réactions.']
+];
 const FXC = {
+  style: { bg: ['#2E2414', '#090705'], ac: '#E6C48A', lbl: 'Élégance', shape: 'spark' },
   astres: { bg: ['#0E1A2E', '#020407'], ac: '#E8C27A', lbl: 'Astres et espace', shape: 'spark' },
   coran: { bg: ['#14402F', '#06110D'], ac: '#E9C46A', lbl: 'Coran', shape: 'star' },
   hadith: { bg: ['#2A2A17', '#080C08'], ac: '#F0D9A0', lbl: 'Hadith', shape: 'orb' },
@@ -5026,6 +5068,7 @@ FX_BIZ.forEach(([id, book, m, title, text, act]) => { FX_ALL[id] = { id, t: 'biz
 FX_SCI.forEach(([id, cat, title, text]) => { FX_ALL[id] = { id, t: cat, title, text }; });
 FX_PSY.forEach(([id, title, text, act]) => { FX_ALL[id] = { id, t: 'psy', title, text, act }; });
 FX_ASTRES.forEach(([id, title, text, act]) => { FX_ALL[id] = { id, t: 'astres', title, text, act }; });
+FX_STYLE.forEach(([id, cat, title, text, act]) => { FX_ALL[id] = { id, t: 'style', cat, title, text, act }; });
 FX_QUIZ.forEach(([id, q, opts, ok, ex]) => { FX_ALL[id] = { id, t: 'quiz', q, opts, ok, ex }; });
 FX_VF.forEach(([id, q, ok, ex]) => { FX_ALL[id] = { id, t: 'vf', q, ok, ex }; });
 FX_RECIT.forEach(([id, who, title, text, lesson, src]) => { FX_ALL[id] = { id, t: 'recit', who, title, text, lesson, src }; });
@@ -5073,7 +5116,7 @@ function fxNext() {
   if (i % 15 === 0) return fxPause();
   if (i % 4 === 0) { const r = Math.random(); if (r < .25) { const w = Math.floor(Math.random() * WORDS.length); return { id: 'ar' + w + '-' + uid(), t: 'ar', w }; } return fxPick(r < .65 ? 'quiz' : 'vf'); }
   if (i % 11 === 0) return fxMe();
-  if (!FXS.order.length) { const base = ['foi', 'biz', 'savoir', 'psy', 'astres'], lk = {}; (S.flux.saved || []).forEach(id => { const c = FX_ALL[id]; if (!c) return; const t = ['coran', 'hadith'].includes(c.t) ? 'foi' : ['sci', 'cult'].includes(c.t) ? 'savoir' : c.t; if (base.includes(t)) lk[t] = (lk[t] || 0) + 1; }); const top = Object.entries(lk).sort((x, y) => y[1] - x[1])[0]; FXS.order = base.concat(top && top[1] >= 2 ? [top[0]] : []).sort(() => Math.random() - .5); }
+  if (!FXS.order.length) { const base = ['foi', 'biz', 'savoir', 'psy', 'astres', 'style'], lk = {}; (S.flux.saved || []).forEach(id => { const c = FX_ALL[id]; if (!c) return; const t = ['coran', 'hadith'].includes(c.t) ? 'foi' : ['sci', 'cult'].includes(c.t) ? 'savoir' : c.t; if (base.includes(t)) lk[t] = (lk[t] || 0) + 1; }); const top = Object.entries(lk).sort((x, y) => y[1] - x[1])[0]; FXS.order = base.concat(top && top[1] >= 2 ? [top[0]] : []).sort(() => Math.random() - .5); }
   const p = FXS.order.shift();
   if (p === 'foi') return fxPick(foiType());
   if (p === 'savoir') return fxPick(Math.random() < .5 ? 'sci' : 'cult');
@@ -5135,6 +5178,8 @@ function fxCard(c) {
     body = `<p class="fk">${conf.lbl}</p><h2 class="ft big">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p>`;
   } else if (c.t === 'astres') {
     body = `<p class="fk">${conf.lbl}</p><h2 class="ft">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p><div class="fdo"><small>${/^«/.test(c.act) ? 'Coran' : 'À observer'}</small>${esc(c.act)}</div>`;
+  } else if (c.t === 'style') {
+    body = `<p class="fk">Élégance · ${esc(c.cat)}</p><h2 class="ft">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p><div class="fdo"><small>À essayer</small>${esc(c.act)}</div>`;
   } else if (c.t === 'psy') {
     body = `<p class="fk">Psychologie humaine</p><h2 class="ft">${fxWords(c.title)}</h2><p class="fb">${esc(c.text)}</p><div class="fdo"><small>Observe</small>${esc(c.act)}</div>`;
   } else if (c.t === 'quiz') {
@@ -5424,10 +5469,6 @@ function vLook() {
   const more = [
     sec('Coiffeur & fitra', bd == null ? 'coiffeur toutes les 2 semaines' : `coiffeur il y a ${bd} j`, `<div class="pv-barber">${pvRing(bd == null ? 0 : Math.max(0, 1 - bd / PV_BARBER))}<div class="grow"><b>Coiffeur</b><small>${bd == null ? 'Pas encore noté' : bd === 0 ? 'Fait aujourd\'hui' : `Il y a ${bd} j`}</small></div><button class="btn sm ghost" data-pvbarber>${bd === 0 ? 'Annuler' : 'Fait'}</button></div><p class="pv-sub">La fitra : pas plus de 40 nuits (Muslim). Touche une jauge quand c'est fait.</p><div class="fitra">${FITRA.map(([id, nm]) => fitraRing(id, nm)).join('')}</div>`),
     sec('Cette semaine', `${wkN}/${LK_WK.length} · remise à zéro lundi`, LK_WK.map(([id, t, nn, how]) => { const v = lkWkVal(id), on = v >= nn; return `<div class="pv-hr2">${pvChk(on, `data-lkw="${id}"`, `${esc(t)}${nn > 1 ? ` <span class="pv-fq">${Math.min(v, nn)}/${nn}</span>` : ''}`, '')}${how || id === 'w-gommage' || id === 'w-masque' ? '<button class="pv-q2" data-hint aria-label="Comment faire">?</button>' : ''}</div>${how || id === 'w-gommage' || id === 'w-masque' ? `<p class="pv-hint">${how || (id === 'w-gommage' ? (s ? LK_SKIN[s].exf : 'Gommage doux adapté à ta peau') : (s ? LK_SKIN[s].mask : 'Masque adapté à ta peau'))}</p>` : ''}`; }).join('')),
-    sec('Parfum', d.perf ? `aujourd'hui : ${esc(d.perf)}` : `${p.perf.length} parfum${p.perf.length > 1 ? 's' : ''} dans ta collection`, `<div class="pv-layers">${PV_LAYER.map(([id, t, sb], i) => `<button class="pv-ly ${ly[id] ? 'on' : ''}" data-pvly="${id}"><i>${i + 1}</i><span><b>${t}</b><small>${sb}</small></span></button>`).join('')}</div>
-      ${p.perf.length ? `<p class="pv-k">Parfum du jour</p><div class="chips">${p.perf.map(x => `<button class="chip" data-pvperf="${esc(x.n)}" aria-pressed="${d.perf === x.n}">${esc(x.n)}</button>`).join('')}</div>${fam ? `<p class="pv-sub">Famille <b>${PV_FAM[fam.f].toLowerCase()}</b> : crème, musc et huile neutres, musqués, ou ${ok.map(f => PV_FAM[f].toLowerCase()).join(', ')}.</p>` : ''}` : ''}
-      <p class="pv-k">Ma collection</p>${p.perf.map((x, i) => `<div class="pv-hr"><span>${esc(x.n)}</span><span class="muted">${PV_FAM[x.f]}</span><button class="link-btn small" data-pvpdel="${i}">Retirer</button></div>`).join('')}
-      <div class="row" style="gap:8px;margin-top:8px"><input id="pvPn" placeholder="Nom du parfum" aria-label="Nom du parfum" style="flex:1"><select id="pvPf" aria-label="Famille" style="width:auto">${Object.entries(PV_FAM).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div><button class="btn sm" data-pvpadd style="margin-top:8px">Ajouter</button>`),
     sec('Peau', s ? `peau ${LK_SKIN[s].n.toLowerCase()}` : 'test de peau à faire (30 s)', s ? `<p class="pv-sub"><b>Nettoyer</b> · ${LK_SKIN[s].clean}</p><p class="pv-sub"><b>Hydrater</b> · ${LK_SKIN[s].hyd}</p><p class="pv-sub"><b>Exfolier</b> · ${LK_SKIN[s].exf}</p><p class="pv-sub"><b>Masque</b> · ${LK_SKIN[s].mask}</p><p class="pv-sub">${LK_SKIN[s].tip}</p><button class="btn sm ghost" data-lkskin style="margin-top:10px">Refaire le test</button>` : '<p class="pv-sub">4 questions, et les produits s\'adaptent à ta peau.</p><button class="btn sm" data-lkskin style="margin-top:10px">Faire le test</button>'),
     sec('Cheveux', `lavage : ${p.wash.map(i => PV_WD[i].toLowerCase()).join(', ') || 'à choisir'}`, `<p class="pv-k">Jours de lavage</p><div class="chips">${PV_WD.map((w, i) => `<button class="chip" data-pvwash="${i}" aria-pressed="${p.wash.includes(i)}">${w}</button>`).join('')}</div><p class="pv-sub">2 lavages par semaine suffisent pour des cheveux bouclés.</p>${hairBlock()}`),
     sec('Grand soin', rd == null ? 'jamais fait · toutes les 2 semaines' : `il y a ${rd} j · toutes les 2 semaines`, (() => { const rOn = l.raid.on, rDone = rOn ? LK_RAID.filter(x => l.raid[x[0]]).length : 0; return rOn ? `<p class="pv-sub">${rDone}/${LK_RAID.length} étapes · environ 1 h</p>${LK_RAID.map(([id, t, how]) => `<div class="pv-hr2">${pvChk(!!l.raid[id], `data-lkr="${id}"`, esc(t), '')}${how ? '<button class="pv-q2" data-hint aria-label="Comment faire">?</button>' : ''}</div>${how ? `<p class="pv-hint">${how}</p>` : ''}`).join('')}<button class="btn sm ghost" data-lkraid="x" style="margin-top:10px">Abandonner</button>` : `<p class="pv-sub">Vapeur, savon noir, kessa, masques, fitra complète, pieds, hydratation intense : une heure pour remettre tout le corps à neuf.</p><button class="btn sm" data-lkraid="go" style="margin-top:10px">Commencer le grand soin</button>`; })()),
@@ -5441,12 +5482,12 @@ function vLook() {
       ${done.length ? `<details class="pv-det" data-k="lk-done"><summary>✓ ${done.length} fait${done.length > 1 ? 's' : ''}</summary>${done.map(row).join('')}</details>` : ''}
       <details class="pv-det" data-k="lk-other"><summary>${am ? 'Ce soir' : 'Ce matin'} · ${oN}/${other.length}</summary>${other.map(row).join('')}</details></section>
     ${due.length ? `<section class="glass pv-card"><h2 class="pv-h">À prévoir</h2>${due.map(([t, sb, b2]) => `<div class="pv-row"><span><b>${t}</b><br><small class="muted">${sb}</small></span>${b2}</div>`).join('')}</section>` : ''}
-    ${pvMore('Tout le reste', 'fitra, semaine, parfum, peau, cheveux, grand soin, codex', more)}
+    ${pvMore('Tout le reste', 'fitra, semaine, peau, cheveux, grand soin, codex', more)}
     <button class="pv-buyline" data-goto="achats" style="margin-top:14px">Le matériel · ${pvBuyN().n}/${pvBuyN().t} dans les Achats →</button>`;
 }
 const pvMO = (k, t, sub) => `<details class="pv-more" data-k="${k}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">`, pvMC = '</div></details>';
 function pvMore(t, sub, html) { return `<details class="pv-more" data-k="m-${esc(t)}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">${html}</div></details>`; }
-function soinSeg(v) { return `<div class="seg lk-seg" role="group" aria-label="Soin" style="margin-top:12px"><button data-cview="soin" aria-pressed="${v === 'soin'}">Sommeil</button><button data-cview="apparence" aria-pressed="${v === 'apparence'}">Apparence</button></div>`; }
+function soinSeg(v) { return `<div class="seg lk-seg" role="group" aria-label="Soin" style="margin-top:12px"><button data-cview="soin" aria-pressed="${v === 'soin'}">Sommeil</button><button data-cview="apparence" aria-pressed="${v === 'apparence'}">Apparence</button><button data-cview="parfum" aria-pressed="${v === 'parfum'}">Parfum</button></div>`; }
 /* Test de peau */
 const LK_Q = [['Une heure après avoir lavé ton visage, sans rien mettre, ta peau :', ['Tire, inconfortable', 'Normale, rien de spécial', 'Brille sur le front et le nez', 'Brille partout']],
   ['En fin de journée, ton front et ton nez sont :', ['Mats', 'Un peu brillants', 'Très brillants']],
@@ -5647,6 +5688,7 @@ function sqMake(def, start, extra = {}) {
 }
 /* Le moteur : appelé toutes les 20 s quand l'app est ouverte */
 function sqTick() {
+  if (!uiSys()) return; /* v5.2 : comètes désactivées */
   if (repOn()) return;
   if (typeof S === 'undefined' || !S) return;
   const s = sqS(), now = Date.now(), k = todayISO(); let changed = false;
@@ -5689,6 +5731,7 @@ function sqTick() {
 function sqAutoDone(q) { if (q.chain === 'prieres') { try { return prayToday(q.day) >= 5; } catch (e) { return false; } } return false; }
 /* L'alerte plein écran d'une nouvelle quête */
 function sqAnnounce() {
+  if (!uiSys()) return;
   if (repOn()) return;
   if ($('.sys-pop') || $('#intro') || $('#inact') || $('.lk-run') || SANQ.length) return;
   const q = sqS().inst.find(x => x.st === 'new' && x.end > Date.now()); if (!q) return;
@@ -6716,6 +6759,8 @@ function pvHome() {
 /* ---------- CLICS ---------- */
 function pvRe() { const y = scrollY; render(); scrollTo(0, y); }
 function pvClick(t) {
+  if (bpClick(t)) return true;
+  if (pfClick(t)) return true;
   { const hb = t.closest('[data-hint]'); if (hb) { const r = hb.closest('.pv-hr2'), n = r && r.nextElementSibling; if (n && n.classList.contains('pv-hint')) n.classList.toggle('on'); return true; } }
   if (puffClick(t)) return true;
   if (homeClick(t)) return true;
@@ -6850,7 +6895,7 @@ const PV_APG = [
   ['Peau', [['m-visage', 'Visage', 'Eau fraîche (ou nettoyant si peau grasse), crème hydratante, puis SPF 30 à 50 dès qu\'il fait beau.', 1, 'am'], ['s-visage', 'Visage', 'Nettoyant doux, eau tiède, sèche en tamponnant, puis crème de nuit.', 1, 'pm']]],
   ['Corps', [['s-douche', 'Douche complète', 'Savon doux partout, insiste sur aisselles, pieds et plis. Sèche complètement.', 1, 'pm'], ['s-corps', 'Crème corps', 'Sur peau encore humide : bras, jambes, coudes, genoux. Le parfum tient mieux ensuite.', 1, 'pm'], ['s-at', 'Anti-transpirant', 'Le soir sur aisselles sèches : il agit la nuit et tient toute la journée du lendemain.', 1, 'pm']]],
   ['Barbe & cheveux', [['m-barbe', 'Barbe · brosser + huile', 'Brosse en poils de sanglier vers le bas, puis 2-3 gouttes d\'huile entre les paumes, jusqu\'à la peau.', 1, 'am'], ['m-cheveux', 'Boucles rafraîchies', 'Un peu d\'eau et une noisette de soin sans rinçage, froisser sans peigner à sec.', 1, 'am'], ['ch-h', 'Huile cheveux', 'Longueurs et cuir chevelu, le soir ou avant le lavage.', 0, 'pm'], ['gum', 'Gummies cheveux', 'Avec ton repas.', 0, 'day']]],
-  ['Style', [['m-deo', 'Déo + parfum en couches', 'Crème parfumée, déodorant, musc ou huile de barbe parfumée, puis parfum (pouls, cou, barbe), sans frotter.', 1, 'am'], ['tenue', 'Tenue de demain prête', 'Choisie, repassée, posée. Chaussures nettes.', 0, 'pm'], ['s-linge', 'Pyjama propre', 'Un vrai pyjama, et tes sous-vêtements de demain sortis.', 1, 'pm']]]];
+  ['Style', [['m-deo', 'Déo + parfum', 'Déodorant, puis Soin → Parfum : choisis ton occasion, l\'app te dit quelle crème, quel musc et quel parfum mettre.', 1, 'am'], ['tenue', 'Tenue de demain prête', 'Choisie, repassée, posée. Chaussures nettes.', 0, 'pm'], ['s-linge', 'Pyjama propre', 'Un vrai pyjama, et tes sous-vêtements de demain sortis.', 1, 'pm']]]];
 const PV_AP = PV_APG.reduce((a, g) => a.concat(g[1]), []);
 function pvApList() { return PV_AP.concat(pvWashDay() ? [['lavage', 'Lavage des cheveux', 'Shampoing doux sans sulfates, après-shampoing, masque si c\'est le jour. Sèche en tamponnant.', 0, 'day']] : []); }
 const pvApOn = (x, d, k = todayISO()) => x[3] ? !!((lkS().log[k] || {})[x[0]]) : !!(d.ap || {})[x[0]];
@@ -7013,6 +7058,435 @@ function homeClick(t) {
 }
 function homeCheck() { const [o, d] = homeScore(); if (o === d) pvOnce('home', 4, ['Maison au propre', 'Toutes les tâches du jour sont faites.']); }
 
+/* =====================================================================
+   v5.2 · LE CONSEILLER PARFUM (Corps → Soin → Parfum)
+   Sayko choisit l'occasion ; l'app dit quoi porter et comment, de A à Z :
+   crème, musc, parfum, nombre de vaporisations, zones, moment, pourquoi, alternative.
+   La saison est déduite du mois (hiver : nov.→mars, été : juin→sept.).
+   Collection (31/10/2026) : Sheikh Al Shuyukh Supreme, Velvet Oud, Bottled Infinite,
+   Dior Oud Ispahan, Gris Dior, Armaf Odyssey Dubai Chocolat, 2 parfums de La Mecque,
+   dupe Baccarat Rouge 540. Crèmes : Sol de Janeiro (gourmande), Atoderm Ultra (neutre).
+   Muscs : Musk Abiyad (eau de parfum, propre), Narjis (huile, violette).
+   ===================================================================== */
+const PF_P = {
+  sheikh: { n: 'Sheikh Al Shuyukh Supreme', b: 'Lattafa', f: 'Oriental épicé et gourmand', notes: 'rose, safran, cannelle, caramel, vanille, ambre', pw: 3, star: 1, cr: 'sdj', sp: '3 à 4', when: 'Hiver, soirées, occasions' },
+  velvet: { n: 'Velvet Oud', b: 'Lattafa', f: 'Violette et velours', notes: 'feuille de violette, daim, oud, ambre, musc', pw: 2, star: 1, cr: 'sdj', mu: 'narjis', sp: '3', when: 'Hiver, en amoureux, rendez-vous' },
+  infinite: { n: 'Bottled Infinite', b: 'Hugo Boss', f: 'Frais, aromatique, boisé', notes: 'mandarine, pomme, sauge, lavande, patchouli', pw: 2, star: 1, cr: 'neutre', mu: 'abiyad', sp: '3 à 4', when: 'Journée, travail, printemps et été' },
+  ispahan: { n: 'Oud Ispahan', b: 'Dior', f: 'Rose et oud, profond', notes: 'rose, oud, labdanum, patchouli', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '2 à 3', when: 'Grandes occasions, soirées d\'hiver' },
+  gris: { n: 'Gris Dior', b: 'Dior', f: 'Chypre poudré, élégant', notes: 'rose, patchouli, mousse, poudré', pw: 2, cr: 'neutre', mu: 'narjis', sp: '3', when: 'Mi-saison, journée chic, rendez-vous importants' },
+  odyssey: { n: 'Odyssey Dubai Chocolat', b: 'Armaf', f: 'Gourmand pistache-chocolat', notes: 'pistache, chocolat, praliné, vanille', pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Froid, extérieur, cocooning' },
+  mecg: { n: 'La Mecque · oriental gourmand', b: 'Achat à La Mecque', f: 'Oriental avec une touche gourmande', notes: 'oriental, chaud, sucré', pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Hiver, Jumu\'a, famille' },
+  mecr: { n: 'La Mecque · rose d\'Arabie', b: 'Achat à La Mecque', f: 'Rose sèche, florale', notes: 'rose d\'Arabie, floral sec', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '1 à 2', when: 'Mosquée, Aïd, occasions' },
+  br540: { n: 'Dupe Baccarat Rouge 540', b: 'Dupe', f: 'Ambré, safrané, aérien', notes: 'safran, jasmin, ambre, bois', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '2 à 3', when: 'Toute l\'année, sorties' }
+};
+const PF_CR = { sdj: ['Sol de Janeiro', 'gourmande (pistache, caramel, vanille) : elle chauffe et prolonge les parfums sucrés'], neutre: ['Atoderm Crème Ultra', 'sans parfum : elle hydrate sans rien ajouter à l\'odeur'] };
+const PF_MU = { abiyad: ['Musk Abiyad', 'une vaporisation légère, en couche propre et douce'], narjis: ['Narjis (huile)', 'une goutte au cou et aux poignets, pour la violette poudrée'] };
+/* Occasions : [id, nom, icône, sous-titre] + choix par saison { parfum, layering?, musc?, sprays?, zones, quand, pourquoi, éviter, alt } */
+const PF_OC = [
+  ['gare1', 'Gare · 5 h-14 h', '🚉', 'Contact avec les voyageurs, longue journée'],
+  ['gare2', 'Gare · 14 h-23 h', '🌆', 'Après-midi et soirée de service'],
+  ['pizza', 'Livraison Mister Pizza', '🛵', 'Dehors, au vent, aux portes'],
+  ['love', 'Sortie en amoureux', '❤', 'Proche, intime'],
+  ['rdv', 'Rendez-vous', '🤝', 'Pro, administratif, important'],
+  ['potes', 'Sortie entre potes', '😎', 'Se faire remarquer'],
+  ['soir', 'Soirée dehors', '✨', 'Sortie chic le soir'],
+  ['chill', 'Journée chill', '🛋', 'À la maison, tranquille'],
+  ['home', 'Soirée à la maison', '🕯', 'Cocooning, en couple'],
+  ['mosq', 'Mosquée', '🕌', 'Prière, Jumu\'a'],
+  ['aid', 'Aïd · famille', '🌙', 'Grandes occasions, visites']
+];
+function pfSeason(d = new Date()) { const m = d.getMonth() + 1; return m >= 11 || m <= 3 ? 'hiver' : m >= 6 && m <= 9 ? 'ete' : 'mi'; }
+const PF_SN = { hiver: 'hiver', ete: 'été', mi: 'mi-saison' };
+function pfPlan(oc, sn) {
+  const W = sn !== 'ete'; /* la mi-saison à Cannes se traite comme l'hiver le soir */
+  const P = {
+    gare1: { p: 'infinite', sp: '2 à 3', zones: 'cou et poitrine, sous le col', when: 'à la maison, juste après la douche (vers 4 h 15)', why: 'Tu es au contact des voyageurs, souvent de près, pendant 9 heures : il faut une odeur fraîche, propre, qui ne dérange personne et qui tient. Bottled Infinite fait exactement ça.', avoid: 'Pas de gourmand ni d\'oriental lourd le matin dans un espace fermé : ça écœure vite les gens qui t\'approchent.', alt: 'gris' },
+    gare2: { p: W ? 'gris' : 'infinite', sp: '3', zones: 'cou, nuque et poitrine', when: '20 à 30 minutes avant de partir', why: W ? 'Gris Dior est élégant et poudré, assez présent pour tenir jusqu\'à 23 h, mais jamais agressif : parfait pour un service d\'après-midi et de soirée en hiver.' : 'Frais et propre pendant tout le service, même quand il fait chaud.', avoid: 'Évite les parfums très puissants : en fin de service, une odeur trop forte devient lourde.', alt: W ? 'infinite' : 'gris' },
+    pizza: { p: 'infinite', sp: '2', zones: 'sur le t-shirt et le torse, sous la veste', when: 'avant de partir', why: 'En livraison, tu es dehors, au vent, sous un casque, et tu croises les clients quelques secondes à leur porte. Un parfum frais vaporisé sur les vêtements tient malgré le vent, et sent propre sans se mélanger à l\'odeur des pizzas.', avoid: 'Aucun gourmand (pistache, vanille) : avec l\'odeur de pizza dans le sac, c\'est écœurant.', alt: null, altSp: '' },
+    love: { p: W ? 'velvet' : 'br540', lay: W ? null : 'ispahan', sp: W ? '3' : '2', zones: 'cou, derrière les oreilles, dans la barbe et sur les poignets', when: '30 minutes avant de sortir', why: W ? 'La violette poudrée de Velvet Oud, adoucie par la vanille de la Sol de Janeiro et renforcée par Narjis : c\'est ton « Oud Satin Mood » maison. Chaud, velouté, on a envie de s\'approcher.' : 'Le duo dupe Baccarat Rouge 540 et Oud Ispahan : ambre safrané et rose profonde, un classique qui marque.', avoid: 'Ne vaporise pas trop : en intime, la personne est près de toi. Mieux vaut qu\'elle te découvre en s\'approchant.', alt: 'sheikh' },
+    rdv: { p: 'gris', sp: '2 à 3', zones: 'cou et poignets', when: '30 minutes avant', why: 'Gris Dior dit « soigné et sérieux » sans en faire trop. Dans un bureau, l\'odeur doit être une bonne impression discrète, pas un sujet de conversation.', avoid: 'Pas d\'oriental puissant ni de gourmand : dans une petite pièce, ça peut gêner.', alt: 'infinite' },
+    potes: { p: 'br540', sp: '3', zones: 'cou, nuque, poitrine et un peu sur les vêtements', when: '20 minutes avant de sortir', why: 'Le dupe de Baccarat Rouge 540 est l\'odeur qui fait réagir : aérienne, reconnaissable, elle diffuse autour de toi. C\'est le parfum à compliments.', avoid: 'Ne le mélange pas avec un gourmand : il perd sa signature.', alt: W ? 'sheikh' : 'infinite' },
+    soir: { p: W ? 'sheikh' : 'br540', lay: W ? null : 'ispahan', sp: W ? '4' : '3', zones: 'cou, nuque, poitrine, poignets', when: '30 minutes avant de sortir', why: W ? 'Sheikh, c\'est ta signature de soirée d\'hiver : riche, épicé, sucré. Avec la Sol de Janeiro dessous, il retrouve la densité de ta Luxe Edition et tient toute la nuit.' : 'Ambre safrané et rose-oud : élégant, puissant, parfait pour une soirée d\'été.', avoid: 'Une seule couche de parfum fort suffit : ne rajoute rien par-dessus.', alt: W ? 'ispahan' : 'sheikh' },
+    chill: { p: null, sp: '0', zones: 'crème neutre, puis Musk Abiyad (1 vaporisation)', when: 'après la douche', why: 'À la maison, garde tes parfums pour les vrais moments : une peau hydratée et un musc propre suffisent pour te sentir bien.', avoid: 'Inutile de gâcher un parfum puissant à la maison toute la journée.', alt: 'infinite', altSp: '1 à 2 vaporisations' },
+    home: { p: W ? 'odyssey' : 'velvet', sp: W ? '1 à 2' : '2', zones: W ? 'sur le torse ou les vêtements, pas partout' : 'cou et poignets', when: 'une heure avant, pour qu\'il soit doux', why: W ? 'Le pistache-chocolat d\'Odyssey est fait pour le cocooning d\'hiver : réconfortant, gourmand, chaleureux. À dose légère, c\'est le parfum « canapé et plaid ».' : 'Velvet Oud léger : une ambiance douce et veloutée pour une soirée à deux.', avoid: W ? 'Pas plus de 2 vaporisations : il envoie fort, et dans une pièce fermée ça sature vite.' : 'Reste léger, l\'espace est petit.', alt: W ? 'velvet' : 'odyssey' },
+    mosq: { p: 'mecr', sp: '1 à 2', zones: 'cou, barbe et vêtements', when: 'à la maison, avant de partir', why: 'Se parfumer pour la prière est une sunnah, surtout le vendredi. La rose d\'Arabie est faite pour ça : noble, florale, sans sucre. À petite dose, pour ne pas incommoder tes voisins dans les rangs.', avoid: 'Pas de parfum puissant en grande quantité : les rangs sont serrés. Pas de gourmand.', alt: 'narjis', altSp: 'quelques gouttes d\'huile' },
+    aid: { p: W ? 'ispahan' : 'mecr', lay: W ? 'br540' : null, sp: '2 à 3', zones: 'cou, barbe, poitrine et vêtements', when: 'le matin, avant la prière de l\'Aïd ou la visite', why: W ? 'Oud Ispahan, c\'est ton parfum de grande occasion : rose et oud, noble et profond. Une touche du dupe de Baccarat par-dessus le rend plus lumineux.' : 'La rose d\'Arabie, élégante et traditionnelle : parfaite pour la famille.', avoid: 'Une seule combinaison. Tu vas faire des accolades : pas besoin d\'en mettre beaucoup.', alt: W ? 'mecg' : 'ispahan' }
+  };
+  return P[oc];
+}
+const PFC = { oc: null, alt: false };
+function pfS() { const p = pvS(); if (!p.pf || typeof p.pf !== 'object') p.pf = { log: {} }; if (!p.pf.log) p.pf.log = {}; return p.pf; }
+function pfSteps(pl, useAlt) {
+  const pid = useAlt ? pl.alt : pl.p, x = pid && PF_P[pid] ? PF_P[pid] : null, sp = useAlt ? (pl.altSp || (x ? x.sp : '')) : pl.sp;
+  const isOil = pid === 'narjis';
+  const cr = x ? PF_CR[x.cr] : PF_CR.neutre, mu = x && x.mu ? PF_MU[x.mu] : null;
+  const L = [];
+  L.push(['Douche, puis sèche-toi', 'Le parfum tient sur une peau propre. Laisse-la juste un peu humide pour la crème.']);
+  L.push([`Crème : ${cr[0]}`, `Une noisette chauffée entre les mains, sur le cou, la nuque, le haut du torse et les poignets. Elle est ${cr[1]}. Attends 2 minutes.`]);
+  if (isOil) L.push(['Narjis, seul', 'Quelques gouttes d\'huile au cou, derrière les oreilles, dans la barbe et sur les poignets. Sans alcool, discret et poudré.']);
+  else if (!x) L.push(['Musk Abiyad', 'Une vaporisation légère sur le torse. C\'est tout : propre, doux, sans gêner personne.']);
+  else {
+    if (mu) L.push([`Musc : ${mu[0]}`, `${mu[1][0].toUpperCase() + mu[1].slice(1)}.`]);
+    L.push([`Parfum : ${x.n}`, `${sp} vaporisation${/^1$/.test(sp) ? '' : 's'} à 15 cm de la peau : ${pl.zones}. Ne frotte jamais : ça casse les notes de tête.`]);
+    if (pl.lay && !useAlt) L.push([`Layering : ${PF_P[pl.lay].n}`, 'Une seule vaporisation par-dessus, au cou. Le plus léger d\'abord, le plus fort ensuite.']);
+  }
+  L.push(['Quand', `${pl.when[0].toUpperCase() + pl.when.slice(1)}. Le temps que l'alcool s'évapore : ce sont les notes de cœur qu'on sentira.`]);
+  return L;
+}
+function vParfum() {
+  const sn = pfSeason(), f = pfS(), today = f.log[todayISO()];
+  const cur = PFC.oc || (today && today.oc) || null;
+  const grid = `<div class="pf-oc">${PF_OC.map(([id, n, ic, sub]) => `<button class="pf-occ ${cur === id ? 'on' : ''}" data-pfoc="${id}" aria-pressed="${cur === id}"><span class="pf-ic" aria-hidden="true">${ic}</span><b>${n}</b></button>`).join('')}</div>`;
+  let res = '';
+  if (cur) {
+    const oc = PF_OC.find(o => o[0] === cur), pl = pfPlan(cur, sn), useAlt = PFC.alt && pl.alt !== undefined, pid = useAlt ? pl.alt : pl.p, x = pid && PF_P[pid];
+    const isOil = pid === 'narjis', title = isOil ? 'Narjis' : x ? x.n : 'Musk Abiyad';
+    const cr = x ? PF_CR[x.cr][0] : 'Atoderm', mu = x && x.mu ? PF_MU[x.mu][0].replace(' (huile)', '') : null;
+    const sp = useAlt ? (pl.altSp || (x ? x.sp : '')) : pl.sp;
+    const chain = [`<span><i>1</i>${cr}</span>`].concat(isOil ? [`<span><i>2</i>Narjis · quelques gouttes</span>`] : !x ? [`<span><i>2</i>Musk Abiyad · 1 pschitt</span>`] : (mu ? [`<span><i>2</i>${esc(mu)}</span>`] : []).concat([`<span class="pf-main"><i>${mu ? 3 : 2}</i>${esc(x.n)} · ${esc(sp)}</span>`]).concat(pl.lay && !useAlt ? [`<span><i>${mu ? 4 : 3}</i>+ 1 pschitt ${esc(PF_P[pl.lay].n)}</span>`] : []));
+    const done = today && today.oc === cur;
+    const altName = pl.alt === null ? null : pl.alt === 'narjis' ? 'Narjis' : PF_P[pl.alt] ? PF_P[pl.alt].n : null;
+    res = `<section class="glass pv-card pf-res">
+      <p class="pv-k" style="margin-top:0">${oc[2]} ${oc[1]}</p>
+      <h2 class="pf-title">${esc(title)}</h2>
+      <div class="pf-chain">${chain.join('<b>→</b>')}</div>
+      <p class="pf-where">${esc(pl.zones)} · ${esc(pl.when)}</p>
+      <div class="pv-btns"><button class="btn sm ${done ? 'ghost' : ''}" data-pfdone style="flex:1">${done ? '✓ Fait' : 'C\'est fait'}</button>${altName ? `<button class="chip" data-pfalt>${useAlt ? '← Conseil' : 'Autre choix'}</button>` : ''}</div>
+      <details class="pv-det" data-k="pf-why"><summary>Pourquoi ?</summary><p>${useAlt ? 'Le plan B, si tu veux changer ou si le premier est fini.' : esc(pl.why)}</p><p><b>À éviter</b> : ${esc(pl.avoid)}</p><p class="pv-sub">Douche, crème sur peau encore humide, puis le reste à 15 cm, sans frotter.</p></details></section>`;
+  }
+  const coll = Object.entries(PF_P).map(([id, x]) => `<details class="pv-det pv-sec" data-k="pf-${id}"><summary><b>${esc(x.n)}${x.star ? ' ⭐' : ''}</b><small>${esc(x.f.toLowerCase())}</small></summary><div class="pv-morein"><p class="pv-sub" style="margin-top:0"><b>Notes</b> : ${esc(x.notes)}</p><p class="pv-sub"><b>Quand</b> : ${esc(x.when)}</p><p class="pv-sub"><b>Crème</b> : ${PF_CR[x.cr][0]}${x.mu ? ` · <b>musc</b> : ${PF_MU[x.mu][0]}` : ''}</p><p class="pv-sub"><b>Dose</b> : ${x.sp} vaporisations${x.pw >= 3 ? ' (il est puissant)' : ''}</p></div></details>`).join('');
+  const rules = `<p class="pv-sub" style="margin-top:0"><b>L'ordre</b> : douche, crème, musc, parfum. Toujours.</p>
+    <p class="pv-sub"><b>La crème</b> : Sol de Janeiro pour les parfums chauds et gourmands, Atoderm pour les frais, poudrés et floraux.</p>
+    <p class="pv-sub"><b>Le layering</b> : 2 parfums maximum, de la même famille. Le plus léger d'abord.</p>
+    <p class="pv-sub"><b>La dose</b> : on doit te sentir quand on s'approche, pas à trois mètres. Les puissants (Odyssey, La Mecque) : 1 à 2 vaporisations.</p>
+    <p class="pv-sub"><b>Ne frotte jamais</b> tes poignets. Vaporise aussi sur les vêtements : l'odeur y tient plus longtemps.</p>
+    <p class="pv-sub"><b>Conserve tes flacons</b> à l'abri de la lumière et de la chaleur (pas dans la salle de bain ni la voiture).</p>`;
+  return `${corpsTop('soin')}${soinSeg('parfum')}
+    ${res}
+    <section class="glass pv-card"><h2 class="pv-h">${cur ? 'Une autre occasion ?' : 'Quelle occasion ?'}</h2>${grid}</section>
+    ${pvMore('Ma collection', `${Object.keys(PF_P).length} parfums · 2 crèmes · 2 muscs`, coll + `<p class="pv-sub"><b>Crèmes</b> : Sol de Janeiro (gourmande), Atoderm Crème Ultra (neutre). <b>Muscs</b> : Musk Abiyad (propre), Narjis (violette).</p>`)}
+    ${pvMore('Les règles d\'or', 'ordre, dose, layering, conservation', rules)}`;
+}
+function pfClick(t) {
+  let el;
+  if ((el = t.closest('[data-pfoc]'))) { PFC.oc = el.dataset.pfoc; PFC.alt = false; render(); scrollTo(0, 0); return true; }
+  if (t.closest('[data-pfalt]')) { PFC.alt = !PFC.alt; pvRe(); return true; }
+  if (t.closest('[data-pfdone]')) { const f = pfS(), k = todayISO(), oc = PFC.oc || (f.log[k] && f.log[k].oc); if (!oc) return true; const pl = pfPlan(oc, pfSeason()); f.log[k] = { oc, p: PFC.alt ? pl.alt : pl.p }; lkDay()['m-deo'] = 1; save(); pvOnce('parfum', 1); pvCheckDay(); pvRe(); toast('Parfumé. Bonne journée.'); return true; }
+  return false;
+}
+
+/* =====================================================================
+   v5.5 · LE PLAN BUDGÉTAIRE (Argent → Budget)
+   Le vrai système de Sayko : chaque paie arrive sur un compte (LCL),
+   puis part en virements vers des pockets Revolut. Chaque charge est
+   payée par une pocket précise. L'app dit quoi faire quand une paie
+   arrive, si chaque charge est couverte, et combien il reste par jour.
+   S.money.bp = { pk: [pockets], start: {soldes de départ}, m: { 'AAAA-MM': { inc, fix, tx } } }
+   L'ancien budget (vBudget, budgetOf…) est gardé dans le code.
+   ===================================================================== */
+const BP_PK0 = [
+  ['lcl', 'LCL', '🏦', 'Salaires · loyer · RC Pro'],
+  ['cfj', 'CF Joint', '🏠', 'Charges du foyer'],
+  ['cfp', 'CF Perso', '📱', 'Tes abonnements'],
+  ['coif', 'Coiffeur', '💈', 'Tes coupes du mois'],
+  ['adp', 'Argent de poche', '💶', 'Tes dépenses perso'],
+  ['proto', 'Budget protocole', '💪', 'Soin, nutrition, équipement'],
+  ['wifey', 'Budget wifey', '💍', 'Pour ta femme'],
+  ['epar', 'Épargne', '🌱', 'On n\'y touche pas']
+];
+function bpNov() {
+  const s = (to, amt, n, done, o = {}) => ({ id: uid(), to, amt, n: n || '', done: !!done, ...o });
+  const f = (n, amt, pk, o = {}) => ({ id: uid(), n, amt, pk, paid: false, ...o });
+  return {
+    inc: [
+      { id: 'nassist', n: 'Salaire N\'assist', est: 1523, got: 1523, d: '2026-10-31', land: 'lcl', steps: [
+        s('cfj', 158, '', 1), s('cfp', 53, '', 1), s('coif', 50, '', 1), s('adp', 55, '', 1), s('proto', 55, '', 1), s('wifey', 28, '', 1),
+        s('ext', 150, 'Rembourser ma femme', 1, { once: 1 })] },
+      { id: 'mister', n: 'Salaire Mister Pizza', est: 700, got: null, land: 'lcl', steps: [
+        s('epar', 450), s('ext', 51, 'Payer les 3 amendes (3 × 17 €)', 0, { once: 1 }), s('coif', 50, 'Remplace les 50 € partis dans la commande Notino', 0, { once: 1 }),
+        s('adp', 89.5, '97 € − les 7,50 € du repas : ils restent sur LCL pour la RC Pro', 0, { next: { amt: 97, n: '' } }), s('wifey', 52)] },
+      { id: 'frere', n: 'Argent de mon frère', est: 100, got: null, land: 'proto', once: 1, note: 'Pour la montre, le reste reconstitue le budget protocole', steps: [] }
+    ],
+    fix: [
+      f('Loyer', 766, 'lcl'), f('RC Pro', 8, 'lcl'),
+      f('Électricité', 44, 'cfj'), f('Régularisation EDF', 32, 'cfj', { once: 1 }), f('Box', 47, 'cfj'), f('Forfaits mobiles', 28, 'cfj'), f('Prime (compte joint)', 7, 'cfj'),
+      f('Apple', 10, 'cfp'), f('Revolut Metal', 19, 'cfp'), f('Claude', 22, 'cfp'), f('Snap+', 2, 'cfp'),
+      f('Coiffeur', 50, 'coif'),
+      f('Abonnement bus', 25, 'adp', { note: 'L\'employeur en rembourse 50 % sur la paie' }),
+      f('Montre Casio DBC-611 silver', 0, 'proto', { once: 1, note: 'Avec l\'argent de ton frère · mets le prix quand tu l\'achètes' })
+    ],
+    tx: [
+      { id: uid(), d: '2026-10-31', k: 'exp', pk: 'proto', amt: 55, n: 'Commande Notino' },
+      { id: uid(), d: '2026-10-31', k: 'exp', pk: 'coif', amt: 50, n: 'Commande Notino' },
+      { id: uid(), d: '2026-10-31', k: 'exp', pk: 'adp', amt: 45.02, n: 'Commande Notino' },
+      { id: uid(), d: '2026-10-31', k: 'exp', pk: 'lcl', amt: 7.5, n: 'Repas (avancé sur l\'argent de la RC Pro)' }
+    ]
+  };
+}
+function bpS() {
+  const M = S.money;
+  if (!M.bp) M.bp = { pk: BP_PK0.map(([id, n, ico, h]) => ({ id, n, ico, h })), start: { lcl: -200 }, m: {} };
+  const B = M.bp;
+  if (!B.seeded) { B.seeded = 1; if (!B.m['2026-11']) B.m['2026-11'] = bpNov(); }
+  if (!B.mig1) { B.mig1 = 1; try { bpMigWifey(B); } catch (e) {} }
+  return B;
+}
+/* v5.6 · cadeaux de novembre pour ta femme (prix vérifiés le 31/10/2026) */
+function bpMigWifey(B) {
+  const m = B.m['2026-11']; if (!m) return;
+  const G = [
+    ['Masques Biodance Bio-Collagen ×3', 21, 'Sephora Cannes, 7 € le masque, en magasin'],
+    ['Patchs yeux Medicube PDRN Pink (60)', 22.26, 'Stylevana : 17,77 € + 4,49 € de livraison'],
+    ['Chaussettes moumoute', 11.99, 'Amazon, livraison gratuite'],
+    ['Patchs boutons étoiles et cœurs', 3.26, 'Temu, livraison gratuite'],
+    ['Toner pads Medicube Zero Pore Pad 2.0', 26, 'Sephora Cannes en magasin (ou Easypara 20,95 € + port)'],
+    ['Feutres acryliques 72 couleurs', 0, 'Amazon ≈ 33 € · gardés pour décembre ou une occasion']
+  ];
+  G.forEach(([n, amt, note]) => { if (!m.fix.some(f => f.n === n)) m.fix.push({ id: uid(), n, amt, pk: 'wifey', paid: false, once: 1, note }); });
+  const mp = m.inc.find(i => i.id === 'mister'); if (!mp) return;
+  const a = mp.steps.find(x => x.to === 'adp'), w = mp.steps.find(x => x.to === 'wifey'), extra = 4.51;
+  if (a && w && !a.done && !w.done) { a.amt = Math.round((numv(a.amt) - extra) * 100) / 100; w.amt = Math.round((numv(w.amt) + extra) * 100) / 100; w.n = 'Dont 4,51 € pris sur ton argent de poche pour les cadeaux'; w.next = { amt: 52, n: '' }; if (a.next) a.n = a.n + ' · moins 4,51 € pour les cadeaux de ta femme'; }
+  else m.tx.push({ id: uid(), d: todayISO(), k: 'mv', pk: 'adp', to: 'wifey', amt: extra, n: 'Complément pour les cadeaux de ta femme' });
+}
+const BPU = { m: null, k: 'exp', pk: 'adp', to: 'epar', recv: null };
+const bpMonths = () => Object.keys(bpS().m).sort();
+const nextMonthOf = ym => { const d = parseDate(ym + '-01'); d.setMonth(d.getMonth() + 1); return iso(d).slice(0, 7); };
+function bpCurM() { return BPU.m || bpDefM(); }
+function bpDefM() {
+  const cur = todayISO().slice(0, 7), B = bpS();
+  return B.m[cur] ? cur : B.m[nextMonthOf(cur)] ? nextMonthOf(cur) : cur;
+}
+const bpFrom = n => /^Salaire /.test(n) ? `à la paie ${n.slice(8)}` : `avec « ${n} »`;
+const bpE = v => { v = Math.round(v * 100) / 100; if (Object.is(v, -0)) v = 0; return Math.abs(v - Math.round(v)) < .005 ? eur0(v) : eur2(v); };
+const bpPk = id => id === 'ext' ? { id, n: 'Hors comptes', ico: '↗', h: '' } : (bpS().pk.find(p => p.id === id) || { id, n: id, ico: '•', h: '' });
+const bpDays = ym => { const cur = todayISO().slice(0, 7); return ym > cur ? daysIn(ym) : ym === cur ? daysIn(ym) - new Date().getDate() + 1 : 0; };
+
+/* Soldes à la fin du mois `upto`. proj = fin de mois prévue (paies attendues reçues, virements faits, charges payées). */
+function bpBal(upto, proj) {
+  const B = bpS(), bal = {}; B.pk.forEach(p => { bal[p.id] = numv(B.start[p.id]); });
+  const add = (id, v) => { if (id !== 'ext') bal[id] = (bal[id] || 0) + v; };
+  for (const ym of bpMonths()) {
+    if (ym > upto) break;
+    const m = B.m[ym], P = proj && ym === upto;
+    m.inc.forEach(i => {
+      const got = i.got != null && i.got !== '';
+      if (!got && !P) return;
+      add(i.land, got ? numv(i.got) : numv(i.est));
+      i.steps.forEach(s => { if (s.done || P) { add(i.land, -numv(s.amt)); add(s.to, numv(s.amt)); } });
+    });
+    m.fix.forEach(f => { if (f.paid || P) add(f.pk, -numv(f.amt)); });
+    m.tx.forEach(t => { if (t.k === 'exp') add(t.pk, -numv(t.amt)); else if (t.k === 'mv') { add(t.pk, -numv(t.amt)); add(t.to, numv(t.amt)); } else if (t.k === 'in') add(t.pk, numv(t.amt)); });
+  }
+  return bal;
+}
+/* Ce qui va encore arriver sur une pocket ce mois-ci, et d'où */
+function bpIncoming(m, id) {
+  const out = [];
+  m.inc.forEach(i => {
+    const got = i.got != null && i.got !== '';
+    let v = 0;
+    if (!got && i.land === id) v += numv(i.est) - i.steps.reduce((a, s) => a + numv(s.amt), 0);
+    i.steps.forEach(s => { if (!s.done && s.to === id) v += numv(s.amt); if (!s.done && got && i.land === id) v -= numv(s.amt); });
+    if (Math.abs(v) > .004) out.push({ n: i.n, v, got });
+  });
+  return out;
+}
+function bpPkInfo(ym, id) {
+  const m = bpS().m[ym], now = bpBal(ym, false)[id] || 0, end = bpBal(ym, true)[id] || 0;
+  const unpaid = m ? m.fix.filter(f => f.pk === id && !f.paid).reduce((a, f) => a + numv(f.amt), 0) : 0;
+  const inc = m ? bpIncoming(m, id) : [];
+  const dispo = now - unpaid;
+  let st = 'ok', line = '';
+  const from = inc.filter(x => x.v > 0).map(x => x.got ? 'aux virements à faire' : bpFrom(x.n));
+  if (dispo >= -.004) line = unpaid > 0 ? `✓ ${bpE(unpaid)} à payer, c'est couvert` : '';
+  else if (end >= -.004) { st = 'wait'; line = `⏳ Couvert ${from[0] || 'plus tard'}`; }
+  else { st = 'bad'; line = `⚠ Il manquera ${bpE(-end)}`; }
+  if (!line && inc.some(x => x.v > 0)) { const x = inc.find(y => y.v > 0); st = 'inc'; line = `+${bpE(x.v)} ${x.got ? 'à virer' : bpFrom(x.n)}`; }
+  return { now, end, unpaid, dispo, inc, st, line };
+}
+function bpHero(ym) {
+  ym = ym || bpCurM();
+  const m = bpS().m[ym]; if (!m) return null;
+  const I = bpPkInfo(ym, 'adp'), days = bpDays(ym);
+  return { ...I, days, perDay: days ? Math.max(0, I.end) / days : 0 };
+}
+
+function vPlan() {
+  const B = bpS(), ym = bpCurM(), m = B.m[ym], cur = todayISO().slice(0, 7);
+  const ms = bpMonths(), prev = ms.filter(x => x < ym).pop(), nxt = nextMonthOf(ym);
+  const nav = `<div class="month-nav" style="margin-top:22px"><p class="eyebrow" style="text-transform:uppercase">Plan de ${monthLabel(ym)}</p><div class="row" style="gap:0">
+    <button class="icon-btn" data-bpm="${prev || ''}" aria-label="Mois précédent" ${prev ? '' : 'disabled style="opacity:.3"'}>${ICON.prev}</button>
+    <button class="icon-btn" data-bpm="${nxt}" aria-label="Mois suivant" ${nxt > nextMonthOf(cur) && !B.m[nxt] && nxt > nextMonthOf(ms[ms.length - 1] || cur) ? 'disabled style="opacity:.3"' : ''}>${ICON.next}</button></div></div>`;
+  if (!m) {
+    const src = ms.filter(x => x < ym).pop();
+    return `${argentTop('budget')}${nav}${pCard(`Pas encore de plan pour ${monthLabel(ym)}`, `<p class="pv-line">${src ? `L'app reprend le plan de ${monthLabel(src)} : mêmes paies, mêmes virements, mêmes charges. Les dépenses ponctuelles ne sont pas reprises. Tu ajustes ensuite les montants.` : 'Crée ton premier plan.'}</p><button class="btn block" data-bpprep="${ym}" style="margin-top:12px">Préparer le plan de ${monthLabel(ym).split(' ')[0]}</button>`)}`;
+  }
+
+  /* 1 · À faire maintenant */
+  const todo = [];
+  m.inc.filter(i => i.got != null && i.got !== '' && i.steps.some(s => !s.done)).forEach(i => {
+    const rest = numv(i.got) - i.steps.reduce((a, s) => a + numv(s.amt), 0);
+    todo.push(`<div class="bp-do"><p class="bp-do-h">${esc(i.n)} reçu · ${bpE(numv(i.got))}</p><p class="pv-line">Fais ces virements depuis ${esc(bpPk(i.land).n)} :</p>
+      ${i.steps.map(s => bpStepRow(i, s)).join('')}
+      ${Math.abs(rest) > .004 ? `<p class="bp-rest ${rest < 0 ? 'bad' : ''}">${rest > 0 ? `${bpE(rest)} restent sur ${esc(bpPk(i.land).n)}` : `Il manque ${bpE(-rest)} : baisse un virement dans « Modifier le plan »`}</p>` : ''}
+      <button class="btn sm block" data-bpall="${i.id}" style="margin-top:10px">Tout est viré</button></div>`);
+  });
+  const next = m.inc.find(i => i.got == null || i.got === '');
+  if (next) {
+    const open = BPU.recv === next.id;
+    todo.push(`<div class="bp-do"><p class="bp-do-h">Prochaine rentrée · ${esc(next.n)}</p><p class="pv-line">Environ ${bpE(numv(next.est))}${next.note ? ` · ${esc(next.note)}` : ''}</p>
+      ${next.steps.length ? `<details class="pv-det"><summary>Ce que tu feras quand elle arrive</summary>${next.steps.map(s => `<p class="bp-prev"><span>${s.to === 'ext' ? esc(s.n) : `${bpPk(s.to).ico} ${esc(bpPk(s.to).n)}`}</span><b class="num">${bpE(numv(s.amt))}</b></p>`).join('')}</details>` : `<p class="pv-line">Elle arrive directement sur ${esc(bpPk(next.land).n)}.</p>`}
+      ${open ? `<div class="bp-recv"><label class="amount"><input id="bpGot" type="text" inputmode="decimal" value="${String(numv(next.est)).replace('.', ',')}" aria-label="Montant reçu"><span>€</span></label><button class="btn block" data-bpgotok="${next.id}">Valider le montant reçu</button></div>`
+        : `<button class="btn block" data-bpgot="${next.id}" style="margin-top:12px">Elle est arrivée</button>`}</div>`);
+  }
+  const bad = B.pk.map(p => [p, bpPkInfo(ym, p.id)]).filter(([, I]) => I.st === 'bad');
+  bad.forEach(([p, I]) => todo.push(`<p class="bp-alert">⚠ ${esc(p.n)} : il manquera ${bpE(-I.end)} en fin de mois.</p>`));
+  if (!todo.length) todo.push('<p class="pv-line">✓ Toutes les paies sont reçues et réparties. Il ne reste qu\'à suivre tes dépenses.</p>');
+
+  /* 2 · Argent de poche */
+  const H = bpHero(ym), adp = bpPk('adp');
+  const hero = `<section class="glass pv-card bp-hero"><p class="pv-k">${adp.ico} ${esc(adp.n)}</p>
+    ${H.days ? `<p class="bp-big num">${bpE(H.perDay)}<small> par jour</small></p><p class="pv-line"><b>${bpE(Math.max(0, H.end))}</b> pour finir ${monthLabel(ym).split(' ')[0]}${H.unpaid ? ` (${m.fix.filter(f => f.pk === 'adp' && !f.paid && numv(f.amt)).map(f => esc(f.n.toLowerCase())).join(', ')} déjà retiré)` : ''}.</p>` : `<p class="bp-big num">${bpE(H.end)}</p><p class="pv-line">Reste en fin de mois.</p>`}
+    <p class="bp-sub">Sur la pocket maintenant : <b class="num">${bpE(H.now)}</b>${H.inc.filter(x => x.v > 0).map(x => ` · +${bpE(x.v)} ${x.got ? 'à virer' : esc(bpFrom(x.n))}`).join('')}</p></section>`;
+
+  /* 3 · Pockets */
+  const tiles = B.pk.map(p => {
+    const I = bpPkInfo(ym, p.id), fx = m.fix.filter(f => f.pk === p.id), tx = m.tx.filter(t => t.pk === p.id || t.to === p.id);
+    return `<details class="bp-tile bp-${I.st}" data-k="bp-${p.id}"><summary><span class="bp-ico">${p.ico}</span><span class="grow"><b>${esc(p.n)}</b><small>${I.line || esc(p.h || '')}</small></span><em class="num">${bpE(I.now)}</em></summary>
+      <div class="bp-in">
+        ${fx.length ? `<p class="pv-k">À payer avec cette pocket</p>${fx.map(f => pvChk(f.paid, `data-bpfix="${f.id}"`, `${esc(f.n)} <span class="num bp-amt">${numv(f.amt) ? bpE(numv(f.amt)) : 'prix à saisir'}</span>`, f.paid ? 'Payé' : (f.note ? esc(f.note) : 'Pas encore prélevé'))).join('')}` : ''}
+        ${I.inc.length ? `<p class="pv-k">À venir</p>${I.inc.map(x => `<p class="bp-prev"><span>${x.got ? 'Virement à faire' : esc(x.n)}</span><b class="num">${x.v > 0 ? '+' : '−'}${bpE(Math.abs(x.v))}</b></p>`).join('')}` : ''}
+        ${tx.length ? `<p class="pv-k">Mouvements</p>${tx.map(t => bpTxRow(t, p.id)).join('')}` : ''}
+        <p class="bp-end">Fin de mois prévue <b class="num">${bpE(I.end)}</b></p>
+      </div></details>`;
+  }).join('');
+
+  /* 4 · Ajouter */
+  const chips = (attr, sel, skip) => B.pk.filter(p => p.id !== skip).map(p => `<button class="chip" ${attr}="${p.id}" aria-pressed="${sel === p.id}">${p.ico} ${esc(p.n)}</button>`).join('');
+  const add = `<section class="glass pv-card"><h2 class="pv-h">Noter un mouvement</h2>
+    <div class="seg" role="group" aria-label="Type"><button data-bpk="exp" aria-pressed="${BPU.k === 'exp'}"><span class="dot"></span>Dépense</button><button data-bpk="mv" aria-pressed="${BPU.k === 'mv'}"><span class="dot"></span>Virement</button><button data-bpk="in" aria-pressed="${BPU.k === 'in'}"><span class="dot"></span>Rentrée</button></div>
+    <label class="amount"><input id="bpAmt" type="text" inputmode="decimal" placeholder="0" autocomplete="off" aria-label="Montant en euros"><span>€</span></label>
+    <p class="pv-k">${BPU.k === 'exp' ? 'Payé avec' : BPU.k === 'mv' ? 'Depuis' : 'Arrivé sur'}</p><div class="chips">${chips('data-bppk', BPU.pk)}</div>
+    ${BPU.k === 'mv' ? `<p class="pv-k">Vers</p><div class="chips">${chips('data-bpto', BPU.to, BPU.pk)}</div>` : ''}
+    <input type="text" id="bpNote" placeholder="${BPU.k === 'exp' ? 'Quoi ? (facultatif)' : 'Note (facultatif)'}" autocomplete="off" style="margin-top:10px">
+    <button class="btn block" id="bpAdd" style="margin-top:12px">Ajouter</button></section>`;
+
+  /* 5 · Replié */
+  const incs = m.inc.map(i => {
+    const got = i.got != null && i.got !== '';
+    return `<div class="bp-incrow"><div class="row between"><b>${esc(i.n)}</b><span class="num">${got ? bpE(numv(i.got)) : `≈ ${bpE(numv(i.est))}`}</span></div>
+      <small class="muted">${got ? `Reçu${i.d ? ` le ${DAY_MONTH.format(parseDate(i.d))}` : ''} sur ${esc(bpPk(i.land).n)} · ${i.steps.filter(s => s.done).length}/${i.steps.length} virements` : `Attendu sur ${esc(bpPk(i.land).n)}`}</small>
+      ${got ? `${i.steps.map(s => bpStepRow(i, s)).join('')}<button class="link-btn small" data-bpungot="${i.id}" style="min-width:0;padding:0;margin-top:6px;color:var(--muted)">Annuler la réception</button>` : ''}</div>`;
+  }).join('');
+  const fixTot = m.fix.reduce((a, f) => a + numv(f.amt), 0), fixPaid = m.fix.filter(f => f.paid).reduce((a, f) => a + numv(f.amt), 0);
+  const groups = B.pk.filter(p => m.fix.some(f => f.pk === p.id)).map(p => `<p class="pv-k">${p.ico} ${esc(p.n)}</p>${m.fix.filter(f => f.pk === p.id).map(f => pvChk(f.paid, `data-bpfix="${f.id}"`, `${esc(f.n)} <span class="num bp-amt">${numv(f.amt) ? bpE(numv(f.amt)) : '—'}</span>`, f.paid ? 'Payé' : '')).join('')}`).join('');
+  const allTx = m.tx.slice().sort((a, b) => b.d.localeCompare(a.d));
+
+  return `${argentTop('budget')}${nav}
+    ${pCard('À faire maintenant', todo.join(''), 'bp-todo')}
+    ${hero}
+    <section class="glass pv-card"><h2 class="pv-h">Mes pockets</h2><div class="bp-tiles">${tiles}</div></section>
+    ${add}
+    <div style="margin-top:16px">
+    ${pvMore('Les paies du mois', `${m.inc.filter(i => i.got != null && i.got !== '').length}/${m.inc.length} reçues`, incs)}
+    ${pvMore('Toutes les charges', `${bpE(fixPaid)} payés sur ${bpE(fixTot)}`, groups)}
+    ${pvMore('Tous les mouvements', `${allTx.length} ce mois-ci`, allTx.map(t => bpTxRow(t)).join('') || '<p class="pv-line">Aucun mouvement.</p>')}
+    ${pvMore('Modifier le plan', 'paies, virements, charges, pockets', bpEdit(ym))}
+    </div>`;
+}
+function bpStepRow(i, s) {
+  const p = bpPk(s.to);
+  const lbl = s.to === 'ext' ? esc(s.n) : `${p.ico} Virer vers ${esc(p.n)}`;
+  return pvChk(s.done, `data-bpstep="${i.id}|${s.id}"`, `${lbl} <span class="num bp-amt">${bpE(numv(s.amt))}</span>`, s.to !== 'ext' && s.n ? esc(s.n) : '');
+}
+function bpTxRow(t, ctx) {
+  const d = parseDate(t.d), v = numv(t.amt);
+  const lbl = t.k === 'exp' ? (t.n ? esc(t.n) : 'Dépense') : t.k === 'in' ? (t.n ? esc(t.n) : 'Rentrée') : `${esc(bpPk(t.pk).n)} → ${esc(bpPk(t.to).n)}`;
+  const sub = t.k === 'exp' ? `${bpPk(t.pk).ico} ${esc(bpPk(t.pk).n)}` : t.k === 'in' ? `sur ${esc(bpPk(t.pk).n)}` : (t.n ? esc(t.n) : 'Virement');
+  const neg = t.k === 'exp' || (t.k === 'mv' && ctx === t.pk);
+  const pos = t.k === 'in' || (t.k === 'mv' && ctx === t.to);
+  return `<div class="bp-tx"><span class="bp-d"><b>${d.getDate()}</b>${DAY_SHORT.format(d).replace('.', '')}</span><span class="grow"><b>${lbl}</b><small>${sub}</small></span><span class="num" style="color:var(--${pos ? 'mint' : 'ink'})">${neg ? '−' : pos ? '+' : ''}${bpE(v)}</span><button class="bp-x" data-bptxdel="${t.id}" aria-label="Supprimer">×</button></div>`;
+}
+
+/* ---------- MODIFIER LE PLAN ---------- */
+function bpEdit(ym) {
+  const B = bpS(), m = B.m[ym];
+  const opt = (sel, ext) => (ext ? [{ id: 'ext', n: 'Payer / rembourser' }] : []).concat(B.pk).map(p => `<option value="${p.id}" ${sel === p.id ? 'selected' : ''}>${esc(p.n)}</option>`).join('');
+  const inp = (path, v, ph, num) => `<input type="text" ${num ? 'inputmode="decimal"' : ''} data-bpe="${path}" value="${esc(String(v ?? '')).replace('.', num ? ',' : '.')}" placeholder="${ph}" autocomplete="off">`;
+  const inc = m.inc.map((i, a) => `<div class="bp-ed"><div class="bp-edrow">${inp(`inc.${a}.n`, i.n, 'Nom')}${inp(`inc.${a}.est`, i.est, '≈ €', 1)}</div>
+    <label class="bp-lbl">Arrive sur <select data-bpe="inc.${a}.land">${opt(i.land)}</select></label>
+    ${i.steps.map((s, b) => `<div class="bp-edrow bp-step"><select data-bpe="inc.${a}.steps.${b}.to">${opt(s.to, 1)}</select>${inp(`inc.${a}.steps.${b}.amt`, s.amt, '€', 1)}<button class="bp-x" data-bpdel="inc.${a}.steps.${b}" aria-label="Retirer">×</button></div>${s.to === 'ext' ? `<div class="bp-edrow bp-step">${inp(`inc.${a}.steps.${b}.n`, s.n, 'À quoi sert ce paiement ?')}</div>` : ''}`).join('')}
+    <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn sm ghost" data-bpadd="inc.${a}.steps">+ Virement</button><button class="btn sm quiet" data-bpdel="inc.${a}">Supprimer cette rentrée</button></div></div>`).join('');
+  const fix = m.fix.map((f, a) => `<div class="bp-edrow">${inp(`fix.${a}.n`, f.n, 'Nom')}${inp(`fix.${a}.amt`, f.amt, '€', 1)}<button class="bp-x" data-bpdel="fix.${a}" aria-label="Retirer">×</button></div>
+    <div class="bp-edrow bp-sub2"><select data-bpe="fix.${a}.pk">${opt(f.pk)}</select><label class="bp-once"><input type="checkbox" data-bpe="fix.${a}.once" ${f.once ? 'checked' : ''}> Ce mois seulement</label></div>`).join('');
+  const pk = B.pk.map((p, a) => `<div class="bp-edrow">${inp(`PK.${a}.ico`, p.ico, '🙂')}${inp(`PK.${a}.n`, p.n, 'Nom')}</div>`).join('');
+  return `<p class="pv-k">Rentrées et virements</p>${inc}<button class="btn sm ghost" data-bpadd="inc">+ Ajouter une rentrée</button>
+    <p class="pv-k" style="margin-top:18px">Charges et dépenses prévues</p>${fix}<button class="btn sm ghost" data-bpadd="fix">+ Ajouter une charge</button>
+    <p class="pv-k" style="margin-top:18px">Pockets et comptes</p>${pk}<button class="btn sm ghost" data-bpadd="PK">+ Ajouter une pocket</button>
+    <p class="pv-line" style="margin-top:14px">« Ce mois seulement » : la charge n'est pas reprise le mois suivant. Les montants des rentrées sont des estimations : le vrai montant se saisit quand la paie arrive.</p>`;
+}
+function bpPath(ym, path) {
+  const B = bpS(), parts = path.split('.');
+  let o = parts[0] === 'PK' ? B.pk : B.m[ym][parts[0]];
+  for (let i = 1; i < parts.length - 1; i++) o = o[parts[i]];
+  return [o, parts[parts.length - 1]];
+}
+function bpCopy(ym) {
+  const B = bpS(), src = bpMonths().filter(x => x < ym).pop();
+  if (!src) { B.m[ym] = { inc: [], fix: [], tx: [] }; return; }
+  const m = B.m[src];
+  B.m[ym] = {
+    inc: m.inc.filter(i => !i.once).map(i => ({ ...i, got: null, d: '', steps: i.steps.filter(s => !s.once).map(s => ({ ...s, ...(s.next || {}), next: undefined, id: uid(), done: false })) })),
+    fix: m.fix.filter(f => !f.once).map(f => ({ ...f, id: uid(), paid: false })),
+    tx: []
+  };
+}
+function bpClick(t) {
+  const c = s => t.closest(s); let el;
+  if (!c('[data-bpm],[data-bpprep],[data-bpgot],[data-bpgotok],[data-bpstep],[data-bpall],[data-bpfix],[data-bpk],[data-bppk],[data-bpto],#bpAdd,[data-bptxdel],[data-bpungot],[data-bpdel],[data-bpadd]')) return false;
+  const ym = bpCurM(), B = bpS(), m = B.m[ym];
+  const findInc = id => m.inc.find(i => i.id === id);
+  if ((el = c('[data-bpm]'))) { if (el.dataset.bpm) { BPU.m = el.dataset.bpm; BPU.recv = null; } pvRe(); return true; }
+  if ((el = c('[data-bpprep]'))) { bpCopy(el.dataset.bpprep); save(); pvRe(); toast('Plan préparé'); return true; }
+  if ((el = c('[data-bpgot]'))) { BPU.recv = el.dataset.bpgot; pvRe(); setTimeout(() => { const i = $('#bpGot'); if (i) { i.focus(); i.select(); } }, 60); return true; }
+  if ((el = c('[data-bpgotok]'))) { const i = findInc(el.dataset.bpgotok), v = numv($('#bpGot') && $('#bpGot').value); if (!i || !(v > 0)) { toast('Indique le montant reçu'); return true; } i.got = v; i.d = todayISO(); BPU.recv = null; haptic(); save(); pvRe(); toast(i.steps.length ? 'Reçu. Fais maintenant les virements de la liste.' : 'Rentrée enregistrée'); return true; }
+  if ((el = c('[data-bpstep]'))) { const [a, b] = el.dataset.bpstep.split('|'), i = findInc(a), s = i && i.steps.find(x => x.id === b); if (s) { s.done = !s.done; if (s.done) haptic(); save(); pvRe(); } return true; }
+  if ((el = c('[data-bpall]'))) { const i = findInc(el.dataset.bpall); if (i) { i.steps.forEach(s => { s.done = true; }); haptic(); save(); pvRe(); toast('Tout est réparti'); } return true; }
+  if ((el = c('[data-bpungot]'))) { const i = findInc(el.dataset.bpungot); if (i) { i.got = null; i.d = ''; i.steps.forEach(s => { s.done = false; }); save(); pvRe(); } return true; }
+  if ((el = c('[data-bpfix]'))) { const f = m.fix.find(x => x.id === el.dataset.bpfix); if (f) { f.paid = !f.paid; if (f.paid) haptic(); save(); pvRe(); } return true; }
+  if ((el = c('[data-bpk]'))) { BPU.k = el.dataset.bpk; if (BPU.to === BPU.pk) BPU.to = B.pk.find(p => p.id !== BPU.pk).id; pvRe(); return true; }
+  if ((el = c('[data-bppk]'))) { BPU.pk = el.dataset.bppk; if (BPU.to === BPU.pk) BPU.to = B.pk.find(p => p.id !== BPU.pk).id; const a = $('#bpAmt').value, n = $('#bpNote').value; pvRe(); $('#bpAmt').value = a; $('#bpNote').value = n; return true; }
+  if ((el = c('[data-bpto]'))) { BPU.to = el.dataset.bpto; const a = $('#bpAmt').value, n = $('#bpNote').value; pvRe(); $('#bpAmt').value = a; $('#bpNote').value = n; return true; }
+  if (c('#bpAdd')) {
+    const v = numv($('#bpAmt').value); if (!(v > 0)) { toast('Indique un montant'); return true; }
+    const tx = { id: uid(), d: todayISO(), k: BPU.k, pk: BPU.pk, amt: Math.round(v * 100) / 100, n: $('#bpNote').value.trim() };
+    if (BPU.k === 'mv') tx.to = BPU.to;
+    m.tx.push(tx); haptic(); save(); pvRe();
+    toast(BPU.k === 'exp' ? `${bpE(v)} retirés de ${bpPk(BPU.pk).n}` : BPU.k === 'mv' ? 'Virement noté' : 'Rentrée notée', 'Annuler', () => { const k = m.tx.indexOf(tx); if (k >= 0) m.tx.splice(k, 1); save(); pvRe(); });
+    return true;
+  }
+  if ((el = c('[data-bptxdel]'))) { const k = m.tx.findIndex(x => x.id === el.dataset.bptxdel); if (k >= 0) { const [tx] = m.tx.splice(k, 1); save(); pvRe(); toast('Mouvement supprimé', 'Annuler', () => { m.tx.splice(k, 0, tx); save(); pvRe(); }); } return true; }
+  if ((el = c('[data-bpdel]'))) { const [o, k] = bpPath(ym, el.dataset.bpdel); if (Array.isArray(o)) { const [x] = o.splice(+k, 1); save(); pvRe(); toast('Retiré', 'Annuler', () => { o.splice(+k, 0, x); save(); pvRe(); }); } return true; }
+  if ((el = c('[data-bpadd]'))) {
+    const path = el.dataset.bpadd, parts = path.split('.');
+    let arr = parts[0] === 'PK' ? B.pk : m[parts[0]]; for (let i = 1; i < parts.length; i++) arr = arr[parts[i]];
+    if (path === 'inc') arr.push({ id: uid(), n: 'Nouvelle rentrée', est: 0, got: null, land: 'lcl', steps: [] });
+    else if (path === 'fix') arr.push({ id: uid(), n: 'Nouvelle charge', amt: 0, pk: 'lcl', paid: false });
+    else if (path === 'PK') arr.push({ id: 'pk' + uid(), n: 'Nouvelle pocket', ico: '💰', h: '' });
+    else arr.push({ id: uid(), to: 'adp', amt: 0, n: '', done: false });
+    save(); pvRe(); return true;
+  }
+  return false;
+}
+document.addEventListener('change', e => {
+  const el = e.target.closest && e.target.closest('[data-bpe]'); if (!el) return;
+  const ym = bpCurM(), [o, k] = bpPath(ym, el.dataset.bpe);
+  if (el.type === 'checkbox') o[k] = el.checked ? 1 : 0;
+  else if (['amt', 'est'].includes(k)) o[k] = Math.round(numv(el.value) * 100) / 100;
+  else o[k] = el.value;
+  save(); pvRe();
+});
+
 function fxRead(id) {
   FXS.read.add(id); const d = fluxDay(); d.n++; save();
   if (d.n === 5 && !d.r) { d.r = 1; lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(3, { noBonus: true, msg: ['Rituel du jour', '5 cartes pour nourrir ton esprit plutôt que le vider.'] }); }
@@ -7098,7 +7572,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.1 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.7 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -8339,7 +8813,7 @@ function coranClick(t) {
    15. RENDU & NAVIGATION
    ===================================================================== */
 const TABS = ['orbite', 'intel', 'sante', 'achats', 'maison', 'flux', 'psy', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business', 'qibla', 'chasse'];
-const CVIEWS = ['entrainement', 'nutrition', 'soin', 'apparence'];
+const CVIEWS = ['entrainement', 'nutrition', 'soin', 'apparence', 'parfum'];
 let tab = 'orbite', missedDismissed = false;
 function render(animate) {
   { const w = chasseActive(), ix = NAV.findIndex(n => n[0] === 'chasse'); if (!w && ix >= 0) NAV.splice(ix, 1); if (w && ix < 0) NAV.push(['chasse', 'Chasse']); }
@@ -8359,12 +8833,12 @@ function render(animate) {
   document.documentElement.classList.toggle('flux-on', tab === 'flux' && !uiSys());
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
   const _openK = render._t === tab + (C.view || '') ? new Set([...app.querySelectorAll('details[data-k][open]')].map(d => d.dataset.k)) : new Set(); render._t = tab + (C.view || '');
-  try { app.innerHTML = gx({ psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vPvFood() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vLook() : vPvTrain(), intel: vIntel, sante: vSante, achats: vAchats, maison: vMaison, routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vBudget(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]()); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
+  try { app.innerHTML = gx({ psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vPvFood() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vLook() : C.view === 'parfum' ? vParfum() : vPvTrain(), intel: vIntel, sante: vSante, achats: vAchats, maison: vMaison, routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vPlan(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]()); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
   if (_openK.size) app.querySelectorAll('details[data-k]').forEach(d => { if (_openK.has(d.dataset.k)) d.open = true; });
   coreGlyph();
   if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); gxDailyLater(); } }
   if (tab === 'qibla') requestAnimationFrame(qiblaInit);
-  if ((tab === 'orbite' || tab === 'foi') && !missedDismissed) setTimeout(missedOverlay, 700);
+  if (uiSys() && (tab === 'orbite' || tab === 'foi') && !missedDismissed) setTimeout(missedOverlay, 700);
   if (tab === 'flux') bindFlux();
   if (tab === 'parcours') bindParcours();
   if (tab === 'foi' && F.view === 'arabe') { if ($('#quiz')) { if (quiz && !quiz.answered) drawQuiz(); else nextQuiz(); } setTimeout(arCheckNova, 400); }
@@ -8806,7 +9280,7 @@ let lastDay = todayISO();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') tjOpen();
   if (document.visibilityState === 'hidden') { stopOrbit(); if (tab === 'z') { zLock(); tab = 'orbite'; render(); } return; }
-  missedDismissed = false; if (tab === 'orbite' || tab === 'foi') setTimeout(missedOverlay, 700);
+  missedDismissed = false; if (uiSys() && (tab === 'orbite' || tab === 'foi')) setTimeout(missedOverlay, 700);
   if (todayISO() !== lastDay) { lastDay = todayISO(); H.form = null; H.month = todayISO().slice(0, 7); A.month = H.month; P.sel = null; render(); }
   else if (tab === 'orbite') startOrbit();
 });
@@ -8817,7 +9291,7 @@ window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
    ===================================================================== */
 (function intro() {
   const el = document.getElementById('intro'); if (!el) return;
-  let sysI = true; try { sysI = (localStorage.getItem('sdp-ui') || 'systeme') === 'systeme'; } catch (e) {}
+  const sysI = false; /* v5.7 : le Système est retiré, l'ouverture est toujours « l'aube » */
   const done = () => { if (el.parentNode) el.remove(); };
   let awake = true; try { awake = localStorage.getItem('sdp-awake') === '1'; } catch (e) {}
   if (sysI && !awake) { el.classList.add('sys-i'); awakeIntro(el, done); return; }
@@ -8834,8 +9308,8 @@ window.addEventListener('resize', () => { if (W8.open) buildWheel(); });
     return;
   }
   el.addEventListener('click', () => { el.classList.add('skip'); setTimeout(done, 320); });
-  el.addEventListener('animationend', e => { if (e.animationName === 'iout') done(); });
-  setTimeout(done, sysI ? 4300 : 6800);
+  el.addEventListener('animationend', e => { if (e.animationName === 'dwOut') done(); });
+  setTimeout(done, 5400);
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
 })();
 (async function boot() {
