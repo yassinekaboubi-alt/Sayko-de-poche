@@ -7904,7 +7904,11 @@ function vGalaxy(hello, now) {
   const nAw = d.full ? vis.length : Math.min(vis.length, Math.floor(d.pct * vis.length + 1e-6));
   const awake = vis.slice(0, nAw).map(p => p.key);
   const wave = d.full && !CSO.waved ? (CSO.waved = true, 'wave') : '';
-  return `${pageHead(`${hello}, <em>Sayko</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite')}
+  const tl = tlS(), run = !!tl;
+  const orbBtn = `<button class="tl-orb ${run ? 'run' : ''}" data-goto="libre" aria-label="${run ? 'Temps libre en cours' : 'J\'ai du temps libre'}">
+    <svg class="tl-hg" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 3h11M6.5 21h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 3.5c0 4.2 3.2 5.6 3.2 8.5S8 16.3 8 20.5M16 3.5c0 4.2-3.2 5.6-3.2 8.5s3.2 4.3 3.2 8.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="tl-s1" d="M9 6.2h6l-3 4.6z" fill="currentColor"/><path class="tl-s2" d="M9 20h6l-3-4z" fill="currentColor"/><path class="tl-st" d="M12 11v8" stroke="currentColor" stroke-width=".9" stroke-dasharray="1 1.6"/></svg>
+    <span>${run ? 'En cours' : 'Libre'}</span></button>`;
+  return `${pageHead(`${hello}, <em>Sayko</em>`, DAY_LONG.format(now).replace(/^./, c => c.toUpperCase()), 'orbite').replace('<header class="top">', '<header class="top tl-top">').replace('</header>', orbBtn + '</header>')}
   <div class="orbit-stage gal cosmos ${d.full ? 'full' : ''} ${wave}" id="stage" data-awake='${JSON.stringify(awake)}'><svg viewBox="-205 -190 410 380" aria-label="Ta galaxie : au centre, ta journée qui se remplit ; autour, tes modules qui s'éveillent">
     ${GDEFS}
     ${d.full ? radii.map((r, i) => `<ellipse class="cs-trail" style="animation-delay:${(.3 + i * .25).toFixed(2)}s" rx="${((r + 18) * K).toFixed(0)}" ry="${((r + 18) * K * RY).toFixed(0)}"/>`).join('') : ''}
@@ -7920,7 +7924,7 @@ function jgStrip(d) {
   return `<div class="cs-strip"><p class="jg-msg">${msg}</p>
     <p class="jg-sub">${d.full ? 'Ton soleil brille : les sept piliers sont tenus.' : `${d.P.length - d.todo.length} pilier${d.P.length - d.todo.length > 1 ? 's' : ''} sur ${d.P.length}`}${d.st ? ` · 🔥 ${d.st} jour${d.st > 1 ? 's' : ''} d'affilée` : ''}</p>
     ${d.nx ? `<button class="jg-next" data-goto="${d.nx.id}"><span><small>Prochaine étape</small><b>${esc(d.nx.n)}</b></span><em>${esc(d.nx.s)}</em>${ICON.chev}</button>` : ''}
-    ${(() => { const tl = tlS(); if (tl) { const N = tlNow(tl), b = N.i >= 0 ? tl.blocks[N.i] : null; return `<button class="tl-home on" data-goto="libre"><b>Temps libre en cours</b><span>${b ? `${b.ic} ${esc(b.n)}${N.over ? '' : ` · encore ${N.left} min`}` : 'Tout est fait ✓'}</span></button>`; } return `<button class="tl-home" data-goto="libre"><b>J'ai du temps libre</b><span>Dis-moi où tu es et combien de temps : je te dis quoi faire</span></button>`; })()}</div>`;
+</div>`;
 }
 
 /* =====================================================================
@@ -8156,7 +8160,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.19 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.20 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }

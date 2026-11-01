@@ -2492,6 +2492,24 @@ body:not(.sys-on) .in-hold i{background:linear-gradient(90deg,var(--gold),var(--
 .tl-b.done{opacity:.55}.tl-b.done .tl-ic{color:var(--mint);font-weight:800}
 .tl-txt{margin:8px 0 0 40px;font-size:.82rem;line-height:1.5;color:var(--ink-2)}
 .tl-go{margin:6px 0 0 40px;padding:0;min-width:0;color:var(--gold)}
+/* v5.20 · Bouton « temps libre » doré sous les icônes de l'accueil */
+.tl-top{position:relative}
+.tl-orb{position:absolute;right:0;top:62px;width:72px;height:72px;padding:0;border:0;border-radius:50%;background:none;display:grid;place-items:center;align-content:center;gap:1px;color:#FFE9B8;isolation:isolate;cursor:pointer;animation:tlGlow 3.2s ease-in-out infinite}
+.tl-orb::before{content:"";position:absolute;inset:0;border-radius:50%;z-index:-2;background:conic-gradient(#6E4F1A,#FFF3D2,#E8C27A,#6E4F1A,#F8E3A8,#B8863B,#6E4F1A);animation:tlSpin 5s linear infinite}
+.tl-orb::after{content:"";position:absolute;inset:2.5px;border-radius:50%;z-index:-1;background:radial-gradient(circle at 50% 40%,rgba(232,194,122,.22),#10201D 52%,#08100F 78%);box-shadow:inset 0 0 12px rgba(232,194,122,.45),inset 0 0 2px rgba(255,240,200,.6)}
+.tl-orb .tl-hg{width:30px;height:30px;color:#FFE3A0;filter:drop-shadow(0 0 5px rgba(255,210,130,.9))}
+.tl-orb span{font-size:.56rem;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#F3D9A4}
+.tl-s1{transform-box:fill-box;transform-origin:50% 100%;animation:tlSandTop 4s linear infinite}
+.tl-s2{transform-box:fill-box;transform-origin:50% 100%;animation:tlSandBot 4s linear infinite}
+.tl-st{animation:tlStream .5s linear infinite}
+.tl-orb.run{animation-duration:1.6s}.tl-orb.run::before{animation-duration:2s}
+.tl-orb:active{transform:scale(.94)}
+@keyframes tlSpin{to{transform:rotate(360deg)}}
+@keyframes tlGlow{0%,100%{box-shadow:0 0 14px 2px rgba(232,194,122,.35)}50%{box-shadow:0 0 26px 6px rgba(255,220,150,.55)}}
+@keyframes tlSandTop{0%{transform:scaleY(1)}90%,100%{transform:scaleY(.05)}}
+@keyframes tlSandBot{0%{transform:scaleY(.05)}90%,100%{transform:scaleY(1)}}
+@keyframes tlStream{to{stroke-dashoffset:-2.6}}
+@media (prefers-reduced-motion:reduce){.tl-orb,.tl-orb::before,.tl-s1,.tl-s2,.tl-st{animation:none}}
 </style>
 </head>
 <body>
