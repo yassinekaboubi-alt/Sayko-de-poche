@@ -6783,6 +6783,7 @@ function pvHomeOld() {
 /* ---------- CLICS ---------- */
 function pvRe() { const y = scrollY; render(); scrollTo(0, y); }
 function pvClick(t) {
+  if (tlClick(t)) return true;
   if (apClick(t)) return true;
   if (bpClick(t)) return true;
   if (pfClick(t)) return true;
@@ -7263,6 +7264,7 @@ function bpS() {
   if (!B.seeded) { B.seeded = 1; if (!B.m['2026-11']) B.m['2026-11'] = bpNov(); }
   if (!B.mig1) { B.mig1 = 1; try { bpMigWifey(B); } catch (e) {} }
   if (!B.mig2) { B.mig2 = 1; try { bpMigSadaqa(B); } catch (e) {} }
+  if (!B.mig3) { B.mig3 = 1; try { bpMig1Nov(B); } catch (e) {} }
   return B;
 }
 /* v5.6 · cadeaux de novembre pour ta femme (prix vérifiés le 31/10/2026) */
@@ -7293,6 +7295,22 @@ function bpMigSadaqa(B) {
     if (ep && !ep.done) { ep.amt = Math.round((numv(ep.amt) - 20) * 100) / 100; mp.steps.unshift({ id: uid(), to: 'sadaqa', amt: 20, n: 'Tu donnes d\'abord', done: false }); }
     else m.tx.push({ id: uid(), d: todayISO(), k: 'mv', pk: 'epar', to: 'sadaqa', amt: 20, n: 'Sadaqa du mois' });
   });
+}
+/* v5.14 · Point du 1er novembre : dépenses du 31/10, loyer déjà payé, LCL réel à −4,67 €, RC Pro pas encore passée. */
+function bpMig1Nov(B) {
+  const m = B.m['2026-11']; if (!m) return;
+  const loyer = m.fix.find(f => f.n === 'Loyer' && f.pk === 'lcl'); if (loyer) loyer.paid = true;
+  const add = (pk, amt, n) => { if (!m.tx.some(t => t.n === n)) m.tx.push({ id: uid(), d: '2026-11-01', k: 'exp', pk, amt, n }); };
+  add('adp', 9.98, 'Boulangerie ×2, Casino, O\'Tacos');
+  add('lcl', 3.37, 'Boulangerie ×2, Casino, O\'Tacos (le reste, payé sur LCL)');
+  /* aligne l'app sur le vrai solde LCL (−4,67 €) */
+  const bal = bpBal('2026-11', false).lcl, gap = Math.round((bal + 4.67) * 100) / 100;
+  if (gap > .004) add('lcl', gap, 'Écart à vérifier sur LCL (petit frais bancaire ?)');
+  /* paie Mister Pizza : LCL doit garder 4,67 € (découvert) + 8 € (RC Pro) = 12,67 € */
+  const mp = m.inc.find(i => i.id === 'mister'); if (!mp || (mp.got != null && mp.got !== '')) return;
+  const a = mp.steps.find(x => x.to === 'adp'); if (!a || a.done) return;
+  const rest = numv(mp.est) - mp.steps.reduce((t, x) => t + numv(x.amt), 0), need = 12.67 - rest;
+  if (need > .004) { a.amt = Math.round((numv(a.amt) - need) * 100) / 100; a.n = `97 € moins le repas (7,50), le complément cadeaux (4,51) et ${eur2(need)} laissés sur LCL : découvert (4,67) + RC Pro (8)`; }
 }
 const BPU = { m: null, k: 'exp', pk: 'adp', to: 'epar', recv: null };
 const bpMonths = () => Object.keys(bpS().m).sort();
@@ -7901,8 +7919,153 @@ function jgStrip(d) {
   const msg = d.full ? 'Journée accomplie' : d.pct === 0 ? 'Ta galaxie dort encore' : d.pct < .5 ? 'Ta galaxie s\'éveille' : d.pct < .85 ? 'Plus de la moitié' : 'Presque plein';
   return `<div class="cs-strip"><p class="jg-msg">${msg}</p>
     <p class="jg-sub">${d.full ? 'Ton soleil brille : les sept piliers sont tenus.' : `${d.P.length - d.todo.length} pilier${d.P.length - d.todo.length > 1 ? 's' : ''} sur ${d.P.length}`}${d.st ? ` · 🔥 ${d.st} jour${d.st > 1 ? 's' : ''} d'affilée` : ''}</p>
-    ${d.nx ? `<button class="jg-next" data-goto="${d.nx.id}"><span><small>Prochaine étape</small><b>${esc(d.nx.n)}</b></span><em>${esc(d.nx.s)}</em>${ICON.chev}</button>` : ''}</div>`;
+    ${d.nx ? `<button class="jg-next" data-goto="${d.nx.id}"><span><small>Prochaine étape</small><b>${esc(d.nx.n)}</b></span><em>${esc(d.nx.s)}</em>${ICON.chev}</button>` : ''}
+    ${(() => { const tl = tlS(); if (tl) { const N = tlNow(tl), b = N.i >= 0 ? tl.blocks[N.i] : null; return `<button class="tl-home on" data-goto="libre"><b>Temps libre en cours</b><span>${b ? `${b.ic} ${esc(b.n)}${N.over ? '' : ` · encore ${N.left} min`}` : 'Tout est fait ✓'}</span></button>`; } return `<button class="tl-home" data-goto="libre"><b>J'ai du temps libre</b><span>Dis-moi où tu es et combien de temps : je te dis quoi faire</span></button>`; })()}</div>`;
 }
+
+/* =====================================================================
+   v5.15 · TEMPS LIBRE : « J'ai du temps libre »
+   Sayko choisit où il est (gare, Mister Pizza, maison, transports) et combien
+   de temps il a. L'app découpe ce temps en petits blocs concrets, en donnant
+   la priorité à ce qui manque aujourd'hui, avec des pauses si c'est long.
+   Les blocs « Fait » nourrissent le protocole (minutes d'Intellect, Coran,
+   séance de psycho, ménage).
+   S.tl = { ctx, T, t0, blocks: [{ k, ic, n, m, txt, go, done }] }
+   ===================================================================== */
+const TL_CTX = [
+  ['gare', 'Gare', '🚉', 'Assis, vraiment libre'],
+  ['pizza', 'Mister Pizza', '🛵', 'Seules les oreilles sont libres'],
+  ['maison', 'Maison', '🏠', 'Tout est possible'],
+  ['trans', 'Transports', '⏳', 'Bus, attente, file']
+];
+const TLU = { ctx: null, T: null };
+function tlS() { return S.tl && S.tl.blocks ? S.tl : null; }
+/* Catalogue : [clé, icône, nom, contextes, min, max, poids(), texte(m), aller, effet(m)] */
+function tlCatalog() {
+  const L = [], left = id => Math.max(0, PV_SEUIL - pvMinLive(id));
+  try { const pn = prayerNow(); if (pn && !(S.faith.log[pn.k] || {})[pn.id]) L.push({ k: 'pri', ic: '🕌', n: `Prière de ${PNAMES[pn.id]}`, ctx: ['gare', 'maison'], min: 5, max: 10, w: 10, txt: m => `C'est le moment : ${PNAMES[pn.id]} est en cours, il reste ${leftTxt(pn.end - new Date())}. Ablutions, puis prie sereinement. Coche-la ensuite dans Foi.`, go: 'habitudes' }); } catch (e) {}
+  /* Psychologie : la séance du jour */
+  try { const wi = psyWeekIdx(), p = psyS(); if (wi >= 0 && wi < PSY_WEEKS.length) { const s = PSY_WEEKS[wi].s.find(x => !p.done[x[0]] && x[1] !== 'au'); if (s) L.push({ k: 'psy', ic: '🎓', n: `Psycho · ${s[3]}`, ctx: ['gare', 'maison'], min: Math.min(15, s[2] || 15), max: Math.max(15, s[2] || 20), w: 3.2, txt: m => `${PSY_SUB[s[1]]}. ${s[4] ? s[4].replace(/<[^>]+>/g, '') : ''} Ouvre Psychologie : c'est la carte « Ta séance du jour ».`, go: 'psy', fx: () => { if (!p.done[s[0]]) { p.done[s[0]] = todayISO(); if (s[2]) p.log.push({ d: todayISO(), m: s[2], sub: s[1], id: s[0] }); } } }); }
+    const due = psyDue().length; if (due) L.push({ k: 'fc', ic: '🃏', n: `Cartes de psycho · ${Math.min(10, due)} à revoir`, ctx: ['gare', 'maison', 'trans'], min: 5, max: 10, w: 2.2, txt: () => 'Lis la question, réponds dans ta tête, retourne la carte, sois honnête. 10 cartes maximum.', act: 'fc' }); } catch (e) {}
+  /* Intellect */
+  const it = (id, ic, n, ctx, mn, mx, w, txt, extra = {}) => { const l = left(id); L.push({ k: id, ic, n, ctx, min: mn, max: mx, w: l > 0 ? w : w * .25, need: l, txt, go: 'intel', fx: m => pvAddMin(id, m), ...extra }); };
+  it('cor', '📖', 'Coran + exégèse', ['gare', 'maison'], 10, 30, 3, m => `Lis une page du Coran (environ ${Math.max(1, Math.round(m / 10))} page${m >= 20 ? 's' : ''}), puis l'exégèse du passage : qu'est-ce qu'Allah te dit, à toi, aujourd'hui ? Note une phrase.`);
+  it('lect', '📚', 'Lecture · Siddhartha', ['gare', 'maison', 'trans'], 10, 30, 2.6, m => `Environ ${Math.round(m * .8)} pages. Avant de commencer, rappelle-toi où tu t'es arrêté. À la fin, résume le passage en une phrase dans ta tête.`);
+  it('ecr', '✍️', 'Écriture', ['gare', 'maison'], 10, 20, 2.2, m => `Carnet ou téléphone. Écris sans t'arrêter : ce que tu as fait, ce que tu ressens, ce que tu veux demain. ${m >= 15 ? 'Une page entière.' : 'Une demi-page suffit.'}`);
+  it('sudo', '🔢', 'Sudoku', ['gare', 'maison', 'trans'], 5, 15, 1.6, () => 'Une grille dans l\'app (le chrono compte tout seul) ou dans ton carnet. Commence par les lignes presque pleines.', { act: 'sudo', fx: null });
+  it('puz', '🧩', 'Casse-tête', ['gare', 'maison', 'trans'], 5, 10, 1.4, () => 'Taquin, Hanoï ou Lights Out dans l\'app (le chrono compte tout seul).', { act: 'puz', fx: null });
+  it('ecou', '🎧', 'Écoute du Coran', ['pizza', 'trans', 'gare', 'maison'], 5, 30, 2.4, m => `Un écouteur, une sourate que tu aimes, et écoute vraiment : essaie de reconnaître les mots que tu connais.${m >= 20 ? ' Le vendredi, choisis Al-Kahf.' : ''}`, { rep: 1 });
+  /* Audio et foi, quand seules les oreilles sont libres */
+  L.push({ k: 'dhikr', ic: '📿', n: 'Dhikr', ctx: ['pizza', 'trans', 'maison', 'gare'], min: 5, max: 10, w: (() => { try { return dkDay() < 33 ? 2 : .7; } catch (e) { return 1; } })(), txt: () => '33 × SubhanAllah, 33 × Alhamdulillah, 34 × Allahu akbar, puis Astaghfirullah autant que tu veux. À voix basse, au rythme de tes pas.', go: 'dhikr', rep: 1 });
+  L.push({ k: 'pod', ic: '🎙', n: 'Podcast de psychologie', ctx: ['pizza', 'trans', 'maison'], min: 10, max: 30, w: 1.3, txt: () => 'Dans Podcasts, cherche « psychologie » et prends un épisode sur un thème de L1 : mémoire, émotions, enfant, cerveau. Retiens une idée à raconter ce soir.', rep: 1 });
+  L.push({ k: 'arabe', ic: '🌿', n: 'Arabe du Coran · 5 mots', ctx: ['gare', 'maison', 'trans'], min: 5, max: 5, w: 1.5, txt: () => 'Révise 5 mots dans Foi → Arabe. Dis chaque mot à voix basse avec son sens.', go: 'arabe' });
+  L.push({ k: 'flux', ic: '✦', n: 'Flux', ctx: ['gare', 'trans', 'maison'], min: 5, max: 5, w: .8, txt: () => 'Quelques cartes : une sur la foi, une sur la psycho, une sur l\'élégance. Garde celle qui te parle.', go: 'flux' });
+  /* Corps et maison */
+  try { const P = pvPillars(), steps = P[1], circ = P[2];
+    if (steps.v < 1) L.push({ k: 'walk', ic: '🚶', n: 'Marche', ctx: ['maison', 'gare'], min: 10, max: 20, w: 2, txt: m => `${Math.round(m * 100)} pas environ. ${steps.s}. Mets la récitation dans tes oreilles : ça compte aussi pour l'écoute du Coran.`, go: 'entrainement' });
+    if (circ.v < 1) L.push({ k: 'circ', ic: '💪', n: 'Circuit', ctx: ['maison'], min: 15, max: 25, w: 2.8, txt: () => 'Pompes, dips, tractions négatives, à l\'échec, 3 à 4 tours. 90 secondes de repos entre les tours. Lance-le depuis Corps → Entraînement.', go: 'entrainement' }); } catch (e) {}
+  try { const h = homeS(), k = todayISO(); PV_HOME.forEach(([id, n, f, tip]) => { if (homeDue(id, f) && !homeDoneOn(id, k)) L.push({ k: 'hm-' + id, ic: '🧹', n, ctx: ['maison'], min: 5, max: 15, w: 1.8, txt: () => tip, go: 'maison', fx: () => { const Lh = h.last[id] = h.last[id] || []; if (!Lh.includes(k)) { Lh.push(k); Lh.sort(); } } }); }); } catch (e) {}
+  try { const [an, at] = pvApN(); if (an < at) L.push({ k: 'soin', ic: '🧴', n: 'Soin', ctx: ['maison'], min: 5, max: 10, w: 1.4, txt: () => `${at - an} geste${at - an > 1 ? 's' : ''} de soin restant${at - an > 1 ? 's' : ''} aujourd'hui (barbe, peau, dents…). Ouvre Corps → Soin et suis les étapes du moment.`, go: 'apparence' }); } catch (e) {}
+  return L;
+}
+function tlPlan(ctx, T, t0 = Date.now(), skip = []) {
+  /* v5.16 : jusqu'à 10 h et « la journée ». Rotation des activités (les moins faites d'abord), prières à leur heure,
+     pauses courtes (5 min / 25 min) ou longues (10 min / 50 min) selon la durée, « temps pour toi » et repas sur les longues plages. */
+  const C = tlCatalog().filter(c => c.ctx.includes(ctx) && !skip.includes(c.k));
+  const once = { pri: 1, psy: 1, circ: 1, soin: 1, fc: 1, arabe: 1, flux: 1, walk: 0 };
+  const long = T >= 180, workCap = long ? 50 : 25, pauseLen = long ? 10 : 5;
+  const blocks = [], used = {}; let rem = T, clock = 0, work = 0, sinceMe = 0, meal = false, guard = 0;
+  let pr = []; if (ctx !== 'trans') { try { const end = t0 + T * 60000; for (const k of [todayISO(), iso(addDays(new Date(), 1))]) { const W = ptDay(k).win; Object.keys(W).forEach(id => { const st = +W[id][0]; if (!skip.includes('pri-' + id) && st > t0 + 60000 && st < end - 5 * 60000) pr.push({ id, off: Math.round((st - t0) / 60000) }); }); } pr.sort((a, b) => a.off - b.off); } catch (e) { pr = []; } }
+  let mealTaken = false; try { mealTaken = !!pvPeek().meal; } catch (e) {}
+  const push = b => { const last = blocks[blocks.length - 1]; if (last && last.k === b.k && b.k !== 'pause') { last.m += b.m; last.txt = b.re ? b.re(last.m) : last.txt; } else blocks.push(b); rem -= b.m; clock += b.m; };
+  while (rem >= 3 && guard++ < 120) {
+    if (pr.length && pr[0].off <= clock + 2) { const x = pr.shift(), m = Math.min(10, rem); push({ k: 'pri-' + x.id, ic: '🕌', n: `Prière de ${PNAMES[x.id]}`, m, txt: `C'est l'heure de ${PNAMES[x.id]}. Ablutions, puis prie sereinement. Coche-la ensuite dans Foi.`, go: 'habitudes' }); work = 0; continue; }
+    if (T >= 300 && !meal && !mealTaken && clock >= T * .4 && rem >= 40) { meal = true; push({ k: 'meal', ic: '🍽', n: 'Ton repas', m: 30, txt: 'Ton repas unique : protéines (œufs ou viande blanche), patates douces ou patates, légumes. Mange lentement, sans écran, et bois un grand verre d\'eau.', go: 'nutrition' }); work = 0; continue; }
+    if (long && ctx !== 'pizza' && sinceMe >= 150 && rem >= 40) { push({ k: 'me', ic: '🌿', n: 'Temps pour toi', m: 30, txt: 'Repos libre, sans culpabilité : sieste courte, appel à ta femme, balade, série. C\'est ce qui te permet de tenir toute la journée.' }); sinceMe = 0; work = 0; continue; }
+    if (T >= 45 && work >= workCap && rem >= pauseLen + 7) { push({ k: 'pause', ic: '☕', n: 'Pause', m: pauseLen, txt: ctx === 'pizza' ? 'Enlève l\'écouteur, laisse tes oreilles se reposer, bois de l\'eau entre deux livraisons.' : 'Lève-toi, bois un verre d\'eau, regarde au loin, étire-toi. Pas de téléphone.' }); work = 0; continue; }
+    const fit = C.filter(x => x.min <= rem && !(once[x.k] && used[x.k]) && !(x.k.startsWith('hm-') && used[x.k]));
+    if (!fit.length) break;
+    const lastCat = blocks.length ? blocks[blocks.length - 1].k.split('-')[0] : '', sc = x => x.w / (1 + 2 * (used[x.k] || 0)) * (x.k.split('-')[0] === lastCat ? .4 : 1);
+    const c = fit.reduce((a, b) => sc(b) > sc(a) ? b : a);
+    let m = Math.min(c.max, rem, Math.max(c.min, c.need && !used[c.k] ? Math.ceil(c.need / 5) * 5 : c.max));
+    if (T < 45) m = Math.min(m, Math.max(c.min, Math.ceil(T / 2 / 5) * 5));
+    if (pr.length && pr[0].off > clock) m = Math.max(Math.min(m, pr[0].off - clock), Math.min(c.min, rem));
+    if (rem - m > 0 && rem - m < 5) m = rem;
+    used[c.k] = (used[c.k] || 0) + 1;
+    push({ k: c.k, ic: c.ic, n: c.n, m, txt: c.txt(m), re: c.txt, go: c.go || null, act: c.act || null, fx: !!c.fx });
+    work += m; sinceMe += m;
+  }
+  blocks.forEach(b => delete b.re);
+  if (blocks.length > 2 && blocks[0].m > 15 && !blocks[0].k.startsWith('pri')) { const i = blocks.findIndex(b => b.m <= 10 && b.k !== 'pause' && !b.k.startsWith('pri')); if (i > 0) blocks.unshift(blocks.splice(i, 1)[0]); }
+  return blocks;
+}
+/* « La journée » : jusqu'à 22 h (minimum 1 h) */
+const tlDayEnd = () => { const n = new Date(), e = new Date(n); e.setHours(22, 0, 0, 0); return Math.max(60, Math.round((e - n) / 60000)); };
+const TL_DURS = [5, 15, 30, 45, 60, 90, 120, 150, 180, 210, 240, 270, 300, 360, 420, 480, 540, 600];
+const tlLbl = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ''}`;
+function tlNow(tl) {
+  const el = (Date.now() - tl.t0) / 60000; let acc = 0;
+  for (let i = 0; i < tl.blocks.length; i++) { acc += tl.blocks[i].m; if (!tl.blocks[i].done && el < acc) return { i, left: Math.max(1, Math.round(acc - el)), el }; }
+  return { i: tl.blocks.findIndex(b => !b.done), left: 0, el, over: el >= tl.T };
+}
+function vLibre() {
+  const tl = tlS();
+  const head = `${pageHead('Temps libre', 'Ton temps, découpé en petits blocs qui te font avancer.', null)}`;
+  if (tl) {
+    tlTick();
+    const N = tlNow(tl), ctx = TL_CTX.find(c => c[0] === tl.ctx), dn = tl.blocks.filter(b => b.done).length;
+    const cur = N.i >= 0 ? tl.blocks[N.i] : null;
+    let acc = 0; const at = tl.blocks.map(b => { const t = hm(new Date(tl.t0 + acc * 60000)); acc += b.m; return t; });
+    const rows = tl.blocks.map((b, i) => `<div class="tl-b ${b.done ? 'done' : ''} ${i === N.i ? 'cur' : ''}">
+      <div class="tl-bh"><span class="tl-ic">${b.done ? '✓' : b.ic}</span><span class="grow"><b>${esc(b.n)}</b><small>${at[i]} · ${tlLbl(b.m)}</small></span>${b.k !== 'pause' ? `<button class="chip" data-tldone="${i}">${b.done ? 'Annuler' : 'Fait'}</button>` : ''}</div>
+      ${i === N.i || (!b.done && i === N.i + 1) ? `<p class="tl-txt">${esc(b.txt)}</p>${b.go || b.act ? `<button class="link-btn small tl-go" data-tlgo="${i}">Ouvrir →</button>` : ''}` : ''}</div>`).join('');
+    return `${head}
+      <section class="glass pv-card pf-res"><p class="pv-k" style="margin-top:0">${ctx ? ctx[2] + ' ' + ctx[1] : ''} · ${tl.day ? 'la journée' : tlLbl(tl.T)} · ${dn}/${tl.blocks.length} faits${tl.prev ? ` (+${tl.prev} avant l'interruption)` : ''}</p>
+        ${cur ? `<h2 class="pf-title">${cur.ic} ${esc(cur.n)}</h2><p class="pf-where">${N.over ? 'Ton temps est écoulé' : `Encore ${N.left} min sur ce bloc`}</p>` : `<h2 class="pf-title">Tout est fait ✓</h2><p class="pf-where">Bien joué. Chaque petit bloc compte.</p>`}
+        <div class="tl-bar"><i style="width:${Math.min(100, N.el / tl.T * 100).toFixed(0)}%"></i></div></section>
+      <section class="glass pv-card"><h2 class="pv-h">Ton plan</h2>${rows}</section>
+      ${cur && !N.over ? `<button class="btn block" data-tlre style="margin-top:14px">J'ai été interrompu · recalculer</button>` : ''}
+      <div class="pv-btns" style="margin-top:10px"><button class="btn sm ghost" data-tlend style="flex:1">${cur && !N.over ? 'Arrêter' : 'Terminer'}</button><button class="btn sm ghost" data-tlnew style="flex:1">Nouveau temps libre</button></div>`;
+  }
+  const ctxG = `<div class="pf-oc tl-ctx">${TL_CTX.map(([id, n, ic, sb]) => `<button class="pf-occ ${TLU.ctx === id ? 'on' : ''}" data-tlctx="${id}" aria-pressed="${TLU.ctx === id}"><span class="pf-ic" aria-hidden="true">${ic}</span><b>${n}</b><small>${sb}</small></button>`).join('')}</div>`;
+  const durG = `<div class="tl-durs">${TL_DURS.map(m => `<button class="chip" data-tlt="${m}" aria-pressed="${TLU.T === m}">${tlLbl(m)}</button>`).join('')}<button class="chip tl-day" data-tlt="day" aria-pressed="${TLU.T === 'day'}">La journée<small>jusqu'à 22 h</small></button></div>`;
+  return `${head}
+    <section class="glass pv-card"><h2 class="pv-h">Où es-tu ?</h2>${ctxG}</section>
+    <section class="glass pv-card"><h2 class="pv-h">Combien de temps as-tu ?</h2>${durG}
+      <button class="btn block" data-tlgo-plan style="margin-top:14px" ${TLU.ctx ? '' : 'disabled'}>${TLU.ctx ? 'Dis-moi quoi faire' : 'Choisis d\'abord où tu es'}</button></section>`;
+}
+function tlClick(t) {
+  const c = s => t.closest(s); let el;
+  if ((el = c('[data-tlctx]'))) { TLU.ctx = el.dataset.tlctx; pvRe(); return true; }
+  if ((el = c('[data-tlt]'))) { TLU.T = el.dataset.tlt === 'day' ? 'day' : Number(el.dataset.tlt); pvRe(); return true; }
+  if (c('[data-tlgo-plan]')) {
+    if (!TLU.ctx) { toast('Choisis où tu es'); return true; } if (!TLU.T) { toast('Choisis combien de temps tu as'); return true; }
+    const T = TLU.T === 'day' ? tlDayEnd() : TLU.T, t0 = Date.now(), blocks = tlPlan(TLU.ctx, T, t0); if (!blocks.length) { toast('Pas assez de temps pour un bloc : profite d\'une pause.'); return true; }
+    S.tl = { ctx: TLU.ctx, T, t0, day: TLU.T === 'day', blocks }; save(); haptic(); render(); scrollTo(0, 0); return true;
+  }
+  if ((el = c('[data-tldone]'))) {
+    const tl = tlS(); if (!tl) return true; const b = tl.blocks[+el.dataset.tldone]; if (!b) return true; b.done = !b.done;
+    if (b.done && b.fx) { const def = tlCatalog().find(x => x.k === b.k); if (def && def.fx) def.fx(b.m); }
+    if (b.done) { haptic(); pvOnce('tl-' + b.k, 1); pvCheckDay(); }
+    save(); pvRe(); return true;
+  }
+  if ((el = c('[data-tlgo]'))) { const tl = tlS(), b = tl && tl.blocks[+el.dataset.tlgo]; if (!b) return true;
+    if (b.act === 'fc') { psyFc(); return true; }
+    if (b.act === 'sudo' || b.act === 'puz') { go('intel'); pvSetIntV(b.act); render(); scrollTo(0, 0); return true; }
+    if (b.go) go(b.go); return true; }
+  if (c('[data-tlre]')) { const tl = tlS(); if (!tl) return true;
+    /* repart de maintenant, sur le temps qu'il reste jusqu'à la fin prévue ; ce qui est déjà fait n'est plus proposé */
+    const now = Date.now(), T = Math.round((tl.t0 + tl.T * 60000 - now) / 60000);
+    if (T < 5) { toast('Il reste moins de 5 minutes : profite d\'une vraie pause.'); return true; }
+    const keep = tl.blocks.filter(b => b.done), blocks = tlPlan(tl.ctx, T, now, keep.map(b => b.k).filter(k => ['psy', 'circ', 'soin', 'fc', 'pri', 'meal'].includes(k) || /^(pri|hm)-/.test(k)));
+    if (!blocks.length) { toast('Rien à recalculer.'); return true; }
+    S.tl = { ctx: tl.ctx, T, t0: now, day: tl.day, blocks, prev: (tl.prev || 0) + keep.length }; save(); haptic(); render(); scrollTo(0, 0); toast('Plan recalculé à partir de maintenant'); return true; }
+  if (c('[data-tlend]')) { S.tl = null; save(); render(); return true; }
+  if (c('[data-tlnew]')) { S.tl = null; TLU.T = null; save(); render(); scrollTo(0, 0); return true; }
+  return false;
+}
+let TL_TICK = 0;
+function tlTick() { clearInterval(TL_TICK); TL_TICK = setInterval(() => { if (tab === 'libre' && tlS() && !document.querySelector('input:focus')) pvRe(); else if (tab !== 'libre') clearInterval(TL_TICK); }, 30000); }
 
 function fxRead(id) {
   FXS.read.add(id); const d = fluxDay(); d.n++; save();
@@ -7989,7 +8152,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.13 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.17 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -9229,7 +9392,7 @@ function coranClick(t) {
 /* =====================================================================
    15. RENDU & NAVIGATION
    ===================================================================== */
-const TABS = ['orbite', 'intel', 'sante', 'achats', 'maison', 'flux', 'psy', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business', 'qibla', 'chasse'];
+const TABS = ['orbite', 'libre', 'intel', 'sante', 'achats', 'maison', 'flux', 'psy', 'parcours', 'foi', 'corps', 'routine', 'argent', 'business', 'qibla', 'chasse'];
 const CVIEWS = ['entrainement', 'nutrition', 'soin', 'apparence', 'parfum'];
 let tab = 'orbite', missedDismissed = false;
 function render(animate) {
@@ -9250,7 +9413,7 @@ function render(animate) {
   document.documentElement.classList.toggle('flux-on', tab === 'flux' && !uiSys());
   if (tab !== 'flux' && FXS.io) { FXS.io.disconnect(); FXS.io = null; }
   const _openK = render._t === tab + (C.view || '') ? new Set([...app.querySelectorAll('details[data-k][open]')].map(d => d.dataset.k)) : new Set(); render._t = tab + (C.view || '');
-  try { app.innerHTML = gx({ psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vPvFood() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vApparence() : C.view === 'parfum' ? vParfum() : vPvTrain(), intel: vIntel, sante: vSante, achats: vAchats, maison: vMaison, routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vPlan(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]()); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
+  try { app.innerHTML = gx({ psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vPvFood() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vApparence() : C.view === 'parfum' ? vParfum() : vPvTrain(), intel: vIntel, libre: vLibre, sante: vSante, achats: vAchats, maison: vMaison, routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vPlan(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]()); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
   if (_openK.size) app.querySelectorAll('details[data-k]').forEach(d => { if (_openK.has(d.dataset.k)) d.open = true; });
   coreGlyph();
   if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); gxDailyLater(); } }
