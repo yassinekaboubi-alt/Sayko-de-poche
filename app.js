@@ -7938,7 +7938,7 @@ const TL_CTX = [
   ['maison', 'Maison', '🏠', 'Tout est possible'],
   ['trans', 'Transports', '⏳', 'Bus, attente, file']
 ];
-const TLU = { ctx: null, T: null };
+const TLU = { ctx: null, T: null, H: null };
 function tlS() { return S.tl && S.tl.blocks ? S.tl : null; }
 /* Catalogue : [clé, icône, nom, contextes, min, max, poids(), texte(m), aller, effet(m)] */
 function tlCatalog() {
@@ -8028,7 +8028,10 @@ function vLibre() {
       <div class="pv-btns" style="margin-top:10px"><button class="btn sm ghost" data-tlend style="flex:1">${cur && !N.over ? 'Arrêter' : 'Terminer'}</button><button class="btn sm ghost" data-tlnew style="flex:1">Nouveau temps libre</button></div>`;
   }
   const ctxG = `<div class="pf-oc tl-ctx">${TL_CTX.map(([id, n, ic, sb]) => `<button class="pf-occ ${TLU.ctx === id ? 'on' : ''}" data-tlctx="${id}" aria-pressed="${TLU.ctx === id}"><span class="pf-ic" aria-hidden="true">${ic}</span><b>${n}</b><small>${sb}</small></button>`).join('')}</div>`;
-  const durG = `<div class="tl-durs">${TL_DURS.map(m => `<button class="chip" data-tlt="${m}" aria-pressed="${TLU.T === m}">${tlLbl(m)}</button>`).join('')}<button class="chip tl-day" data-tlt="day" aria-pressed="${TLU.T === 'day'}">La journée<small>jusqu'à 22 h</small></button></div>`;
+  const H = TLU.H, subs = H == null ? [] : H === 0 ? [5, 15, 30, 45] : [0, 15, 30, 45].map(x => H * 60 + x);
+  const durG = `<div class="seg tl-hours" role="group" aria-label="Heures">${[[0, '< 1 h'], [1, '1 h'], [2, '2 h'], [3, '3 h'], [4, '4 h']].map(([h, l]) => `<button data-tlh="${h}" aria-pressed="${H === h}">${l}</button>`).join('')}</div>
+    ${subs.length ? `<div class="tl-subs">${subs.map(m => `<button class="chip" data-tlt="${m}" aria-pressed="${TLU.T === m}">${tlLbl(m)}</button>`).join('')}</div>` : ''}
+    <button class="chip tl-day" data-tlt="day" aria-pressed="${TLU.T === 'day'}">La journée · jusqu'à 22 h</button>`;
   return `${head}
     <section class="glass pv-card"><h2 class="pv-h">Où es-tu ?</h2>${ctxG}</section>
     <section class="glass pv-card"><h2 class="pv-h">Combien de temps as-tu ?</h2>${durG}
@@ -8037,7 +8040,8 @@ function vLibre() {
 function tlClick(t) {
   const c = s => t.closest(s); let el;
   if ((el = c('[data-tlctx]'))) { TLU.ctx = el.dataset.tlctx; pvRe(); return true; }
-  if ((el = c('[data-tlt]'))) { TLU.T = el.dataset.tlt === 'day' ? 'day' : Number(el.dataset.tlt); pvRe(); return true; }
+  if ((el = c('[data-tlh]'))) { TLU.H = Number(el.dataset.tlh); TLU.T = TLU.H === 0 ? null : TLU.H * 60; pvRe(); return true; }
+  if ((el = c('[data-tlt]'))) { TLU.T = el.dataset.tlt === 'day' ? 'day' : Number(el.dataset.tlt); if (TLU.T === 'day') TLU.H = null; pvRe(); return true; }
   if (c('[data-tlgo-plan]')) {
     if (!TLU.ctx) { toast('Choisis où tu es'); return true; } if (!TLU.T) { toast('Choisis combien de temps tu as'); return true; }
     const T = TLU.T === 'day' ? tlDayEnd() : TLU.T, t0 = Date.now(), blocks = tlPlan(TLU.ctx, T, t0); if (!blocks.length) { toast('Pas assez de temps pour un bloc : profite d\'une pause.'); return true; }
@@ -8061,7 +8065,7 @@ function tlClick(t) {
     if (!blocks.length) { toast('Rien à recalculer.'); return true; }
     S.tl = { ctx: tl.ctx, T, t0: now, day: tl.day, blocks, prev: (tl.prev || 0) + keep.length }; save(); haptic(); render(); scrollTo(0, 0); toast('Plan recalculé à partir de maintenant'); return true; }
   if (c('[data-tlend]')) { S.tl = null; save(); render(); return true; }
-  if (c('[data-tlnew]')) { S.tl = null; TLU.T = null; save(); render(); scrollTo(0, 0); return true; }
+  if (c('[data-tlnew]')) { S.tl = null; TLU.T = null; TLU.H = null; save(); render(); scrollTo(0, 0); return true; }
   return false;
 }
 let TL_TICK = 0;
@@ -8152,7 +8156,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.17 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.18 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }

@@ -1,5 +1,5 @@
 /* Sayko de poche — service worker : tout fonctionne hors ligne. */
-const VERSION = 'sdp-v5.17.0';
+const VERSION = 'sdp-v5.18.0';
 const FILES = [
   './', './index.html', './app.js', './manifest.json',
   './amiri-400.woff2', './amiri-700.woff2', './serif-400.woff2', './serif-400i.woff2',
@@ -8,7 +8,10 @@ const FILES = [
 
 self.addEventListener('install', e => {
   /* cache: 'reload' : on prend toujours les fichiers frais du serveur, jamais une vieille copie du navigateur */
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))));
+  /* v5.18 : chaque fichier est demandé avec ?v=VERSION : ni le navigateur ni le CDN de GitHub ne peuvent renvoyer une vieille copie.
+     Il est ensuite rangé sous son nom normal. */
+  e.waitUntil(caches.open(VERSION).then(c => Promise.all(FILES.map(f =>
+    fetch(new Request(f + (f.includes('?') ? '&' : '?') + 'v=' + VERSION, { cache: 'reload' })).then(r => { if (!r.ok) throw new Error('sw: ' + f); return c.put(f, r); })))));
 });
 
 self.addEventListener('activate', e => {
