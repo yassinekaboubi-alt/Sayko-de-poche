@@ -5490,7 +5490,12 @@ function vLook() {
 }
 const pvMO = (k, t, sub) => `<details class="pv-more" data-k="${k}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">`, pvMC = '</div></details>';
 function pvMore(t, sub, html) { return `<details class="pv-more" data-k="m-${esc(t)}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">${html}</div></details>`; }
-function soinSeg(v) { return `<div class="seg lk-seg" role="group" aria-label="Soin" style="margin-top:12px"><button data-cview="soin" aria-pressed="${v === 'soin'}">Sommeil</button><button data-cview="apparence" aria-pressed="${v === 'apparence'}">Apparence</button><button data-cview="parfum" aria-pressed="${v === 'parfum'}">Parfum</button></div>`; }
+function soinSeg(v) {
+  /* v5.12 : plus de sous-onglet « Apparence » : chaque soin a son bouton, dans le même style que Sommeil et Parfum */
+  const cur = v === 'apparence' ? APU.t : v === 'parfum' ? 'parfum' : 'sommeil';
+  const B = [['sommeil', 'Sommeil', 'data-cview="soin"'], ['barbe', 'Barbe', 'data-apt="barbe"'], ['peau', 'Peau', 'data-apt="peau"'], ['cheveux', 'Cheveux', 'data-apt="cheveux"'], ['dents', 'Dents', 'data-apt="dents"'], ['mains', 'Mains', 'data-apt="mains"'], ['parfum', 'Parfum', 'data-cview="parfum"'], ['liste', 'Ma liste', 'data-apt="liste"']];
+  return `<div class="seg lk-seg seg-soin" role="group" aria-label="Soin" style="margin-top:12px">${B.map(([id, n, at]) => `<button ${at} aria-pressed="${cur === id}">${n}</button>`).join('')}</div>`;
+}
 /* Test de peau */
 const LK_Q = [['Une heure après avoir lavé ton visage, sans rien mettre, ta peau :', ['Tire, inconfortable', 'Normale, rien de spécial', 'Brille sur le front et le nez', 'Brille partout']],
   ['En fin de journée, ton front et ton nez sont :', ['Mats', 'Un peu brillants', 'Très brillants']],
@@ -5969,7 +5974,7 @@ const PSY_METH = [
   ['m5', 'Faire des fiches', '<p>Une fiche = une notion. Recto : la question. Verso : la réponse courte, avec une définition, un auteur, un exemple. Si ta fiche fait une page, c\'est un cours, pas une fiche.</p>', 'Fais 10 fiches sur le chapitre de la semaine.'],
   ['m6', 'Réviser : se tester, pas relire', '<p>Relire donne l\'impression de savoir. Se tester oblige à aller chercher l\'information, et c\'est cet effort qui fixe la mémoire.</p><ul><li><b>La feuille blanche</b> : écris tout ce que tu sais, sans rien regarder, puis complète en rouge.</li><li><b>L\'espacement</b> : revois à J+1, J+3, J+7, J+14, J+30 (les flashcards de l\'app le font pour toi).</li><li><b>Le mélange</b> : alterne les matières plutôt que deux heures sur la même.</li></ul>', 'Feuille blanche sur le chapitre de la semaine : 10 minutes sans rien regarder, puis correction en rouge.'],
   ['m7', 'Lire un article scientifique', '<p>Un article de psychologie suit presque toujours le même plan : <b>Introduction</b> (la question), <b>Méthode</b> (qui, comment), <b>Résultats</b> (les chiffres), <b>Discussion</b> (ce que ça veut dire, les limites). Commence par le résumé, puis la discussion, puis la méthode.</p>', 'Choisis un article de The Conversation qui cite une étude, retrouve-la, et note en une ligne chacune de ses quatre parties.'],
-  ['m8', 'Les examens de L1', '<p>En licence de psychologie, on rencontre souvent des QCM, des questions de cours rédigées et des exercices de statistiques. Les modalités exactes de Nice seront dans ton guide des études à la rentrée.</p><ul><li><b>QCM</b> : lis toutes les propositions, élimine, méfie-toi de « toujours » et « jamais ».</li><li><b>Question de cours</b> : définition, auteur, exemple, limite.</li><li><b>Statistiques</b> : écris chaque étape du calcul, pas seulement le résultat.</li></ul>', 'Le partiel blanc de la semaine 4, dans l\'onglet NIVEAU.'],
+  ['m8', 'Les examens de L1', '<p>En licence de psychologie, on rencontre souvent des QCM, des questions de cours rédigées et des exercices de statistiques. Les modalités exactes de Nice seront dans ton guide des études à la rentrée.</p><ul><li><b>QCM</b> : lis toutes les propositions, élimine, méfie-toi de « toujours » et « jamais ».</li><li><b>Question de cours</b> : définition, auteur, exemple, limite.</li><li><b>Statistiques</b> : écris chaque étape du calcul, pas seulement le résultat.</li></ul>', 'Le partiel blanc de la semaine 4, dans l\'bouton « Tester mon niveau ».'],
   ['m9', 'Une semaine d\'étudiant qui travaille', '<p>Les <b>CM</b> (cours magistraux, en amphi) : on écoute et on prend des notes. Les <b>TD</b> (travaux dirigés, en petit groupe) : on s\'entraîne, et la présence y est souvent obligatoire. Le travail personnel compte autant que les cours : régulier chaque semaine, pas en rattrapage la veille des partiels.</p>', 'Dessine sur papier ta semaine type de septembre 2027 : cours, Mister Pizza, sommeil, travail personnel, repos.']];
 /* La carte de la L1 : les grands domaines, avec les chapitres d'OpenStax Psychology 2e et la période visée */
 const PSY_L1 = [
@@ -5986,16 +5991,16 @@ const PSY_OS = n => `https://openstax.org/books/psychology-2e/pages/${n}-introdu
 /* Le programme des 4 premières semaines : méthode + un thème de L1 + les bases (puis on construit la suite avec les résultats de la semaine 4) */
 const PSY_WEEKS = [
   { t: 'Semaine 0 · Diagnostic et remise en route', o: 'Mesurer ton niveau réel et reprendre le stylo.', s: [
-    ['w0-fr', 'fr', 20, 'Test de niveau · Français', 'Onglet NIVEAU.'],
+    ['w0-fr', 'fr', 20, 'Test de niveau · Français', 'Avec le bouton « Tester mon niveau ».'],
     ['w0-ma', 'ma', 20, 'Test de niveau · Maths & stats', 'Sans calculatrice.'],
     ['w0-bio', 'bio', 15, 'Test de niveau · Biologie & neuro', 'Réponds sans chercher : on veut ton vrai niveau.'],
     ['w0-en', 'en', 15, 'Test de niveau · Anglais scientifique', ''],
-    ['w0-m1', 'me', 25, 'Méthode 1 · Le matériel + une page à la main', 'Onglet MÉTHODE, leçon 1.'],
-    ['w0-m2', 'me', 15, 'Méthode 2 · Réveiller l\'écriture', 'Onglet MÉTHODE, leçon 2.'],
+    ['w0-m1', 'me', 25, 'Méthode 1 · Le matériel + une page à la main', 'Dans « Apprendre à apprendre », leçon 1.'],
+    ['w0-m2', 'me', 15, 'Méthode 2 · Réveiller l\'écriture', 'Dans « Apprendre à apprendre », leçon 2.'],
     ['w0-fc', 'psy', 20, 'Flashcards · première découverte', '10 minutes, deux fois.'],
     ['w0-au', 'au', 0, '2 épisodes de podcast en livraison', 'La Science, CQFD ou Hidden Brain.', 'cqfd']] },
   { t: 'Semaine 1 · Prendre des notes', o: 'Apprendre la méthode Cornell sur le premier thème de L1 : l\'histoire de la psychologie.', s: [
-    ['w1-m3', 'me', 30, 'Méthode 3 · Cornell sur une vidéo de cours', 'Onglet MÉTHODE, leçon 3. À la main.', 'canalu'],
+    ['w1-m3', 'me', 30, 'Méthode 3 · Cornell sur une vidéo de cours', 'Dans « Apprendre à apprendre », leçon 3. À la main.', 'canalu'],
     ['w1-ch1', 'psy', 45, 'L1 · Histoire et grands courants (OpenStax ch. 1)', 'Notes Cornell à la main : Wundt, structuralisme, fonctionnalisme, béhaviorisme, psychanalyse, humanisme, cognitivisme.', 'openstax'],
     ['w1-m4', 'me', 15, 'Méthode 4 · Relecture à J+1', 'Le lendemain : cache la colonne de droite, réponds aux questions.'],
     ['w1-fr', 'fr', 20, 'Français · accords du participe passé', 'Chaque faute va dans le carnet d\'erreurs.', 'ccdmd'],
@@ -6005,7 +6010,7 @@ const PSY_WEEKS = [
     ['w1-au', 'au', 0, '3 épisodes de podcast en livraison', '', 'cqfd']] },
   { t: 'Semaine 2 · Apprendre à réviser', o: 'Fiches et feuille blanche, sur les méthodes de recherche en psychologie.', s: [
     ['w2-ch2', 'psy', 45, 'L1 · Les méthodes de recherche (OpenStax ch. 2)', 'Notes Cornell : expérience, corrélation, variables, groupe contrôle, échantillon, éthique.', 'openstax'],
-    ['w2-m5', 'me', 20, 'Méthode 5 · 10 fiches sur le chapitre 2', 'Onglet MÉTHODE, leçon 5.'],
+    ['w2-m5', 'me', 20, 'Méthode 5 · 10 fiches sur le chapitre 2', 'Dans « Apprendre à apprendre », leçon 5.'],
     ['w2-m6', 'me', 15, 'Méthode 6 · Feuille blanche sur le chapitre 1', 'Ce que tu sais encore du chapitre de la semaine dernière.'],
     ['w2-ma', 'ma', 30, 'Stats · moyenne, médiane, mode', '', 'khan'],
     ['w2-fr', 'fr', 30, 'Français · résumer un article en 10 lignes', 'Lis, ferme, résume, compare.', 'conv'],
@@ -6015,18 +6020,18 @@ const PSY_WEEKS = [
   { t: 'Semaine 3 · Le cerveau', o: 'La neurobiologie de L1, et lire un article scientifique.', s: [
     ['w3-ch3', 'bio', 45, 'L1 · Biopsychologie (OpenStax ch. 3)', 'Notes Cornell : neurone, potentiel d\'action, synapse, neurotransmetteurs, système nerveux, lobes.', 'openstax'],
     ['w3-bio', 'bio', 30, 'Le neurone et la synapse en français', 'Niveau débutant. Dessine un neurone de mémoire, puis vérifie.', 'cerveau'],
-    ['w3-m7', 'me', 25, 'Méthode 7 · Lire un article scientifique', 'Onglet MÉTHODE, leçon 7.', 'conv'],
+    ['w3-m7', 'me', 25, 'Méthode 7 · Lire un article scientifique', 'Dans « Apprendre à apprendre », leçon 7.', 'conv'],
     ['w3-ma', 'ma', 30, 'Stats · étendue, variance, écart-type', 'Refais un calcul d\'écart-type à la main.', 'khan'],
     ['w3-fr', 'fr', 30, 'Français · paragraphe argumenté', '« Peut-on se fier à sa mémoire ? » 15 lignes : idée, argument, exemple, conclusion.'],
     ['w3-en', 'en', 20, 'Anglais · vocabulaire du chapitre 3', '10 mots de la fin de chapitre en fiches bilingues.', 'openstax'],
     ['w3-fc', 'psy', 50, 'Flashcards · 10 min par jour de gare', ''],
     ['w3-au', 'au', 0, '3 épisodes de podcast en livraison', '', 'cqfd']] },
   { t: 'Semaine 4 · Premier partiel blanc', o: 'Te mettre en situation d\'examen et mesurer le chemin parcouru.', s: [
-    ['w4-m8', 'me', 15, 'Méthode 8 · Les examens de L1', 'Onglet MÉTHODE, leçon 8.'],
-    ['w4-pb', 'psy', 30, 'Partiel blanc · 15 questions (chapitres 1 à 3)', 'Onglet NIVEAU. Conditions réelles : sans notes, d\'une traite.'],
+    ['w4-m8', 'me', 15, 'Méthode 8 · Les examens de L1', 'Dans « Apprendre à apprendre », leçon 8.'],
+    ['w4-pb', 'psy', 30, 'Partiel blanc · 15 questions (chapitres 1 à 3)', 'Avec le bouton « Tester mon niveau ». Conditions réelles : sans notes, d\'une traite.'],
     ['w4-qc', 'psy', 25, 'Question de cours rédigée, 20 minutes', 'À la main : « Qu\'est-ce qu\'une variable indépendante ? Donne un exemple d\'expérience. » Définition, exemple, limite.'],
     ['w4-test', 'me', 60, 'Repasser les 4 tests de niveau', 'Compare avec la semaine 0.'],
-    ['w4-m9', 'me', 20, 'Méthode 9 · Ta semaine type de septembre 2027', 'Onglet MÉTHODE, leçon 9.'],
+    ['w4-m9', 'me', 20, 'Méthode 9 · Ta semaine type de septembre 2027', 'Dans « Apprendre à apprendre », leçon 9.'],
     ['w4-err', 'me', 20, 'Bilan du carnet d\'erreurs', 'Les erreurs qui reviennent sont tes priorités de décembre.'],
     ['w4-fc', 'psy', 50, 'Flashcards · 10 min par jour de gare', ''],
     ['w4-au', 'au', 0, '3 épisodes de podcast en livraison', '', 'hb']] }];
@@ -6161,7 +6166,7 @@ const PSY_CARDS = [
   ['k50', 'Méta-analyse ?', 'Étude qui combine statistiquement les résultats de nombreuses études sur une même question.']];
 const PSY_BOX = [0, 1, 3, 7, 14, 30];
 function psyS() { const p = S.psy = S.psy && typeof S.psy === 'object' ? S.psy : {}; ['tests', 'done', 'adm', 'cards', 'audio', 'meth', 'ch'].forEach(k => { if (!p[k] || typeof p[k] !== 'object') p[k] = {}; }); ['log', 'err'].forEach(k => { if (!Array.isArray(p[k])) p[k] = []; }); return p; }
-const PSYV = { tab: 'sem' };
+const PSYV = { tab: null };
 function psyWeekIdx() { const d = Math.floor((parseDate(todayISO()) - parseDate(PSY_START)) / 864e5); return d < 0 ? -1 : Math.floor(d / 7); }
 function psyWeekMin(i) { const p = psyS(), a = iso(addDays(parseDate(PSY_START), i * 7)), b = iso(addDays(parseDate(PSY_START), i * 7 + 7)); return p.log.filter(x => x.d >= a && x.d < b && x.sub !== 'au').reduce((s, x) => s + x.m, 0); }
 function psyMinTotal() { return psyS().log.filter(x => x.sub !== 'au').reduce((s, x) => s + x.m, 0); }
@@ -6172,13 +6177,29 @@ const psyDays = k => Math.round((parseDate(k) - parseDate(todayISO())) / 864e5);
 const psyDate = k => new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: k.slice(0, 4) !== todayISO().slice(0, 4) ? 'numeric' : undefined }).format(parseDate(k));
 function vPsy() {
   const p = psyS(), wi = psyWeekIdx(), W = PSY_WEEKS[Math.max(0, Math.min(PSY_WEEKS.length - 1, wi))], na = psyNextAdm(), jr = psyDays(PSY_RENTREE);
-  const head = `${pageHead('Psychologie', `Cap L1 · rentrée septembre 2027`, 'psy')}
-    ${sysWin('CAP PSYCHOLOGIE 2027', `<div class="tw-top"><div><p class="sys-k">RENTRÉE</p><p class="tw-n num">J−${jr}</p></div><div style="text-align:right"><p class="sys-k">TRAVAIL TOTAL</p><p class="tw-n num">${fmtH(psyMinTotal())}</p></div></div>
-      ${na ? `<button class="sys-obj" data-psyt="adm"><span class="sys-box">!</span><span class="grow">${esc(na[2])}<small class="rep-s">avant le ${psyDate(na[1])}${psyDays(na[1]) < 0 ? ' · EN RETARD' : ` · dans ${psyDays(na[1])} j`}</small></span></button>` : ''}
-      <div class="psy-tabs">${[['sem', 'Semaine'], ['meth', 'Méthode'], ['l1', 'Carte L1'], ['fc', `Cartes · ${psyDue().length}`], ['test', 'Niveau'], ['adm', 'Démarches'], ['err', 'Erreurs'], ['res', 'Ressources']].map(([k, l]) => `<button class="${PSYV.tab === k ? 'on' : ''}" data-psyt="${k}">${l}</button>`).join('')}</div>`)}`;
+  /* v5.12 : présentation simplifiée. En haut : la séance du jour. Puis des boutons clairs, comme pour Parfum. */
+  const inProg = wi >= 0 && wi < PSY_WEEKS.length, nx = inProg ? W.s.find(x => !p.done[x[0]]) : null, dn = inProg ? W.s.filter(x => p.done[x[0]]).length : 0;
+  let today;
+  if (wi < 0) today = `<p class="pv-k" style="margin-top:0">Bientôt</p><h2 class="pf-title">Le programme commence lundi 26 octobre</h2>`;
+  else if (!inProg) today = `<p class="pv-k" style="margin-top:0">Les 4 premières semaines sont faites</p><h2 class="pf-title">Révise tes cartes</h2><p class="pv-line">La suite se construit avec tes résultats : demande à Claude le programme de décembre.</p><div class="pv-btns"><button class="btn sm" data-psyt="fc" style="flex:1">Réviser mes cartes</button></div>`;
+  else if (!nx) today = `<p class="pv-k" style="margin-top:0">${esc(W.t.split(' · ')[0])} · ${dn}/${W.s.length}</p><h2 class="pf-title">Semaine terminée ✓</h2><p class="pv-line">Tout est fait. Pour garder le rythme : quelques cartes à réviser.</p><div class="pv-btns"><button class="btn sm" data-psyt="fc" style="flex:1">Réviser mes cartes</button></div>`;
+  else { const [id, sub, mn, t, how, res] = nx;
+    today = `<p class="pv-k" style="margin-top:0">Ta séance du jour · ${esc(W.t.split(' · ')[0])} · ${dn}/${W.s.length}</p><h2 class="pf-title">${esc(t)}</h2><p class="pf-where">${PSY_SUB[sub]}${mn ? ` · ${mn} min` : ''}</p>
+      ${(how || res) && !(/^w0-/.test(id) && PSY_T[id.slice(3)]) ? `<p class="pv-line">${how}${res ? `${how ? ' ' : ''}<a href="${PSY_RES[res][1]}" target="_blank" rel="noopener">→ ${PSY_RES[res][0]}</a>` : ''}</p>` : ''}
+      <div class="pv-btns" style="margin-top:14px">${/^w0-/.test(id) && PSY_T[id.slice(3)] ? `<button class="btn sm" data-psytest="${id.slice(3)}" style="flex:1">Faire le test</button>` : `<button class="btn sm" data-psyd="${id}" style="flex:1">C'est fait</button>`}<button class="chip" data-psyt="sem">Toute la semaine</button></div>`; }
+  const due = psyDue().length, nAdm = PSY_ADM.filter(a => !p.adm[a[0]]).length;
+  const B = [['sem', '🗓', 'Ma semaine', inProg ? `${dn}/${W.s.length} séances` : 'le programme'], ['fc', '🃏', 'Mes cartes', due ? `${due} à revoir` : 'rien à revoir'], ['meth', '🧠', 'Apprendre à apprendre', 'leçons courtes'],
+    ['l1', '🎓', 'Les cours de L1', 'chapitre par chapitre'], ['test', '📝', 'Tester mon niveau', '10 questions'], ['adm', '📮', 'Inscription', nAdm ? `${nAdm} démarche${nAdm > 1 ? 's' : ''}` : 'tout est fait'],
+    ['err', '✏️', 'Mes erreurs', `${p.err.length} notée${p.err.length > 1 ? 's' : ''}`], ['res', '📚', 'Ressources', 'gratuites']];
+  const head = `${pageHead('Psychologie', `Rentrée en licence dans ${jr} jours${psyMinTotal() ? ` · ${fmtH(psyMinTotal())} de travail au total` : ''}`, 'psy')}
+    ${na && psyDays(na[1]) <= 14 ? `<button class="pv-buyline" data-psyt="adm" style="margin-top:14px">${psyDays(na[1]) < 0 ? '⚠ En retard' : `Dans ${psyDays(na[1])} j`} · ${esc(na[2])} →</button>` : ''}
+    <section class="glass pv-card pf-res">${today}</section>
+    <section class="glass pv-card"><h2 class="pv-h">Que veux-tu faire ?</h2><div class="pf-oc">${B.map(([k, ic, n, sb]) => `<button class="pf-occ ${PSYV.tab === k ? 'on' : ''}" data-psyt="${k}" aria-pressed="${PSYV.tab === k}"><span class="pf-ic" aria-hidden="true">${ic}</span><b>${n}</b><small>${sb}</small></button>`).join('')}</div></section>
+    <div id="psyBody"></div>`;
+  if (!PSYV.tab) return head;
   let body = '';
   if (PSYV.tab === 'sem') {
-    if (wi < 0) body = sysWin('AVANT LE DÉPART', `<p class="sys-li">Le programme commence le <b>lundi 26 octobre</b>, à la fin de ta Reprise. D'ici là, rien à faire ici. Si tu veux prendre de l'avance : retrouve ton diplôme du bac (onglet DÉMARCHES).</p>`);
+    if (wi < 0) body = sysWin('AVANT LE DÉPART', `<p class="sys-li">Le programme commence le <b>lundi 26 octobre</b>, à la fin de ta Reprise. D'ici là, rien à faire ici. Si tu veux prendre de l'avance : retrouve ton diplôme du bac (bouton « Inscription »).</p>`);
     else if (wi >= PSY_WEEKS.length) body = sysWin('APRÈS LA SEMAINE 4', `<p class="sys-li">Les 4 premières semaines sont terminées. La suite se construit à partir de tes résultats aux tests de la semaine 4 et de ton carnet d'erreurs : demande à Claude le programme de décembre.</p><p class="sys-li">En attendant : flashcards chaque jour de gare, un résumé d'article par semaine, Khan Academy en statistiques.</p>`);
     else {
       const m = psyWeekMin(wi), sess = W.s.filter(x => x[1] !== 'au'), dn = W.s.filter(x => p.done[x[0]]).length;
@@ -6195,7 +6216,7 @@ function vPsy() {
     const all = PSY_L1.flatMap(x => x[1]), n = all.filter(c => p.ch[c[0]]).length;
     body = sysWin(`CARTE DE LA L1 [${n}/${all.length}]`, `<p class="sys-li">Les grands domaines de la L1 de psychologie, que la licence de Nice couvre (clinique, cognitive, développement, sociale, méthodes, statistiques, neurobiologie). Un chapitre d'OpenStax par étape, avec le mois visé : à la rentrée, tu auras déjà vu tout le programme une première fois.</p><p class="sys-li">Un chapitre est fait quand il est <b>lu, pris en notes Cornell à la main, et transformé en 10 fiches</b>.</p><div class="sys-xp"><i style="width:${(n / all.length * 100).toFixed(0)}%"></i></div>
       ${PSY_L1.map(([dom, chs]) => `<p class="sys-k" style="margin:14px 0 2px">${esc(dom).toUpperCase()}</p>${chs.map(([c, t, mo]) => { const on = !!p.ch[c]; return `<div class="lk-r ${on ? 'ok' : ''}"><button class="sys-obj ${on ? 'ok' : ''}" data-psych="${c}"><span class="sys-box">${on ? '✓' : ''}</span><span class="grow">Ch. ${c} · ${esc(t)}<small class="rep-s">visé : ${mo}</small></span></button><a class="lk-q" href="${PSY_OS(c)}" target="_blank" rel="noopener" aria-label="Ouvrir le chapitre">↗</a></div>`; }).join('')}`).join('')}
-      <p class="sys-li" style="margin-top:12px;opacity:.8">Le programme exact des UE de L1 à Nice n'est pas publié en ligne : demande-le dans ton mail à l'université (onglet DÉMARCHES), et on ajustera la carte.</p>`);
+      <p class="sys-li" style="margin-top:12px;opacity:.8">Le programme exact des UE de L1 à Nice n'est pas publié en ligne : demande-le dans ton mail à l'université (bouton « Inscription »), et on ajustera la carte.</p>`);
   } else if (PSYV.tab === 'test') {
     body = sysWin('TEST DE NIVEAU', `<p class="sys-li">10 questions par matière, sans chercher la réponse : on veut ton niveau réel. Tu repasseras les mêmes en semaine 4, avec en plus le partiel blanc de L1.</p>${Object.entries(PSY_T).map(([k, [n]]) => { const l = psyLast(k), f = psyS().tests[k] || []; return `<button class="sys-obj ${l ? 'ok' : ''}" data-psytest="${k}"><span class="sys-box">${l ? '✓' : ''}</span><span class="grow">${n}<small class="rep-s">${k === 'l1' && !l ? 'semaine 4 · chapitres 1 à 3 · ' : ''}${l ? `${l.s}/${PSY_T[k][1].length} · ${l.s / PSY_T[k][1].length >= .8 ? 'solide' : l.s / PSY_T[k][1].length >= .5 ? 'à consolider' : 'priorité'}${f.length > 1 ? ` · avant : ${f[0].s}/${PSY_T[k][1].length}` : ''}` : 'pas encore passé'}</small></span><b class="num">${l ? l.s + '/' + PSY_T[k][1].length : '→'}</b></button>`; }).join('')}`);
   } else if (PSYV.tab === 'fc') {
@@ -6252,7 +6273,7 @@ function psyFc() {
 }
 function psyClick(t) {
   const c = s => t.closest(s); let el; const keep = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
-  if ((el = c('[data-psyt]'))) { PSYV.tab = el.dataset.psyt; keep(); return true; }
+  if ((el = c('[data-psyt]'))) { const k = el.dataset.psyt; PSYV.tab = PSYV.tab === k && el.classList.contains('pf-occ') ? null : k; keep(); if (PSYV.tab) { const b = $('#psyBody'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return true; }
   if ((el = c('[data-psyd]'))) { const p = psyS(), id = el.dataset.psyd, W = PSY_WEEKS.find(w => w.s.some(s => s[0] === id)), s = W.s.find(x => x[0] === id);
     if (p.done[id]) { delete p.done[id]; const j = p.log.findIndex(x => x.id === id); if (j >= 0) p.log.splice(j, 1); unreward(2); }
     else { p.done[id] = todayISO(); if (s[2] || s[1] === 'au') p.log.push({ d: todayISO(), m: s[2], sub: s[1], id }); reward(2, { noBonus: true }); try { sfx('gain'); } catch (e) {} }
@@ -7706,7 +7727,7 @@ function apMark(mk, on) {
 function vApparence() {
   const t = APU.t;
   const tabs = `<div class="ap-tabs" role="tablist">${AP_TABS.map(([id, n, ic]) => `<button class="ap-tab ${t === id ? 'on' : ''}" data-apt="${id}" role="tab" aria-selected="${t === id}"><span aria-hidden="true">${ic}</span>${n}</button>`).join('')}</div>`;
-  if (t === 'liste') return vLook().replace(soinSeg('apparence'), soinSeg('apparence') + tabs);
+  if (t === 'liste') return vLook();
   const L = AP[t], cur = APU.s[t] || apDefault(t), x = L.find(y => y.id === cur) || L[0], done = apDone(t, x.id);
   let extra = '';
   if (t === 'cheveux') { const bd = pvBarberDays(); extra = `<p class="ap-meta">Lavage : ${pvS().wash.map(i => PV_WD[i].toLowerCase()).join(', ') || 'jours à choisir dans Ma liste'} · coiffeur ${bd == null ? 'pas encore noté' : bd === 0 ? 'fait aujourd\'hui' : `il y a ${bd} j`}</p>`; }
@@ -7719,13 +7740,13 @@ function vApparence() {
     <div class="pv-btns"><button class="btn sm ${done ? 'ghost' : ''}" data-apdone="${x.id}" style="flex:1">${done ? '✓ Fait' : 'C\'est fait'}</button></div>
     <details class="pv-det" data-k="ap-why-${t}"><summary>Pourquoi ?</summary><p>${esc(x.why)}</p></details></section>`;
   const grid = `<div class="pf-oc">${L.map(s => `<button class="pf-occ ${s.id === x.id ? 'on' : ''} ${apDone(t, s.id) ? 'done' : ''}" data-aps="${s.id}" aria-pressed="${s.id === x.id}"><span class="pf-ic" aria-hidden="true">${apDone(t, s.id) ? '✓' : s.ic}</span><b>${s.n}</b>${sub(s) ? `<small>${esc(sub(s))}</small>` : ''}</button>`).join('')}</div>`;
-  return `${corpsTop('soin')}${soinSeg('apparence')}${tabs}${extra}
+  return `${corpsTop('soin')}${soinSeg('apparence')}
     ${res}
     <section class="glass pv-card"><h2 class="pv-h">Quel moment ?</h2>${grid}</section>`;
 }
 function apClick(t) {
   let el;
-  if ((el = t.closest('[data-apt]'))) { APU.t = el.dataset.apt; try { localStorage.setItem('sdp-apt', APU.t); } catch (e) {} pvRe(); return true; }
+  if ((el = t.closest('[data-apt]'))) { APU.t = el.dataset.apt; try { localStorage.setItem('sdp-apt', APU.t); } catch (e) {} setCView('apparence'); if (tab !== 'corps') { go('apparence'); return true; } pvRe(); return true; }
   if ((el = t.closest('[data-aps]'))) { APU.s[APU.t] = el.dataset.aps; pvRe(); const r = document.querySelector('.ap-res'); if (r) r.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return true; }
   if ((el = t.closest('[data-apdone]'))) {
     const tb = APU.t, id = el.dataset.apdone, x = AP[tb].find(y => y.id === id); if (!x) return true;
@@ -7968,7 +7989,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.11 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.13 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }

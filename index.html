@@ -2395,6 +2395,82 @@ body:not(.sys-on) .in-hold i{background:linear-gradient(90deg,var(--gold),var(--
 @keyframes dwLine{to{transform:scaleX(1)}}
 @keyframes dwFlash{50%{opacity:1}100%{opacity:.6}}
 @media (prefers-reduced-motion:reduce){.dawn{display:none}}
+/* v5.8 · Apparence en situations */
+.ap-tabs{display:flex;gap:6px;margin:14px -16px 0;padding:0 16px 2px;overflow-x:auto;scrollbar-width:none}
+.ap-tabs::-webkit-scrollbar{display:none}
+.ap-tab{flex:none;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:var(--raise);color:var(--ink-2);font-size:.82rem;font-weight:650;box-shadow:inset 0 0 0 1px var(--line)}
+.ap-tab.on{background:var(--gold-soft);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--gold)}
+.ap-meta{margin:10px 2px 0;font-size:.75rem;color:var(--muted)}
+.ap-steps{list-style:none;margin:0 0 14px;padding:0;counter-reset:ap}
+.ap-steps li{position:relative;padding:0 0 12px 38px;counter-increment:ap}
+.ap-steps li::before{content:counter(ap);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.78rem;font-weight:750;color:#1A1206;background:linear-gradient(140deg,#F8E9C4,#E8C27A)}
+.ap-steps li:not(:last-child)::after{content:"";position:absolute;left:12.5px;top:30px;bottom:4px;width:1px;background:color-mix(in srgb,var(--gold) 35%,transparent)}
+.ap-steps b{display:block;font-size:.92rem;color:var(--ink)}.ap-steps span{display:block;margin-top:2px;font-size:.8rem;line-height:1.45;color:var(--ink-2)}
+.pf-occ.done .pf-ic{color:var(--mint);font-weight:800}
+/* v5.8 · La jauge du jour */
+.jg{text-align:center;padding:10px 16px 16px!important}
+.jg-orb{display:block;width:100%;max-width:300px;margin:0 auto;padding:0;background:none;border:0}
+.jg-orb svg{width:100%;height:auto;overflow:visible}
+.jg-orbit{fill:none;stroke:#E8C27A;stroke-opacity:.18;stroke-dasharray:2 4}
+.jg-moon circle:last-child{fill:#1A2A28;stroke:#E8C27A;stroke-opacity:.35;stroke-width:1}
+.jg-moon.on circle:last-child{fill:#FFF1C8;stroke:#FFF8E6;stroke-opacity:1;filter:drop-shadow(0 0 4px #E8C27A)}
+.jg-mh{fill:#E8C27A;opacity:.18}
+.jg-w1{animation:jgWave 6s linear infinite}.jg-w2{animation:jgWave 9s linear infinite reverse}
+@keyframes jgWave{from{transform:translateX(0)}to{transform:translateX(-80px)}}
+.jg-w2{animation-name:jgWave2}@keyframes jgWave2{from{transform:translateX(-60px)}to{transform:translateX(0)}}
+.jg-bub{fill:#FFF8E6;opacity:0;animation:jgBub 4s ease-in infinite}
+@keyframes jgBub{0%{opacity:0;transform:translateY(0)}20%{opacity:.6}100%{opacity:0;transform:translateY(-70px)}}
+.jg-anim .jg-liq{animation:jgRise 1.6s cubic-bezier(.2,.7,.2,1) both}
+@keyframes jgRise{from{transform:translateY(120px)}}
+.jg-pc{text-anchor:middle;font:400 34px var(--serif);fill:#F8EFD8;paint-order:stroke;stroke:rgba(5,10,10,.55);stroke-width:3px}
+.jg-pc.dark{fill:#2A1A06;stroke:rgba(255,244,214,.35)}
+.jg-halo{transition:opacity .6s}
+.jg.full .jg-halo{animation:jgPulse 2.6s ease-in-out infinite}
+@keyframes jgPulse{50%{transform:scale(1.08);opacity:1}}
+.jg-msg{margin:2px 0 0;font:400 1.45rem/1.2 var(--serif);color:var(--ink)}
+.jg.full .jg-msg{color:var(--gold)}
+.jg-sub{margin:4px 0 0;font-size:.78rem;color:var(--muted)}
+.jg-next{display:flex;align-items:center;gap:10px;width:100%;margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--gold-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 45%,transparent);color:var(--ink);text-align:left}
+.jg-next span{flex:none;display:grid}.jg-next small{font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}.jg-next b{font-size:.98rem}
+.jg-next em{flex:1;min-width:0;font-style:normal;font-size:.75rem;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.jg-done{margin:14px 0 0;color:var(--gold);font-size:.9rem}
+@media (prefers-reduced-motion:reduce){.jg-w1,.jg-w2,.jg-bub,.jg-anim .jg-liq{animation:none}}
+/* v5.9 · Le cosmos : la jauge au centre de la galaxie */
+.orbit-stage.cosmos>svg{max-height:440px}
+.cs-glow{animation:gpulse 6s ease-in-out infinite;transition:opacity .8s}
+.cosmos.full .cs-glow{animation:csPulse 3s ease-in-out infinite}
+@keyframes csPulse{50%{opacity:.75;transform:scale(1.06)}}
+.cs-orb{cursor:pointer}
+.cs-seg{fill:none;stroke:#E8C27A;stroke-opacity:.16;stroke-width:3;stroke-linecap:round;transition:stroke-opacity .5s}
+.cs-seg.mid{stroke-opacity:.45}
+.cs-seg.on{stroke:#FFE9B8;stroke-opacity:1;filter:drop-shadow(0 0 3px #E8C27A)}
+.cs-pc{text-anchor:middle;font:400 30px var(--serif);fill:#F8EFD8;paint-order:stroke;stroke:rgba(5,10,10,.5);stroke-width:3px;pointer-events:none}
+.cs-pc.dark{fill:#2A1A06;stroke:rgba(255,244,214,.35)}
+.cs-rays line{stroke:#FFE9B8;stroke-width:1.4;stroke-linecap:round;opacity:.5}
+.cs-rays{animation:csSpin 40s linear infinite}@keyframes csSpin{to{transform:rotate(360deg)}}
+.cs-ic{color:#FFFFFF;opacity:.82;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+.cs-pl .moon{display:none}
+.cs-strip{margin:-6px 0 0;text-align:center}
+.cs-strip .jg-next{margin-top:12px}
+@media (prefers-reduced-motion:reduce){.cs-glow,.cs-rays{animation:none}}
+/* v5.10 · Les planètes s'éveillent au fil de la journée */
+.cs-glow{transform-box:fill-box;transform-origin:center}
+.cs-pl{filter:grayscale(.8) brightness(.7);transition:filter 1.4s ease}
+.cs-pl.awake{filter:none}
+.cs-aura{opacity:0;transition:opacity 1.4s ease}
+.cs-pl.awake .cs-aura{opacity:.55}
+.cosmos.full .cs-pl .cs-aura{opacity:1;transform-box:fill-box;transform-origin:center;animation:csAura 2.6s ease-in-out infinite}
+@keyframes csAura{50%{transform:scale(1.35);opacity:.55}}
+.cosmos.full .cs-pl{filter:brightness(1.12) saturate(1.15)}
+.cs-trail{fill:none;stroke:#FFE9B8;stroke-width:1.1;stroke-opacity:.38;stroke-dasharray:1300;stroke-dashoffset:1300;filter:drop-shadow(0 0 3px #E8C27A);animation:csTrail 2.4s cubic-bezier(.3,.6,.2,1) forwards}
+@keyframes csTrail{to{stroke-dashoffset:0}}
+.cs-wave{fill:none;stroke:#FFE9B8;stroke-width:2;opacity:0;transform-box:fill-box;transform-origin:center;pointer-events:none}
+.cosmos.wave .cs-wave{animation:csWave 2.2s cubic-bezier(.2,.7,.2,1) .2s forwards}
+@keyframes csWave{0%{opacity:.9;transform:scale(1);stroke-width:3}100%{opacity:0;transform:scale(3.6);stroke-width:.3}}
+@media (prefers-reduced-motion:reduce){.cs-trail{animation:none;stroke-dashoffset:0}.cs-wave,.cs-aura{animation:none!important}}
+/* v5.12 · Soin : 8 boutons, même style que l'ancien sélecteur (2 lignes de 4) */
+.seg.seg-soin{grid-auto-flow:row;grid-template-columns:repeat(4,1fr)}
+.seg.seg-soin button{font-size:.86rem;padding:0 2px}
 </style>
 </head>
 <body>

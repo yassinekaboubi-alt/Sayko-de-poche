@@ -1,5 +1,5 @@
 /* Sayko de poche — service worker : tout fonctionne hors ligne. */
-const VERSION = 'sdp-v5.11.0';
+const VERSION = 'sdp-v5.13.0';
 const FILES = [
   './', './index.html', './app.js', './manifest.json',
   './amiri-400.woff2', './amiri-700.woff2', './serif-400.woff2', './serif-400i.woff2',
@@ -7,7 +7,8 @@ const FILES = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)));
+  /* cache: 'reload' : on prend toujours les fichiers frais du serveur, jamais une vieille copie du navigateur */
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))));
 });
 
 self.addEventListener('activate', e => {
