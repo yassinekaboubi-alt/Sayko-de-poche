@@ -6530,7 +6530,7 @@ const PV_REC = [
   ['Omelette champignons-épinards, pommes de terre', '15 min', 'jour de travail', ['4 œufs', '6 champignons, 1 poignée d\'épinards', '2 pommes de terre', 'Huile d\'olive, sel, poivre'], ['Cuis les pommes de terre en dés 6 min au micro-ondes, puis dore-les 5 min à la poêle.', 'Mets-les de côté, fais revenir champignons et épinards 3 min.', 'Verse les œufs battus, laisse prendre 3 à 4 min à feu moyen.', 'Plie l\'omelette, sers avec les pommes de terre.'], { oe: 4, champ: 6, epi: 1, pt: 2 }],
   ['Plaque de légumes rôtis', '35 min (pour 4 jours)', 'jour de repos', ['4 patates douces', '2 poivrons, 2 courgettes, 2 oignons, 1 brocoli', 'Huile d\'olive, sel, paprika, herbes'], ['Coupe tout en gros morceaux, étale sur une plaque, huile, sel, paprika.', '35 min à 200 °C en mélangeant à mi-cuisson.', 'Range en 4 boîtes au frigo (4 jours maximum).', 'Chaque jour : réchauffe une boîte et ajoute 4 œufs ou une boîte de thon.'], { pd: 1, poiv: 1, courg: 1, oign: 1, broc: 1, oe: 4 }],
   ['Frittata au four', '30 min (pour 3 jours)', 'jour de repos', ['10 œufs', '2 patates douces, 1 brocoli, 1 oignon', 'Sel, poivre, herbes'], ['Cuis les patates douces en dés 6 min au micro-ondes.', 'Mélange les œufs battus, les patates, le brocoli en petits bouquets et l\'oignon.', 'Verse dans un plat huilé : 30 min à 180 °C.', 'Coupe en 3 parts : une part par jour, avec une salade et un fromage blanc.'], { oe: 3, pd: 1, broc: 1, sal: 1, fb: 1 }],
-  ['Le dessert protéiné', '2 min', 'tous les jours', ['2 pots de fromage blanc 0 %', '6 fraises ou ½ banane', 'Cannelle (sans sucre)'], ['Verse le fromage blanc dans un bol.', 'Ajoute les fraises coupées ou la banane, saupoudre de cannelle.'], { fb: 2 }]
+  ['Le dessert protéiné', '2 min', 'tous les jours', ['200 g de fromage blanc 0 % ou de skyr nature', '1 banane ou 6 fraises', '1 dose de whey (si tu veux plus de protéines)', 'Cannelle (sans sucre)'], ['Verse le skyr ou le fromage blanc dans un bol.', 'Avec la whey : mélange-la 30 secondes à la cuillère, avec 1 ou 2 cuillères d\'eau si c\'est trop épais.', 'Écrase la moitié de la banane dedans, coupe l\'autre en rondelles par-dessus (ou les fraises), saupoudre de cannelle.'], { fb: 2 }]
 ];
 const PV_COURSES = [['Protéines', ['Œufs : 30 (pour la semaine)', 'Thon au naturel : 3 boîtes', 'Fromage blanc 0 % nature : 2 pots de 500 g', 'Whey (si besoin)']], ['Féculents', ['Patates douces : 5 à 7', 'Pommes de terre : 1 kg']], ['Légumes', ['Épinards (frais ou surgelés)', 'Courgettes : 3', 'Poivrons : 2', 'Oignons : 1 filet', 'Champignons : 1 barquette', 'Brocoli : 1', 'Salade : 1 sachet', 'Tomates cerises : 1 barquette', 'Concombre : 1', 'Tomates concassées : 2 boîtes']], ['Fruits', ['Fraises (surgelées l\'hiver)', 'Bananes : 7']], ['Placard', ['Huile d\'olive', 'Citron', 'Paprika, cumin, cannelle, herbes', 'Sel, poivre']]];
 /* v5.29 · Courses Swile liées aux repas : 25 €/jour max (+ tickets Mister Pizza), le reste pour ma femme.
@@ -6796,10 +6796,19 @@ function pvCor() {
 }
 /* Écriture */
 const PV_PROMPTS = ['Qu\'est-ce qui t\'a pesé aujourd\'hui, et pourquoi ?', 'Une chose que tu as faite mieux qu\'hier.', 'Décris la personne que tu veux être dans un an, comme si tu l\'étais déjà.', 'Une conversation d\'aujourd\'hui que tu aurais menée autrement.', 'De quoi es-tu reconnaissant, précisément ?', 'Qu\'est-ce que tu évites en ce moment ?', 'Un souvenir d\'enfance qui explique quelque chose de toi.', 'Ce que t\'apprend ta lecture du moment.', 'Ton travail à la gare : ce que tu y apprends sur les gens.', 'Une peur, et ce qui arriverait vraiment si elle se réalisait.', 'Écris une lettre à ton toi d\'il y a 5 ans.', 'Qu\'est-ce que « discipline » veut dire pour toi, concrètement ?', 'Un verset ou un hadith qui t\'a touché, et pourquoi.', 'Ce que tu ferais d\'une journée entièrement libre.', 'Pourquoi la psychologie ? Réponds comme à un jury.', 'Trois choses que ta femme fait et que tu n\'as jamais dites à voix haute.', 'Décris une scène de ta journée avec tous les sens.', 'Ce que tu as appris d\'un échec.'];
+/* v5.35 · Écriture : par défaut dans le cahier, à la main (pour reprendre la main). Le téléphone reste possible. */
 function pvEcr() {
-  const k = todayISO(), cur = pvS().wr.find(x => x.d === k), pr = PV_PROMPTS[Math.floor(parseDate(k) / 864e5) % PV_PROMPTS.length];
-  const words = cur ? (cur.txt.trim().match(/\S+/g) || []).length : 0, L = pvS().wr.filter(x => x.d !== k).slice(-6).reverse();
-  return pCard('Ta page du jour', `<p class="pv-sub">Piste si tu bloques : <i>${esc(pr)}</i></p>
+  const P = pvS(), k = todayISO(), cur = P.wr.find(x => x.d === k), dn = Math.floor(parseDate(k) / 864e5), pr = PV_PROMPTS[(dn + (P.wrpi || 0)) % PV_PROMPTS.length];
+  const mode = P.wrm || 'cahier', pg = P.wrp = P.wrp && typeof P.wrp === 'object' ? P.wrp : {}, nP = Object.keys(pg).length;
+  const seg = `<div class="seg" style="margin-bottom:12px">${[['cahier', 'Dans mon cahier'], ['tel', 'Sur le téléphone']].map(([m, l]) => `<button data-wrm="${m}" aria-pressed="${mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>`;
+  const piste = `<p class="pv-sub">Piste si tu bloques : <i>${esc(pr)}</i> <button class="link-btn small" data-wrpi>Une autre</button></p>`;
+  if (mode === 'cahier') return pCard('Ta page du jour', `${seg}${piste}
+    <ol class="ap-steps rec-st"><li><span>Lance le chrono en haut, puis écris la date en haut de la page.</span></li><li><span>Écris à la main, sans t'arrêter et sans te relire. Pas de rature : si tu te trompes, barre d'un trait et continue.</span></li><li><span>Forme bien tes lettres, sans te presser : c'est comme ça que l'écriture revient.</span></li><li><span>Quand la page est pleine (ou le temps fini), arrête le chrono et touche le bouton.</span></li></ol>
+    ${pg[k] ? `<p class="pv-big" style="text-align:center;margin:10px 0 4px">Page écrite ✓</p><button class="btn sm quiet block" data-wrpg>Annuler</button>` : `<button class="btn block" data-wrpg style="margin-top:10px">J'ai écrit ma page</button>`}
+    <div class="pv-kp" style="margin-top:14px"><div><b class="num">${nP}</b><span>page${nP > 1 ? 's' : ''} dans le cahier</span></div>${(() => { let n = 0; for (let i = pg[k] ? 0 : 1; i < 400; i++) { if (pg[iso(addDays(new Date(), -i))]) n++; else break; } return `<div><b class="num">${n}</b><span>jour${n > 1 ? 's' : ''} d'affilée</span></div>`; })()}</div>
+    <p class="pv-sub">Au début, 10 minutes suffisent : la main fatigue vite, c'est normal. Ensuite, vise une page entière.</p>`);
+  const words = cur ? (cur.txt.trim().match(/\S+/g) || []).length : 0, L = P.wr.filter(x => x.d !== k).slice(-6).reverse();
+  return pCard('Ta page du jour', `${seg}${piste}
     <textarea id="pvWr" class="pv-wr" rows="12" placeholder="Écris sans t'arrêter, sans te relire. Le chrono démarre quand tu écris." aria-label="Ta page du jour">${esc(cur ? cur.txt : '')}</textarea>
     <p class="pv-line"><span id="pvWc" class="num">${words}</span> mots · enregistré automatiquement</p>
     ${L.length ? `<p class="pv-k">Pages précédentes</p>${L.map(x => `<details class="pv-det"><summary>${DAY_MONTH.format(parseDate(x.d))} · ${(x.txt.trim().match(/\S+/g) || []).length} mots</summary><p style="white-space:pre-wrap">${esc(x.txt)}</p></details>`).join('')}` : ''}`);
@@ -6967,6 +6976,9 @@ function pvClick(t) {
   if (c('[data-sdnote]')) { SD.notes = !SD.notes; pvRe(); return true; }
   if ((el = c('[data-sdlv]'))) { pvS().sd.lvl = el.dataset.sdlv; save(); pvRe(); return true; }
   if (c('[data-sdnew]')) { sdNew(pvS().sd.lvl || 'moyen'); pvRe(); return true; }
+  if ((el = c('[data-wrm]'))) { pvS().wrm = el.dataset.wrm; haptic(); save(); pvRe(); return true; }
+  if ((el = c('[data-wrpi]'))) { const P = pvS(); P.wrpi = (P.wrpi || 0) + 1; save(); pvRe(); return true; }
+  if ((el = c('[data-wrpg]'))) { const P = pvS(), k = todayISO(); P.wrp = P.wrp || {}; if (P.wrp[k]) delete P.wrp[k]; else { P.wrp[k] = 1; reward(2); toast('Page notée'); } haptic(); save(); pvRe(); return true; }
   if ((el = c('[data-sdpaper]'))) { const sd = pvS().sd; sd.paper = Math.max(0, (sd.paper || 0) + Number(el.dataset.sdpaper)); if (Number(el.dataset.sdpaper) > 0) reward(2); save(); pvRe(); return true; }
   if ((el = c('[data-pzk]'))) { pzNew(el.dataset.pzk); pvRe(); return true; }
   if (c('[data-pznew]')) { pzNew(PZ.k); pvRe(); return true; }
@@ -7525,7 +7537,8 @@ function vPlan() {
         : `<button class="btn block" data-bpgot="${next.id}" style="margin-top:12px">Elle est arrivée</button>`}</div>`);
   }
   const bad = B.pk.map(p => [p, bpPkInfo(ym, p.id)]).filter(([, I]) => I.st === 'bad');
-  bad.forEach(([p, I]) => todo.push(`<p class="bp-alert">⚠ ${esc(p.n)} : il manquera ${bpE(-I.end)} en fin de mois.</p>`));
+  bad.forEach(([p, I]) => { const nx = m.inc.find(i => (i.got == null || i.got === '') && i.steps.some(s => s.to === 'adp' && !s.done && numv(s.amt) > 0));
+    todo.push(`<div class="bp-alert">⚠ ${esc(p.n)} : il manquera ${bpE(-I.end)} en fin de mois.${nx && p.id !== 'adp' ? `<button class="btn sm block" data-bpcover="${p.id}" style="margin-top:8px">Le reprendre sur mon argent de poche (${esc(nx.n)})</button>` : ''}</div>`); });
   if (!todo.length) todo.push('<p class="pv-line">✓ Toutes les paies sont reçues et réparties. Il ne reste qu\'à suivre tes dépenses.</p>');
 
   /* 2 · Argent de poche */
@@ -7628,9 +7641,15 @@ function bpCopy(ym) {
 }
 function bpClick(t) {
   const c = s => t.closest(s); let el;
-  if (!c('[data-bpm],[data-bpprep],[data-bpgot],[data-bpgotok],[data-bpstep],[data-bpall],[data-bpfix],[data-bpk],[data-bppk],[data-bpto],#bpAdd,[data-bptxdel],[data-bpungot],[data-bpdel],[data-bpadd]')) return false;
+  if (!c('[data-bpm],[data-bpprep],[data-bpgot],[data-bpgotok],[data-bpstep],[data-bpall],[data-bpfix],[data-bpk],[data-bppk],[data-bpto],#bpAdd,[data-bptxdel],[data-bpungot],[data-bpdel],[data-bpadd],[data-bpcover]')) return false;
   const ym = bpCurM(), B = bpS(), m = B.m[ym];
   const findInc = id => m.inc.find(i => i.id === id);
+  /* v5.34 · un bouton pour couvrir une poche dans le rouge : on prend sur l'argent de poche de la prochaine paie */
+  if ((el = c('[data-bpcover]'))) { const id = el.dataset.bpcover, D = Math.round(-bpPkInfo(ym, id).end * 100) / 100;
+    const i = m.inc.find(x => (x.got == null || x.got === '') && x.steps.some(s => s.to === 'adp' && !s.done && numv(s.amt) > 0)); if (!i || D <= 0) return true;
+    const a = i.steps.find(s => s.to === 'adp' && !s.done), take = Math.min(D, numv(a.amt)); a.amt = Math.round((numv(a.amt) - take) * 100) / 100;
+    if (i.land !== id) { const t = i.steps.find(s => s.to === id && !s.done); if (t) t.amt = Math.round((numv(t.amt) + take) * 100) / 100; else i.steps.push({ id: uid(), to: id, amt: take, n: 'Couvrir le découvert', done: false }); }
+    haptic(); save(); pvRe(); toast(`${bpE(take)} repris sur ton argent de poche`); return true; }
   if ((el = c('[data-bpm]'))) { if (el.dataset.bpm) { BPU.m = el.dataset.bpm; BPU.recv = null; } pvRe(); return true; }
   if ((el = c('[data-bpprep]'))) { bpCopy(el.dataset.bpprep); save(); pvRe(); toast('Plan préparé'); return true; }
   if ((el = c('[data-bpgot]'))) { BPU.recv = el.dataset.bpgot; pvRe(); setTimeout(() => { const i = $('#bpGot'); if (i) { i.focus(); i.select(); } }, 60); return true; }
@@ -8294,7 +8313,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.33 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.35 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
