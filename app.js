@@ -6516,6 +6516,11 @@ const PV_BAN = [['sucre', 'Sucres'], ['pates', 'Pâtes'], ['riz', 'Riz'], ['soda
 const PV_EGG = 6.5, PV_WHEY = 22;
 function pvProt(d) { if (d.q && typeof d.q === 'object') return Math.round(Object.entries(d.q).reduce((a, [id, n]) => a + (PV_FDX[id] ? PV_FDX[id][3] * numv(n) : 0), 0) + (d.fr && d.fr.ban ? 1 : 0)); const c = d.comp || {}; return Math.round(PV_COMP.reduce((a, [id, , g]) => a + (id === 'oe' ? numv(d.eggs) * PV_EGG : c[id] ? g : 0), 0) + (d.whey ? PV_WHEY : 0) + (d.fr && d.fr.ban ? 1 : 0)); }
 const pvClean = d => PV_BAN.every(([id]) => !(d.ban || {})[id]);
+/* v5.37 · ce qui manque vraiment, en clair */
+function pvFoodMiss(d) { const [m, w, f, c] = pvFoodScore(d), fr = d.fr || {};
+  if (!m) return 'Repas unique pas encore pris';
+  const miss = []; if (!w) miss.push(`encore ${pvL(Math.max(0, PV_EAU[0] - numv(d.water)))} d'eau`); if (!f) miss.push(!fr.ban && !fr.fra ? 'la banane et les fraises' : !fr.ban ? 'la banane' : 'les fraises');
+  return miss.length ? `Il manque ${miss.join(' et ')}` : c ? 'Tout est fait' : 'Écart noté aujourd\'hui : on repart à zéro demain'; }
 function pvFoodScore(d) { return [!!d.meal, numv(d.water) >= PV_EAU[0], !!(d.fr && d.fr.ban && d.fr.fra), pvClean(d)]; }
 function pvCleanStreak() { let n = 0; for (let i = 0; i < 400; i++) { const k = iso(addDays(new Date(), -i)), d = pvS().d[k]; if (!d || !d.meal) { if (i === 0) continue; break; } if (!pvClean(d)) break; n++; } return n; }
 function pvBanStreak(id) { let n = 0; for (let i = 1; i < 400; i++) { const k = iso(addDays(new Date(), -i)); if (k < pvS().start) break; const d = pvS().d[k]; if (d && d.ban && d.ban[id]) break; n++; } return n; }
@@ -6881,7 +6886,7 @@ function pvPillars(k = todayISO()) {
   const due = k === todayISO() ? pvCircDay().due : !pvS().circ.some(x => x.date === iso(addDays(parseDate(k), -1)));
   const [an, at] = pvApN(d, k), it = pvSeuils(k), ph = puffPhase(k), pn = puffN(k);
   return [
-    { id: 'nutrition', n: 'Alimentation', v: fs / 4, t: `${fs}/4`, s: d.meal ? `${pvL(numv(d.water))} d'eau${pvClean(d) ? ' · zéro écart' : ' · écart noté'}` : 'Repas unique pas encore pris' },
+    { id: 'nutrition', n: 'Alimentation', v: fs / 4, t: `${fs}/4`, s: pvFoodMiss(d), stuck: (() => { const f = pvFoodScore(d); return f[0] && f[1] && f[2] && !f[3]; })() },
     { id: 'entrainement', n: '15K pas', v: st / g, t: pvFmt(st), s: st >= g ? 'Objectif atteint' : `Reste ${pvFmt(g - st)} pas` },
     { id: 'entrainement', n: 'Circuit', v: c || !due ? 1 : 0, t: c ? 'fait' : due ? 'à faire' : 'repos', s: c ? 'Validé aujourd\'hui' : due ? 'Pompes, dips, tractions négatives' : 'Récupération, circuit demain', rest: !due && !c },
     { id: 'apparence', n: 'Apparence', v: at ? an / at : 0, t: `${an}/${at}`, s: (() => { const b = pvBarberDays(); return b == null || b >= PV_BARBER ? 'Coiffeur à prévoir' : 'Barbe, cheveux, tenue, parfum'; })() },
@@ -8014,9 +8019,22 @@ function csOrbit() {
 }
 function jgData() {
   const P = pvPillars(), pct = Math.min(1, pvDayPct(todayISO())), todo = P.filter(x => x.v < 1);
-  return { P, pct, todo, nx: todo[0], full: pct >= 1, pc: Math.round(pct * 100), st: pvStreak() };
+  return { P, pct, todo, nx: todo.find(x => !x.stuck), full: pct >= 1, pc: Math.round(pct * 100), st: pvStreak() };
 }
-function jgTap() { let d; try { d = jgData(); } catch (e) { go('flux'); return; } go(d.nx ? d.nx.id : 'flux'); }
+function jgTap() { let d; try { d = jgData(); } catch (e) { go('flux'); return; } jgSheet(d); }
+/* v5.37 · la lune de verre ouvre la liste des 7 piliers du jour : ce qui est fait, ce qui manque, un toucher pour y aller */
+function jgSheet(d) {
+  const old = $('.jg-sheet'); if (old) old.remove();
+  const el = document.createElement('div'); el.className = 'jg-sheet';
+  const row = x => { const v = Math.min(1, x.v), st = v >= 1 ? 'ok' : x.stuck ? 'stuck' : v > 0 ? 'mid' : ''; return `<button class="jg-row ${st}" data-jgo="${x.id}"><i>${v >= 1 ? '✓' : x.stuck ? '–' : ''}</i><span><b>${esc(x.n)}</b><small>${esc(x.s)}</small><em style="--p:${(v * 100).toFixed(0)}%"></em></span><strong class="num">${esc(String(x.t))}</strong>${ICON.chev}</button>`; };
+  el.innerHTML = `<div class="jg-sh-in"><div class="row between" style="align-items:center"><h2 class="pv-h" style="margin:0">Ta journée · ${d.P.length - d.todo.length}/${d.P.length}</h2><button class="link-btn" data-jgx aria-label="Fermer">Fermer</button></div>
+    <p class="pv-sub" style="margin:4px 0 10px">Chaque pilier tenu remplit ta lune de verre.${d.st ? ` Série : ${d.st} jour${d.st > 1 ? 's' : ''} complet${d.st > 1 ? 's' : ''}.` : ''}</p>
+    ${d.P.map(row).join('')}</div>`;
+  el.addEventListener('click', e => { e.stopPropagation(); const g = e.target.closest('[data-jgo]');
+    if (g) { el.remove(); go(g.dataset.jgo); return; }
+    if (e.target.closest('[data-jgx]') || e.target === el) el.remove(); });
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+}
 function jgOrbSvg(R, d) {
   const dy = ((1 - d.pct) * (2 * R + 10)).toFixed(1), glow = (R * 1.9 + R * 1.6 * d.pct).toFixed(0);
   const seg = 2 * Math.PI * (R + 9) / d.P.length, gap = 5;
@@ -8315,7 +8333,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.36 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.37 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
