@@ -2510,6 +2510,58 @@ body:not(.sys-on) .in-hold i{background:linear-gradient(90deg,var(--gold),var(--
 @keyframes tlSandBot{0%{transform:scaleY(.05)}90%,100%{transform:scaleY(1)}}
 @keyframes tlStream{to{stroke-dashoffset:-2.6}}
 @media (prefers-reduced-motion:reduce){.tl-orb,.tl-orb::before,.tl-s1,.tl-s2,.tl-st{animation:none}}
+/* v5.22 · Psychologie : chemin + outils + sections dans le style de l'app */
+.psy-road{list-style:none;margin:4px 0 0;padding:0}
+.psy-road li{position:relative;display:flex;gap:12px;padding:0 0 14px}
+.psy-road li:not(:last-child)::after{content:"";position:absolute;left:13px;top:30px;bottom:2px;width:2px;background:var(--line)}
+.psy-road li.done:not(:last-child)::after{background:color-mix(in srgb,var(--mint) 55%,transparent)}
+.psy-dot{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:.78rem;font-weight:800;background:var(--raise);color:var(--muted)}
+.psy-road li.cur .psy-dot{background:linear-gradient(140deg,#F8E9C4,#E8C27A);color:#1A1206;box-shadow:0 0 12px rgba(232,194,122,.45)}
+.psy-road li.done .psy-dot{background:color-mix(in srgb,var(--mint) 22%,transparent);color:var(--mint)}
+.psy-road b{display:block;font-size:.92rem}.psy-road li.next b{color:var(--ink-2)}.psy-road li.cur b{color:var(--gold)}
+.psy-road small{display:block;font-size:.76rem;color:var(--ink-2);line-height:1.4}.psy-road em{display:block;font-style:normal;font-size:.68rem;color:var(--muted);margin-top:2px}
+.psy-tools{display:grid;gap:0}
+.psy-tool{display:flex;align-items:center;gap:10px;width:100%;padding:11px 0;border-bottom:1px solid var(--line);text-align:left;color:var(--ink);background:none}
+.psy-tool:last-child{border-bottom:0}.psy-tool .grow{min-width:0}.psy-tool b{display:block;font-size:.9rem}.psy-tool small{display:block;font-size:.74rem;color:var(--muted);line-height:1.35}
+.psy-tool em{flex:none;font-style:normal;font-size:.7rem;color:var(--gold);text-align:right;max-width:38%}
+.psy-tool.on b{color:var(--gold)}
+.psy-card .sys-li{color:var(--ink-2);font-size:.85rem;line-height:1.5;padding:4px 0}.psy-card .sys-li b{color:var(--ink)}
+.psy-card .sys-k{color:var(--gold);font-size:.66rem;letter-spacing:.12em;font-weight:750}
+.psy-card .sys-obj{color:var(--ink);border-bottom:1px solid var(--line);font-family:inherit;padding:10px 0}
+.psy-card .sys-obj small,.psy-card .rep-s{color:var(--muted);font-family:inherit;letter-spacing:0;text-transform:none}
+.psy-card .sys-box{border-radius:50%;width:22px;height:22px;border:1.5px solid var(--line);box-shadow:none;color:var(--mint);font-family:inherit}
+.psy-card .sys-obj.ok .sys-box{background:color-mix(in srgb,var(--mint) 20%,transparent);border-color:var(--mint)}
+.psy-card .lk-r{border-bottom:1px solid var(--line)}
+.psy-card .lk-q{border-radius:50%;border:1px solid var(--line);color:var(--muted);font-family:inherit}
+.psy-card .lk-hp{border-left:2px solid var(--gold);background:var(--raise);color:var(--ink-2);border-radius:0 8px 8px 0}
+.psy-card .sys-btn{border-radius:12px;border:0;background:var(--gold);color:#1A1206;font-family:inherit;letter-spacing:0;box-shadow:none;min-height:44px;font-weight:700}
+.psy-card .sys-btn.ghost{background:var(--raise);color:var(--ink)}
+.psy-card .sys-xp{height:6px;border-radius:3px;background:var(--raise);overflow:hidden;margin:8px 0}.psy-card .sys-xp i{display:block;height:100%;background:var(--gold)}
+.psy-card .sys-xpt,.psy-card .sys-pt,.psy-card .sys-qt{font-family:inherit;letter-spacing:0;color:var(--ink-2);text-transform:none}
+.psy-card .tw-n{font:400 1.8rem var(--serif);color:var(--ink)}
+.psy-card .psy-res{display:block;padding:10px 0;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none}.psy-card .psy-res span{display:block;font-size:.78rem;color:var(--muted)}
+.psy-card .psy-log button{border-radius:999px;border:1px solid var(--line);background:var(--raise);color:var(--ink-2);font-family:inherit;letter-spacing:0;padding:6px 10px;font-size:.78rem}
+.psy-card .psy-log button.on{background:var(--gold-soft);color:var(--ink);border-color:var(--gold)}
+.psy-card .sq-in{width:100%;min-height:44px;margin-top:8px;padding:0 12px;border:0;border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;box-shadow:inset 0 0 0 1px var(--line)}
+.psy-card summary .sys-k{font-size:.9rem;letter-spacing:0;color:var(--ink);font-weight:650;text-transform:none}
+.psy-card details{border-bottom:1px solid var(--line);padding:10px 0}.psy-card summary{list-style:none;cursor:pointer}.psy-card summary::-webkit-details-marker{display:none}
+.psy-card .lk-cb{color:var(--ink-2);font-size:.85rem;line-height:1.55}
+/* v5.23 · Repas : chaque aliment à l'unité */
+.fd-u{display:block;font-size:.68rem;color:var(--muted);font-weight:500}
+.fd-more{margin-top:8px}.fd-more .pv-k{margin-top:12px}
+.fd-more .pv-step{margin-top:8px}.fd-more .pv-step .icon-btn{background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)}.fd-more .pv-step b{font-size:1.3rem}
+.fd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.fd-t{position:relative;border-radius:12px;background:var(--raise);box-shadow:inset 0 0 0 1px var(--line);min-height:58px}
+.fd-t.on{background:var(--gold-soft);box-shadow:inset 0 0 0 1.5px var(--gold)}
+.fd-main{display:flex;flex-direction:column;justify-content:center;width:100%;height:100%;min-height:58px;padding:8px 8px 8px 9px;text-align:left;color:var(--ink);background:none;border:0}
+.fd-main b{font-size:.78rem;line-height:1.15;padding-right:18px}.fd-main small{font-size:.62rem;line-height:1.25;color:var(--muted);margin-top:2px}.fd-t.on .fd-main small{padding-right:26px}
+.fd-n{position:absolute;top:5px;right:6px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--gold);color:#1A1206;font-size:.72rem;font-weight:800;display:grid;place-items:center;pointer-events:none}
+.fd-m{position:absolute;bottom:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:var(--surface);color:var(--ink);font-size:1rem;line-height:1;box-shadow:inset 0 0 0 1px var(--line)}
+/* v5.25 · Idées de repas */
+.rec{padding:10px 12px;margin-top:8px}.rec>summary{list-style:none;position:relative;padding-right:22px}.rec>summary::-webkit-details-marker{display:none}.rec>summary::after{content:"›";position:absolute;right:2px;top:50%;transform:translateY(-50%);font-size:1.2rem;color:var(--muted);transition:transform .2s}.rec[open]>summary::after{transform:translateY(-50%) rotate(90deg)}.rec summary b{display:block;font-size:.88rem}.rec summary small{display:block;margin-top:2px;font-size:.72rem;font-weight:500;color:var(--muted)}
+.rec-ul{margin:4px 0 0;padding-left:18px;font-size:.82rem;line-height:1.55;color:var(--ink-2)}
+.rec-st{margin-top:6px}.rec-st li{padding-bottom:8px}.rec-st span{margin-top:3px}
+.rec .btn{margin-top:6px}
 </style>
 </head>
 <body>
