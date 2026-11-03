@@ -6548,7 +6548,7 @@ const CS_3 = [ /* tous les 3 jours : 3 paniers de 3 jours */
   { r: [0, 2, 5], p: [['Œufs x12', 3.3], ['Patates douces 1 kg', 2.5], ['Épinards surgelés 1 kg', 2], ['Tomates concassées', .8], ['Poivron', .9], ['Oignon', .3], ['Champignons 250 g', 1.3], ['Pommes de terre 1 kg', 1.3], ['Fromage blanc 0 % 1 kg', 2.2]] },
   { r: [1, 3, 4], p: [['Œufs x6', 1.8], ['Thon au naturel x2', 3], ['Salade en sachet', 1.2], ['Tomates cerises', 1.5], ['Concombre', .9], ['Patates douces 1 kg', 2.5], ['Courgettes x2', 1.2], ['Oignon', .3], ['Fromage blanc 0 % 1 kg', 2.2]] },
   { r: [7, 7, 7], p: [['Œufs x12', 3.3], ['Patates douces 1 kg', 2.5], ['Brocoli', 1.5], ['Oignon', .3], ['Salade en sachet', 1.2], ['Fromage blanc 0 % 1 kg', 2.2], ['Bananes 1 kg', 1.8]] }];
-function csS() { const p = pvS(); p.cs = p.cs && typeof p.cs === 'object' ? p.cs : {}; const c = p.cs; if (!c.ry) c.ry = 'j'; if (!c.start) c.start = todayISO(); c.done = c.done || {}; c.mp = Number(c.mp) || 0; return c; }
+function csS() { const p = pvS(); p.cs = p.cs && typeof p.cs === 'object' ? p.cs : {}; const c = p.cs; if (!c.ry) c.ry = 'j'; if (!c.start) c.start = todayISO(); c.done = c.done || {}; c.mp = 0; if (c.mpn == null) c.mpn = 18; c.mpn = Number(c.mpn) || 0; return c; }
 const eur = v => v.toFixed(2).replace('.', ',') + ' €';
 /* où j'en suis : jour du cycle, panier à faire, repas d'aujourd'hui et des prochains jours */
 function csPlan(c = csS()) {
@@ -6560,19 +6560,20 @@ function csPlan(c = csS()) {
     next: bought ? `Prochain passage : ${addDays(new Date(), 3 - d).toLocaleDateString('fr-FR', { weekday: 'long' })}` : d ? 'Pas encore fait : à faire dès que tu peux.' : '' };
 }
 function pvCourses() {
-  const c = csS(), tot = 25 + c.mp, P = csPlan(c), done = !!c.done[todayISO()], sum = P.P.p.reduce((a, x) => a + x[1], 0);
+  const c = csS(), tot = 25, P = csPlan(c), done = !!c.done[todayISO()], sum = P.P.p.reduce((a, x) => a + x[1], 0);
   const chip = (attr, val, cur, lab) => `<button class="chip" ${attr}="${val}" aria-pressed="${cur === val}">${lab}</button>`;
   const show = P.due || done;
   return `<section class="cs-box"><p class="pv-k">Mes courses</p><div class="chips" style="margin:6px 0 0">${chip('data-csry', 'j', c.ry, 'Tous les jours')}${chip('data-csry', '3', c.ry, 'Tous les 3 jours')}</div>
     <p class="pv-k" style="margin-top:14px">${done ? 'Courses faites aujourd’hui ✓' : show ? (c.ry === 'j' ? 'Le panier du jour' : 'Le panier des 3 jours') : 'Rien à acheter aujourd’hui'}</p>
     ${show && P.P.p.length ? `<ul class="rec-ul">${P.P.p.map(([n, v]) => `<li>${esc(n)} <span class="muted">≈ ${eur(v)}</span></li>`).join('')}</ul>
-    <p class="pv-sub">Total ≈ <b>${eur(sum)}</b> · il reste ≈ <b>${eur(Math.max(0, tot - sum))}</b> pour les courses de ta femme${c.mp ? ` (Swile + Mister Pizza : ${eur(tot)})` : ' (sur 25 € de Swile)'}.</p>
+    <p class="pv-sub">Total ≈ <b>${eur(sum)}</b> · il reste ≈ <b>${eur(Math.max(0, tot - sum))}</b> pour les courses de ta femme (sur les 25 € de Swile).</p>
     ${done ? `<button class="btn sm quiet block" data-csdone>Annuler</button>` : `<button class="btn sm block" data-csdone>Courses faites</button>`}`
       : `<p class="pv-sub">Tu as déjà tout ce qu'il faut pour tes repas. Les ${eur(tot)} sont pour les courses de ta femme.</p>`}
     ${P.next ? `<p class="pv-sub">${P.next}</p>` : ''}
     <p class="pv-k" style="margin-top:14px">Tickets Mister Pizza</p>
-    ${c.mp ? `<p class="pv-sub">+ ${eur(c.mp)} par jour ajoutés au budget. <button class="btn sm quiet" data-csmp="0">Retirer</button></p>`
-      : `<p class="pv-sub">Pas encore reçus (jeudi au plus tôt). Quand tu les as, touche ce qu'ils ajoutent par jour :</p><div class="chips">${[5, 8, 10, 12].map(v => `<button class="chip" data-csmp="${v}">+ ${v} €</button>`).join('')}</div>`}
+    <p class="pv-sub">${c.mpn ? `Tu as <b>${c.mpn} ticket${c.mpn > 1 ? 's' : ''}</b> de 6 €, soit <b>${eur(c.mpn * 6)}</b> en plus des 25 € de Swile. Tu peux en utiliser autant que tu veux d'un coup, par exemple pour un plus gros panier.` : 'Plus de ticket pour l\'instant. Tu en reçois avec chaque paie (18 en octobre).'}</p>
+    <div class="cs-mp"><button class="btn sm quiet" data-csmp="-1" ${c.mpn ? '' : 'disabled'}>− 1 utilisé</button><button class="btn sm quiet" data-csmp="1">+ 1</button><button class="btn sm quiet" data-csmp="18">Paie · + 18</button></div>
+
     <p class="pv-sub" style="margin-top:12px">Une fois par mois : huile d'olive, citron, épices. Prix estimés, ils varient selon le magasin.</p><button class="btn sm quiet block" data-csre>Recommencer au jour 1</button></section>`;
 }
 function pvRecipes() {
@@ -6915,7 +6916,7 @@ function pvClick(t) {
     pvRe(); return true; }
   if ((el = c('[data-csre]'))) { const x = csS(); x.start = todayISO(); x.done = {}; haptic(); save(); pvRe(); toast('Cycle repris au jour 1'); return true; }
   if ((el = c('[data-csry]'))) { const x = csS(); if (x.ry !== el.dataset.csry) { x.start = todayISO(); x.done = {}; } x.ry = el.dataset.csry; haptic(); save(); pvRe(); return true; }
-  if ((el = c('[data-csmp]'))) { csS().mp = +el.dataset.csmp; haptic(); save(); pvRe(); return true; }
+  if ((el = c('[data-csmp]'))) { const x = csS(); x.mpn = Math.max(0, (Number(x.mpn) || 0) + Number(el.dataset.csmp)); haptic(); save(); pvRe(); return true; }
   if ((el = c('[data-csdone]'))) { const x = csS(), k = todayISO(); if (x.done[k]) delete x.done[k]; else { x.done[k] = 1; toast('Courses notées'); } haptic(); save(); pvRe(); return true; }
   if ((el = c('[data-pvrec]'))) { const r = PV_REC[+el.dataset.pvrec]; if (!r) return true; const d = pvDay(), q = pvQ(d); Object.entries(r[5]).forEach(([id, n]) => { q[id] = Math.min(40, (q[id] || 0) + n); }); pvQSync(d); haptic(); save(); pvCheckDay(); pvRe(); toast(`${r[0]} : ajouté à ton repas`); return true; }
   if ((el = c('[data-fdp]')) || (el = c('[data-fdm]'))) { const d = pvDay(), q = pvQ(d), id = el.dataset.fdp || el.dataset.fdm, up = !!el.dataset.fdp; q[id] = Math.max(0, Math.min(40, (q[id] || 0) + (up ? 1 : -1))); if (!q[id]) delete q[id]; pvQSync(d); haptic(); save(); pvCheckDay(); pvRe(); return true; }
@@ -8293,7 +8294,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.32 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.33 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
