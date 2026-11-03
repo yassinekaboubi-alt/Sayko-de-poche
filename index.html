@@ -2562,6 +2562,53 @@ body:not(.sys-on) .in-hold i{background:linear-gradient(90deg,var(--gold),var(--
 .rec-ul{margin:4px 0 0;padding-left:18px;font-size:.82rem;line-height:1.55;color:var(--ink-2)}
 .rec-st{margin-top:6px}.rec-st li{padding-bottom:8px}.rec-st span{margin-top:3px}
 .rec .btn{margin-top:6px}
+/* v5.26 · Arabe : constellation qui grandit + transformation longue */
+.ar-arms{transform-origin:0 0;animation:arSpin 240s linear infinite}@keyframes arSpin{to{transform:rotate(360deg)}}
+.ar-ring{transform-origin:0 0;animation:arSpin 120s linear infinite reverse}
+.ar-aur{animation:arAur 9s ease-in-out infinite alternate;transform-origin:0 0}@keyframes arAur{from{opacity:.55;transform:translateY(0)}to{opacity:1;transform:translateY(-6px)}}
+.ar-shoot{opacity:0;animation:arShoot 7s linear infinite}.ar-shoot.s2{animation-delay:3.4s}
+@keyframes arShoot{0%{opacity:0;transform:translate(0,0)}3%{opacity:1}10%{opacity:0;transform:translate(60px,22px)}100%{opacity:0;transform:translate(60px,22px)}}
+.ar-cres{animation:pstar 4s ease-in-out infinite}
+.ar-ov{position:fixed;inset:0;z-index:90;pointer-events:none;background:radial-gradient(circle at 50% 30%,rgba(2,4,7,.45),rgba(2,4,7,.9));opacity:0;transition:opacity .7s ease}
+.ar-ov.dim{opacity:1}.ar-ov.out{opacity:0;transition:opacity .8s ease}
+.ar-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,#FFFDF6,rgba(255,233,184,.6) 30%,rgba(232,194,122,0) 70%);opacity:0}
+.ar-ov.flash .ar-flash{animation:arFlash 1.4s ease-out forwards}@keyframes arFlash{0%{opacity:0}12%{opacity:1}100%{opacity:0}}
+.ar-tt{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 64px);text-align:center;padding:0 24px;opacity:0;transform:translateY(14px);transition:opacity .9s ease,transform .9s cubic-bezier(.2,.8,.2,1)}
+.ar-ov.title .ar-tt{opacity:1;transform:none}
+.ar-tt small{display:block;font-size:.72rem;font-weight:750;letter-spacing:.28em;text-transform:uppercase;color:#7FD6C4}
+.ar-tt b{display:block;margin-top:8px;font:400 2.6rem/1.1 var(--serif);background:linear-gradient(100deg,#B8863B,#F8E9C4 45%,#E8C27A 60%,#B8863B);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ar-tt span{display:block;margin-top:10px;font-size:.9rem;color:#EEF3EF}
+.nova2 circle,.nova2 path{transform-origin:0 0;transform-box:view-box}
+.nova2 .nv-core{animation:nvCore .35s ease-in forwards}@keyframes nvCore{from{transform:scale(2.4)}to{transform:scale(.2)}}
+.nova2 .nv-glow,.nova2 .nv-ring,.nova2 .nv-spk{opacity:0}
+.nova2.go .nv-core{animation:nvBoom 1.6s cubic-bezier(.2,.8,.2,1) forwards}@keyframes nvBoom{0%{transform:scale(.2);opacity:1}25%{transform:scale(4);opacity:1}100%{transform:scale(1.5);opacity:0}}
+.nova2.go .nv-glow{animation:nvGlow 1.8s cubic-bezier(.2,.8,.2,1) forwards}@keyframes nvGlow{0%{opacity:0;transform:scale(.2)}25%{opacity:1;transform:scale(2.2)}100%{opacity:0;transform:scale(3.4)}}
+.nova2.go .nv-ring{animation:nvRing 1.6s cubic-bezier(.1,.7,.3,1) forwards}@keyframes nvRing{0%{opacity:1;transform:scale(.3);stroke-width:3}100%{opacity:0;transform:scale(9);stroke-width:.2}}
+.nova2.go .nv-spk{animation:nvSpk 1.4s ease-out forwards}.nova2.go .nv-spk.d{animation-delay:.1s}@keyframes nvSpk{0%{opacity:0;transform:scale(.1) rotate(0)}20%{opacity:1;transform:scale(1.4) rotate(8deg)}100%{opacity:0;transform:scale(2) rotate(20deg)}}
+@media (prefers-reduced-motion:reduce){.ar-arms,.ar-ring,.ar-aur,.ar-shoot,.ar-cres{animation:none}}
+.ar-belt{transform-origin:0 0;animation:arSpin 160s linear infinite}
+.ar-sat{transform-origin:0 0;animation:arSpin 60s linear infinite}
+.ar-aur.a2{animation-duration:12s;animation-delay:-4s}
+.ar-shoot.s3{animation-delay:1.7s;animation-duration:9s}.ar-shoot.s4{animation-delay:5.2s;animation-duration:8s}
+.ar-web line{filter:drop-shadow(0 0 1.5px rgba(127,227,196,.8))}
+.ar-hizb{transform-origin:0 0;animation:arSpin 200s linear infinite}
+.ar-rays{transform-origin:0 0;animation:arSpin 300s linear infinite reverse}
+@media (prefers-reduced-motion:reduce){.ar-belt,.ar-sat,.ar-hizb,.ar-rays{animation:none}}
+.ar-gal{transform-origin:0 0;animation:arSpin 600s linear infinite}
+.ar-mgi{animation:arSpin 90s linear infinite;transform-origin:0 0;transform-box:view-box}
+.ar-mg{transform-box:view-box}
+.ar-noor{animation:arNoor 5s ease-in-out infinite alternate;transform-origin:0 0}@keyframes arNoor{from{opacity:.75}to{opacity:1}}
+.ar-hz path:nth-child(2n){animation:arHz 4s ease-in-out infinite alternate}@keyframes arHz{from{stroke-opacity:.55}to{stroke-opacity:.95}}
+@media (prefers-reduced-motion:reduce){.ar-gal,.ar-mgi,.ar-noor,.ar-hz path{animation:none}}
+.cs-box{margin:4px 0 2px;padding:14px;border-radius:16px;background:rgba(232,194,122,.06);border:1px solid rgba(232,194,122,.18)}
+.cs-tag{display:inline-block;margin-right:8px;padding:2px 8px;border-radius:999px;background:rgba(127,214,196,.14);color:#7FD6C4;font-size:.68rem;font-weight:750;letter-spacing:.04em;vertical-align:2px}
+.ar-cyc{display:flex;gap:6px;margin:12px 0 0;flex-wrap:wrap}.ar-cyc .chip[disabled]{opacity:.45}
+.ar-moule{padding:12px 14px;border-radius:14px;background:rgba(232,194,122,.06);border:1px solid rgba(232,194,122,.18);font-size:.86rem}.ar-moule p{margin:4px 0}.ar-moule [lang=ar]{font-family:'Amiri',serif;font-size:1.05rem}.ar-moule b[lang=ar]{color:var(--gold)}
+.arq-fr{font:400 1.45rem/1.3 var(--serif);text-align:center;margin:14px 0 6px}
+.ar-word{transform-origin:center;transform-box:fill-box}
+.ar-spk{animation:arTw 3s ease-in-out infinite}@keyframes arTw{0%,100%{opacity:.2}50%{opacity:1}}
+.ar-verse{animation:arNoor 5s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){.ar-spk,.ar-verse{animation:none}}
 </style>
 </head>
 <body>

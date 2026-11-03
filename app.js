@@ -1193,7 +1193,7 @@ function pqClick(t) {
 /* ----- L'arabe : l'arbre de compétences et la grille de runes ----- */
 const ARSK = ['Lexique', 'Exégèse', 'Formules', 'Vocalisation', 'Lecture'];
 function arTree() {
-  const cur = AR.p || Math.min(5, arPalier());
+  const cur = AR.p || Math.min(10, arPalier());
   const nodes = ARP.map(([t, s], i) => {
     const n = i + 1, op = arOpen(n), dn = arDone(n), [x, y] = arProg(n), pc = y ? x / y : 0;
     return `<button class="atn ${dn ? 'ok' : ''} ${op ? '' : 'lk'} ${cur === n ? 'cur' : ''}" data-arp="${n}" ${op ? '' : 'disabled'}>
@@ -1799,16 +1799,20 @@ const currentQuarter = () => Math.min(3, Math.floor((currentMonth() - 1) / 3));
    les étoiles maîtrisées sont reliées comme une vraie constellation. */
 const STARCOL = ['#BFD7FF', '#FFFFFF', '#FFF1C8', '#FFD49A', '#FFC6A8', '#D6E4FF'];
 function constellation() {
+  if (arCount() >= 3) return arCosmos();
   let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   const pts = WORDS.map((w, i) => { const r = 13.6 * Math.sqrt(i + 0.6), [x, y] = polar(r, i * 137.508); return { i, x, y, sc: Math.min(3, S.words[i] || 0) }; });
   const dust = Array.from({ length: 180 }, () => `<circle cx="${(rnd() * 300 - 150).toFixed(1)}" cy="${(rnd() * 210 - 105).toFixed(1)}" r="${(rnd() * .5 + .12).toFixed(2)}" fill="#FFF8E6" opacity="${(rnd() * .45 + .1).toFixed(2)}"/>`).join('');
   const on = pts.filter(p => p.sc >= 3), links = [];
-  on.forEach(p => { let best = null, bd = 1e9; on.forEach(q => { if (q === p) return; const d = (p.x - q.x) ** 2 + (p.y - q.y) ** 2; if (d < bd) { bd = d; best = q; } }); if (best && bd < 1600) { const k = [p.i, best.i].sort((x, y) => x - y).join('-'); if (!links.includes(k)) links.push(k); } });
-  const lines = links.map(k => { const [u, v] = k.split('-').map(Number); return `<line x1="${pts[u].x.toFixed(1)}" y1="${pts[u].y.toFixed(1)}" x2="${pts[v].x.toFixed(1)}" y2="${pts[v].y.toFixed(1)}" stroke="#E8C27A" stroke-opacity=".32" stroke-width=".5"/>`; }).join('');
+  const stg = arCount(), nb = stg >= 3 ? 2 : 1;
+  on.forEach(p => { on.filter(q => q !== p).map(q => [q, (p.x - q.x) ** 2 + (p.y - q.y) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, nb).forEach(([q, d]) => { if (d < 1600) { const k = [p.i, q.i].sort((x, y) => x - y).join('-'); if (!links.includes(k)) links.push(k); } }); });
+  const lc = stg >= 5 ? ['#FFF1C8', .28, .45] : stg >= 4 ? ['#7FE3C4', .3, .45] : ['#E8C27A', .3, .45];
+  const lines = `<g>` + links.map(k => { const [u, v] = k.split('-').map(Number); return `<line x1="${pts[u].x.toFixed(1)}" y1="${pts[u].y.toFixed(1)}" x2="${pts[v].x.toFixed(1)}" y2="${pts[v].y.toFixed(1)}" stroke="${lc[0]}" stroke-opacity="${lc[1]}" stroke-width="${lc[2]}"/>`; }).join('') + '</g>';
   const stars = pts.map(p => {
     const col = STARCOL[(p.i * 7) % STARCOL.length], R = [0.7, 1.1, 1.5, 2.1][p.sc], gid = `sg${(p.i * 7) % STARCOL.length}`;
-    let s = `<circle r="${(R * (p.sc >= 3 ? 6 : 3.6)).toFixed(2)}" fill="url(#${gid})" opacity="${[.35, .55, .75, 1][p.sc]}"/>`;
-    if (p.sc >= 2) { const L = R * (p.sc >= 3 ? 7.5 : 4.5); s += `<path d="M${-L} 0H${L}M0 ${-L}V${L}" stroke="url(#spk)" stroke-width="${p.sc >= 3 ? .55 : .35}" opacity="${p.sc >= 3 ? .9 : .5}"/>`; }
+    const calm = 1;
+    let s = `<circle r="${(R * (p.sc >= 3 ? 6 : 3.6) ).toFixed(2)}" fill="url(#${gid})" opacity="${[.35, .55, .75, 1][p.sc]}"/>`;
+    if (p.sc >= 2) { const L = R * (p.sc >= 3 ? 7.5 : 4.5) * calm; s += `<path d="M${-L} 0H${L}M0 ${-L}V${L}" stroke="url(#spk)" stroke-width="${p.sc >= 3 ? .55 : .35}" opacity="${p.sc >= 3 ? .9 : .5}"/>`; }
     if (p.sc >= 3) s += `<path d="M${-R * 3} ${-R * 3}L${R * 3} ${R * 3}M${-R * 3} ${R * 3}L${R * 3} ${-R * 3}" stroke="${col}" stroke-width=".25" opacity=".45"/>`;
     s += `<circle r="${R.toFixed(2)}" fill="${p.sc ? '#FFFDF6' : col}" opacity="${p.sc ? 1 : .55}"/>`;
     return `<g class="star ${p.sc >= 3 ? 'tw' : ''}" data-star="${p.i}" transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})" style="animation-delay:-${((p.i * 0.37) % 4).toFixed(2)}s"><circle r="7" fill="transparent"/>${s}</g>`;
@@ -1818,13 +1822,13 @@ function constellation() {
     <radialGradient id="cvoid"><stop offset="0" stop-color="#020407" stop-opacity=".78"/><stop offset=".55" stop-color="#020407" stop-opacity=".5"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient>
     <radialGradient id="cneb"><stop offset="0" stop-color="#2E7D5B" stop-opacity=".35"/><stop offset=".55" stop-color="#3A3070" stop-opacity=".18"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient></defs>
     <ellipse rx="150" ry="108" fill="url(#cvoid)"/>
-    <ellipse rx="130" ry="58" fill="url(#cneb)" transform="rotate(-24)"/>${dust}${lines}${stars}${arPalierStars()}`;
+    <ellipse rx="130" ry="58" fill="url(#cneb)" transform="rotate(-24)"/>${arStageBack()}${dust}${lines}${stars}${arPalierStars()}`;
 }
 function vArabe() {
-  const p = AR.p || Math.min(5, arPalier());
+  const p = AR.p || Math.min(10, arPalier());
   if (p !== 1) return `${foiTop('arabe')}
   ${uiSys() ? arTree() : `<div class="constel"><svg viewBox="-132 -102 264 204" id="constel" aria-label="Ta constellation">${constellation()}</svg><p class="constel-tip" id="ctip"></p></div>
-  ${arBar()}`}${p === 2 ? vAr2() : p === 3 ? vArQuiz('ph') : p === 4 ? vArQuiz('vo') : vAr5()}`;
+  ${arBar()}`}${p === 2 || p === 9 ? vAr2() : p === 3 ? vArQuiz('ph') : p === 4 ? vArQuiz('vo') : p === 5 ? vAr5() : p === 6 ? vArDeck('ra') : p === 7 ? vArDeck('gr') : p === 8 ? vArDeck('pa') : vArPense()}`;
   return vArabe1();
 }
 function vArabe1() {
@@ -2797,7 +2801,7 @@ function openInvestSetup() {
 
 /* ----- Onglet Foi : habitudes ----- */
 function foiTop(view) {
-  const sub = { arabe: 'Un chemin en 5 paliers, des mots jusqu\'à la lecture fluide.', dhikr: 'C\'est par l\'évocation d\'Allah que les cœurs s\'apaisent.', coeur: 'Les compétences du croyant, une à la fois, jusqu\'à ce qu\'elles s\'ancrent.', nafila: 'Ce qui te rapproche, au-delà de l\'obligatoire.', coran: 'Le garder dans ton cœur, verset après verset.' }[view] || 'La régularité avant tout. Chaque prière à l\'heure compte.';
+  const sub = { arabe: 'Deux cycles : lire l\'arabe, puis penser en arabe.', dhikr: 'C\'est par l\'évocation d\'Allah que les cœurs s\'apaisent.', coeur: 'Les compétences du croyant, une à la fois, jusqu\'à ce qu\'elles s\'ancrent.', nafila: 'Ce qui te rapproche, au-delà de l\'obligatoire.', coran: 'Le garder dans ton cœur, verset après verset.' }[view] || 'La régularité avant tout. Chaque prière à l\'heure compte.';
   const tabs = [['habitudes', 'Pratique', true], ['nafila', 'Surérogatoires', nafUnlocked()], ['dhikr', 'Dhikr', true], ['coeur', 'Cœur', true], ['arabe', 'Arabe', true], ['coran', 'Coran', arDone(5)]];
   return `${pageHead('Foi', sub, ['arabe', 'dhikr', 'coeur'].includes(view) ? view : 'foi')}
   <div class="fseg" role="tablist" aria-label="Sections de la Foi">${tabs.map(([k, l, op]) => `<button data-fview="${k}" role="tab" aria-selected="${view === k}" class="${view === k ? 'on' : ''} ${op ? '' : 'lock'}">${op ? '' : `<svg viewBox="0 0 24 24" aria-hidden="true">${GLYPH.lock}</svg>`}${l}</button>`).join('')}</div>${view === 'habitudes' ? `<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm ghost" data-goto="qibla">${uiSys() ? 'Ouvrir le viseur' : 'Trouver la qibla'}</button>${adkPendingChip()}</div>` : ''}`;
@@ -6523,13 +6527,59 @@ const PV_REC = [
   ['Le dessert protéiné', '2 min', 'tous les jours', ['2 pots de fromage blanc 0 %', '6 fraises ou ½ banane', 'Cannelle (sans sucre)'], ['Verse le fromage blanc dans un bol.', 'Ajoute les fraises coupées ou la banane, saupoudre de cannelle.'], { fb: 2 }]
 ];
 const PV_COURSES = [['Protéines', ['Œufs : 30 (pour la semaine)', 'Thon au naturel : 3 boîtes', 'Fromage blanc 0 % nature : 2 pots de 500 g', 'Whey (si besoin)']], ['Féculents', ['Patates douces : 5 à 7', 'Pommes de terre : 1 kg']], ['Légumes', ['Épinards (frais ou surgelés)', 'Courgettes : 3', 'Poivrons : 2', 'Oignons : 1 filet', 'Champignons : 1 barquette', 'Brocoli : 1', 'Salade : 1 sachet', 'Tomates cerises : 1 barquette', 'Concombre : 1', 'Tomates concassées : 2 boîtes']], ['Fruits', ['Fraises (surgelées l\'hiver)', 'Bananes : 7']], ['Placard', ['Huile d\'olive', 'Citron', 'Paprika, cumin, cannelle, herbes', 'Sel, poivre']]];
+/* v5.29 · Courses Swile liées aux repas : 25 €/jour max (+ tickets Mister Pizza), le reste pour ma femme.
+   Chaque panier achète les ingrédients des repas des jours qu'il couvre (les paquets entamés servent aux jours suivants).
+   r = recette PV_REC du jour (le dessert protéiné, index 8, tous les jours). Prix = moyennes supermarché (estimations). */
+const CS_J = [ /* tous les jours : 7 jours */
+  { r: 0, p: [['Œufs x12', 3.3], ['Patates douces 1 kg', 2.5], ['Épinards surgelés 1 kg', 2], ['Fromage blanc 0 % 1 kg', 2.2]] },
+  { r: 1, p: [['Pommes de terre 1 kg', 1.3], ['Thon au naturel x2', 3], ['Salade en sachet', 1.2], ['Tomates cerises', 1.5], ['Concombre', .9]] },
+  { r: 2, p: [['Tomates concassées', .8], ['Poivron', .9], ['Oignons 1 kg', 1.3], ['Bananes 1 kg', 1.8]] },
+  { r: 3, p: [['Fraises surgelées 500 g', 2.5]] },
+  { r: 4, p: [['Œufs x12', 3.3], ['Courgettes 1 kg', 2.5], ['Patates douces 1 kg', 2.5]] },
+  { r: 5, p: [['Champignons 250 g', 1.3], ['Fromage blanc 0 % 1 kg', 2.2]] },
+  { r: 0, p: [] }];
+const CS_3 = [ /* tous les 3 jours : 3 paniers de 3 jours */
+  { r: [0, 2, 5], p: [['Œufs x12', 3.3], ['Patates douces 1 kg', 2.5], ['Épinards surgelés 1 kg', 2], ['Tomates concassées', .8], ['Poivron', .9], ['Oignon', .3], ['Champignons 250 g', 1.3], ['Pommes de terre 1 kg', 1.3], ['Fromage blanc 0 % 1 kg', 2.2]] },
+  { r: [1, 3, 4], p: [['Œufs x6', 1.8], ['Thon au naturel x2', 3], ['Salade en sachet', 1.2], ['Tomates cerises', 1.5], ['Concombre', .9], ['Patates douces 1 kg', 2.5], ['Courgettes x2', 1.2], ['Oignon', .3], ['Fromage blanc 0 % 1 kg', 2.2]] },
+  { r: [7, 7, 7], p: [['Œufs x12', 3.3], ['Patates douces 1 kg', 2.5], ['Brocoli', 1.5], ['Oignon', .3], ['Salade en sachet', 1.2], ['Fromage blanc 0 % 1 kg', 2.2], ['Bananes 1 kg', 1.8]] }];
+function csS() { const p = pvS(); p.cs = p.cs && typeof p.cs === 'object' ? p.cs : {}; const c = p.cs; if (!c.ry) c.ry = 'j'; if (!c.start) c.start = todayISO(); c.done = c.done || {}; c.mp = Number(c.mp) || 0; return c; }
+const eur = v => v.toFixed(2).replace('.', ',') + ' €';
+/* où j'en suis : jour du cycle, panier à faire, repas d'aujourd'hui et des prochains jours */
+function csPlan(c = csS()) {
+  const n = Math.max(0, Math.round((parseDate(todayISO()) - parseDate(c.start)) / 864e5));
+  if (c.ry === 'j') { const k = n % 7, P = CS_J[k]; return { P, due: P.p.length > 0, meals: [0, 1, 2].map(j => CS_J[(k + j) % 7].r), day: k + 1, len: 7 }; }
+  const k = Math.floor(n / 3) % 3, d = n % 3, P = CS_3[k];
+  const bought = Object.keys(c.done).some(x => { const m = Math.round((parseDate(x) - parseDate(c.start)) / 864e5); return m >= n - d && m <= n; });
+  return { P, due: !bought, meals: P.r.slice(d).concat(CS_3[(k + 1) % 3].r).slice(0, 3), d, day: d + 1, len: 3,
+    next: bought ? `Prochain passage : ${addDays(new Date(), 3 - d).toLocaleDateString('fr-FR', { weekday: 'long' })}` : d ? 'Pas encore fait : à faire dès que tu peux.' : '' };
+}
+function pvCourses() {
+  const c = csS(), tot = 25 + c.mp, P = csPlan(c), done = !!c.done[todayISO()], sum = P.P.p.reduce((a, x) => a + x[1], 0);
+  const chip = (attr, val, cur, lab) => `<button class="chip" ${attr}="${val}" aria-pressed="${cur === val}">${lab}</button>`;
+  const show = P.due || done;
+  return `<section class="cs-box"><p class="pv-k">Mes courses</p><div class="chips" style="margin:6px 0 0">${chip('data-csry', 'j', c.ry, 'Tous les jours')}${chip('data-csry', '3', c.ry, 'Tous les 3 jours')}</div>
+    <p class="pv-k" style="margin-top:14px">${done ? 'Courses faites aujourd’hui ✓' : show ? (c.ry === 'j' ? 'Le panier du jour' : 'Le panier des 3 jours') : 'Rien à acheter aujourd’hui'}</p>
+    ${show && P.P.p.length ? `<ul class="rec-ul">${P.P.p.map(([n, v]) => `<li>${esc(n)} <span class="muted">≈ ${eur(v)}</span></li>`).join('')}</ul>
+    <p class="pv-sub">Total ≈ <b>${eur(sum)}</b> · il reste ≈ <b>${eur(Math.max(0, tot - sum))}</b> pour les courses de ta femme${c.mp ? ` (Swile + Mister Pizza : ${eur(tot)})` : ' (sur 25 € de Swile)'}.</p>
+    ${done ? `<button class="btn sm quiet block" data-csdone>Annuler</button>` : `<button class="btn sm block" data-csdone>Courses faites</button>`}`
+      : `<p class="pv-sub">Tu as déjà tout ce qu'il faut pour tes repas. Les ${eur(tot)} sont pour les courses de ta femme.</p>`}
+    ${P.next ? `<p class="pv-sub">${P.next}</p>` : ''}
+    <p class="pv-k" style="margin-top:14px">Tickets Mister Pizza</p>
+    ${c.mp ? `<p class="pv-sub">+ ${eur(c.mp)} par jour ajoutés au budget. <button class="btn sm quiet" data-csmp="0">Retirer</button></p>`
+      : `<p class="pv-sub">Pas encore reçus (jeudi au plus tôt). Quand tu les as, touche ce qu'ils ajoutent par jour :</p><div class="chips">${[5, 8, 10, 12].map(v => `<button class="chip" data-csmp="${v}">+ ${v} €</button>`).join('')}</div>`}
+    <p class="pv-sub" style="margin-top:12px">Une fois par mois : huile d'olive, citron, épices. Prix estimés, ils varient selon le magasin.</p><button class="btn sm quiet block" data-csre>Recommencer au jour 1</button></section>`;
+}
 function pvRecipes() {
   const pr = q => Math.round(Object.entries(q).reduce((a, [id, n]) => a + (PV_FDX[id] ? PV_FDX[id][3] * n : 0), 0));
-  return pvMore('Idées de repas', `${PV_REC.length} recettes simples · la liste de courses`, PV_REC.map(([n, t, w, ing, st, q], i) => `<details class="pv-det rec" data-k="rec-${i}"><summary><b>${esc(n)}</b><small>${esc(t)} · ${esc(w)} · ≈ ${pr(q)} g de protéines</small></summary>
+  const card = (i, tag) => { const [n, t, w, ing, st, q] = PV_REC[i]; return `<details class="pv-det rec" data-k="rec-${tag}-${i}"><summary><b>${tag ? `<span class="cs-tag">${tag}</span>` : ''}${esc(n)}</b><small>${esc(t)} · ≈ ${pr(q)} g de protéines</small></summary>
       <p class="pv-k">Ingrédients</p><ul class="rec-ul">${ing.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       <p class="pv-k">Préparation</p><ol class="ap-steps rec-st">${st.map(x => `<li><span>${esc(x)}</span></li>`).join('')}</ol>
-      <button class="btn sm block" data-pvrec="${i}">J'ai mangé ça · ajouter au repas</button></details>`).join('')
-    + `<details class="pv-det rec" data-k="rec-courses"><summary><b>🛒 La liste de courses de la semaine</b><small>de quoi faire toutes ces recettes</small></summary>${PV_COURSES.map(([g, L]) => `<p class="pv-k">${g}</p><ul class="rec-ul">${L.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`).join('')}<p class="pv-sub">Payée avec tes tickets resto, comme les courses du foyer.</p></details>`);
+      <button class="btn sm block" data-pvrec="${i}">J'ai mangé ça · ajouter au repas</button></details>`; };
+  const P = csPlan(), tags = ['Aujourd’hui', 'Demain', 'Après-demain'], plan = P.meals.map((r, j) => card(r, tags[j])).join('');
+  const others = PV_REC.map((x, i) => i).filter(i => i !== 8 && !P.meals.includes(i));
+  return pvMore('Idées de repas', `aujourd’hui : ${PV_REC[P.meals[0]][0].toLowerCase()}`, `${pvCourses()}
+    <p class="pv-k" style="margin-top:16px">Mes repas avec ces courses</p>${plan}${card(8, 'Chaque jour')}
+    <details class="pv-det rec" data-k="rec-autres"><summary><b>Autres idées</b><small>il faudra peut-être acheter un ingrédient en plus</small></summary>${others.map(i => card(i, '')).join('')}</details>`);
 }
 function vPvFood() {
   const d = pvDay(), p = pvS(), pt = pvProtTarget(), prot = pvProt(d), dayN = Math.round((parseDate(todayISO()) - parseDate(p.start)) / 864e5) + 1;
@@ -6857,6 +6907,10 @@ function pvClick(t) {
     if (a === 'unmeal') { d.meal = 0; d.mealAt = ''; save(); }
     if (a === 'whey') { d.whey = !d.whey; save(); }
     pvRe(); return true; }
+  if ((el = c('[data-csre]'))) { const x = csS(); x.start = todayISO(); x.done = {}; haptic(); save(); pvRe(); toast('Cycle repris au jour 1'); return true; }
+  if ((el = c('[data-csry]'))) { const x = csS(); if (x.ry !== el.dataset.csry) { x.start = todayISO(); x.done = {}; } x.ry = el.dataset.csry; haptic(); save(); pvRe(); return true; }
+  if ((el = c('[data-csmp]'))) { csS().mp = +el.dataset.csmp; haptic(); save(); pvRe(); return true; }
+  if ((el = c('[data-csdone]'))) { const x = csS(), k = todayISO(); if (x.done[k]) delete x.done[k]; else { x.done[k] = 1; toast('Courses notées'); } haptic(); save(); pvRe(); return true; }
   if ((el = c('[data-pvrec]'))) { const r = PV_REC[+el.dataset.pvrec]; if (!r) return true; const d = pvDay(), q = pvQ(d); Object.entries(r[5]).forEach(([id, n]) => { q[id] = Math.min(40, (q[id] || 0) + n); }); pvQSync(d); haptic(); save(); pvCheckDay(); pvRe(); toast(`${r[0]} : ajouté à ton repas`); return true; }
   if ((el = c('[data-fdp]')) || (el = c('[data-fdm]'))) { const d = pvDay(), q = pvQ(d), id = el.dataset.fdp || el.dataset.fdm, up = !!el.dataset.fdp; q[id] = Math.max(0, Math.min(40, (q[id] || 0) + (up ? 1 : -1))); if (!q[id]) delete q[id]; pvQSync(d); haptic(); save(); pvCheckDay(); pvRe(); return true; }
   if ((el = c('[data-pvc]'))) { const d = pvDay(), id = el.dataset.pvc; d.comp[id] = !d.comp[id]; save(); pvRe(); return true; }
@@ -8233,7 +8287,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.25 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.30 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -9229,7 +9283,7 @@ function trClick(t) {
    1 Les mots · 2 Le sens dans les versets · 3 Les phrases · 4 Les voyelles · 5 La lecture fluide
    puis le Coran (mémorisation). S.ar = { p, sur{}, ph{}, vo{}, flu{ id:[dates] }, t{} }
    ===================================================================== */
-const ARP = [['Les mots', '50 mots du Coran'], ['Le sens', 'Comprendre des sourates mot à mot'], ['Les phrases', 'Les formules du quotidien'], ['Les voyelles', 'Lire chaque son sans hésiter'], ['La lecture', 'Lire couramment']];
+const ARP = [['Les mots', '50 mots du Coran'], ['Le sens', 'Comprendre des sourates mot à mot'], ['Les phrases', 'Les formules du quotidien'], ['Les voyelles', 'Lire chaque son sans hésiter'], ['La lecture', 'Lire couramment'], ['Les racines', 'La clé de 60 mots'], ['La grammaire', 'Le moteur des phrases'], ['Parler', 'Dire en arabe'], ['Comprendre', '4 sourates par les racines'], ['Penser en arabe', 'Tout relier']];
 const ARS = [
   ['fatiha', 'Al-Fâtiha', [[['بِسْمِ', 'Au nom'], ['اللَّهِ', 'd\'Allah'], ['الرَّحْمَٰنِ', 'le Tout Miséricordieux'], ['الرَّحِيمِ', 'le Très Miséricordieux']], [['الْحَمْدُ', 'La louange'], ['لِلَّهِ', 'est à Allah'], ['رَبِّ', 'Seigneur'], ['الْعَالَمِينَ', 'des mondes']], [['الرَّحْمَٰنِ', 'le Tout Miséricordieux'], ['الرَّحِيمِ', 'le Très Miséricordieux']], [['مَالِكِ', 'Maître'], ['يَوْمِ', 'du Jour'], ['الدِّينِ', 'de la Rétribution']], [['إِيَّاكَ', 'C\'est Toi seul'], ['نَعْبُدُ', 'que nous adorons'], ['وَإِيَّاكَ', 'et c\'est Toi seul'], ['نَسْتَعِينُ', 'dont nous implorons l\'aide']], [['اهْدِنَا', 'Guide-nous'], ['الصِّرَاطَ', 'sur le chemin'], ['الْمُسْتَقِيمَ', 'droit']], [['صِرَاطَ', 'le chemin'], ['الَّذِينَ', 'de ceux'], ['أَنْعَمْتَ عَلَيْهِمْ', 'que Tu as comblés'], ['غَيْرِ', 'non pas'], ['الْمَغْضُوبِ عَلَيْهِمْ', 'ceux qui ont encouru la colère'], ['وَلَا', 'ni'], ['الضَّالِّينَ', 'les égarés']]]],
   ['ikhlas', 'Al-Ikhlâs', [[['قُلْ', 'Dis'], ['هُوَ', 'Il est'], ['اللَّهُ', 'Allah'], ['أَحَدٌ', 'Unique']], [['اللَّهُ', 'Allah'], ['الصَّمَدُ', 'l\'Absolu, vers qui tout se tourne']], [['لَمْ يَلِدْ', 'Il n\'a pas engendré'], ['وَلَمْ يُولَدْ', 'et n\'a pas été engendré']], [['وَلَمْ يَكُنْ', 'et nul n\'est'], ['لَهُ', 'à Lui'], ['كُفُوًا', 'égal'], ['أَحَدٌ', 'personne']]]],
@@ -9257,6 +9311,133 @@ const VOY = [
 ];
 const FLU = [['f1', 'Al-Fâtiha', 'fatiha'], ['f2', 'Al-Ikhlâs, Al-Falaq, An-Nâs', 'ikhlas,falaq,nas'], ['f3', 'Al-ʿAsr et Al-Kawthar', 'asr,kawthar'], ['f4', 'Âyat al-Kursî', 'kursi'], ['f5', 'Fin d\'At-Tawba', 'tawba']];
 const AR = { p: null, sur: null, q: null, fl: null };
+/* ══ v5.30 · Cycle 2 : Penser en arabe (paliers 6 à 10) ══
+   Arabe littéral (fuṣḥā), entièrement vocalisé. Versets : texte de Hafs, références indiquées. Sens = traduction approchée mot à mot.
+   Carte = [id, arabe, français, groupe, note] */
+const AR_RAC = [
+  ['r1a', 'عِلْمٌ', 'le savoir, la science', 'ع ل م · savoir', ''], ['r1b', 'عَالِمٌ', 'un savant (celui qui sait)', 'ع ل م · savoir', 'Moule فَاعِل : celui qui fait.'], ['r1c', 'عَلِيمٌ', 'l\'Omniscient (qui sait tout)', 'ع ل م · savoir', 'Moule فَعِيل : qualité forte. Nom d\'Allah.'],
+  ['r2a', 'كَتَبَ', 'il a écrit', 'ك ت ب · écrire', 'Le verbe de base, au passé.'], ['r2b', 'كِتَابٌ', 'un livre', 'ك ت ب · écrire', ''], ['r2c', 'كَاتِبٌ', 'un écrivain, un scribe', 'ك ت ب · écrire', 'Moule فَاعِل.'],
+  ['r3a', 'قَرَأَ', 'il a lu, il a récité', 'ق ر أ · lire', ''], ['r3b', 'قُرْآنٌ', 'le Coran (la lecture, la récitation)', 'ق ر أ · lire', ''], ['r3c', 'اِقْرَأْ', 'lis ! récite !', 'ق ر أ · lire', 'Le premier mot révélé (Al-ʿAlaq 96:1).'],
+  ['r4a', 'سَلَامٌ', 'la paix', 'س ل م · paix', ''], ['r4b', 'إِسْلَامٌ', 'la soumission (à Allah), l\'islam', 'س ل م · paix', ''], ['r4c', 'مُسْلِمٌ', 'un musulman (celui qui se soumet)', 'س ل م · paix', ''],
+  ['r5a', 'رَحْمَةٌ', 'la miséricorde', 'ر ح م · miséricorde', ''], ['r5b', 'الرَّحْمَٰنُ', 'le Tout Miséricordieux', 'ر ح م · miséricorde', ''], ['r5c', 'الرَّحِيمُ', 'le Très Miséricordieux', 'ر ح م · miséricorde', 'Moule فَعِيل.'],
+  ['r6a', 'عَبْدٌ', 'un serviteur, un adorateur', 'ع ب د · adorer', ''], ['r6b', 'عِبَادَةٌ', 'l\'adoration', 'ع ب د · adorer', ''], ['r6c', 'نَعْبُدُ', 'nous adorons', 'ع ب د · adorer', 'إِيَّاكَ نَعْبُدُ : c\'est Toi que nous adorons (1:5).'],
+  ['r7a', 'الْحَمْدُ', 'la louange', 'ح م د · louer', ''], ['r7b', 'مُحَمَّدٌ', 'Muhammad (le très loué)', 'ح م د · louer', ''], ['r7c', 'حَمِيدٌ', 'digne de louange', 'ح م د · louer', 'Moule فَعِيل. Nom d\'Allah.'],
+  ['r8a', 'خَلَقَ', 'il a créé', 'خ ل ق · créer', ''], ['r8b', 'خَالِقٌ', 'le Créateur', 'خ ل ق · créer', 'Moule فَاعِل.'], ['r8c', 'خُلُقٌ', 'le caractère, le comportement', 'خ ل ق · créer', 'Même racine : ta nature « créée ».'],
+  ['r9a', 'قَالَ', 'il a dit', 'ق و ل · dire', ''], ['r9b', 'قُلْ', 'dis !', 'ق و ل · dire', 'Ouvre Al-Ikhlâs, Al-Falaq, An-Nâs.'], ['r9c', 'يَقُولُ', 'il dit', 'ق و ل · dire', 'Présent : préfixe يَـ.'],
+  ['r10a', 'كَفَرَ', 'il a mécru (il a couvert la vérité)', 'ك ف ر · couvrir', 'Sens premier de la racine : couvrir.'], ['r10b', 'كَافِرٌ', 'un mécréant', 'ك ف ر · couvrir', 'Moule فَاعِل.'], ['r10c', 'كُفْرٌ', 'la mécréance', 'ك ف ر · couvrir', ''],
+  ['r11a', 'آمَنَ', 'il a cru', 'أ م ن · foi, sécurité', ''], ['r11b', 'إِيمَانٌ', 'la foi', 'أ م ن · foi, sécurité', ''], ['r11c', 'مُؤْمِنٌ', 'un croyant', 'أ م ن · foi, sécurité', ''],
+  ['r12a', 'صَلَاةٌ', 'la prière', 'ص ل و · prier', ''], ['r12b', 'صَلِّ', 'prie !', 'ص ل و · prier', 'فَصَلِّ لِرَبِّكَ (108:2).'], ['r12c', 'يُصَلِّي', 'il prie', 'ص ل و · prier', ''],
+  ['r13a', 'ذِكْرٌ', 'le rappel, l\'évocation', 'ذ ك ر · rappeler', ''], ['r13b', 'ذَكَرَ', 'il a mentionné, il s\'est souvenu', 'ذ ك ر · rappeler', ''], ['r13c', 'تَذْكِرَةٌ', 'un rappel… et un billet (de train)', 'ذ ك ر · rappeler', 'Le billet « rappelle » ton trajet.'],
+  ['r14a', 'دَخَلَ', 'il est entré', 'د خ ل · entrer', ''], ['r14b', 'مَدْخَلٌ', 'une entrée (le lieu)', 'د خ ل · entrer', 'Moule مَفْعَل : le lieu.'], ['r14c', 'يَدْخُلُونَ', 'ils entrent', 'د خ ل · entrer', 'Dans An-Nasr (110:2).'],
+  ['r15a', 'خَرَجَ', 'il est sorti', 'خ ر ج · sortir', ''], ['r15b', 'مَخْرَجٌ', 'une sortie (le lieu)', 'خ ر ج · sortir', 'Moule مَفْعَل.'], ['r15c', 'خُرُوجٌ', 'le fait de sortir', 'خ ر ج · sortir', ''],
+  ['r16a', 'ذَهَبَ', 'il est allé, il est parti', 'ذ ه ب · aller', ''], ['r16b', 'يَذْهَبُ', 'il va', 'ذ ه ب · aller', ''], ['r16c', 'ذَهَبٌ', 'l\'or', 'ذ ه ب · aller', 'Même racine, autre sens.'],
+  ['r17a', 'جَلَسَ', 'il s\'est assis', 'ج ل س · s\'asseoir', ''], ['r17b', 'مَجْلِسٌ', 'un lieu où l\'on s\'assoit, une assemblée', 'ج ل س · s\'asseoir', 'Moule مَفْعِل : le lieu.'], ['r17c', 'اِجْلِسْ', 'assieds-toi !', 'ج ل س · s\'asseoir', ''],
+  ['r18a', 'أَكَلَ', 'il a mangé', 'أ ك ل · manger', ''], ['r18b', 'يَأْكُلُ', 'il mange', 'أ ك ل · manger', ''], ['r18c', 'أَكْلٌ', 'la nourriture, le fait de manger', 'أ ك ل · manger', ''],
+  ['r19a', 'شَرِبَ', 'il a bu', 'ش ر ب · boire', ''], ['r19b', 'يَشْرَبُ', 'il boit', 'ش ر ب · boire', ''], ['r19c', 'شَرَابٌ', 'une boisson', 'ش ر ب · boire', ''],
+  ['r20a', 'عَمِلَ', 'il a œuvré, il a travaillé', 'ع م ل · agir', 'وَعَمِلُوا الصَّالِحَاتِ (103:3).'], ['r20b', 'عَمَلٌ', 'le travail, une œuvre', 'ع م ل · agir', ''], ['r20c', 'عَامِلٌ', 'un travailleur', 'ع م ل · agir', 'Moule فَاعِل.']
+];
+const AR_GR = [
+  ['g1', 'أَنَا', 'je, moi', 'Les pronoms', ''], ['g2', 'أَنْتَ', 'tu (à un homme)', 'Les pronoms', ''], ['g3', 'أَنْتِ', 'tu (à une femme)', 'Les pronoms', ''], ['g4', 'هُوَ', 'il, lui', 'Les pronoms', ''], ['g5', 'هِيَ', 'elle', 'Les pronoms', ''], ['g6', 'نَحْنُ', 'nous', 'Les pronoms', ''], ['g7', 'أَنْتُمْ', 'vous', 'Les pronoms', ''], ['g8', 'هُمْ', 'ils, eux', 'Les pronoms', ''],
+  ['g9', 'كِتَابِي', 'mon livre', 'Mon, ton, son…', 'ـِي = mon.'], ['g10', 'كِتَابُكَ', 'ton livre', 'Mon, ton, son…', 'ـكَ = ton.'], ['g11', 'كِتَابُهُ', 'son livre (à lui)', 'Mon, ton, son…', 'ـهُ = son (à lui).'], ['g12', 'كِتَابُهَا', 'son livre (à elle)', 'Mon, ton, son…', 'ـهَا = son (à elle).'], ['g13', 'كِتَابُنَا', 'notre livre', 'Mon, ton, son…', 'ـنَا = notre.'], ['g14', 'رَبُّهُمْ', 'leur Seigneur', 'Mon, ton, son…', 'ـهُمْ = leur.'],
+  ['g15', 'بَيْتٌ', 'une maison', 'Le, la, un', 'Le tanwîn ( ٌ ) = « un, une ».'], ['g16', 'الْبَيْتُ', 'la maison', 'Le, la, un', 'الـ = le, la.'], ['g17', 'هَٰذَا', 'ceci, celui-ci', 'Le, la, un', ''], ['g18', 'هَٰذِهِ', 'celle-ci', 'Le, la, un', ''], ['g19', 'ذَٰلِكَ الْكِتَابُ', 'ce Livre-là', 'Le, la, un', 'Al-Baqara 2:2.'],
+  ['g20', 'فِي الْبَيْتِ', 'dans la maison', 'Les petits mots', ''], ['g21', 'مِنَ الْمَسْجِدِ', 'de la mosquée', 'Les petits mots', ''], ['g22', 'إِلَى الْعَمَلِ', 'au travail (vers)', 'Les petits mots', ''], ['g23', 'عَلَى الطَّاوِلَةِ', 'sur la table', 'Les petits mots', ''], ['g24', 'مَعَ زَوْجَتِي', 'avec ma femme', 'Les petits mots', ''],
+  ['g25', 'ذَهَبْتُ', 'je suis allé', 'Le passé', 'ـْتُ = je.'], ['g26', 'ذَهَبْتَ', 'tu es allé', 'Le passé', 'ـْتَ = tu.'], ['g27', 'ذَهَبَتْ', 'elle est allée', 'Le passé', 'ـَتْ = elle.'], ['g28', 'ذَهَبْنَا', 'nous sommes allés', 'Le passé', 'ـْنَا = nous.'], ['g29', 'ذَهَبُوا', 'ils sont allés', 'Le passé', 'ـُوا = ils.'],
+  ['g30', 'أَذْهَبُ', 'je vais', 'Le présent', 'أَـ = je.'], ['g31', 'تَذْهَبُ', 'tu vas', 'Le présent', 'تَـ = tu (ou elle).'], ['g32', 'نَذْهَبُ', 'nous allons', 'Le présent', 'نَـ = nous.'], ['g33', 'يَذْهَبُونَ', 'ils vont', 'Le présent', 'يَـ … ـُونَ = ils.'], ['g34', 'سَأَذْهَبُ', 'j\'irai', 'Le présent', 'سَـ devant le présent = futur.'],
+  ['g35', 'لَا أَعْرِفُ', 'je ne sais pas', 'Dire non', 'لَا + présent.'], ['g36', 'مَا ذَهَبْتُ', 'je ne suis pas allé', 'Dire non', 'مَا + passé.'], ['g37', 'لَمْ يَلِدْ', 'Il n\'a pas engendré', 'Dire non', 'لَمْ + présent = passé nié (112:3).'],
+  ['g38', 'هَلْ أَكَلْتَ؟', 'est-ce que tu as mangé ?', 'Poser une question', 'هَلْ = est-ce que.'], ['g39', 'أَيْنَ؟', 'où ?', 'Poser une question', ''], ['g40', 'مَتَى؟', 'quand ?', 'Poser une question', ''], ['g41', 'كَيْفَ؟', 'comment ?', 'Poser une question', ''], ['g42', 'لِمَاذَا؟', 'pourquoi ?', 'Poser une question', ''],
+  ['g43', 'الْبَيْتُ كَبِيرٌ', 'la maison est grande', 'Phrase sans verbe', 'Pas de verbe « être » au présent.'], ['g44', 'اللَّهُ أَكْبَرُ', 'Allah est plus grand', 'Phrase sans verbe', '']
+];
+const AR_PA = [
+  ['a1', 'اِسْمِي يَاسِين', 'Je m\'appelle Yassine', 'Se présenter', ''], ['a2', 'أَنَا مِنْ فَرَنْسَا', 'Je viens de France', 'Se présenter', ''], ['a3', 'أَنَا مُتَزَوِّجٌ', 'Je suis marié', 'Se présenter', ''], ['a4', 'أَعْمَلُ فِي مَحَطَّةِ الْقِطَارِ', 'Je travaille à la gare', 'Se présenter', ''], ['a5', 'أَتَعَلَّمُ الْعَرَبِيَّةَ', 'J\'apprends l\'arabe', 'Se présenter', ''],
+  ['a6', 'كَيْفَ حَالُكَ؟', 'Comment vas-tu ?', 'Discuter', ''], ['a7', 'أَنَا بِخَيْرٍ، الْحَمْدُ لِلَّهِ', 'Je vais bien, louange à Allah', 'Discuter', ''], ['a8', 'لَا أَفْهَمُ', 'Je ne comprends pas', 'Discuter', ''], ['a9', 'تَكَلَّمْ بِبُطْءٍ مِنْ فَضْلِكَ', 'Parle lentement, s\'il te plaît', 'Discuter', ''], ['a10', 'شُكْرًا جَزِيلًا', 'Merci beaucoup', 'Discuter', ''], ['a11', 'عَفْوًا', 'De rien', 'Discuter', ''], ['a12', 'مَعَ السَّلَامَةِ', 'Au revoir', 'Discuter', ''], ['a13', 'إِلَى اللِّقَاءِ', 'À bientôt', 'Discuter', ''],
+  ['a14', 'أُرِيدُ مَاءً', 'Je veux de l\'eau', 'Besoins', ''], ['a15', 'أَنَا جَائِعٌ', 'J\'ai faim', 'Besoins', ''], ['a16', 'أَنَا مُتْعَبٌ', 'Je suis fatigué', 'Besoins', ''], ['a17', 'أَيْنَ الْمَسْجِدُ؟', 'Où est la mosquée ?', 'Besoins', ''], ['a18', 'كَمِ السَّاعَةُ؟', 'Quelle heure est-il ?', 'Besoins', ''], ['a19', 'تَفَضَّلْ', 'Je t\'en prie, vas-y', 'Besoins', ''],
+  ['a20', 'هَلْ تَحْتَاجُ مُسَاعَدَةً؟', 'As-tu besoin d\'aide ?', 'À la gare', ''], ['a21', 'الْقِطَارُ مُتَأَخِّرٌ', 'Le train est en retard', 'À la gare', ''], ['a22', 'الرَّصِيفُ رَقْمُ ثَلَاثَةٍ', 'Le quai numéro trois', 'À la gare', ''], ['a23', 'أَيْنَ تَذْكِرَتُكَ؟', 'Où est ton billet ?', 'À la gare', 'تَذْكِرَة : racine ذ ك ر.'],
+  ['a24', 'زَوْجَتِي فِي الْبَيْتِ', 'Ma femme est à la maison', 'Ma journée', ''], ['a25', 'أَنَا ذَاهِبٌ إِلَى الْبَيْتِ', 'Je rentre à la maison', 'Ma journée', ''], ['a26', 'ذَهَبْتُ أَمْسِ', 'Je suis allé hier', 'Ma journée', ''], ['a27', 'سَأَذْهَبُ غَدًا', 'J\'irai demain', 'Ma journée', ''], ['a28', 'أُحِبُّ اللُّغَةَ الْعَرَبِيَّةَ', 'J\'aime la langue arabe', 'Ma journée', '']
+];
+/* Palier 9 : 4 nouvelles sourates, à comprendre en t'appuyant sur les racines */
+const ARS2 = [
+  ['quraysh', 'Quraysh (106)', [[['لِإِيلَافِ', 'Pour l\'habitude (l\'union)'], ['قُرَيْشٍ', 'des Quraysh']], [['إِيلَافِهِمْ', 'leur habitude'], ['رِحْلَةَ', 'du voyage'], ['الشِّتَاءِ', 'de l\'hiver'], ['وَالصَّيْفِ', 'et de l\'été']], [['فَلْيَعْبُدُوا', 'qu\'ils adorent donc'], ['رَبَّ', 'le Seigneur'], ['هَٰذَا الْبَيْتِ', 'de cette Maison']], [['الَّذِي', 'qui'], ['أَطْعَمَهُمْ', 'les a nourris'], ['مِنْ جُوعٍ', 'contre la faim'], ['وَآمَنَهُمْ', 'et les a rassurés'], ['مِنْ خَوْفٍ', 'contre la peur']]]],
+  ['maun', 'Al-Mâʿûn (107)', [[['أَرَأَيْتَ', 'As-tu vu'], ['الَّذِي', 'celui qui'], ['يُكَذِّبُ', 'traite de mensonge'], ['بِالدِّينِ', 'la Rétribution']], [['فَذَٰلِكَ', 'c\'est bien lui'], ['الَّذِي', 'qui'], ['يَدُعُّ', 'repousse'], ['الْيَتِيمَ', 'l\'orphelin']], [['وَلَا يَحُضُّ', 'et n\'encourage pas'], ['عَلَىٰ طَعَامِ', 'à nourrir'], ['الْمِسْكِينِ', 'le pauvre']], [['فَوَيْلٌ', 'Malheur donc'], ['لِلْمُصَلِّينَ', 'à ceux qui prient']], [['الَّذِينَ', 'qui'], ['هُمْ', 'eux'], ['عَنْ صَلَاتِهِمْ', 'de leur prière'], ['سَاهُونَ', 'sont distraits']], [['الَّذِينَ', 'qui'], ['هُمْ', 'eux'], ['يُرَاءُونَ', 'agissent pour être vus']], [['وَيَمْنَعُونَ', 'et refusent'], ['الْمَاعُونَ', 'la moindre aide']]]],
+  ['kafirun', 'Al-Kâfirûn (109)', [[['قُلْ', 'Dis'], ['يَا أَيُّهَا', 'Ô vous'], ['الْكَافِرُونَ', 'les mécréants']], [['لَا أَعْبُدُ', 'je n\'adore pas'], ['مَا تَعْبُدُونَ', 'ce que vous adorez']], [['وَلَا أَنْتُمْ', 'et vous n\'êtes pas'], ['عَابِدُونَ', 'adorateurs'], ['مَا أَعْبُدُ', 'de ce que j\'adore']], [['وَلَا أَنَا', 'et je ne suis pas'], ['عَابِدٌ', 'adorateur'], ['مَا عَبَدْتُمْ', 'de ce que vous avez adoré']], [['وَلَا أَنْتُمْ', 'et vous n\'êtes pas'], ['عَابِدُونَ', 'adorateurs'], ['مَا أَعْبُدُ', 'de ce que j\'adore']], [['لَكُمْ', 'À vous'], ['دِينُكُمْ', 'votre religion'], ['وَلِيَ', 'et à moi'], ['دِينِ', 'ma religion']]]],
+  ['nasr', 'An-Nasr (110)', [[['إِذَا', 'Lorsque'], ['جَاءَ', 'vient'], ['نَصْرُ اللَّهِ', 'le secours d\'Allah'], ['وَالْفَتْحُ', 'ainsi que la victoire']], [['وَرَأَيْتَ', 'et que tu vois'], ['النَّاسَ', 'les gens'], ['يَدْخُلُونَ', 'entrer'], ['فِي دِينِ اللَّهِ', 'dans la religion d\'Allah'], ['أَفْوَاجًا', 'en foule']], [['فَسَبِّحْ', 'alors glorifie'], ['بِحَمْدِ', 'par la louange'], ['رَبِّكَ', 'de ton Seigneur'], ['وَاسْتَغْفِرْهُ', 'et implore Son pardon'], ['إِنَّهُ', 'car Il'], ['كَانَ', 'est'], ['تَوَّابًا', 'Celui qui accepte le repentir']]]]
+];
+/* Palier 10 : penser en arabe. Une situation en français : tu la dis en arabe, à voix haute, avant de regarder. */
+const AR_PE = [
+  ['e1', 'أَنَا فِي الْمَحَطَّةِ وَأَنْتَظِرُ الْقِطَارَ', 'Je suis à la gare et j\'attends le train.', '', ''],
+  ['e2', 'صَلَّيْتُ الْفَجْرَ ثُمَّ ذَهَبْتُ إِلَى الْعَمَلِ', 'J\'ai prié al-fajr, puis je suis allé au travail.', '', 'ثُمَّ = puis.'],
+  ['e3', 'أَنَا جَائِعٌ، أُرِيدُ أَنْ آكُلَ', 'J\'ai faim, je veux manger.', '', 'أَنْ + présent = « de… », « que… ».'],
+  ['e4', 'عَمِلْتُ كَثِيرًا الْيَوْمَ', 'J\'ai beaucoup travaillé aujourd\'hui.', '', ''],
+  ['e5', 'أَقْرَأُ الْقُرْآنَ كُلَّ يَوْمٍ', 'Je lis le Coran chaque jour.', '', ''],
+  ['e6', 'هَٰذَا الْكِتَابُ كَبِيرٌ', 'Ce livre est grand.', '', ''],
+  ['e7', 'أَيْنَ هَاتِفِي؟', 'Où est mon téléphone ?', '', ''],
+  ['e8', 'أَنَا مُتْعَبٌ، سَأَنَامُ', 'Je suis fatigué, je vais dormir.', '', ''],
+  ['e9', 'ذَهَبْنَا إِلَى الْمَسْجِدِ مَعًا', 'Nous sommes allés à la mosquée ensemble.', '', ''],
+  ['e10', 'لَا أَفْهَمُ هَٰذِهِ الْكَلِمَةَ', 'Je ne comprends pas ce mot.', '', ''],
+  ['e11', 'الْعَالِمُ يُعَلِّمُ وَالطَّالِبُ يَكْتُبُ', 'Le savant enseigne et l\'élève écrit.', '', 'Deux racines : ع ل م et ك ت ب.'],
+  ['e12', 'اللَّهُ خَالِقُ كُلِّ شَيْءٍ', 'Allah est le Créateur de toute chose.', '', 'Az-Zumar 39:62.'],
+  ['e13', 'أَشْرَبُ الْمَاءَ بَعْدَ الرِّيَاضَةِ', 'Je bois de l\'eau après le sport.', '', ''],
+  ['e14', 'خَرَجَ الْقِطَارُ مِنَ الْمَحَطَّةِ', 'Le train est sorti de la gare.', '', ''],
+  ['e15', 'اُدْخُلْ وَاجْلِسْ', 'Entre et assieds-toi.', '', ''],
+  ['e16', 'ذَهَبَتْ زَوْجَتِي إِلَى الْعَمَلِ', 'Ma femme est allée au travail.', '', ''],
+  ['e17', 'هَلْ أَكَلْتَ؟', 'Est-ce que tu as mangé ?', '', ''],
+  ['e18', 'أُرِيدُ أَنْ أَتَعَلَّمَ الْعَرَبِيَّةَ لِأَفْهَمَ الْقُرْآنَ', 'Je veux apprendre l\'arabe pour comprendre le Coran.', '', 'لِـ + présent = pour.'],
+  ['e19', 'لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ', 'Aucun de vous n\'a la foi tant qu\'il n\'aime pas pour son frère ce qu\'il aime pour lui-même.', '', 'Hadith, Al-Bukhârî 13 et Muslim 45.'],
+  ['e20', 'سَأَقْرَأُ سُورَةَ الْكَهْفِ يَوْمَ الْجُمُعَةِ', 'Je lirai la sourate Al-Kahf vendredi.', '', 'سَـ + présent = futur.']
+];
+const AR_DECK = { ra: { src: AR_RAC, ttl: 'Les racines', rev: false, q: 'Que veut dire ce mot ?', sub: 'Presque tous les mots arabes viennent d\'une racine de 3 lettres. Connais la racine, et tu devines le sens des mots que tu n\'as jamais vus.' },
+  gr: { src: AR_GR, ttl: 'La grammaire', rev: false, q: 'Que veut dire ceci ?', sub: 'Le moteur des phrases : qui parle, à qui c\'est, quand ça se passe.' },
+  pa: { src: AR_PA, ttl: 'Parler', rev: true, q: 'Comment le dis-tu en arabe ?', sub: 'Cette fois, c\'est toi qui parles : tu lis le français et tu trouves l\'arabe. Dis-le à voix haute.' } };
+/* Paliers 6-8 : paquets de cartes à maîtrise (deux bonnes réponses d'affilée). Palier 8 dans le sens français → arabe. */
+function arDk(kind) { const a = arS(); a.dk = a.dk || {}; a.dk[kind] = a.dk[kind] || {}; return a.dk[kind]; }
+const arDkOk = kind => AR_DECK[kind].src.filter(x => (arDk(kind)[x[0]] || {}).st >= 2).length;
+function vArDeck(kind) {
+  const D = AR_DECK[kind], st = arDk(kind), q = AR.dq && AR.dq.kind === kind ? AR.dq : null;
+  if (q) { const x = q.list[q.i];
+    if (!x) return `<section class="cq" style="text-align:center"><p class="eyebrow">${D.ttl}</p><p style="font:400 3rem/1 var(--serif);color:var(--gold);margin:10px 0">${q.score}/${q.list.length}</p><p class="small muted">${arDkOk(kind)}/${D.src.length} cartes maîtrisées</p><div class="row" style="gap:8px;margin-top:12px"><button class="btn sm ghost" data-ard="end" style="flex:1">Terminer</button><button class="btn sm" data-ard="go" data-kind="${kind}" style="flex:1">Encore une série</button></div></section>`;
+    const right = D.rev ? x[1] : x[2];
+    if (!q.opts) { const pool = D.src.filter(y => y[0] !== x[0]), same = pool.filter(y => y[3] === x[3]), pick = (same.length >= 2 ? same : pool).slice().sort(() => Math.random() - .5).slice(0, 2); q.opts = [right, ...pick.map(y => D.rev ? y[1] : y[2])].sort(() => Math.random() - .5); }
+    const ar = t => `<span lang="ar" dir="rtl" style="font:400 1.35rem 'Amiri',serif">${t}</span>`;
+    return `<section class="cq"><p class="eyebrow" style="margin:0">${D.ttl} · ${q.i + 1}/${q.list.length} <span class="muted">· ${esc(x[3])}</span></p>
+      ${D.rev ? `<p class="arq-fr">${esc(x[2])}</p>` : `<p class="arbig" lang="ar" dir="rtl">${x[1]}</p>`}
+      <p class="small muted" style="text-align:center;margin:0 0 8px">${D.q}</p>
+      ${q.opts.map((o, k) => `<button class="copt ${q.pick != null ? (o === right ? 'ok' : k === q.pick ? 'ko' : '') : ''}" data-ardo="${k}" ${q.pick != null ? 'disabled' : ''}><b>${'ABC'[k]}</b>${D.rev ? ar(o) : `<span>${esc(o)}</span>`}</button>`).join('')}
+      ${q.pick != null ? `${D.rev ? `<p class="arbig" lang="ar" dir="rtl" style="font-size:1.6rem;margin:12px 0 0">${x[1]}</p>` : ''}${x[4] ? `<p class="cexp">${esc(x[4])}</p>` : ''}<button class="say" data-say="${x[1]}" style="margin:10px auto 0;display:flex">${SPK} Écouter</button><button class="btn block" data-ard="next" style="margin-top:12px">Suivant</button>`
+        : D.rev ? '' : `<button class="say" data-say="${x[1]}" style="margin:10px auto 0;display:flex">${SPK} Écouter</button>`}</section>`; }
+  const groups = [...new Set(D.src.map(x => x[3]))];
+  return `<section><h2>${D.ttl}</h2><p class="small muted" style="margin:-6px 0 12px">${D.sub} Une carte est maîtrisée après deux bonnes réponses d'affilée.</p>
+    ${kind === 'ra' ? `<div class="ar-moule"><p class="pv-k" style="margin:0 0 6px">Les 3 moules à reconnaître</p><p><b lang="ar">فَاعِل</b> celui qui fait : <span lang="ar">عَالِم</span> (savant), <span lang="ar">كَاتِب</span> (écrivain)</p><p><b lang="ar">مَفْعُول</b> ce qui est fait : <span lang="ar">مَكْتُوب</span> (écrit), <span lang="ar">مَعْلُوم</span> (connu)</p><p><b lang="ar">مَفْعَل</b> le lieu : <span lang="ar">مَدْخَل</span> (entrée), <span lang="ar">مَسْجِد</span> (lieu où l'on se prosterne)</p></div>` : ''}
+    <button class="btn block" data-ard="go" data-kind="${kind}" style="margin:12px 0 14px">Je m'entraîne · ${arDkOk(kind)}/${D.src.length}</button>
+    ${groups.map(g => `<p class="pv-k" style="margin:14px 0 6px">${esc(g)}</p><div class="group">${D.src.filter(x => x[3] === g).map(x => { const s = (st[x[0]] || {}).st || 0; return `<div class="cell"><span class="lbl" lang="ar" dir="rtl" style="font:400 1.25rem 'Amiri',serif">${x[1]}</span><span class="small ${s >= 2 ? '' : 'muted'}" style="text-align:right;${s >= 2 ? 'color:var(--mint)' : ''}">${s >= 2 ? esc(x[2]) : '·'.repeat(2 - s) + ' à maîtriser'}</span></div>`; }).join('')}</div>`).join('')}</section>`;
+}
+function arDeckItems(kind) { const st = arDk(kind); return AR_DECK[kind].src.slice().sort((x, y) => ((st[x[0]] || {}).st || 0) - ((st[y[0]] || {}).st || 0) || Math.random() - .5).slice(0, 8).sort(() => Math.random() - .5); }
+/* Palier 10 : penser en arabe — validé quand tu l'as trouvé seul deux jours différents */
+function arPe() { const a = arS(); a.pe = a.pe || {}; return a.pe; }
+const arPeOk = () => AR_PE.filter(x => new Set(arPe()[x[0]] || []).size >= 2).length;
+function vArPense() {
+  const P = arPe(), q = AR.pq;
+  if (q) { const x = AR_PE.find(y => y[0] === q.list[q.i]);
+    if (!x) return `<section class="cq" style="text-align:center"><p class="eyebrow">Penser en arabe</p><p style="font:400 3rem/1 var(--serif);color:var(--gold);margin:10px 0">${q.score}/${q.list.length}</p><p class="small muted">${arPeOk()}/${AR_PE.length} phrases pensées en arabe deux jours différents</p><button class="btn block" data-arpe="end" style="margin-top:12px">Terminer</button></section>`;
+    return `<section class="cq"><p class="eyebrow" style="margin:0">Penser en arabe · ${q.i + 1}/${q.list.length}</p><p class="arq-fr">${esc(x[2])}</p>
+      ${q.show ? `<p class="arbig" lang="ar" dir="rtl" style="font-size:1.7rem">${x[1]}</p>${x[4] ? `<p class="cexp">${esc(x[4])}</p>` : ''}<button class="say" data-say="${x[1]}" style="margin:6px auto 0;display:flex">${SPK} Écouter</button>
+        <div class="row" style="gap:8px;margin-top:14px"><button class="btn sm ghost" data-arpe="ko" style="flex:1">À revoir</button><button class="btn sm" data-arpe="ok" style="flex:1">Je l'avais trouvé</button></div>`
+      : `<p class="small muted" style="text-align:center;margin:4px 0 14px">Ferme les yeux, construis la phrase dans ta tête, dis-la à voix haute. Ensuite seulement, regarde.</p><button class="btn block" data-arpe="show">Voir la réponse</button>`}</section>`; }
+  return `<section><h2>Penser en arabe</h2><p class="small muted" style="margin:-6px 0 12px">Tout se relie ici : racines, grammaire et mots. Tu lis une situation en français, tu la dis en arabe sans aide. Une phrase est validée quand tu l'as trouvée seul deux jours différents.</p>
+    <button class="btn block" data-arpe="go" style="margin-bottom:14px">Je m'entraîne · ${arPeOk()}/${AR_PE.length}</button>
+    <div class="group">${AR_PE.map(x => { const n = new Set(P[x[0]] || []).size; return `<div class="cell"><span class="lbl small">${esc(x[2])}</span><span class="small ${n >= 2 ? '' : 'muted'}" style="text-align:right;white-space:nowrap;${n >= 2 ? 'color:var(--mint)' : ''}">${n >= 2 ? 'Pensée ✓' : `${n}/2 jours`}</span></div>`; }).join('')}</div></section>`;
+}
+function arC2Click(t) {
+  const c = s => t.closest(s); let el; const rr = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
+  if ((el = c('[data-ard]'))) { const v = el.dataset.ard; if (v === 'go') { AR.dq = { kind: el.dataset.kind, list: arDeckItems(el.dataset.kind), i: 0, score: 0, pick: null, opts: null }; render(); window.scrollTo(0, 0); return true; }
+    if (v === 'next') { AR.dq.i++; AR.dq.pick = null; AR.dq.opts = null; } if (v === 'end') AR.dq = null; rr(); return true; }
+  if ((el = c('[data-ardo]'))) { const q = AR.dq, x = q.list[q.i], D = AR_DECK[q.kind], k = Number(el.dataset.ardo), st = arDk(q.kind), r = st[x[0]] = st[x[0]] || { st: 0 }; q.pick = k;
+    if (q.opts[k] === (D.rev ? x[1] : x[2])) { q.score++; r.st = (r.st || 0) + 1; haptic(); } else r.st = 0; save(); rr(); return true; }
+  if ((el = c('[data-arpe]'))) { const v = el.dataset.arpe, P = arPe();
+    if (v === 'go') { const td = todayISO(); AR.pq = { list: AR_PE.slice().sort((x, y) => new Set(P[x[0]] || []).size - new Set(P[y[0]] || []).size || ((P[x[0]] || []).includes(td) ? 1 : 0) - ((P[y[0]] || []).includes(td) ? 1 : 0) || Math.random() - .5).slice(0, 6).map(x => x[0]), i: 0, score: 0, show: false }; render(); window.scrollTo(0, 0); return true; }
+    if (v === 'show') AR.pq.show = true;
+    if (v === 'ok' || v === 'ko') { const id = AR.pq.list[AR.pq.i]; if (v === 'ok') { const d = P[id] = P[id] || []; if (!d.includes(todayISO())) d.push(todayISO()); AR.pq.score++; haptic(); save(); } AR.pq.i++; AR.pq.show = false; }
+    if (v === 'end') AR.pq = null; rr(); return true; }
+  return false;
+}
 function arS() { const a = S.ar = S.ar && typeof S.ar === 'object' ? S.ar : {}; ['sur', 'ph', 'vo', 'flu', 't'].forEach(k => { a[k] = a[k] || {}; }); return a; }
 function arDone(n) {
   const a = arS();
@@ -9265,45 +9446,221 @@ function arDone(n) {
   if (n === 3) return PHR.every(p => (a.ph[p[0]] || {}).st >= 2);
   if (n === 4) return VOY.every(v => (a.vo[v[0]] || {}).st >= 2);
   if (n === 5) return FLU.every(f => new Set(a.flu[f[0]] || []).size >= 2);
+  if (n === 6) return arDkOk('ra') >= AR_RAC.length;
+  if (n === 7) return arDkOk('gr') >= AR_GR.length;
+  if (n === 8) return arDkOk('pa') >= AR_PA.length;
+  if (n === 9) return ARS2.every(s => a.sur[s[0]]);
+  if (n === 10) return arPeOk() >= AR_PE.length;
   return false;
 }
 const arOpen = n => n === 1 || arDone(n - 1);
-const arPalier = () => { for (let n = 1; n <= 5; n++) if (!arDone(n)) return n; return 6; };
-const arCount = () => [1, 2, 3, 4, 5].filter(arDone).length;
+const AR_N = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const arPalier = () => { for (const n of AR_N) if (!arDone(n)) return n; return 11; };
+const arCount = () => AR_N.filter(arDone).length;
 function arProg(n) {
   const a = arS();
   if (n === 1) return [wordsKnown(), WORDS.length];
   if (n === 2) return [ARS.filter(s => a.sur[s[0]]).length, ARS.length];
   if (n === 3) return [PHR.filter(p => (a.ph[p[0]] || {}).st >= 2).length, PHR.length];
   if (n === 4) return [VOY.filter(v => (a.vo[v[0]] || {}).st >= 2).length, VOY.length];
-  return [FLU.filter(f => new Set(a.flu[f[0]] || []).size >= 2).length, FLU.length];
+  if (n === 5) return [FLU.filter(f => new Set(a.flu[f[0]] || []).size >= 2).length, FLU.length];
+  if (n === 6) return [arDkOk('ra'), AR_RAC.length];
+  if (n === 7) return [arDkOk('gr'), AR_GR.length];
+  if (n === 8) return [arDkOk('pa'), AR_PA.length];
+  if (n === 9) return [ARS2.filter(s => a.sur[s[0]]).length, ARS2.length];
+  return [arPeOk(), AR_PE.length];
 }
 function arBar() {
-  const cur = AR.p || Math.min(5, arPalier());
-  return `<div class="arpath">${ARP.map(([t], i) => { const n = i + 1, op = arOpen(n), d = arDone(n), [x, y] = arProg(n); return `<button class="arstep ${d ? 'ok' : ''} ${op ? '' : 'lock'} ${cur === n ? 'cur' : ''}" data-arp="${n}"><i>${d ? '✦' : op ? n : GLYPH.lock ? `<svg viewBox="0 0 24 24">${GLYPH.lock}</svg>` : '·'}</i><b>${t}</b><small>${op ? `${x}/${y}` : 'verrouillé'}</small></button>`; }).join('')}<button class="arstep ${arDone(5) ? '' : 'lock'}" data-goto="coran"><i>${arDone(5) ? '۞' : `<svg viewBox="0 0 24 24">${GLYPH.lock}</svg>`}</i><b>Le Coran</b><small>${arDone(5) ? 'ouvert' : 'au bout du chemin'}</small></button></div>`;
+  const cur = AR.p || Math.min(10, arPalier()), c2 = cur >= 6, ns = c2 ? [6, 7, 8, 9, 10] : [1, 2, 3, 4, 5];
+  const step = n => { const op = arOpen(n), d = arDone(n), [x, y] = arProg(n), t = ARP[n - 1][0]; return `<button class="arstep ${d ? 'ok' : ''} ${op ? '' : 'lock'} ${cur === n ? 'cur' : ''}" data-arp="${n}"><i>${d ? '✦' : op ? n : `<svg viewBox="0 0 24 24">${GLYPH.lock}</svg>`}</i><b>${t}</b><small>${op ? `${x}/${y}` : 'verrouillé'}</small></button>`; };
+  const coran = `<button class="arstep ${arDone(5) ? '' : 'lock'}" data-goto="coran"><i>${arDone(5) ? '۞' : `<svg viewBox="0 0 24 24">${GLYPH.lock}</svg>`}</i><b>Le Coran</b><small>${arDone(5) ? 'ouvert' : 'au bout du chemin'}</small></button>`;
+  return `<div class="ar-cyc">${[['1', 'Cycle 1 · Les bases', true], ['6', 'Cycle 2 · Penser en arabe', arDone(5)]].map(([n, l, op]) => `<button class="chip" data-arp="${n}" aria-pressed="${(n === '6') === c2}" ${op ? '' : 'disabled'}>${op ? '' : `<svg viewBox="0 0 24 24" width="12" height="12" style="vertical-align:-1px;margin-right:4px">${GLYPH.lock}</svg>`}${l}</button>`).join('')}</div>
+  <div class="arpath">${ns.map(step).join('')}${c2 ? '' : coran}</div>`;
 }
-/* Les étoiles de palier : une grande étoile nommée s'ajoute à la constellation à chaque palier franchi. */
+/* v5.26 · La constellation grandit à chaque palier : nébuleuses, bras de galaxie, anneau, aurore, puis le croissant au cœur. */
+const AR_PPOS = [[-104, -64], [-52, -86], [52, -86], [104, -64], [0, 76]];
+/* v5.29 · Le voyage cosmique. Paliers 0-2 : une constellation. Palier 3 : elle devient une galaxie spirale.
+   Palier 4 : on recule, la galaxie n'est plus qu'une parmi d'autres, reliées par la toile cosmique.
+   Palier 5 : la toile se change en une étoile à huit branches de lumière : l'univers s'illumine. */
+function arStageBack() {
+  const st = arCount(); if (!st) return '';
+  let seed = 23; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  let h = `<defs><radialGradient id="cneb2"><stop offset="0" stop-color="#8A6AF0" stop-opacity=".45"/><stop offset=".6" stop-color="#3A3070" stop-opacity=".12"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient></defs>`;
+  h += `<ellipse class="ar-l" rx="118" ry="46" fill="url(#cneb)" transform="rotate(-24)" opacity=".9"/>`;
+  if (st >= 2) { h += `<ellipse class="ar-l" rx="140" ry="80" fill="url(#cneb2)" transform="rotate(30)"/>`;
+    let arm = ''; for (let k = 0; k < 160; k++) { const b = k % 2, t = rnd() * 3.2 + .25, a = t * 1.9 + b * Math.PI, r = 18 + t * 44 + (rnd() - .5) * 12; arm += `<circle cx="${(Math.cos(a) * r * 1.3).toFixed(1)}" cy="${(Math.sin(a) * r * .78).toFixed(1)}" r="${(rnd() * .8 + .3).toFixed(2)}" fill="${rnd() < .3 ? '#FFE6A8' : '#DCE7FF'}" opacity="${(rnd() * .5 + .35).toFixed(2)}"/>`; }
+    h += `<g class="ar-arms">${arm}</g>`; }
+  return h;
+}
+function arStageFront() { return ''; }
+/* positions des 50 mots sur les 2 bras d'une spirale inclinée */
+function arGalPos() {
+  let seed = 41; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280, c = Math.cos(-.24), sn = Math.sin(-.24);
+  return WORDS.map((w, i) => { const arm = i % 2, t = (Math.floor(i / 2) + .5) / Math.ceil(WORDS.length / 2), th = .4 + t * 3.5 + arm * Math.PI + (rnd() - .5) * .5, r = 12 + t * 96 + (rnd() - .5) * 18;
+    const x = Math.cos(th) * r * 1.12, y = Math.sin(th) * r * .56; return [x * c - y * sn, x * sn + y * c]; });
+}
+function arVerts() { return Array.from({ length: 8 }, (_, k) => { const a = (22.5 + 45 * k) * Math.PI / 180; return [+(Math.cos(a) * 118).toFixed(1), +(8 + Math.sin(a) * 58).toFixed(1)]; }); }
+function arMiniGal(x, y, k) {
+  let seed = 100 + k * 17; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const col = ['#C9B8FF', '#9FE7D0', '#FFD9A8', '#BFD7FF'][k % 4], rot = Math.round(rnd() * 180), sz = 15 + rnd() * 6;
+  let h = `<ellipse rx="${(sz * 1.5).toFixed(1)}" ry="${(sz * .8).toFixed(1)}" fill="url(#gdg${k % 4})" opacity=".95"/><circle r="${(sz * .4).toFixed(1)}" fill="url(#gcore)"/>`;
+  if (k % 3 !== 2) { for (let j = 0; j < 90; j++) { const b = j % 2, t = rnd() * 2.6 + .2, a = t * 2.1 + b * Math.PI, r = sz * (.15 + t * .3) + (rnd() - .5) * 2; h += `<circle cx="${(Math.cos(a) * r * 1.3).toFixed(1)}" cy="${(Math.sin(a) * r * .55).toFixed(1)}" r="${(rnd() * .5 + .25).toFixed(2)}" fill="${rnd() < .5 ? col : '#FFFDF6'}" opacity="${(rnd() * .5 + .4).toFixed(2)}"/>`; } }
+  return `<g class="ar-mg" transform="translate(${x} ${y})"><g class="ar-mgi" style="animation-delay:-${k * 7}s"><g transform="rotate(${rot})">${h}</g></g></g>`;
+}
+function arCosmos() {
+  const st = arCount(), era = st >= 5 ? 3 : st >= 4 ? 2 : 1;
+  let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const gp = arGalPos(), V = arVerts();
+  const defs = `<defs>${STARCOL.map((c, k) => `<radialGradient id="sg${k}"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".18" stop-color="${c}" stop-opacity=".9"/><stop offset=".45" stop-color="${c}" stop-opacity=".25"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`).join('')}
+    <linearGradient id="spk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFF8E6" stop-opacity="0"/><stop offset=".5" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFF8E6" stop-opacity="0"/></linearGradient>
+    <radialGradient id="cvoid"><stop offset="0" stop-color="#020407" stop-opacity=".8"/><stop offset=".55" stop-color="#020407" stop-opacity=".5"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient>
+    <radialGradient id="gcore"><stop offset="0" stop-color="#FFFDF6"/><stop offset=".25" stop-color="#FFE6A8" stop-opacity=".9"/><stop offset=".6" stop-color="#E8A860" stop-opacity=".25"/><stop offset="1" stop-color="#E8A860" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ghalo"><stop offset="0" stop-color="#8A6AF0" stop-opacity=".35"/><stop offset=".6" stop-color="#3A3070" stop-opacity=".12"/><stop offset="1" stop-color="#020407" stop-opacity="0"/></radialGradient>
+    <radialGradient id="gnoor"><stop offset="0" stop-color="#FFF6DC" stop-opacity=".55"/><stop offset=".4" stop-color="#E8C27A" stop-opacity=".18"/><stop offset="1" stop-color="#E8C27A" stop-opacity="0"/></radialGradient>
+    ${['#8A6AF0', '#3FAF8A', '#E8A860', '#6A8AF0'].map((c, k) => `<radialGradient id="gdg${k}"><stop offset="0" stop-color="${c}" stop-opacity=".55"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`).join('')}</defs>`;
+  /* la galaxie des mots : un cœur doré, deux bras de poussière, les 50 mots posés sur les bras */
+  let arm = ''; for (let k = 0; k < 46; k++) { const b = k % 2, t = rnd(), th = .4 + t * 3.5 + b * Math.PI, r = 14 + t * 92, x = Math.cos(th) * r * 1.12, y = Math.sin(th) * r * .56, c = Math.cos(-.24), sn = Math.sin(-.24);
+    arm += `<circle cx="${(x * c - y * sn).toFixed(1)}" cy="${(x * sn + y * c).toFixed(1)}" r="${(9 + rnd() * 9).toFixed(1)}" fill="url(#gdg${k % 2 ? 0 : 3})" opacity="${(.35 + rnd() * .3).toFixed(2)}"/>`; }
+  for (let k = 0; k < 700; k++) { const b = k % 2, t = rnd(), th = .4 + t * 3.5 + b * Math.PI + (rnd() - .5) * .7, r = 8 + t * 96 + (rnd() - .5) * 22, x = Math.cos(th) * r * 1.12, y = Math.sin(th) * r * .56, c = Math.cos(-.24), sn = Math.sin(-.24);
+    arm += `<circle cx="${(x * c - y * sn).toFixed(1)}" cy="${(x * sn + y * c).toFixed(1)}" r="${(rnd() * .8 + .25).toFixed(2)}" fill="${rnd() < .35 ? '#FFE6A8' : rnd() < .5 ? '#C9B8FF' : '#DCE7FF'}" opacity="${(rnd() * .5 + .3).toFixed(2)}"/>`; }
+  const stars = WORDS.map((w, i) => { const sc = Math.min(3, S.words[i] || 0), col = STARCOL[(i * 7) % STARCOL.length], R = [.6, .9, 1.2, 1.6][sc], [x, y] = gp[i];
+    let g = `<circle r="${(R * 4).toFixed(2)}" fill="url(#sg${(i * 7) % STARCOL.length})" opacity="${[.35, .55, .75, 1][sc]}"/>`;
+    if (sc >= 3) g += `<path d="M${-R * 4} 0H${R * 4}M0 ${-R * 4}V${R * 4}" stroke="url(#spk)" stroke-width=".4" opacity=".8"/>`;
+    g += `<circle r="${R.toFixed(2)}" fill="${sc ? '#FFFDF6' : col}" opacity="${sc ? 1 : .55}"/>`;
+    return `<g class="star ${sc >= 3 ? 'tw' : ''}" data-star="${i}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" style="animation-delay:-${((i * .37) % 4).toFixed(2)}s"><circle r="7" fill="transparent"/>${g}</g>`; }).join('');
+  const gal = `<g class="ar-gal"><ellipse class="ar-l" rx="120" ry="62" fill="url(#ghalo)" transform="rotate(-14)"/><ellipse class="ar-core" rx="44" ry="26" fill="url(#gcore)" transform="rotate(-14)"/><g class="ar-dust">${arm}</g>${stars}</g>`;
+  const far = Array.from({ length: era === 1 ? 90 : 160 }, () => `<circle cx="${(rnd() * 300 - 150).toFixed(1)}" cy="${(rnd() * 210 - 105).toFixed(1)}" r="${(rnd() * .45 + .1).toFixed(2)}" fill="#FFF8E6" opacity="${(rnd() * .4 + .1).toFixed(2)}"/>`).join('');
+  if (era === 1) return `${defs}<ellipse rx="150" ry="108" fill="url(#cvoid)"/>${far}<g class="ar-main">${gal}</g>${arPalierStars()}`;
+  /* univers : galaxies lointaines, toile cosmique, 8 galaxies sœurs, la nôtre au centre */
+  const tiny = Array.from({ length: 34 }, (_, k) => `<ellipse cx="${(rnd() * 270 - 135).toFixed(1)}" cy="${(rnd() * 190 - 95).toFixed(1)}" rx="${(rnd() * 2.2 + 1).toFixed(1)}" ry="${(rnd() * .9 + .4).toFixed(1)}" fill="url(#gdg${k % 4})" transform-origin="center" opacity="${(rnd() * .5 + .4).toFixed(2)}"/>`).join('');
+  const curve = ([x1, y1], [x2, y2], j) => { const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1, o = (j % 2 ? 1 : -1) * (.12 + ((j * 37) % 10) / 40); return `M${x1} ${y1}Q${(mx - dy * o).toFixed(1)} ${(my + dx * o).toFixed(1)} ${x2} ${y2}`; };
+  const F = []; V.forEach((v, k) => { F.push(curve([0, 0], v, k)); F.push(curve(v, V[(k + 1) % 8], k + 1)); });
+  const gold = era === 3;
+  const fil = `<g class="ar-fil">${F.map(d => `<path d="${d}" pathLength="1" fill="none" stroke="${gold ? '#E8C27A' : '#8A6AF0'}" stroke-opacity="${gold ? .1 : .12}" stroke-width="5"/><path d="${d}" pathLength="1" fill="none" stroke="${gold ? '#FFF1C8' : '#7FE3C4'}" stroke-opacity="${gold ? .3 : .28}" stroke-width=".45"/>`).join('')}</g>`;
+  const ring = 'M118 8A118 58 0 1 1 -118 8A118 58 0 1 1 118 8';
+  /* palier 5 : la toile se change en un anneau de lumière qui relie toutes les galaxies, et des rayons partent du centre */
+  const hz = gold ? `<g class="ar-hz" fill="none"><path d="${ring}" pathLength="1" stroke="#E8C27A" stroke-opacity=".16" stroke-width="6"/><path d="${ring}" pathLength="1" stroke="#FFF1C8" stroke-opacity=".85" stroke-width=".9"/><path d="M64 8A64 31 0 1 1 -64 8A64 31 0 1 1 64 8" pathLength="1" stroke="#FFF1C8" stroke-opacity=".3" stroke-width=".5"/>${V.map(v => `<path d="M0 0L${v[0]} ${v[1]}" pathLength="1" stroke="#FFF1C8" stroke-opacity=".28" stroke-width=".5"/>`).join('')}</g><circle class="ar-noor" r="80" fill="url(#gnoor)"/>` : '';
+  const uni = `${far}${tiny}${hz}${gold ? '' : fil}${V.map((v, k) => arMiniGal(v[0], v[1], k)).join('')}<g class="ar-main" transform="scale(.5)">${gal}</g>`;
+  const c2 = Math.max(0, st - 5);
+  if (!c2) return `${defs}<ellipse rx="150" ry="108" fill="url(#cvoid)" opacity=".6"/>${uni}${arPalierStars()}`;
+  return `${defs}<ellipse rx="150" ry="108" fill="url(#cvoid)" opacity=".6"/><g class="ar-uni" transform="translate(0 20) scale(.78)">${uni}</g>${arWord(c2)}`;
+}
+/* Cycle 2 : le ciel écrit, lettre après lettre, le premier mot révélé : اقْرَأْ (Al-ʿAlaq 96:1) */
+const AR_WF = [0, .2, .58, .8, 1, 1], AR_WX = [35, -35];
+function arWord(c2) {
+  const w = 'اقْرَأْ', L = AR_WX[1] + (AR_WX[0] - AR_WX[1]) * (1 - AR_WF[c2]), R = 90, N = 16, step = (R - AR_WX[1]) / N;
+  const txt = (fill, extra = '') => `<text x="0" y="-44" text-anchor="middle" style="font-family:'Amiri',serif;font-size:58px" ${extra} fill="${fill}">${w}</text>`;
+  let defs = '<defs><linearGradient id="gword" x1="0" y1="-90" x2="0" y2="-40" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFFDF6"/><stop offset=".55" stop-color="#F3D9A4"/><stop offset="1" stop-color="#D9A55A"/></linearGradient>', sl = '';
+  for (let k = 0; k < N; k++) { const x0 = R - (k + 1) * step; if (x0 + step <= L + .01) break; const x = Math.max(x0, L);
+    defs += `<clipPath id="cw${k}"><rect x="${x.toFixed(1)}" y="-110" width="${(x0 + step - x + .3).toFixed(1)}" height="80"/></clipPath>`;
+    sl += `<g class="ar-sl" data-x="${x.toFixed(1)}" clip-path="url(#cw${k})">${txt('none', 'stroke="#E8C27A" stroke-opacity=".28" stroke-width="5"')}${txt('url(#gword)')}</g>`; }
+  defs += '</defs>';
+  let seed = 77; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const sp = Array.from({ length: 26 }, () => { const x = L + rnd() * (AR_WX[0] - L + 6), y = -88 + rnd() * 44; return `<circle class="ar-spk" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(rnd() * .6 + .2).toFixed(2)}" fill="#FFF6DC" style="animation-delay:-${(rnd() * 3).toFixed(1)}s"/>`; }).join('');
+  const verse = c2 >= 5 ? '<text class="ar-verse" x="0" y="94" text-anchor="middle" style="font-family:\'Amiri\',serif;font-size:12px" fill="#F3D9A4">اقْرَأْ بِاسْمِ رَبِّكَ الَّذِي خَلَقَ</text>' : '';
+  return `${defs}<g class="ar-word">${txt('#FFF1C8', 'opacity=".06"')}${sl}${c2 >= 4 ? sp : ''}</g>${verse}`;
+
+}
 function arPalierStars() {
-  const pos = [[-96, -76], [96, -76], [-100, 72], [100, 72], [0, -90]];
-  return [1, 2, 3, 4, 5].filter(arDone).map(n => { const [x, y] = pos[n - 1]; return `<g class="pstar" transform="translate(${x} ${y})"><circle r="16" fill="url(#sg2)"/><path d="M-20 0H20M0 -20V20" stroke="url(#spk)" stroke-width=".8"/><path d="M-8 -8L8 8M-8 8L8 -8" stroke="#FFE6A8" stroke-width=".35" opacity=".6"/><circle r="2.6" fill="#FFFDF6"/><text y="15" text-anchor="middle" style="font-size:6.5px;font-weight:700;fill:#F3D9A4;letter-spacing:.06em">${ARP[n - 1][0].toUpperCase()}</text></g>`; }).join('');
+  const done = [1, 2, 3, 4, 5].filter(arDone); if (!done.length) return '';
+  /* le chemin des paliers : un trait doré relie les grandes étoiles franchies */
+  const path = done.length > 1 ? `<path class="ar-chain" d="M${done.map(n => AR_PPOS[n - 1].join(' ')).join(' L')}" fill="none" stroke="#E8C27A" stroke-opacity=".55" stroke-width=".7" stroke-dasharray="2 2"/>` : '';
+  return path + done.map(n => { const [x, y] = AR_PPOS[n - 1], big = n === 5 ? 1.3 : 1; return `<g class="pstar" transform="translate(${x} ${y}) scale(${big})"><circle r="16" fill="url(#sg2)"/><path d="M-20 0H20M0 -20V20" stroke="url(#spk)" stroke-width=".8"/><path d="M-8 -8L8 8M-8 8L8 -8" stroke="#FFE6A8" stroke-width=".35" opacity=".6"/><circle r="2.6" fill="#FFFDF6"/><text y="15" text-anchor="middle" style="font-size:6.5px;font-weight:700;fill:#F3D9A4;letter-spacing:.06em">${ARP[n - 1][0].toUpperCase()}</text></g>`; }).join('');
 }
-/* La transformation : quand un palier est franchi, les étoiles convergent en une nova, puis la constellation renaît. */
+/* v5.26 · La transformation (≈ 6 s) : le ciel s'assombrit, les étoiles tremblent puis sont aspirées au centre,
+   implosion, supernova (éclair + 3 ondes de choc), titre du palier, puis la constellation renaît en jaillissant du centre. */
 function arCheckNova() {
-  const a = arS(); const n = [1, 2, 3, 4, 5].find(k => arDone(k) && !a.t[k]); if (!n) return;
+  const a = arS(); const n = AR_N.find(k => arDone(k) && !a.t[k]); if (!n) return;
   a.t[n] = todayISO(); save();
   const svg = $('#constel'); if (!svg || matchMedia('(prefers-reduced-motion: reduce)').matches) { arNovaMsg(n); return; }
-  const stars = [...svg.querySelectorAll('.star')];
-  stars.forEach((s, i) => { const m = (s.getAttribute('transform') || '').match(/translate\(([-\d.]+) ([-\d.]+)\)/); if (!m) return; s.animate([{ transform: `translate(${m[1]}px, ${m[2]}px)` }, { transform: 'translate(0px, 0px) scale(.3)', opacity: .9 }], { duration: 1300, delay: i * 12, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'forwards' }); });
-  svg.insertAdjacentHTML('beforeend', '<g class="nova"><circle r="6" fill="#FFFDF6"/><circle r="40" fill="url(#sg2)"/><path d="M-90 0H90M0 -90V90" stroke="url(#spk)" stroke-width="1.4"/></g>');
-  setTimeout(() => { const nv = svg.querySelector('.nova'); if (nv) nv.classList.add('go'); chime(true); try { navigator.vibrate && navigator.vibrate([20, 60, 30, 60, 40]); } catch (e) {} }, 1350);
-  setTimeout(() => { render(); arNovaMsg(n); }, 2600);
+  const ov = document.createElement('div'); ov.className = 'ar-ov'; ov.innerHTML = `<div class="ar-flash"></div><div class="ar-tt"><small>Palier ${n} franchi</small><b>${ARP[n - 1][0]}</b><span>${AR_ERA_TXT[n]}${n === 5 ? ' Le Coran s\'ouvre à toi, et un nouveau cycle commence : penser en arabe.' : n < 10 ? ` Prochain palier : ${ARP[n][0].toLowerCase()}.` : ' Continue chaque jour : c\'est comme ça qu\'on pense dans une langue.'}</span></div>`;
+  document.body.appendChild(ov); requestAnimationFrame(() => ov.classList.add('dim'));
+  if (n >= 6) { arEra2(n, svg, ov); return; }
+  if (n >= 3) { arEra(n, svg, ov); return; }
+  const stars = [...svg.querySelectorAll('.star, .pstar')], pos = stars.map(s => { const m = (s.getAttribute('transform') || '').match(/translate\(([-\d.]+) ([-\d.]+)\)/); return m ? [+m[1], +m[2]] : [0, 0]; });
+  /* 1 · tremblement */
+  stars.forEach((s, i) => { const [x, y] = pos[i]; s.animate([{ transform: `translate(${x}px, ${y}px)` }, { transform: `translate(${x + 1.2}px, ${y - .8}px)` }, { transform: `translate(${x - 1}px, ${y + 1}px)` }, { transform: `translate(${x}px, ${y}px)` }], { duration: 260, iterations: 3 }); });
+  try { navigator.vibrate && navigator.vibrate([15, 40, 15, 40, 15]); } catch (e) {}
+  /* 2 · aspiration en spirale vers le centre */
+  setTimeout(() => { stars.forEach((s, i) => { const [x, y] = pos[i]; s.animate([{ transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 1 }, { transform: `translate(${(x * .4 - y * .3).toFixed(1)}px, ${(y * .4 + x * .3).toFixed(1)}px) scale(.7)`, opacity: 1, offset: .55 }, { transform: 'translate(0px, 0px) scale(.15)', opacity: .9 }], { duration: 1500, delay: (i % 40) * 10, easing: 'cubic-bezier(.55,0,.75,.2)', fill: 'forwards' }); });
+    svg.querySelectorAll('line, .ar-chain, .ar-arms, .ar-l, .ar-ring, .ar-aur').forEach(e => e.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, fill: 'forwards' })); }, 800);
+  /* 3 · implosion puis supernova */
+  setTimeout(() => { svg.insertAdjacentHTML('beforeend', `<g class="nova2"><circle class="nv-core" r="5" fill="#FFFDF6"/><circle class="nv-glow" r="40" fill="url(#sg2)"/>${[0, 1, 2].map(k => `<circle class="nv-ring" style="animation-delay:${k * .22}s" r="20" fill="none" stroke="#FFE6A8" stroke-width="1.2"/>`).join('')}<path class="nv-spk" d="M-110 0H110M0 -110V110" stroke="url(#spk)" stroke-width="1.6"/><path class="nv-spk d" d="M-60 -60L60 60M-60 60L60 -60" stroke="url(#spk)" stroke-width=".8"/></g>`); }, 2250);
+  setTimeout(() => { const nv = svg.querySelector('.nova2'); if (nv) nv.classList.add('go'); ov.classList.add('flash'); chime(true); try { navigator.vibrate && navigator.vibrate([40, 30, 80]); } catch (e) {} }, 2500);
+  setTimeout(() => ov.classList.add('title'), 2900);
+  /* 4 · renaissance : la nouvelle constellation jaillit du centre */
+  setTimeout(() => { render(); const sv = $('#constel'); if (sv) { const st = [...sv.querySelectorAll('.star, .pstar')];
+      st.forEach((s, i) => { const m = (s.getAttribute('transform') || '').match(/translate\(([-\d.]+) ([-\d.]+)\)(?: scale\(([\d.]+)\))?/); if (!m) return; const sc = m[3] || 1; s.animate([{ transform: 'translate(0px, 0px) scale(.1)', opacity: 0 }, { transform: `translate(${m[1]}px, ${m[2]}px) scale(${sc * 1.4})`, opacity: 1, offset: .75 }, { transform: `translate(${m[1]}px, ${m[2]}px) scale(${sc})`, opacity: 1 }], { duration: 1500, delay: (i % 50) * 14, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' }); });
+      sv.querySelectorAll('.ar-l, .ar-arms, .ar-ring, .ar-aur, .ar-cres, .ar-chain, line').forEach((e, i) => e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 1800, delay: 600 + i * 60, fill: 'backwards' })); } }, 3900);
+  setTimeout(() => { ov.classList.add('out'); setTimeout(() => ov.remove(), 800); arNovaMsg(n); }, 6600);
 }
-function arNovaMsg(n) { lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(30, { big: true, msg: [`${uiSys() ? 'Compétence maîtrisée' : 'Palier franchi'} · ${ARP[n - 1][0]}`, n < 5 ? `${uiSys() ? 'Compétence maîtrisée. La suivante est débloquée.' : 'Une nouvelle étoile brille dans ta constellation.'} Palier ${n + 1} ouvert : ${ARP[n][0].toLowerCase()}, ${ARP[n][1].toLowerCase()}.` : 'Tu lis couramment. Le Coran s\'ouvre à toi : la mémorisation commence.'] }); }
+const AR_ERA_TXT = [, 'Ta constellation s\'allume.', 'Ta constellation grandit.', 'Ta constellation devient une galaxie.', 'Ta galaxie rejoint l\'univers.', 'L\'univers s\'illumine.', 'Le ciel commence à écrire.', 'Une deuxième lettre s\'écrit dans le ciel.', 'Une troisième lettre apparaît.', 'Le mot est complet.', 'Le ciel a écrit : « Lis ! » (Al-ʿAlaq 96:1)'];
+/* v5.29 · Les grands changements d'échelle (≈ 7 s) */
+function arEra(n, svg, ov) {
+  const T = (ms, f) => setTimeout(f, ms), buzz = v => { try { navigator.vibrate && navigator.vibrate(v); } catch (e) {} };
+  const tr = e => { const m = (e.getAttribute('transform') || '').match(/translate\(([-\d.]+) ([-\d.]+)\)/); return m ? [+m[1], +m[2]] : [0, 0]; };
+  const old = {}; svg.querySelectorAll('.star').forEach(e => { old[e.dataset.star] = tr(e); });
+  buzz([15, 40, 15]);
+  svg.querySelectorAll('line, .ar-chain, .ar-arms, .ar-l, .pstar').forEach(e => e.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 700, fill: 'forwards' }));
+  T(300, () => ov.classList.add('title'));
+  T(700, () => { render(); const sv = $('#constel'); if (!sv) return;
+    const fade = (sel, delay, dur = 1400) => sv.querySelectorAll(sel).forEach((e, i) => e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur, delay: delay + (i % 12) * 60, fill: 'backwards' }));
+    if (n === 3) {
+      /* les étoiles quittent la constellation et s'enroulent sur les bras de la galaxie */
+      sv.querySelectorAll('.star').forEach((e, i) => { const [x, y] = tr(e), [ox, oy] = old[e.dataset.star] || [0, 0], a = .9, mx = (ox + x) / 2, my = (oy + y) / 2, rx = mx * Math.cos(a) - my * Math.sin(a), ry = mx * Math.sin(a) + my * Math.cos(a);
+        e.animate([{ transform: `translate(${ox}px, ${oy}px)` }, { transform: `translate(${rx.toFixed(1)}px, ${ry.toFixed(1)}px)`, offset: .5 }, { transform: `translate(${x}px, ${y}px)` }], { duration: 3000, delay: (i % 25) * 22, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'backwards' }); });
+      fade('.ar-dust circle', 1200, 1600); fade('.ar-l', 1600, 2000);
+      sv.querySelectorAll('.ar-core').forEach(e => e.animate([{ transform: 'rotate(-14deg) scale(.1)', opacity: 0 }, { transform: 'rotate(-14deg) scale(.1)', opacity: 0, offset: .55 }, { transform: 'rotate(-14deg) scale(1.8)', opacity: 1, offset: .8 }, { transform: 'rotate(-14deg) scale(1)', opacity: 1 }], { duration: 4200, easing: 'ease-out' }));
+      T(2800, () => { ov.classList.add('flash'); chime(true); buzz([40, 30, 80]); });
+      fade('.pstar, .ar-chain', 4000);
+    } else if (n === 4) {
+      /* on recule : la galaxie rétrécit, les autres galaxies apparaissent, la toile se tisse */
+      sv.querySelectorAll('.ar-main').forEach(e => e.animate([{ transform: 'scale(1)' }, { transform: 'scale(1)', offset: .15 }, { transform: 'scale(.5)' }], { duration: 3400, easing: 'cubic-bezier(.6,0,.2,1)', fill: 'backwards' }));
+      fade('svg#constel > circle, svg#constel > ellipse', 900, 2200);
+      sv.querySelectorAll('.ar-mgi').forEach((e, i) => e.animate([{ transform: 'scale(0)', opacity: 0 }, { transform: 'scale(1.3)', opacity: 1, offset: .7 }, { transform: 'scale(1)', opacity: 1 }], { duration: 1300, delay: 2000 + i * 180, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' }));
+      sv.querySelectorAll('.ar-fil path').forEach((e, i) => e.animate([{ strokeDasharray: '1 1', strokeDashoffset: 1 }, { strokeDasharray: '1 1', strokeDashoffset: 0 }], { duration: 1600, delay: 2600 + (i >> 1) * 70, easing: 'ease-out', fill: 'backwards' }));
+      T(3300, () => { ov.classList.add('flash'); chime(true); buzz([40, 30, 80]); });
+      fade('.pstar, .ar-chain', 4600);
+    } else {
+      /* la toile devient une étoile à huit branches de lumière, puis le cœur s'embrase */
+      sv.querySelectorAll('.ar-hz path').forEach(e => e.animate([{ strokeDasharray: '1 1', strokeDashoffset: 1 }, { strokeDasharray: '1 1', strokeDashoffset: 0 }], { duration: 2600, delay: 600, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'backwards' }));
+      sv.querySelectorAll('.ar-mgi').forEach((e, i) => e.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.6)', offset: .4 }, { transform: 'scale(1)' }], { duration: 900, delay: 900 + i * 300 }));
+      sv.querySelectorAll('.ar-noor').forEach(e => e.animate([{ transform: 'scale(0)', opacity: 0 }, { transform: 'scale(0)', opacity: 0, offset: .6 }, { transform: 'scale(1.6)', opacity: 1, offset: .82 }, { transform: 'scale(1)', opacity: 1 }], { duration: 4800, easing: 'ease-out' }));
+      fade('.ar-fil', 300, 1800);
+      T(3500, () => { ov.classList.add('flash'); chime(true); buzz([40, 30, 80, 30, 120]); });
+      fade('.pstar, .ar-chain', 4600);
+    } });
+  T(7000, () => { ov.classList.add('out'); setTimeout(() => ov.remove(), 800); arNovaMsg(n); });
+}
+/* v5.30 · Cycle 2 : une plume de lumière écrit la lettre suivante dans le ciel (≈ 7 s) */
+function arEra2(n, svg, ov) {
+  const T = (ms, f) => setTimeout(f, ms), buzz = v => { try { navigator.vibrate && navigator.vibrate(v); } catch (e) {} };
+  const c2 = n - 5, f0 = AR_WF[c2 - 1], f1 = AR_WF[c2], xl = f => AR_WX[1] + (AR_WX[0] - AR_WX[1]) * (1 - f), x0 = xl(f0), x1 = xl(f1);
+  buzz([15, 40, 15]);
+  svg.querySelectorAll('.pstar, .ar-chain').forEach(e => e.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 700, fill: 'forwards' }));
+  T(300, () => ov.classList.add('title'));
+  T(700, () => { render(); const sv = $('#constel'); if (!sv) return;
+    if (n === 6) sv.querySelectorAll('.ar-uni').forEach(e => e.animate([{ transform: 'translate(0px, 0px) scale(1)' }, { transform: 'translate(0px, 20px) scale(.78)' }], { duration: 1600, easing: 'cubic-bezier(.6,0,.2,1)', fill: 'backwards' }));
+    const W = 2200, d0 = n === 6 ? 1400 : 600, span = Math.max(1, x0 - x1);
+    if (x0 - x1 > .5) {
+      sv.querySelectorAll('.ar-sl').forEach(e => { const x = +e.dataset.x; if (x >= x0 - .5) return; const t = Math.min(1, (x0 - x - 4) / span);
+        e.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'translateY(0px)' }], { duration: 500, delay: d0 + t * W, easing: 'ease-out', fill: 'backwards' }); });
+      sv.insertAdjacentHTML('beforeend', `<g class="ar-pen"><circle r="9" fill="url(#gnoor)"/><circle r="2.2" fill="#FFFDF6"/><path d="M-10 0H10M0 -10V10" stroke="url(#spk)" stroke-width=".8"/></g>`);
+      const pen = sv.querySelector('.ar-pen');
+      pen.animate([{ transform: `translate(${x0}px, -88px)`, opacity: 0 }, { transform: `translate(${x0}px, -64px)`, opacity: 1, offset: .12 }, { transform: `translate(${(x0 + x1) / 2}px, -52px)`, opacity: 1, offset: .55 }, { transform: `translate(${x1}px, -60px)`, opacity: 1, offset: .9 }, { transform: `translate(${x1 - 6}px, -74px)`, opacity: 0 }], { duration: W + 500, delay: d0 - 250, easing: 'ease-in-out', fill: 'both' }).onfinish = () => pen.remove();
+    }
+    T(d0 + W, () => { ov.classList.add('flash'); chime(true); buzz([40, 30, 80]); sv.querySelectorAll('.ar-word').forEach(e => e.animate([{ transform: 'scale(1)', filter: 'brightness(1)' }, { transform: 'scale(1.08)', filter: 'brightness(1.6)', offset: .3 }, { transform: 'scale(1)', filter: 'brightness(1)' }], { duration: 1400, easing: 'ease-out' })); });
+    if (n === 10) sv.querySelectorAll('.ar-verse').forEach(e => e.animate([{ opacity: 0 }, { opacity: 0, offset: .5 }, { opacity: 1 }], { duration: 4400, fill: 'backwards' }));
+    if (n === 9) sv.querySelectorAll('.ar-spk').forEach((e, i) => e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 800, delay: d0 + W + i * 30, fill: 'backwards' })); });
+  T(7000, () => { ov.classList.add('out'); setTimeout(() => ov.remove(), 800); arNovaMsg(n); });
+}
+function arNovaMsg(n) { lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(30, { big: true, msg: [`${uiSys() ? 'Compétence maîtrisée' : 'Palier franchi'} · ${ARP[n - 1][0]}`, n === 5 ? 'Tu lis couramment. Le Coran s\'ouvre à toi, et le cycle 2 commence : penser en arabe.' : n < 10 ? `${AR_ERA_TXT[n]} Palier ${n + 1} ouvert : ${ARP[n][0].toLowerCase()}, ${ARP[n][1].toLowerCase()}.` : 'Les deux cycles sont terminés. Continue de penser en arabe chaque jour.'] }); }
 /* Palier 2 : le sens, mot à mot */
+const arSL = () => (AR.p === 9 ? ARS2 : ARS);
 function vAr2() {
   const a = arS();
   if (AR.sur) {
-    const s = ARS.find(x => x[0] === AR.sur);
+    const s = arSL().find(x => x[0] === AR.sur);
     if (AR.q) { const it = AR.q.list[AR.q.i];
       if (!it) { const ok = AR.q.score >= AR.q.list.length - 1; return `<section class="cq" style="text-align:center"><p class="eyebrow">${s[1]}</p><p style="font:400 3rem/1 var(--serif);color:var(--${ok ? 'mint' : 'gold'});margin:10px 0">${AR.q.score}/${AR.q.list.length}</p><p class="small">${ok ? (uiSys() ? 'Sourate comprise. Ta compétence progresse.' : 'Sourate comprise. Elle rejoint ta constellation.') : 'Presque : relis-la mot à mot et retente.'}</p><button class="btn block" data-ar2="back" style="margin-top:12px">Continuer</button></section>`; }
       return `<section class="cq"><p class="eyebrow" style="margin:0">${s[1]} · ${AR.q.i + 1}/${AR.q.list.length}</p><p class="arbig" lang="ar" dir="rtl">${it[0]}</p><p class="small muted" style="text-align:center;margin:0 0 8px">Que veut dire ce mot ?</p>${it.opts.map((o, k) => `<button class="copt ${AR.q.pick != null ? (o === it[1] ? 'ok' : k === AR.q.pick ? 'ko' : '') : ''}" data-ar2q="${k}" ${AR.q.pick != null ? 'disabled' : ''}><b>${'ABC'[k]}</b><span>${esc(o)}</span></button>`).join('')}${AR.q.pick != null ? '<button class="btn block" data-ar2="next" style="margin-top:12px">Suivant</button>' : ''}</section>`; }
@@ -9311,10 +9668,10 @@ function vAr2() {
       ${s[2].map((v, vi) => `<div class="arverse"><span class="vn">Verset ${vi + 1}</span><div class="arwords" dir="rtl">${v.map(([w, m]) => `<button class="arw" data-arw="${esc(m)}" lang="ar">${w}<small>${esc(m)}</small></button>`).join('')}</div></div>`).join('')}
       <button class="btn block" data-ar2="quiz" style="margin-top:14px">${a.sur[s[0]] ? 'Refaire le test' : 'Je me teste'}</button></section>`;
   }
-  return `<section><h2>Le sens dans les versets</h2><p class="small muted" style="margin:-6px 0 12px">Comprends ce que tu récites, mot à mot. Chaque sourate comprise compte.</p><div class="group">${ARS.map(s => `<button class="cell tap" data-ar2s="${s[0]}"><span class="lbl">${s[1]}</span><span class="small ${a.sur[s[0]] ? '' : 'muted'}" style="${a.sur[s[0]] ? 'color:var(--mint)' : ''}">${a.sur[s[0]] ? 'Comprise' : `${s[2].length} versets`}</span>${ICON.chev}</button>`).join('')}</div></section>`;
+  return `<section><h2>${AR.p === 9 ? 'Comprendre par les racines' : 'Le sens dans les versets'}</h2><p class="small muted" style="margin:-6px 0 12px">${AR.p === 9 ? '4 nouvelles sourates. Avant de toucher un mot, cherche sa racine et devine son sens : tu en connais déjà beaucoup.' : 'Comprends ce que tu récites, mot à mot. Chaque sourate comprise compte.'}</p><div class="group">${arSL().map(s => `<button class="cell tap" data-ar2s="${s[0]}"><span class="lbl">${s[1]}</span><span class="small ${a.sur[s[0]] ? '' : 'muted'}" style="${a.sur[s[0]] ? 'color:var(--mint)' : ''}">${a.sur[s[0]] ? 'Comprise' : `${s[2].length} versets`}</span>${ICON.chev}</button>`).join('')}</div></section>`;
 }
 function ar2Quiz(sid) {
-  const s = ARS.find(x => x[0] === sid), all = []; s[2].forEach(v => v.forEach(w => all.push(w))); const uniq = []; all.forEach(w => { if (!uniq.some(u => u[0] === w[0])) uniq.push(w); });
+  const s = arSL().find(x => x[0] === sid), all = []; s[2].forEach(v => v.forEach(w => all.push(w))); const uniq = []; all.forEach(w => { if (!uniq.some(u => u[0] === w[0])) uniq.push(w); });
   const list = uniq.sort(() => Math.random() - .5).slice(0, Math.min(6, uniq.length)).map(w => { const others = uniq.filter(u => u[1] !== w[1]).sort(() => Math.random() - .5).slice(0, 2).map(u => u[1]); return Object.assign([w[0], w[1]], { opts: [w[1], ...others].sort(() => Math.random() - .5) }); });
   AR.q = { list, i: 0, score: 0, pick: null };
 }
@@ -9348,8 +9705,9 @@ function vAr5() {
   return `<section><h2>La lecture fluide</h2><p class="small muted" style="margin:-6px 0 12px">Lis chaque passage à voix haute, chronomètre en marche. Un passage est validé quand tu l'as lu de façon fluide deux jours différents.</p><div class="group">${FLU.map(f => { const n = new Set(a.flu[f[0]] || []).size; return `<button class="cell tap" data-arf="open" data-id="${f[0]}"><span class="lbl">${f[1]}</span><span class="small ${n >= 2 ? '' : 'muted'}" style="${n >= 2 ? 'color:var(--mint)' : ''}">${n >= 2 ? 'Fluide' : `${n}/2 jours`}</span>${ICON.chev}</button>`; }).join('')}</div></section>`;
 }
 function arClick(t) {
+  if (arC2Click(t)) return true;
   const c = s => t.closest(s); let el; const a = arS(), rr = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
-  if ((el = c('[data-arp]'))) { const n = Number(el.dataset.arp); if (!arOpen(n)) { toast(`Termine d'abord le palier ${n - 1} : ${ARP[n - 2][0].toLowerCase()}`); return true; } AR.p = n; AR.sur = null; AR.q = null; AR.fl = null; rr(); return true; }
+  if ((el = c('[data-arp]'))) { let n = Number(el.dataset.arp); if (el.classList.contains('chip')) n = n === 1 ? Math.min(5, arPalier()) : Math.max(6, Math.min(10, arPalier())); if (!arOpen(n)) { toast(`Termine d'abord le palier ${n - 1} : ${ARP[n - 2][0].toLowerCase()}`); return true; } AR.p = n; AR.sur = null; AR.q = null; AR.fl = null; AR.dq = null; AR.pq = null; rr(); return true; }
   if ((el = c('[data-arw]'))) { el.classList.toggle('show'); return true; }
   if ((el = c('[data-ar2s]'))) { AR.sur = el.dataset.ar2s; AR.q = null; render(); window.scrollTo(0, 0); return true; }
   if ((el = c('[data-ar2]'))) { const v = el.dataset.ar2; if (v === 'close') AR.sur = null; if (v === 'quiz') ar2Quiz(AR.sur); if (v === 'next') { AR.q.i++; AR.q.pick = null; if (AR.q.i >= AR.q.list.length && AR.q.score >= AR.q.list.length - 1 && !a.sur[AR.sur]) { a.sur[AR.sur] = todayISO(); save(); reward(12, { big: true, msg: ['Sourate comprise', ARS.find(x => x[0] === AR.sur)[1]] }); } } if (v === 'back') AR.q = null; rr(); return true; }
