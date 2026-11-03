@@ -5227,7 +5227,7 @@ function bindFlux() {
   FXS.io = new IntersectionObserver(ents => ents.forEach(en => {
     const el = en.target;
     if (en.isIntersecting && en.intersectionRatio >= .6) {
-      el.classList.add('in'); FXS.cur = el; FXS.t0 = performance.now();
+      el.classList.add('in'); FXS.cur = el; FXS.t0 = performance.now(); fxArm(el);
       const c = fxCardOf(el); if (c && FX_ALL[c.id]) { S.flux.seen[c.id] = Date.now(); }
       const idx = [...feed.children].indexOf(el);
       $$('#fprog i').forEach((b, k) => b.classList.toggle('on', k <= (idx % 15)));
@@ -5242,7 +5242,7 @@ function bindFlux() {
   /* Filet de sécurité (Safari) : la carte visible est aussi déterminée par la position de défilement */
   const sync = () => { const i = Math.round(feed.scrollTop / Math.max(1, feed.clientHeight)), el = feed.children[i]; if (!el || el.classList.contains('in')) return;
     if (FXS.cur && FXS.cur !== el && performance.now() - FXS.t0 > 2500 && !FXS.read.has(FXS.cur.dataset.fid)) fxRead(FXS.cur.dataset.fid);
-    [...feed.children].forEach(x => x.classList.toggle('in', x === el)); FXS.cur = el; FXS.t0 = performance.now();
+    [...feed.children].forEach(x => x.classList.toggle('in', x === el)); FXS.cur = el; FXS.t0 = performance.now(); fxArm(el);
     $$('#fprog i').forEach((b, k) => b.classList.toggle('on', k <= (i % 15)));
     if (i >= feed.children.length - 3) fxAppend(5); };
   feed.addEventListener('scroll', () => { clearTimeout(FXS.sc); FXS.sc = setTimeout(sync, 120); }, { passive: true });
@@ -8228,6 +8228,8 @@ function tlClick(t) {
 let TL_TICK = 0;
 function tlTick() { clearInterval(TL_TICK); TL_TICK = setInterval(() => { if (tab === 'libre' && tlS() && !document.querySelector('input:focus')) pvRe(); else if (tab !== 'libre') clearInterval(TL_TICK); }, 30000); }
 
+/* v5.36 · une carte compte comme lue après 2,5 s à l'écran, sans attendre de la quitter (la 5e comptait seulement en passant à la 6e) */
+function fxArm(el) { clearTimeout(FXS.rt); FXS.rt = setTimeout(() => { if (FXS.cur === el && el.isConnected && el.dataset.fid && !FXS.read.has(el.dataset.fid)) fxRead(el.dataset.fid); }, 2500); }
 function fxRead(id) {
   FXS.read.add(id); const d = fluxDay(); d.n++; save();
   if (d.n === 5 && !d.r) { d.r = 1; lastPt = { x: innerWidth / 2, y: innerHeight * .3 }; reward(3, { noBonus: true, msg: ['Rituel du jour', '5 cartes pour nourrir ton esprit plutôt que le vider.'] }); }
@@ -8236,7 +8238,7 @@ function fxSave(el) {
   const art = el.closest('.fc'), id = art.dataset.fid; if (!FX_ALL[id]) return;
   const i = S.flux.saved.indexOf(id), b = $('[data-fsave]', art);
   if (i >= 0) { S.flux.saved.splice(i, 1); if (b) { b.setAttribute('aria-pressed', 'false'); $('span', b).textContent = 'J\'aime'; } toast('Retiré de tes cartes aimées'); }
-  else { S.flux.saved.push(id); if (b) { b.setAttribute('aria-pressed', 'true'); $('span', b).textContent = 'Aimé'; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } burst(14, '♥', false); chime(false); haptic(); }
+  else { if (!FXS.read.has(id)) fxRead(id); S.flux.saved.push(id); if (b) { b.setAttribute('aria-pressed', 'true'); $('span', b).textContent = 'Aimé'; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } burst(14, '♥', false); chime(false); haptic(); }
   save();
 }
 function fxText(c) {
@@ -8313,7 +8315,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.35 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.36 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
