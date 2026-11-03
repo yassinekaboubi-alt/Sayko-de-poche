@@ -5952,7 +5952,7 @@ function repSetting() {
    flashcards à répétition espacée, carnet d'erreurs, ressources gratuites.
    État : S.psy = { tests: { fr: [{d, s}] }, done: { sessionId: date }, log: [{d, m, sub}], adm: { id: date }, cards: { id: [box, due] }, err: [{d, sub, e, c}], audio: { date: n } }
    ===================================================================== */
-const PSY_START = '2026-10-26';
+const PSY_START = '2026-11-02'; /* v5.32 : décalé du 26/10 au 02/11 */
 const PSY_RENTREE = '2027-09-01';
 const PSY_GOAL = 300;
 const PSY_SUB = { fr: 'Français', ma: 'Maths & stats', bio: 'Biologie & neuro', psy: 'Psychologie', en: 'Anglais', me: 'Méthode', au: 'Audio' };
@@ -6169,7 +6169,10 @@ const PSY_CARDS = [
   ['k49', 'Courbe de l\'oubli (Ebbinghaus) ?', 'Sans révision, on oublie vite après l\'apprentissage ; les rappels espacés freinent cet oubli.'],
   ['k50', 'Méta-analyse ?', 'Étude qui combine statistiquement les résultats de nombreuses études sur une même question.']];
 const PSY_BOX = [0, 1, 3, 7, 14, 30];
-function psyS() { const p = S.psy = S.psy && typeof S.psy === 'object' ? S.psy : {}; ['tests', 'done', 'adm', 'cards', 'audio', 'meth', 'ch'].forEach(k => { if (!p[k] || typeof p[k] !== 'object') p[k] = {}; }); ['log', 'err'].forEach(k => { if (!Array.isArray(p[k])) p[k] = []; }); return p; }
+function psyS() { const p = S.psy = S.psy && typeof S.psy === 'object' ? S.psy : {}; ['tests', 'done', 'adm', 'cards', 'audio', 'meth', 'ch'].forEach(k => { if (!p[k] || typeof p[k] !== 'object') p[k] = {}; }); ['log', 'err'].forEach(k => { if (!Array.isArray(p[k])) p[k] = []; });
+  /* v5.31 : un test de niveau passé après la semaine 0 n'était pas coché */
+  if (typeof PSY_T === 'object') Object.keys(PSY_T).forEach(k => { const t = p.tests[k], sid = `w0-${k}`; if (k !== 'l1' && t && t.length && !p.done[sid]) { const ws = PSY_WEEKS[0].s.find(x => x[0] === sid); if (ws) { p.done[sid] = t[0].d; p.log.push({ d: t[0].d, m: ws[2], sub: ws[1], id: sid }); } } });
+  return p; }
 const PSYV = { tab: null };
 function psyWeekIdx() { const d = Math.floor((parseDate(todayISO()) - parseDate(PSY_START)) / 864e5); return d < 0 ? -1 : Math.floor(d / 7); }
 function psyWeekMin(i) { const p = psyS(), a = iso(addDays(parseDate(PSY_START), i * 7)), b = iso(addDays(parseDate(PSY_START), i * 7 + 7)); return p.log.filter(x => x.d >= a && x.d < b && x.sub !== 'au').reduce((s, x) => s + x.m, 0); }
@@ -6198,11 +6201,12 @@ function vPsy() {
   ];
   const road = `<ol class="psy-road">${steps.map(([t, sb, st, when], i) => `<li class="${st}"><span class="psy-dot">${st === 'done' ? '✓' : i + 1}</span><div><b>${t}</b><small>${sb}</small><em>${when}</em></div></li>`).join('')}</ol>`;
   let today;
-  if (wi < 0) today = `<p class="pv-k" style="margin-top:0">Bientôt</p><h2 class="pf-title">Ton parcours commence lundi 26 octobre</h2>`;
+  if (wi < 0) today = `<p class="pv-k" style="margin-top:0">Bientôt</p><h2 class="pf-title">Ton parcours commence lundi 2 novembre</h2>`;
   else if (!inProg) today = `<p class="pv-k" style="margin-top:0">Les 5 premières semaines sont faites</p><h2 class="pf-title">Révise tes fiches</h2><p class="pv-line">10 minutes par jour suffisent pour ne rien oublier. Demande à Claude la suite du programme.</p><div class="pv-btns"><button class="btn sm" data-psyfc style="flex:1">Réviser mes fiches</button></div>`;
   else if (!nx) today = `<p class="pv-k" style="margin-top:0">${esc(W.t.split(' · ')[1] || W.t)}</p><h2 class="pf-title">Semaine terminée ✓</h2><p class="pv-line">Bravo. Pour garder le rythme jusqu'à lundi : tes fiches de révision.</p><div class="pv-btns"><button class="btn sm" data-psyfc style="flex:1">Réviser mes fiches</button></div>`;
   else { const [id, sub, mn, t, how, res] = nx, isTest = /^w0-/.test(id) && PSY_T[id.slice(3)];
     today = `<p class="pv-k" style="margin-top:0">${nxW < wi ? `À rattraper · ${esc(PSY_WEEKS[nxW].t.split(' · ')[0])}` : 'Aujourd\'hui'} · ${mn ? `${mn} minutes` : 'quelques minutes'}</p><h2 class="pf-title">${esc(t.replace(/^Test de niveau · /, 'Test de ').replace(/^Test de Maths & stats/, 'Test de maths'))}</h2>
+      <p class="psy-why">${(([n, a, b]) => `Étape ${n} sur 6 · ${a} : ${b}`)(nxW === 0 ? [1, 'Faire le point', 'connaître ton vrai niveau, pour savoir quoi travailler en premier.'] : nxW <= 2 ? [2, 'Réapprendre à apprendre', 'des méthodes pour retenir ce que tu étudies.'] : [3, 'Tes premiers cours de psycho', 'le vrai contenu de la L1, pour arriver prêt.'])}</p>
       <p class="pf-where">${PSY_SUB[sub]}</p>
       ${isTest ? `<p class="pv-line">10 questions, sans chercher la réponse : le but est de savoir où tu en es, pas d'avoir une bonne note.</p>` : how || res ? `<p class="pv-line">${how.replace(/Dans « Apprendre à apprendre », leçon (\d)/g, 'Leçon $1 dans « Apprendre à apprendre » (Tes outils)')}${res ? `${how ? ' ' : ''}<a href="${PSY_RES[res][1]}" target="_blank" rel="noopener">→ ${PSY_RES[res][0]}</a>` : ''}</p>` : ''}
       <div class="pv-btns" style="margin-top:14px">${isTest ? `<button class="btn sm" data-psytest="${id.slice(3)}" style="flex:1">Commencer le test</button>` : `<button class="btn sm" data-psyd="${id}" style="flex:1">C'est fait</button>`}</div>`; }
@@ -6218,8 +6222,8 @@ function vPsy() {
     ['res', 'Ressources gratuites', 'sites et cours', 'Les meilleurs sites et cours gratuits.']];
   const tools = `<div class="psy-tools">${T.map(([k, n, sb, ex]) => `<button class="psy-tool ${PSYV.tab === k ? 'on' : ''}" data-psyt="${k}"><span class="grow"><b>${n}</b><small>${ex}</small></span><em>${sb}</em></button>`).join('')}</div>`;
   const head = `${pageHead('Psychologie', `Objectif : la licence de psychologie à la rentrée 2027, dans ${jr} jours`, 'psy')}
-    ${na && psyDays(na[1]) <= 14 ? `<button class="pv-buyline" data-psyt="adm" style="margin-top:14px">${psyDays(na[1]) < 0 ? '⚠ En retard' : `Dans ${psyDays(na[1])} j`} · ${esc(na[2])} →</button>` : ''}
     <section class="glass pv-card pf-res">${today}</section>
+    ${na && psyDays(na[1]) <= 14 ? `<button class="psy-side" data-psyt="adm"><small>En parallèle, pour ton dossier · ${psyDays(na[1]) < 0 ? 'en retard' : `avant le ${DAY_MONTH.format(parseDate(na[1]))}`}</small><span>${esc(na[2])} →</span></button>` : ''}
     ${week}
     <section class="glass pv-card"><h2 class="pv-h">Ton chemin jusqu'à la rentrée</h2>${road}</section>
     <section class="glass pv-card"><h2 class="pv-h">Tes outils</h2>${tools}</section>
@@ -6227,7 +6231,7 @@ function vPsy() {
   if (!PSYV.tab || PSYV.tab === 'sem') return head;
   let body = '';
   if (PSYV.tab === 'sem') {
-    if (wi < 0) body = psyWin('AVANT LE DÉPART', `<p class="sys-li">Le programme commence le <b>lundi 26 octobre</b>, à la fin de ta Reprise. D'ici là, rien à faire ici. Si tu veux prendre de l'avance : retrouve ton diplôme du bac (bouton « Inscription »).</p>`);
+    if (wi < 0) body = psyWin('AVANT LE DÉPART', `<p class="sys-li">Le programme commence le <b>lundi 2 novembre</b>, à la fin de ta Reprise. D'ici là, rien à faire ici. Si tu veux prendre de l'avance : retrouve ton diplôme du bac (bouton « Inscription »).</p>`);
     else if (wi >= PSY_WEEKS.length) body = psyWin('APRÈS LA SEMAINE 4', `<p class="sys-li">Les 4 premières semaines sont terminées. La suite se construit à partir de tes résultats aux tests de la semaine 4 et de ton carnet d'erreurs : demande à Claude le programme de décembre.</p><p class="sys-li">En attendant : flashcards chaque jour de gare, un résumé d'article par semaine, Khan Academy en statistiques.</p>`);
     else {
       const m = psyWeekMin(wi), sess = W.s.filter(x => x[1] !== 'au'), dn = W.s.filter(x => p.done[x[0]]).length;
@@ -6269,6 +6273,7 @@ function vPsy() {
 /* v5.22 : les sections de Psychologie dans le style de l'app (plus de cadres en majuscules) */
 function psyWin(title, body, cls = '') { const t = gxCase(gx(String(title))).replace(/\[(\d+)\/(\d+)\]/, '· $1/$2'); const b = gxBtn(gx(body)).replace(/(<(?:span|p)[^>]*class="sys-k"[^>]*>)([^<]+)(<)/g, (m, a, x, c) => a + gxCase(x) + c); return `<section class="glass pv-card psy-card ${cls}"><h2 class="pv-h">${t}</h2>${b}</section>`; }
 /* Test de niveau */
+function psyNextStep() { const p = psyS(), wi = Math.min(PSY_WEEKS.length - 1, psyWeekIdx()); for (let k = 0; k <= wi; k++) { const x = PSY_WEEKS[k].s.find(y => !p.done[y[0]] && y[1] !== 'au'); if (x) return x[3].replace(/^Test de niveau · (.)/, (m, c) => 'Test de ' + c.toLowerCase()).replace(/^Test de maths & stats/, 'Test de maths'); } return null; }
 function psyTest(k) {
   const [name, Q] = PSY_T[k]; let i = 0, score = 0, ans = []; const el = document.createElement('div'); el.className = 'sys-pop on lk-run'; document.body.appendChild(el);
   const order = Q.map(q => { const idx = q[1].map((_, j) => j).sort(() => Math.random() - .5); return idx; }), N = Q.length;
@@ -6279,9 +6284,10 @@ function psyTest(k) {
     if (x) { el.remove(); return; }
     if (a && !a.disabled) { const j = Number(a.dataset.psyq); ans[i] = j; if (j === Q[i][2]) { score++; try { sfx('gain'); } catch (er) {} } else { try { sfx('deny'); } catch (er) {} } draw(j); return; }
     if (n) { i++; if (i < N) { draw(); return; }
-      const p = psyS(); (p.tests[k] = p.tests[k] || []).push({ d: todayISO(), s: score }); const sid = k === 'l1' ? 'w4-pb' : psyWeekIdx() <= 0 ? `w0-${k}` : null, ws = sid && PSY_WEEKS.flatMap(w => w.s).find(s => s[0] === sid); if (ws && !p.done[sid]) { p.done[sid] = todayISO(); p.log.push({ d: todayISO(), m: ws[2], sub: ws[1], id: sid }); }
+      const p = psyS(); (p.tests[k] = p.tests[k] || []).push({ d: todayISO(), s: score }); const sid = k === 'l1' ? 'w4-pb' : !p.done[`w0-${k}`] ? `w0-${k}` : null, ws = sid && PSY_WEEKS.flatMap(w => w.s).find(s => s[0] === sid); if (ws && !p.done[sid]) { p.done[sid] = todayISO(); p.log.push({ d: todayISO(), m: ws[2], sub: ws[1], id: sid }); }
       save(); reward(5, { noBonus: true }); el.remove();
-      const r = score / N; sysPop(`RÉSULTAT · ${name.toUpperCase()}`, `<p class="sq-left num">${score}/${N}</p><p class="sys-pt" style="text-align:center">${r >= .8 ? 'SOLIDE' : r >= .5 ? 'À CONSOLIDER' : 'PRIORITÉ'}</p><p class="sys-li" style="text-align:center">${r >= .8 ? 'Bonne base. On ira plus loin plus vite.' : r >= .5 ? 'Les bases sont là, avec des trous. Le programme les comble.' : 'C\'est ici qu\'on va mettre le plus d\'effort, et c\'est normal après six ans.'}</p><p class="sys-li" style="text-align:center;opacity:.8">+5 XP</p>`, 'FERMER', 'ok');
+      const r = score / N; const nxt = psyNextStep();
+      sysPop(`RÉSULTAT · ${name.toUpperCase()}`, `<p class="sq-left num">${score}/${N}</p><p class="sys-pt" style="text-align:center">${r >= .8 ? 'SOLIDE' : r >= .5 ? 'À CONSOLIDER' : 'PRIORITÉ'}</p><p class="sys-li" style="text-align:center">${r >= .8 ? 'Bonne base. On ira plus loin plus vite.' : r >= .5 ? 'Les bases sont là, avec des trous. Le programme les comble.' : 'C\'est ici qu\'on va mettre le plus d\'effort, et c\'est normal après six ans.'}</p><p class="sys-li" style="text-align:center;opacity:.8">+5 XP</p>${nxt ? `<p class="sys-li" style="text-align:center;margin-top:12px">Ensuite : <b>${esc(nxt)}</b>. Il t'attend en haut de l'onglet Psycho.</p>` : ''}`, 'FERMER', 'ok');
       render(); } });
   draw();
 }
@@ -8287,7 +8293,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.30 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.32 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
