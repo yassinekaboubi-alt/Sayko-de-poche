@@ -649,15 +649,20 @@ const GSTAGE = ['Roche', 'Eau', 'Océans', 'Vie', 'Civilisation'];
 const GNAME = { foi: ['Suhail', 'Canopus, l\'étoile qui guidait les voyageurs arabes dans le désert'], business: ['Altaïr', 'de an-nasr at-tâ\'ir, l\'aigle qui vole'], corps: ['Hamal', 'de al-ḥamal, le bélier : la force'], argent: ['Alnilam', 'de an-nizâm, le collier de perles'], chasse: ['Alnair', 'de an-nayyir, la brillante'], parcours: ['Achernar', 'de âkhir an-nahr, la fin du fleuve'], arabe: ['Fomalhaut', 'de fam al-hût, la bouche du poisson'], routine: ['Deneb', 'de dhanab, la queue du cygne'], psy: ['Alhena', 'de al-han\'a, la marque : ce qui laisse une trace'], intel: ['Aldébaran', 'de ad-dabarân, celle qui suit : la persévérance'] };
 const GSIZE = { psy: 21, intel: 25, chasse: 18, foi: 30, business: 26, corps: 24, argent: 24, parcours: 22, arabe: 20, routine: 19 };
 const GPAL = { psy: ['#CFF4FF', '#2E9CC9', '#04202E'], intel: ['#FFD9C2', '#D9603A', '#2A0C04'], chasse: ['#D9E8C2', '#6B7F3A', '#141A08'], foi: ['#C6F7E0', '#1F9E6E', '#04261A'], business: ['#F6E2B0', '#C08A3E', '#2A1606'], corps: ['#F7B79A', '#B9472E', '#2A0A05'], argent: ['#FFF1C8', '#D4A84A', '#2E1E06'], parcours: ['#E6F6FF', '#6FA8D6', '#0B1E33'], arabe: ['#E2D6FF', '#6A57C9', '#120A2E'], routine: ['#B5EAF2', '#22709A', '#03111C'] };
-const GGROW = { intel: [5, 30, 90, 200], psy: [5, 30, 80, 160], chasse: [5, 30, 80, 160], foi: [9, 90, 300, 800], arabe: [5, 30, 80, 150], routine: [3, 20, 60, 150], corps: [1, 10, 30, 80], argent: [5, 40, 120, 300], parcours: [5, 25, 50, 90] };
+/* v5.40 · seuils abaissés : une planète change en quelques semaines, pas en plusieurs mois */
+const GGROW = { intel: [3, 15, 45, 100], psy: [3, 15, 45, 100], chasse: [5, 25, 60, 120], foi: [7, 50, 150, 400], arabe: [5, 30, 80, 150], routine: [3, 20, 60, 150], corps: [3, 20, 60, 150], argent: [5, 25, 60, 120], parcours: [5, 25, 50, 90] };
+const GVC = { t: 0, v: 0 };
 function gValue(k) {
   if (k === 'psy') { try { const p = psyS(); return Math.floor(psyMinTotal() / 30) + Object.values(p.tests).reduce((a, l) => a + l.length, 0) * 3 + Object.values(p.cards).filter(x => x[0] >= 4).length; } catch (e) { return 0; } }
   if (k === 'arabe') return wordsKnown() + arCount() * 40;
   if (k === 'chasse') { const c = S.chasse || {}; return CHQ.filter(x => chMast(x[0])).length * 2 + (c.ex || []).length * 5 + (c.ext || []).length * 3; }
   if (k === 'foi') { let n = 0; Object.values(S.faith.log || {}).forEach(d => Object.values(d || {}).forEach(v => { if (v && v !== 'x') n++; })); return n; }
   if (k === 'routine') return Object.keys(S.days || {}).length;
-  if (k === 'corps') { const p = S.pv || {}; return S.body.sessions.length + ((S.fight && S.fight.log) || []).length + (p.circ || []).length + Object.values(p.steps || {}).filter(v => Number(v) >= (Number(p.goal) || PV_GOAL)).length; }
-  if (k === 'argent') return S.money.tx.length;
+  if (k === 'corps') { if (GVC.t && Date.now() - GVC.t < 4000) return GVC.v; const p = S.pv || {}; let n = S.body.sessions.length + ((S.fight && S.fight.log) || []).length + (p.circ || []).length;
+    /* v5.40 · chaque jour, l'alimentation, les pas, l'apparence et la santé nourrissent la planète Corps (jusqu'à 4 points par jour) */
+    try { const st = p.start || todayISO(); for (let i = 0; i < 400; i++) { const k2 = iso(addDays(new Date(), -i)); if (k2 < st) break; const P = pvPillars(k2); [0, 1, 3, 4].forEach(j => { if (P[j]) n += Math.min(1, Math.max(0, P[j].v || 0)); }); } } catch (e) {}
+    GVC.t = Date.now(); GVC.v = Math.floor(n); return GVC.v; }
+  if (k === 'argent') { let n = S.money.tx.length + (S.shifts || []).length; try { const B = bpS(); Object.values(B.m || {}).forEach(m => { n += (m.tx || []).length + (m.inc || []).filter(i => i.got != null && i.got !== '').length * 3 + (m.fix || []).filter(f => f.paid).length; }); } catch (e) {} return n; }
   if (k === 'parcours') return globalPct();
   if (k === 'intel') { const p = S.pv || {}; return Math.floor(Object.values(p.it || {}).reduce((a, d) => a + Object.values(d || {}).reduce((x, y) => x + (Number(y) || 0), 0), 0) / 30); }
   return 0;
@@ -6880,6 +6885,7 @@ function pvPuz() {
 function pzMove(fn) { if (pzWon()) return; fn(); PZ.mv++; haptic(); if (pzWon()) { const pz = pvS().pz; pz.done = pz.done || {}; pz.done[PZ.k] = (pz.done[PZ.k] || 0) + 1; save(); reward(3, { msg: ['Casse-tête résolu', `${PZ_L.find(x => x[0] === PZ.k)[1]} · ${PZ.mv} coups`] }); } }
 
 /* ---------- LE PROTOCOLE DU JOUR (accueil) ---------- */
+const PRAY_PIL = '2026-11-04';
 function pvPillars(k = todayISO()) {
   const d = k === todayISO() ? pvPeek() : (pvS().d[k] || { comp: {}, ban: {}, ap: {}, rw: {}, fr: {}, water: 0 }), g = numv(pvS().goal) || PV_GOAL;
   const fs = pvFoodScore(d).filter(Boolean).length, st = numv(pvS().steps[k]), c = pvS().circ.some(x => x.date === k);
@@ -6889,15 +6895,20 @@ function pvPillars(k = todayISO()) {
     { id: 'nutrition', n: 'Alimentation', v: fs / 4, t: `${fs}/4`, s: pvFoodMiss(d), stuck: (() => { const f = pvFoodScore(d); return f[0] && f[1] && f[2] && !f[3]; })() },
     { id: 'entrainement', n: '15K pas', v: st / g, t: pvFmt(st), s: st >= g ? 'Objectif atteint' : `Reste ${pvFmt(g - st)} pas` },
     { id: 'entrainement', n: 'Circuit', v: c || !due ? 1 : 0, t: c ? 'fait' : due ? 'à faire' : 'repos', s: c ? 'Validé aujourd\'hui' : due ? 'Pompes, dips, tractions négatives' : 'Récupération, circuit demain', rest: !due && !c },
-    { id: 'apparence', n: 'Apparence', v: at ? an / at : 0, t: `${an}/${at}`, s: (() => { const b = pvBarberDays(); return b == null || b >= PV_BARBER ? 'Coiffeur à prévoir' : 'Barbe, cheveux, tenue, parfum'; })() },
+    { id: 'apparence', n: 'Apparence', v: at ? an / at : 0, t: `${an}/${at}`, s: (() => { const b = pvBarberDays(), cf = b != null && b >= PV_BARBER ? ' · coiffeur à prévoir' : ''; return an >= at ? `Tous les gestes sont faits${cf}` : `${at - an} geste${at - an > 1 ? 's' : ''} du jour à faire${cf}`; })() },
     (() => { const fm = ph && !ph.free ? puffFreeMin(k) : 0; return { id: 'sante', n: 'Santé · puff', v: !ph ? 0 : ph.free ? (pn ? 0 : 1) : Math.min(1, fm / (ph.target * 60)), t: !ph ? '—' : ph.free ? (pn ? 'rechute' : 'libre') : `${Math.floor(fm / 60)}/${ph.target} h`, s: !ph ? 'Lancer le plan d\'arrêt' : ph.free ? `${puffFreeStreak()} jour${puffFreeStreak() > 1 ? 's' : ''} sans puff` : puffS().run ? 'Rangée · le chrono tourne' : `${ph.target} h sans puff · jour J dans ${ph.left} j` }; })(),
-    (() => { const [ho, hd] = homeScore(k), ld = homeLoad(k); return { id: 'maison', n: 'Maison', v: hd ? ho / hd : 0, t: `${ho}/${hd}`, s: ho === hd ? 'Tout est propre' : !ld ? 'Machine du jour à lancer' : ld.st < 2 ? 'Linge à étendre' : 'Ménage du jour' }; })(),
-    { id: 'intel', n: 'Intellect', v: it / 6, t: `${it}/6`, s: `${Math.round(PV_IT.reduce((a, [id]) => a + (k === todayISO() ? pvMinLive(id) : pvMin(id, k)), 0))} min aujourd'hui` }
+    (() => { const [ho, hd] = homeScore(k), mm = homeMach(k), left = PV_HOME.filter(([id, , f]) => homeDue(id, f, k) && !homeDoneOn(id, k)).map(x => x[1].toLowerCase()); if (mm.due && !mm.ok) left.push(mm.what.toLowerCase()); return { id: 'maison', n: 'Maison', v: hd ? ho / hd : 0, t: `${ho}/${hd}`, s: ho >= hd ? 'Tout est propre' : `Reste : ${left.slice(0, 3).join(', ')}` }; })(),
+    { id: 'intel', n: 'Intellect', v: it / 6, t: `${it}/6`, s: `${Math.round(PV_IT.reduce((a, [id]) => a + (k === todayISO() ? pvMinLive(id) : pvMin(id, k)), 0))} min aujourd'hui` },
+    /* v5.39 · les 5 prières comptent dans la lune de verre (à partir du 4 novembre 2026) */
+    ...(k >= PRAY_PIL ? [(() => { const n = prayToday(k), tr = f => { try { return f(); } catch (e) { return null; } }, pn = k === todayISO() ? tr(() => prayerNow()) : null, cur = pn && pn.k === k && !(S.faith.log[k] || {})[pn.id];
+      const late = PRAYERS.filter(([id]) => { try { const w = ptDay(k).win[id]; return w && w[1] < new Date() && !(S.faith.log[k] || {})[id]; } catch (e) { return false; } }).length;
+      const nx = k === todayISO() ? tr(() => nextPrayer()) : null;
+      return { id: 'habitudes', n: 'Prières', v: n / 5, t: `${n}/5`, s: n >= 5 ? 'Les 5 prières sont faites' : cur ? `${PNAMES[pn.id]} en cours` : late ? `${late} prière${late > 1 ? 's' : ''} à rattraper` : nx ? `Prochaine : ${PNAMES[nx.id]}` : 'En attente de la prochaine', wait: !cur && !late }; })()] : [])
   ];
 }
 const pvDayPct = k => { const P = pvPillars(k); return P.reduce((a, x) => a + Math.min(1, x.v), 0) / P.length; };
 function pvStreak() { let n = 0; for (let i = pvDayPct(todayISO()) >= 1 ? 0 : 1; i < 400; i++) { const k = iso(addDays(new Date(), -i)); if (k < pvS().start) break; if (pvDayPct(k) >= 1) n++; else break; } return n; }
-function pvCheckDay() { if (pvDayPct(todayISO()) >= 1) pvOnce('all', 10, ['Protocole complet', 'Les sept piliers sont tenus aujourd\'hui. C\'est exactement comme ça qu\'on se transforme.'], true); }
+function pvCheckDay() { if (pvDayPct(todayISO()) >= 1) pvOnce('all', 10, ['Protocole complet', 'Tous les piliers sont tenus aujourd\'hui. C\'est exactement comme ça qu\'on se transforme.'], true); }
 function pvHomeOld() {
   const P = pvPillars(), pct = pvDayPct(todayISO()), st = pvStreak(), R = 26;
   const todo = P.filter(x => x.v < 1), done = P.filter(x => x.v >= 1), b = pvBuyN();
@@ -7187,10 +7198,19 @@ const homeDoneOn = (id, k) => (homeS().last[id] || []).includes(k);
 /* Une tâche est due ce jour-là si sa dernière exécution (avant ce jour) date d'au moins sa fréquence */
 function homeDue(id, f, k = todayISO()) { const L = (homeS().last[id] || []).filter(x => x < k), l = L[L.length - 1]; return !l || Math.round((parseDate(k) - parseDate(l)) / 864e5) >= f; }
 const homeLoad = (k = todayISO()) => homeS().loads.find(x => x.d === k);
+/* v5.38 · plus de machine obligatoire chaque jour : une tous les N jours (2, 3 ou 4), et le linge commencé doit être fini */
+const homeMf = () => Number(homeS().mf) || 3;
+function homeMach(k = todayISO()) {
+  const L = homeS().loads, ld = L.find(x => x.d === k), open = L.find(x => x.d < k && (x.st < 3 || x.fd === k));
+  if (ld) return { due: true, ok: ld.st >= 2, what: ld.st >= 2 ? '' : 'Linge à étendre' };
+  if (open) return { due: true, ok: open.st >= 3, what: open.st >= 3 ? '' : open.st === 1 ? 'Linge à étendre' : 'Linge à plier' };
+  const prev = L.filter(x => x.d < k).map(x => x.d).sort().pop(), ago = prev ? Math.round((parseDate(k) - parseDate(prev)) / 864e5) : 99;
+  return ago >= homeMf() ? { due: true, ok: false, what: 'Machine à lancer' } : { due: false, ok: true, what: '', next: homeMf() - ago };
+}
 function homeScore(k = todayISO()) {
   let due = 0, ok = 0;
   PV_HOME.forEach(([id, , f]) => { if (homeDue(id, f, k) || homeDoneOn(id, k)) { due++; if (homeDoneOn(id, k)) ok++; } });
-  const ld = homeLoad(k); due++; if (ld && ld.st >= 2) ok++;
+  const m = homeMach(k); if (m.due) { due++; if (m.ok) ok++; }
   return [ok, due];
 }
 function vMaison() {
@@ -7204,8 +7224,9 @@ function vMaison() {
   const loadCard = (x, today) => `<div class="pv-load ${x.st >= 3 ? 'ok' : ''}"><div class="pv-lsteps">${[1, 2, 3].map(i => `<i class="${x.st >= i ? 'on' : ''}">${['Lancée', 'Étendue', 'Pliée'][i - 1]}</i>`).join('')}</div>
     ${x.st < 3 ? `<button class="btn ${today ? '' : 'sm'} block" data-hload="${x.d}">${PV_LOAD[x.st]}${today ? '' : ` · machine du ${DAY_MONTH.format(parseDate(x.d))}`}</button>` : '<p class="pv-line">✓ Linge propre, plié, rangé.</p>'}
     ${x.st ? `<button class="link-btn small" data-hundo="${x.d}" style="min-width:0;padding:0;margin-top:6px;color:var(--muted)">Annuler la dernière étape</button>` : ''}</div>`;
-  const machine = pCard('Une machine par jour', `${pend.length ? `<p class="pv-warn">Linge en attente d'une machine précédente : ${pend.length > 1 ? `${pend.length} machines` : 'une machine'}. Plie-le avant qu'il ne s'accumule.</p>${pend.map(x => loadCard(x, false)).join('')}<p class="pv-k">Aujourd'hui</p>` : ''}
-    ${ld ? loadCard(ld, true) : `<button class="btn block" data-hload="new">Lancer la machine du jour</button>`}
+  const mm = homeMach(), mf = homeMf();
+  const machine = pCard(`Une machine tous les ${mf} jours`, `<div class="chips" style="margin:0 0 10px">${[2, 3, 4].map(n => `<button class="chip" data-hmf="${n}" aria-pressed="${mf === n}">Tous les ${n} jours</button>`).join('')}</div>${pend.length ? `<p class="pv-warn">Linge en attente d'une machine précédente : ${pend.length > 1 ? `${pend.length} machines` : 'une machine'}. Plie-le avant qu'il ne s'accumule.</p>${pend.map(x => loadCard(x, false)).join('')}${ld ? '<p class="pv-k">Aujourd\'hui</p>' : ''}` : ''}
+    ${ld ? loadCard(ld, true) : mm.due && !pend.length ? `<button class="btn block" data-hload="new">Lancer la machine</button>` : !pend.length ? `<p class="pv-line">Pas de machine aujourd'hui · prochaine dans ${mm.next} jour${mm.next > 1 ? 's' : ''}.</p><button class="btn sm ghost block" data-hload="new">En lancer une quand même</button>` : ''}
     <details class="pv-det"><summary>Bien laver</summary><p>Étends dès la fin du cycle, plie dès que c'est sec. Trie : blanc, couleurs, foncés. 30 °C pour le quotidien, 40 °C pour le linge de sport, 60 °C pour les draps, serviettes et sous-vêtements. Pas trop de lessive : une dose, sinon ça laisse des résidus et des odeurs. Laisse le hublot entrouvert après le lavage.</p></details>`);
   return `${pageHead('Maison', 'Un foyer propre, un esprit clair.', 'maison')}
     ${pCard(`Le ménage · ${ok}/${due}`, rows)}
@@ -7216,8 +7237,9 @@ function homeStreak() { let n = 0; for (let i = homeScore()[0] === homeScore()[1
 function homeClick(t) {
   const c = s => t.closest(s); let el; const h = homeS(), k = todayISO();
   if ((el = c('[data-hm]'))) { const id = el.dataset.hm, L = h.last[id] = h.last[id] || []; const i = L.indexOf(k); if (i >= 0) L.splice(i, 1); else { L.push(k); L.sort(); if (L.length > 120) L.splice(0, L.length - 120); haptic(); } save(); homeCheck(); pvCheckDay(); pvRe(); return true; }
-  if ((el = c('[data-hload]'))) { const d = el.dataset.hload; if (d === 'new') h.loads.push({ d: k, st: 1 }); else { const x = h.loads.find(y => y.d === d); if (x && x.st < 3) x.st++; } if (h.loads.length > 60) h.loads.splice(0, h.loads.length - 60); haptic(); save(); homeCheck(); pvCheckDay(); pvRe(); return true; }
-  if ((el = c('[data-hundo]'))) { const x = h.loads.find(y => y.d === el.dataset.hundo); if (x) { x.st--; if (!x.st) h.loads.splice(h.loads.indexOf(x), 1); } save(); pvRe(); return true; }
+  if ((el = c('[data-hmf]'))) { h.mf = +el.dataset.hmf; haptic(); save(); pvRe(); return true; }
+  if ((el = c('[data-hload]'))) { const d = el.dataset.hload; if (d === 'new') h.loads.push({ d: k, st: 1 }); else { const x = h.loads.find(y => y.d === d); if (x && x.st < 3) { x.st++; if (x.st === 3) x.fd = k; } } if (h.loads.length > 60) h.loads.splice(0, h.loads.length - 60); haptic(); save(); homeCheck(); pvCheckDay(); pvRe(); return true; }
+  if ((el = c('[data-hundo]'))) { const x = h.loads.find(y => y.d === el.dataset.hundo); if (x) { x.st--; delete x.fd; if (!x.st) h.loads.splice(h.loads.indexOf(x), 1); } save(); pvRe(); return true; }
   return false;
 }
 function homeCheck() { const [o, d] = homeScore(); if (o === d) pvOnce('home', 4, ['Maison au propre', 'Toutes les tâches du jour sont faites.']); }
@@ -7975,7 +7997,7 @@ function pvHome() {
       </svg>
     </button>
     <p class="jg-msg">${msg}</p>
-    <p class="jg-sub">${full ? 'Les sept piliers sont tenus.' : `${P.length - todo.length} pilier${P.length - todo.length > 1 ? 's' : ''} sur ${P.length}`}${st ? ` · 🔥 ${st} jour${st > 1 ? 's' : ''} d'affilée` : ''}</p>
+    <p class="jg-sub">${full ? 'Tous les piliers sont tenus.' : `${P.length - todo.length} pilier${P.length - todo.length > 1 ? 's' : ''} sur ${P.length}`}${st ? ` · 🔥 ${st} jour${st > 1 ? 's' : ''} d'affilée` : ''}</p>
     ${nx ? `<button class="jg-next" data-goto="${nx.id}"><span><small>Prochaine étape</small><b>${esc(nx.n)}</b></span><em>${esc(nx.s)}</em>${ICON.chev}</button>` : '<p class="jg-done">✦ Repose-toi, tu l\'as mérité.</p>'}
   </section>`;
 }
@@ -8019,7 +8041,7 @@ function csOrbit() {
 }
 function jgData() {
   const P = pvPillars(), pct = Math.min(1, pvDayPct(todayISO())), todo = P.filter(x => x.v < 1);
-  return { P, pct, todo, nx: todo.find(x => !x.stuck), full: pct >= 1, pc: Math.round(pct * 100), st: pvStreak() };
+  return { P, pct, todo, nx: todo.find(x => x.n === 'Prières' && !x.wait) || todo.find(x => !x.stuck && !x.wait), full: pct >= 1, pc: Math.round(pct * 100), st: pvStreak() };
 }
 function jgTap() { let d; try { d = jgData(); } catch (e) { go('flux'); return; } jgSheet(d); }
 /* v5.37 · la lune de verre ouvre la liste des 7 piliers du jour : ce qui est fait, ce qui manque, un toucher pour y aller */
@@ -8029,7 +8051,7 @@ function jgSheet(d) {
   const row = x => { const v = Math.min(1, x.v), st = v >= 1 ? 'ok' : x.stuck ? 'stuck' : v > 0 ? 'mid' : ''; return `<button class="jg-row ${st}" data-jgo="${x.id}"><i>${v >= 1 ? '✓' : x.stuck ? '–' : ''}</i><span><b>${esc(x.n)}</b><small>${esc(x.s)}</small><em style="--p:${(v * 100).toFixed(0)}%"></em></span><strong class="num">${esc(String(x.t))}</strong>${ICON.chev}</button>`; };
   el.innerHTML = `<div class="jg-sh-in"><div class="row between" style="align-items:center"><h2 class="pv-h" style="margin:0">Ta journée · ${d.P.length - d.todo.length}/${d.P.length}</h2><button class="link-btn" data-jgx aria-label="Fermer">Fermer</button></div>
     <p class="pv-sub" style="margin:4px 0 10px">Chaque pilier tenu remplit ta lune de verre.${d.st ? ` Série : ${d.st} jour${d.st > 1 ? 's' : ''} complet${d.st > 1 ? 's' : ''}.` : ''}</p>
-    ${d.P.map(row).join('')}</div>`;
+    ${d.P.filter(x => x.n === 'Prières').concat(d.P.filter(x => x.n !== 'Prières')).map(row).join('')}</div>`;
   el.addEventListener('click', e => { e.stopPropagation(); const g = e.target.closest('[data-jgo]');
     if (g) { el.remove(); go(g.dataset.jgo); return; }
     if (e.target.closest('[data-jgx]') || e.target === el) el.remove(); });
@@ -8066,7 +8088,7 @@ function vGalaxy(hello, now) {
   const K = 1.08, RY = .74, OR = 54;
   let d; try { d = jgData(); } catch (e) { d = { P: [], pct: 0, todo: [], full: false, pc: 0, st: 0 }; }
   const planets = PLANETS.filter(p => p.key !== 'chasse' || chasseActive()).map(p => {
-    const st = gStage(p.key), R = Math.round((GSIZE[p.key] || 20) * .7);
+    const st = gStage(p.key), R = Math.round((GSIZE[p.key] || 20) * .7 * (.82 + .4 * (() => { try { return gFrac(p.key); } catch (e) { return 0; } })()));
     return `<g class="gplanet cs-pl" data-planet="${p.key}" aria-label="${p.name}">
       <circle r="${R + 10}" fill="transparent"/><circle class="cs-aura" r="${R + 7}" fill="url(#gatm-${p.key})"/>${planetSvg(p.key, Math.max(2, st), R)}</g>`;
   }).join('');
@@ -8093,7 +8115,7 @@ function jgStrip(d) {
   if (!d.P.length) return '';
   const msg = d.full ? 'Journée accomplie' : d.pct === 0 ? 'Ta galaxie dort encore' : d.pct < .5 ? 'Ta galaxie s\'éveille' : d.pct < .85 ? 'Plus de la moitié' : 'Presque plein';
   return `<div class="cs-strip"><p class="jg-msg">${msg}</p>
-    <p class="jg-sub">${d.full ? 'Ton soleil brille : les sept piliers sont tenus.' : `${d.P.length - d.todo.length} pilier${d.P.length - d.todo.length > 1 ? 's' : ''} sur ${d.P.length}`}${d.st ? ` · 🔥 ${d.st} jour${d.st > 1 ? 's' : ''} d'affilée` : ''}</p>
+    <p class="jg-sub">${d.full ? 'Ton soleil brille : tous les piliers sont tenus.' : `${d.P.length - d.todo.length} pilier${d.P.length - d.todo.length > 1 ? 's' : ''} sur ${d.P.length}`}${d.st ? ` · 🔥 ${d.st} jour${d.st > 1 ? 's' : ''} d'affilée` : ''}</p>
     ${d.nx ? `<button class="jg-next" data-goto="${d.nx.id}"><span><small>Prochaine étape</small><b>${esc(d.nx.n)}</b></span><em>${esc(d.nx.s)}</em>${ICON.chev}</button>` : ''}
 </div>`;
 }
@@ -8333,7 +8355,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.37 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.40 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
