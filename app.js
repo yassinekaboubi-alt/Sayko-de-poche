@@ -5489,12 +5489,12 @@ function vLook() {
     sec('Le codex', 'barbe, peau, odeur, bouche, parfum…', LK_CODEX.map(([t, b2]) => `<details class="pv-det"><summary>${t[0] + t.slice(1).toLowerCase()}</summary><div>${b2}</div></details>`).join(''))
   ].join('');
   /* v5.46 · page simple : tes 4 objectifs, ce qu'il y a à faire maintenant, et seulement ce qui est dû */
-  const goals = LK_GOALS.map(([id, t, sb, ids, at]) => { const r = lkGoalRate(ids); return `<button class="lk-goal" ${at}><span class="lk-gr" style="--p:${Math.round(r * 100)}%"><b class="num">${Math.round(r * 100)}</b></span><span><b>${t}</b><small>${sb}</small></span></button>`; }).join('');
+  const goals = LK_GOALS.map(([id, t, sb, ids, at]) => { const n = lkGoalDays(ids); return `<button class="lk-goal" ${at}><span class="lk-gr" style="--p:${Math.round(n / 7 * 100)}%"><b class="num">${n}/7</b></span><span><b>${t}</b><small>${sb}</small></span></button>`; }).join('');
   const dueRows = due.filter(x => x[0] !== 'Cette semaine' && x[0] !== 'Grand soin (1 h)').map(([t, sb, b2]) => `<div class="pv-row"><span><b>${t}</b><br><small class="muted">${sb}</small></span>${b2}</div>`).join('');
   return `${corpsTop('soin')}${soinSeg('apparence')}
-    <section class="glass pv-card"><h2 class="pv-h" style="margin:0 0 4px">Tes objectifs</h2><p class="pv-sub" style="margin:0 0 10px">Ta régularité sur 7 jours. Touche un objectif pour savoir comment l'atteindre.</p><div class="lk-goals">${goals}</div></section>
+    <section class="glass pv-card"><h2 class="pv-h" style="margin:0 0 4px">Tes objectifs</h2><p class="pv-sub" style="margin:0 0 10px">Le chiffre : sur les 7 derniers jours, combien de jours tu as fait tous les gestes de cet objectif. Touche un objectif pour savoir comment l'atteindre.</p><div class="lk-goals">${goals}</div></section>
     <section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">${am ? 'Ce matin' : 'Ce soir'}</h2><span class="small muted num">${n}/${tot} aujourd'hui</span></div>
-      ${todo.length ? todo.map(row).join('') : '<div class="pv-done" style="margin-top:10px"><b>Tout est fait pour ce moment de la journée.</b></div>'}
+      ${todo.length ? todo.map(row).join('') : `<div class="pv-done" style="margin-top:10px;display:block"><b>${am ? 'Tout est fait pour ce matin.' : 'Tout est fait pour ce soir.'}</b>${am && other.length - oN ? `<small style="display:block;margin-top:4px">Les ${other.length - oN} autres gestes sont pour ce soir : la liste du soir s'affiche ici après 15 h.</small>` : ''}</div>`}
       ${done.length ? `<details class="pv-det" data-k="lk-done"><summary>✓ ${done.length} fait${done.length > 1 ? 's' : ''}</summary>${done.map(row).join('')}</details>` : ''}
       <details class="pv-det" data-k="lk-other"><summary>${am ? 'Ce soir' : 'Ce matin'} · ${oN}/${other.length}</summary>${other.map(row).join('')}</details></section>
     ${dueRows ? `<section class="glass pv-card"><h2 class="pv-h">À prévoir</h2>${dueRows}</section>` : ''}
@@ -5506,10 +5506,11 @@ const LK_GOALS = [
   ['peau', 'Peau nette', 'pores du nez, front mat', ['m-visage', 's-visage'], 'data-apt="peau"'],
   ['mains', 'Mains soignées', 'ongles et cuticules', ['s-mains'], 'data-apt="mains"'],
   ['odeur', 'Sentir bon partout', 'qu\'on remarque ta présence', ['m-deo', 's-douche', 's-at'], 'data-cview="parfum"']];
-function lkGoalRate(ids) {
-  const L = pvApList().filter(x => ids.includes(x[0])); if (!L.length) return 0; let on = 0, tot = 0;
-  for (let i = 0; i < 7; i++) { const k = iso(addDays(new Date(), -i)), d = pvS().d[k] || { ap: {} }; L.forEach(x => { tot++; if (pvApOn(x, d, k)) on++; }); }
-  return tot ? on / tot : 0;
+/* nombre de jours, sur les 7 derniers, où tous les gestes de l'objectif ont été faits */
+function lkGoalDays(ids) {
+  const L = pvApList().filter(x => ids.includes(x[0])); if (!L.length) return 0; let n = 0;
+  for (let i = 0; i < 7; i++) { const k = iso(addDays(new Date(), -i)), d = pvS().d[k] || { ap: {} }; if (L.every(x => pvApOn(x, d, k))) n++; }
+  return n;
 }
 const pvMO = (k, t, sub) => `<details class="pv-more" data-k="${k}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">`, pvMC = '</div></details>';
 function pvMore(t, sub, html) { return `<details class="pv-more" data-k="m-${esc(t)}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">${html}</div></details>`; }
@@ -7031,7 +7032,8 @@ function pvPillars(k = todayISO()) {
     { id: 'nutrition', n: 'Alimentation', v: fs / 4, t: `${fs}/4`, s: pvFoodMiss(d), stuck: (() => { const f = pvFoodScore(d); return f[0] && f[1] && f[2] && !f[3]; })() },
     { id: 'entrainement', n: '15K pas', v: st / g, t: pvFmt(st), s: st >= g ? 'Objectif atteint' : `Reste ${pvFmt(g - st)} pas` },
     { id: 'entrainement', n: 'Circuit', v: c || !due ? 1 : 0, t: c ? 'fait' : due ? 'à faire' : 'repos', s: c ? 'Validé aujourd\'hui' : due ? 'Pompes, dips, tractions négatives' : 'Récupération, circuit demain', rest: !due && !c },
-    { id: 'apparence', n: 'Apparence', v: at ? an / at : 0, t: `${an}/${at}`, s: (() => { const b = pvBarberDays(), cf = b != null && b >= PV_BARBER ? ' · coiffeur à prévoir' : ''; return an >= at ? `Tous les gestes sont faits${cf}` : `${at - an} geste${at - an > 1 ? 's' : ''} du jour à faire${cf}`; })() },
+    { id: 'apparence', n: 'Apparence', v: at ? an / at : 0, t: `${an}/${at}`, s: (() => { const b = pvBarberDays(), cf = b != null && b >= PV_BARBER ? ' · coiffeur à prévoir' : ''; if (an >= at) return `Tous les gestes sont faits${cf}`; const rem = pvApList().filter(x => !pvApOn(x, d, k)), pm = rem.filter(x => x[4] === 'pm').length, nw = rem.length - pm, pl = v => v > 1 ? 's' : '';
+      return nw ? `${nw} geste${pl(nw)} à faire${pm && new Date().getHours() < 15 ? ` · ${pm} ce soir` : ''}${cf}` : `Matin fait ✓ · ${pm} geste${pl(pm)} ce soir${cf}`; })() },
     (() => { const fm = ph && !ph.free ? puffFreeMin(k) : 0; return { id: 'sante', n: 'Santé · puff', v: !ph ? 0 : ph.free ? (pn ? 0 : 1) : Math.min(1, fm / (ph.target * 60)), t: !ph ? '—' : ph.free ? (pn ? 'rechute' : 'libre') : `${Math.floor(fm / 60)}/${ph.target} h`, s: !ph ? 'Lancer le plan d\'arrêt' : ph.free ? `${puffFreeStreak()} jour${puffFreeStreak() > 1 ? 's' : ''} sans puff` : puffS().run ? 'Rangée · le chrono tourne' : `${ph.target} h sans puff · jour J dans ${ph.left} j` }; })(),
     (() => { const [ho, hd] = homeScore(k), mm = homeMach(k), left = PV_HOME.filter(([id, , f]) => homeDue(id, f, k) && !homeDoneOn(id, k)).map(x => x[1].toLowerCase()); if (mm.due && !mm.ok) left.push(mm.what.toLowerCase()); return { id: 'maison', n: 'Maison', v: hd ? ho / hd : 0, t: `${ho}/${hd}`, s: ho >= hd ? 'Tout est propre' : `Reste : ${left.slice(0, 3).join(', ')}` }; })(),
     { id: 'intel', n: 'Intellect', v: it / 6, t: `${it}/6`, s: `${Math.round(PV_IT.reduce((a, [id]) => a + (k === todayISO() ? pvMinLive(id) : pvMin(id, k)), 0))} min aujourd'hui` },
