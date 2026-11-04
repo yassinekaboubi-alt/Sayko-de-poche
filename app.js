@@ -5488,14 +5488,28 @@ function vLook() {
     sec('Habillement', 'les règles', '<p class="pv-sub">La veille au soir : tenue choisie, repassée, posée. Pas de vêtement taché, boulocheux ou délavé. Chaussures propres : c\'est ce qu\'on regarde en premier. Tailles ajustées. Le dimanche : tenues de la semaine et cirage.</p>'),
     sec('Le codex', 'barbe, peau, odeur, bouche, parfum…', LK_CODEX.map(([t, b2]) => `<details class="pv-det"><summary>${t[0] + t.slice(1).toLowerCase()}</summary><div>${b2}</div></details>`).join(''))
   ].join('');
+  /* v5.46 · page simple : tes 4 objectifs, ce qu'il y a à faire maintenant, et seulement ce qui est dû */
+  const goals = LK_GOALS.map(([id, t, sb, ids, at]) => { const r = lkGoalRate(ids); return `<button class="lk-goal" ${at}><span class="lk-gr" style="--p:${Math.round(r * 100)}%"><b class="num">${Math.round(r * 100)}</b></span><span><b>${t}</b><small>${sb}</small></span></button>`; }).join('');
+  const dueRows = due.filter(x => x[0] !== 'Cette semaine' && x[0] !== 'Grand soin (1 h)').map(([t, sb, b2]) => `<div class="pv-row"><span><b>${t}</b><br><small class="muted">${sb}</small></span>${b2}</div>`).join('');
   return `${corpsTop('soin')}${soinSeg('apparence')}
+    <section class="glass pv-card"><h2 class="pv-h" style="margin:0 0 4px">Tes objectifs</h2><p class="pv-sub" style="margin:0 0 10px">Ta régularité sur 7 jours. Touche un objectif pour savoir comment l'atteindre.</p><div class="lk-goals">${goals}</div></section>
     <section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">${am ? 'Ce matin' : 'Ce soir'}</h2><span class="small muted num">${n}/${tot} aujourd'hui</span></div>
       ${todo.length ? todo.map(row).join('') : '<div class="pv-done" style="margin-top:10px"><b>Tout est fait pour ce moment de la journée.</b></div>'}
       ${done.length ? `<details class="pv-det" data-k="lk-done"><summary>✓ ${done.length} fait${done.length > 1 ? 's' : ''}</summary>${done.map(row).join('')}</details>` : ''}
       <details class="pv-det" data-k="lk-other"><summary>${am ? 'Ce soir' : 'Ce matin'} · ${oN}/${other.length}</summary>${other.map(row).join('')}</details></section>
-    ${due.length ? `<section class="glass pv-card"><h2 class="pv-h">À prévoir</h2>${due.map(([t, sb, b2]) => `<div class="pv-row"><span><b>${t}</b><br><small class="muted">${sb}</small></span>${b2}</div>`).join('')}</section>` : ''}
-    ${pvMore('Tout le reste', 'fitra, semaine, peau, cheveux, grand soin, codex', more)}
-    <button class="pv-buyline" data-goto="achats" style="margin-top:14px">Le matériel · ${pvBuyN().n}/${pvBuyN().t} dans les Achats →</button>`;
+    ${dueRows ? `<section class="glass pv-card"><h2 class="pv-h">À prévoir</h2>${dueRows}</section>` : ''}
+    ${pvMore('Guides et réglages', 'codex, grand soin, fitra, lavage, test de peau', more)}`;
+}
+/* Les objectifs d'apparence de Sayko, chacun relié à ses gestes du jour et à sa page détaillée */
+const LK_GOALS = [
+  ['barbe', 'Barbe propre', 'bouclée, nette, sunna', ['m-barbe'], 'data-apt="barbe"'],
+  ['peau', 'Peau nette', 'pores du nez, front mat', ['m-visage', 's-visage'], 'data-apt="peau"'],
+  ['mains', 'Mains soignées', 'ongles et cuticules', ['s-mains'], 'data-apt="mains"'],
+  ['odeur', 'Sentir bon partout', 'qu\'on remarque ta présence', ['m-deo', 's-douche', 's-at'], 'data-cview="parfum"']];
+function lkGoalRate(ids) {
+  const L = pvApList().filter(x => ids.includes(x[0])); if (!L.length) return 0; let on = 0, tot = 0;
+  for (let i = 0; i < 7; i++) { const k = iso(addDays(new Date(), -i)), d = pvS().d[k] || { ap: {} }; L.forEach(x => { tot++; if (pvApOn(x, d, k)) on++; }); }
+  return tot ? on / tot : 0;
 }
 const pvMO = (k, t, sub) => `<details class="pv-more" data-k="${k}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">`, pvMC = '</div></details>';
 function pvMore(t, sub, html) { return `<details class="pv-more" data-k="m-${esc(t)}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">${html}</div></details>`; }
@@ -7241,6 +7255,7 @@ const PV_APG = [
   ['Peau', [['m-visage', 'Visage', 'Eau fraîche (ou nettoyant si peau grasse), crème hydratante, puis SPF 30 à 50 dès qu\'il fait beau.', 1, 'am'], ['s-visage', 'Visage', 'Nettoyant doux, eau tiède, sèche en tamponnant, puis crème de nuit.', 1, 'pm']]],
   ['Corps', [['s-douche', 'Douche complète', 'Savon doux partout, insiste sur aisselles, pieds et plis. Sèche complètement.', 1, 'pm'], ['s-corps', 'Crème corps', 'Sur peau encore humide : bras, jambes, coudes, genoux. Le parfum tient mieux ensuite.', 1, 'pm'], ['s-at', 'Anti-transpirant', 'Le soir sur aisselles sèches : il agit la nuit et tient toute la journée du lendemain.', 1, 'pm']]],
   ['Barbe & cheveux', [['m-barbe', 'Barbe · brosser + huile', 'Brosse en poils de sanglier vers le bas, puis 2-3 gouttes d\'huile entre les paumes, jusqu\'à la peau.', 1, 'am'], ['m-cheveux', 'Boucles rafraîchies', 'Un peu d\'eau et une noisette de soin sans rinçage, froisser sans peigner à sec.', 1, 'am'], ['ch-h', 'Huile cheveux', 'Longueurs et cuir chevelu, le soir ou avant le lavage.', 0, 'pm'], ['gum', 'Gummies cheveux', 'Avec ton repas.', 0, 'day']]],
+  ['Mains', [['s-mains', 'Mains · crème + cuticules', 'Le soir : une noisette de crème mains, masse les ongles, repousse doucement les cuticules avec une serviette tiède. Lime si un ongle accroche. 1 minute.', 0, 'pm']]],
   ['Style', [['m-deo', 'Déo + parfum', 'Déodorant, puis Soin → Parfum : choisis ton occasion, l\'app te dit quelle crème, quel musc et quel parfum mettre.', 1, 'am'], ['tenue', 'Tenue de demain prête', 'Choisie, repassée, posée. Chaussures nettes.', 0, 'pm'], ['s-linge', 'Pyjama propre', 'Un vrai pyjama, et tes sous-vêtements de demain sortis.', 1, 'pm']]]];
 const PV_AP = PV_APG.reduce((a, g) => a.concat(g[1]), []);
 function pvApList() { return PV_AP.concat(pvWashDay() ? [['lavage', 'Lavage des cheveux', 'Shampoing doux sans sulfates, après-shampoing, masque si c\'est le jour. Sèche en tamponnant.', 0, 'day']] : []); }
@@ -8527,7 +8542,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.45 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.46 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
