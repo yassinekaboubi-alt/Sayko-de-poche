@@ -6519,14 +6519,28 @@ function pvQ(d) { if (!d.q || typeof d.q !== 'object') { d.q = {}; if (numv(d.eg
 function pvQSync(d) { const q = pvQ(d); d.eggs = q.oe || 0; d.whey = !!q.whey; d.comp = d.comp || {}; d.comp.pd = !!q.pd; d.comp.pt = !!q.pt; d.comp.oe = !!q.oe; d.comp.leg = PV_FD[2][1].some(x => q[x[0]]); }
 const PV_BAN = [['sucre', 'Sucres'], ['pates', 'Pâtes'], ['riz', 'Riz'], ['soda', 'Soda'], ['pain', 'Pain'], ['raff', 'Sucres raffinés']];
 const PV_EGG = 6.5, PV_WHEY = 22;
-function pvProt(d) { if (d.q && typeof d.q === 'object') return Math.round(Object.entries(d.q).reduce((a, [id, n]) => a + (PV_FDX[id] ? PV_FDX[id][3] * numv(n) : 0), 0) + (d.fr && d.fr.ban ? 1 : 0)); const c = d.comp || {}; return Math.round(PV_COMP.reduce((a, [id, , g]) => a + (id === 'oe' ? numv(d.eggs) * PV_EGG : c[id] ? g : 0), 0) + (d.whey ? PV_WHEY : 0) + (d.fr && d.fr.ban ? 1 : 0)); }
+/* v5.42 · Autres protéines : ce qui n'est pas dans la liste (barre protéinée, etc.), en grammes de protéines, mémorisé pour la prochaine fois */
+function pvXps() { const p = pvS(); if (!Array.isArray(p.xps)) p.xps = [{ n: 'Barre protéinée sans sucre', g: 20 }]; return p.xps; }
+function pvXpBlock(d) {
+  const L = Array.isArray(d.xp) ? d.xp : [], F = pvXps();
+  return `<details class="pv-det fd-more" data-k="fd-xp"><summary>Autres protéines${L.length ? ` · ${L.reduce((a, x) => a + numv(x.g), 0)} g` : ''}</summary>
+    ${L.map((x, i) => `<div class="pv-step"><span>${esc(x.n)}</span><b class="num">${numv(x.g)} g</b><button class="icon-btn" data-xpdel="${i}" aria-label="Retirer">×</button></div>`).join('')}
+    ${F.length ? `<p class="pv-k">Un toucher pour ajouter</p><div class="chips">${F.map((x, i) => `<button class="chip" data-xpfav="${i}">+ ${esc(x.n)} · ${numv(x.g)} g</button>`).join('')}</div>` : ''}
+    <p class="pv-k">Nouvelle source</p><div class="row" style="gap:8px"><input id="pvXn" placeholder="Ex. barre protéinée" autocomplete="off" style="flex:2;min-width:0;min-height:44px;border:0;border-radius:12px;background:var(--surface);padding:0 12px;color:var(--ink);font:inherit"><input id="pvXg" inputmode="decimal" placeholder="g" autocomplete="off" style="flex:1;min-width:0;min-height:44px;border:0;border-radius:12px;background:var(--surface);padding:0 12px;color:var(--ink);font:inherit"><button class="btn sm" data-xpadd>Ajouter</button></div>
+    <p class="pv-sub">Écris les grammes de <b>protéines</b> (sur l'emballage), pas le poids de l'aliment. La source est gardée pour la prochaine fois.</p></details>`;
+}
+function pvProt(d) { const xp = (Array.isArray(d.xp) ? d.xp : []).reduce((a, x) => a + numv(x.g), 0); return Math.round(xp + pvProt0(d)); }
+function pvProt0(d) { if (d.q && typeof d.q === 'object') return (Object.entries(d.q).reduce((a, [id, n]) => a + (PV_FDX[id] ? PV_FDX[id][3] * numv(n) : 0), 0) + (d.fr && d.fr.ban ? 1 : 0)); const c = d.comp || {}; return Math.round(PV_COMP.reduce((a, [id, , g]) => a + (id === 'oe' ? numv(d.eggs) * PV_EGG : c[id] ? g : 0), 0) + (d.whey ? PV_WHEY : 0) + (d.fr && d.fr.ban ? 1 : 0)); }
 const pvClean = d => PV_BAN.every(([id]) => !(d.ban || {})[id]);
 /* v5.37 · ce qui manque vraiment, en clair */
 function pvFoodMiss(d) { const [m, w, f, c] = pvFoodScore(d), fr = d.fr || {};
   if (!m) return 'Repas unique pas encore pris';
-  const miss = []; if (!w) miss.push(`encore ${pvL(Math.max(0, PV_EAU[0] - numv(d.water)))} d'eau`); if (!f) miss.push(!fr.ban && !fr.fra ? 'la banane et les fraises' : !fr.ban ? 'la banane' : 'les fraises');
+  const miss = []; if (!w) miss.push(`encore ${pvL(Math.max(0, PV_EAU[0] - numv(d.water)))} d'eau`); if (!f) miss.push(pvFruitN(d) ? 'un 2e fruit' : '2 fruits');
   return miss.length ? `Il manque ${miss.join(' et ')}` : c ? 'Tout est fait' : 'Écart noté aujourd\'hui : on repart à zéro demain'; }
-function pvFoodScore(d) { return [!!d.meal, numv(d.water) >= PV_EAU[0], !!(d.fr && d.fr.ban && d.fr.fra), pvClean(d)]; }
+/* v5.41 · tous les fruits comptent : 2 fruits au choix valident le point (plus seulement banane + fraises) */
+const PV_FRUITS = [['ban', 'Banane'], ['fra', 'Fraises'], ['pom', 'Pomme'], ['poi', 'Poire'], ['ora', 'Orange'], ['cle', 'Clémentines'], ['kiw', 'Kiwi'], ['rai', 'Raisin'], ['dat', '3 dattes'], ['aut', 'Autre fruit']];
+const pvFruitN = d => PV_FRUITS.filter(([id]) => d.fr && d.fr[id]).length;
+function pvFoodScore(d) { return [!!d.meal, numv(d.water) >= PV_EAU[0], pvFruitN(d) >= 2, pvClean(d)]; }
 function pvCleanStreak() { let n = 0; for (let i = 0; i < 400; i++) { const k = iso(addDays(new Date(), -i)), d = pvS().d[k]; if (!d || !d.meal) { if (i === 0) continue; break; } if (!pvClean(d)) break; n++; } return n; }
 function pvBanStreak(id) { let n = 0; for (let i = 1; i < 400; i++) { const k = iso(addDays(new Date(), -i)); if (k < pvS().start) break; const d = pvS().d[k]; if (d && d.ban && d.ban[id]) break; n++; } return n; }
 /* v5.25 : idées de repas simples, conformes au protocole (sans viande, sans pâtes, riz, pain ni sucre) + liste de courses.
@@ -6540,8 +6554,13 @@ const PV_REC = [
   ['Omelette champignons-épinards, pommes de terre', '15 min', 'jour de travail', ['4 œufs', '6 champignons, 1 poignée d\'épinards', '2 pommes de terre', 'Huile d\'olive, sel, poivre'], ['Cuis les pommes de terre en dés 6 min au micro-ondes, puis dore-les 5 min à la poêle.', 'Mets-les de côté, fais revenir champignons et épinards 3 min.', 'Verse les œufs battus, laisse prendre 3 à 4 min à feu moyen.', 'Plie l\'omelette, sers avec les pommes de terre.'], { oe: 4, champ: 6, epi: 1, pt: 2 }],
   ['Plaque de légumes rôtis', '35 min (pour 4 jours)', 'jour de repos', ['4 patates douces', '2 poivrons, 2 courgettes, 2 oignons, 1 brocoli', 'Huile d\'olive, sel, paprika, herbes'], ['Coupe tout en gros morceaux, étale sur une plaque, huile, sel, paprika.', '35 min à 200 °C en mélangeant à mi-cuisson.', 'Range en 4 boîtes au frigo (4 jours maximum).', 'Chaque jour : réchauffe une boîte et ajoute 4 œufs ou une boîte de thon.'], { pd: 1, poiv: 1, courg: 1, oign: 1, broc: 1, oe: 4 }],
   ['Frittata au four', '30 min (pour 3 jours)', 'jour de repos', ['10 œufs', '2 patates douces, 1 brocoli, 1 oignon', 'Sel, poivre, herbes'], ['Cuis les patates douces en dés 6 min au micro-ondes.', 'Mélange les œufs battus, les patates, le brocoli en petits bouquets et l\'oignon.', 'Verse dans un plat huilé : 30 min à 180 °C.', 'Coupe en 3 parts : une part par jour, avec une salade et un fromage blanc.'], { oe: 3, pd: 1, broc: 1, sal: 1, fb: 1 }],
-  ['Le dessert protéiné', '2 min', 'tous les jours', ['200 g de fromage blanc 0 % ou de skyr nature', '1 banane ou 6 fraises', '1 dose de whey (si tu veux plus de protéines)', 'Cannelle (sans sucre)'], ['Verse le skyr ou le fromage blanc dans un bol.', 'Avec la whey : mélange-la 30 secondes à la cuillère, avec 1 ou 2 cuillères d\'eau si c\'est trop épais.', 'Écrase la moitié de la banane dedans, coupe l\'autre en rondelles par-dessus (ou les fraises), saupoudre de cannelle.'], { fb: 2 }]
+  ['Le dessert protéiné', '2 min', 'tous les jours', ['200 g de fromage blanc 0 % ou de skyr nature', '1 banane ou 6 fraises', '1 dose de whey (si tu veux plus de protéines)', 'Cannelle (sans sucre)'], ['Verse le skyr ou le fromage blanc dans un bol.', 'Avec la whey : mélange-la 30 secondes à la cuillère, avec 1 ou 2 cuillères d\'eau si c\'est trop épais.', 'Écrase la moitié de la banane dedans, coupe l\'autre en rondelles par-dessus (ou les fraises), saupoudre de cannelle.'], { fb: 2 }],
+  ['Maxi wrap de carottes au thon', '35 min', 'jour de repos', ['300 g de carottes', '100 g de fromage protéiné (type Lindahls) ou de skyr épais', '1 œuf', '1 boîte de thon au naturel', '50 g de fromage frais 0 % (type Carré Frais)', '1 tomate, de la salade', 'Sauce : 20 g de skyr, moutarde, 1 cuillère de ketchup, un filet de jus de cornichons, épices'], ['Préchauffe le four à 200 °C. Râpe finement les carottes et presse-les dans un torchon pour enlever l\'eau.', 'Mélange les carottes avec le fromage protéiné, l\'œuf, le sel, le poivre et les épices.', 'Étale en un grand rectangle fin sur du papier cuisson : 15 à 20 min au four, jusqu\'à ce que les bords dorent.', 'Pendant ce temps, mélange le thon égoutté avec le fromage frais, et la sauce : skyr, moutarde, ketchup, jus de cornichons.', 'Garnis la galette de carottes encore tiède : thon, tomate, salade, sauce. Roule bien serré et coupe en deux.'], { car: 4, oe: 1, fb: 2, thon: 1, tom: 1, sal: 1 }]
 ];
+
+/* v5.42 · macros estimées par recette (kcal, protéines, glucides, lipides) et ingrédients dessinés dans le monde des recettes */
+const PV_MAC = [[530, 31, 42, 25], [635, 49, 57, 20], [710, 35, 68, 30], [400, 40, 56, 2], [640, 32, 55, 30], [650, 37, 55, 30], [660, 35, 58, 30], [460, 34, 37, 18], [220, 21, 31, 1], [470, 54, 44, 8]];
+const PV_RNOTE = { 9: 'Version thon de la recette au poulet : environ 470 kcal et 54 g de protéines selon nos calculs (la vidéo annonce 72 g, un chiffre trop optimiste pour ces quantités). Le ketchup reste une petite touche.' };
 const PV_COURSES = [['Protéines', ['Œufs : 30 (pour la semaine)', 'Thon au naturel : 3 boîtes', 'Fromage blanc 0 % nature : 2 pots de 500 g', 'Whey (si besoin)']], ['Féculents', ['Patates douces : 5 à 7', 'Pommes de terre : 1 kg']], ['Légumes', ['Épinards (frais ou surgelés)', 'Courgettes : 3', 'Poivrons : 2', 'Oignons : 1 filet', 'Champignons : 1 barquette', 'Brocoli : 1', 'Salade : 1 sachet', 'Tomates cerises : 1 barquette', 'Concombre : 1', 'Tomates concassées : 2 boîtes']], ['Fruits', ['Fraises (surgelées l\'hiver)', 'Bananes : 7']], ['Placard', ['Huile d\'olive', 'Citron', 'Paprika, cumin, cannelle, herbes', 'Sel, poivre']]];
 /* v5.29 · Courses Swile liées aux repas : 25 €/jour max (+ tickets Mister Pizza), le reste pour ma femme.
    Chaque panier achète les ingrédients des repas des jours qu'il couvre (les paquets entamés servent aux jours suivants).
@@ -6586,6 +6605,98 @@ function pvCourses() {
 
     <p class="pv-sub" style="margin-top:12px">Une fois par mois : huile d'olive, citron, épices. Prix estimés, ils varient selon le magasin.</p><button class="btn sm quiet block" data-csre>Recommencer au jour 1</button></section>`;
 }
+/* ══ v5.42 · Le monde des recettes ══
+   Un bouton ouvre un monde plein écran : les plats, dessinés à partir de leurs vrais ingrédients, flottent dans un carrousel
+   en perspective. Toucher un plat fait jaillir des bulles : macros autour, ingrédients en dessous, puis la préparation. */
+const RW_BASE = { 2: 'pan', 7: 'tart', 8: 'bowl', 9: 'wrap' };
+function rwDish(i) {
+  const q = PV_REC[i][5] || {}, base = RW_BASE[i] || 'plate';
+  let seed = 31 + i * 97; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const spot = (r = 44) => { const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * r; return [100 + Math.cos(a) * d, 100 + Math.sin(a) * d * .92]; };
+  const rot = () => Math.round(rnd() * 360);
+  const D = {
+    oe: () => { const [x, y] = spot(40); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})"><path d="M-17 -3C-16 -14 -4 -17 4 -15C14 -13 18 -4 16 5C14 14 3 17 -6 15C-14 13 -18 6 -17 -3Z" fill="#FBF8F1"/><path d="M-17 -3C-16 -14 -4 -17 4 -15" fill="none" stroke="#E9E1CF" stroke-width="1"/><circle r="6.5" fill="#F2A72E"/><circle cx="-2" cy="-2" r="2" fill="#FFE3A3" opacity=".8"/></g>`; },
+    pd: () => { const [x, y] = spot(); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})"><rect x="-8" y="-6" width="16" height="12" rx="3.5" fill="#E37A33"/><rect x="-8" y="-6" width="16" height="4" rx="2" fill="#F39B55"/></g>`; },
+    pt: () => { const [x, y] = spot(); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})"><rect x="-8" y="-7" width="15" height="13" rx="4" fill="#E9C47E"/><rect x="-8" y="-7" width="15" height="4" rx="2" fill="#F5DCA6"/></g>`; },
+    thon: () => { let h = ''; for (let k = 0; k < 5; k++) { const [x, y] = spot(42); h += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${(5 + rnd() * 3).toFixed(1)}" ry="3.2" transform="rotate(${rot()} ${x.toFixed(1)} ${y.toFixed(1)})" fill="${rnd() < .5 ? '#D9A28A' : '#C88E78'}"/>`; } return h; },
+    epi: () => { const [x, y] = spot(); return `<path transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})" d="M-11 0C-6 -8 6 -8 11 0C6 8 -6 8 -11 0Z" fill="#2F6B3A"/>`; },
+    sal: () => { const [x, y] = spot(); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})"><path d="M-13 0C-8 -10 8 -10 13 0C8 9 -8 9 -13 0Z" fill="#86C35E"/><path d="M-11 0H11" stroke="#B6E08E" stroke-width="1"/></g>`; },
+    tcer: () => { const [x, y] = spot(); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="5.5" fill="#D8392C"/><circle cx="-1.8" cy="-1.8" r="1.5" fill="#FF8A75"/></g>`; },
+    tom: () => { const [x, y] = spot(); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})"><path d="M-10 4A10 10 0 0 1 10 4Z" fill="#D8392C"/><path d="M-7 3A7 7 0 0 1 7 3" fill="#F0705C"/></g>`; },
+    poiv: () => { const [x, y] = spot(); return `<rect transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})" x="-10" y="-2.2" width="20" height="4.4" rx="2.2" fill="${rnd() < .5 ? '#3E8E3A' : '#D4462F'}"/>`; },
+    oign: () => { const [x, y] = spot(); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="none" stroke="#B07AA0" stroke-width="2.2"/>`; },
+    fb: () => { const [x, y] = spot(30); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><path d="M-13 3C-13 -7 -4 -12 0 -12C5 -12 13 -7 13 3C13 9 -13 9 -13 3Z" fill="#FFFFFF"/><path d="M-6 -4C-2 -7 3 -6 6 -3" fill="none" stroke="#E6E1D6" stroke-width="1.4"/></g>`; },
+    courg: () => { const [x, y] = spot(); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="7" fill="#3F7A36"/><circle r="5.3" fill="#D9E8A8"/><circle r="1.6" fill="#B8CF7E"/></g>`; },
+    champ: () => { const [x, y] = spot(); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})"><path d="M-9 1A9 8 0 0 1 9 1Z" fill="#9C7A5A"/><rect x="-2.5" y="1" width="5" height="6" rx="1.5" fill="#E8D9C0"/></g>`; },
+    broc: () => { const [x, y] = spot(); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><rect x="-1.8" y="0" width="3.6" height="8" rx="1.5" fill="#8DBA6A"/>${[[-4, -2], [0, -5], [4, -2], [0, -1]].map(([a, b]) => `<circle cx="${a}" cy="${b}" r="4" fill="#3D7A3A"/>`).join('')}</g>`; },
+    conc: () => { const [x, y] = spot(); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="7" fill="#4E8A3E"/><circle r="5.8" fill="#E6F2C9"/></g>`; },
+    car: () => { let h = ''; for (let k = 0; k < 6; k++) { const [x, y] = spot(48); h += `<rect transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})" x="-7" y="-1.2" width="14" height="2.4" rx="1.2" fill="#EE8A2E"/>`; } return h; }
+  };
+  const order = ['sal', 'epi', 'pt', 'pd', 'courg', 'broc', 'conc', 'poiv', 'oign', 'champ', 'thon', 'car', 'tom', 'tcer', 'fb', 'oe'];
+  const cap = { oe: 4, tcer: 6, thon: 2, fb: 2, champ: 6, sal: 5, epi: 5, pd: 4, pt: 4, courg: 4, broc: 3, conc: 3, poiv: 4, oign: 3, car: 3, tom: 3 };
+  let food = '';
+  if (base === 'wrap') {
+    food = `<g transform="rotate(-20 100 100)"><rect x="40" y="70" width="120" height="60" rx="30" fill="#E8862F"/><rect x="40" y="70" width="120" height="18" rx="9" fill="#F4A456" opacity=".7"/>${Array.from({ length: 22 }, () => `<rect x="${(46 + rnd() * 100).toFixed(1)}" y="${(76 + rnd() * 46).toFixed(1)}" width="${(5 + rnd() * 6).toFixed(1)}" height="1.6" rx=".8" fill="#C25E16" opacity=".55" transform="rotate(${rot()} 100 100)"/>`).join('')}<ellipse cx="158" cy="100" rx="13" ry="30" fill="#F6C99A"/><ellipse cx="158" cy="100" rx="9" ry="24" fill="#F3EEE4"/><circle cx="156" cy="92" r="4" fill="#86C35E"/><circle cx="160" cy="104" r="3.5" fill="#D8392C"/><ellipse cx="155" cy="110" rx="4" ry="2.4" fill="#D9A28A"/></g>`;
+  } else {
+    const many = { pd: 4, pt: 3, tcer: 1, champ: 1, courg: 3, broc: 3, conc: 3, sal: 4, epi: 3, poiv: 3, oign: 2, tom: 3, car: 2, thon: 2 };
+    if (q.sal || q.epi) food += `<ellipse cx="100" cy="100" rx="52" ry="48" fill="${q.epi ? '#2C5A31' : '#6FA84A'}" opacity=".55"/>`;
+    order.forEach(k => { const v = numv(q[k]) || 0; if (!v) return; const n = Math.min((cap[k] || 3) * 2, Math.max(1, Math.round(v * (many[k] || 1)))); for (let j = 0; j < n; j++) food += D[k] ? D[k]() : ''; });
+    food = `<g transform="translate(100 100) scale(1.22) translate(-100 -100)">${food}</g>`;
+    if (i === 8) { for (let k = 0; k < 4; k++) { const [x, y] = spot(30); food += `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="6.5" fill="#F6E7A0"/><circle r="4.6" fill="#FBF3CF"/></g>`; } for (let k = 0; k < 3; k++) { const [x, y] = spot(34); food += `<path transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})" d="M0 -7C5 -7 7 -3 6 1C5 5 1 8 0 8C-1 8 -5 5 -6 1C-7 -3 -5 -7 0 -7Z" fill="#D7303A"/>`; } }
+  }
+  const plate = base === 'pan' ? `<circle cx="100" cy="100" r="84" fill="#20262A"/><circle cx="100" cy="100" r="76" fill="#2D3438"/><rect x="176" y="92" width="22" height="16" rx="6" fill="#1A1F22"/><circle cx="100" cy="100" r="70" fill="url(#rwSauce)"/>`
+    : base === 'bowl' ? `<circle cx="100" cy="100" r="80" fill="#EDE9E1"/><circle cx="100" cy="100" r="68" fill="#D9D3C6"/><circle cx="100" cy="100" r="62" fill="#FFFFFF"/><circle cx="100" cy="100" r="62" fill="url(#rwSkyr)"/>`
+    : base === 'tart' ? `<circle cx="100" cy="100" r="84" fill="url(#rwPlate)"/><circle cx="100" cy="100" r="64" fill="#E9B94C"/><circle cx="100" cy="100" r="58" fill="#F3CF6C"/>`
+    : `<circle cx="100" cy="100" r="84" fill="url(#rwPlate)"/><circle cx="100" cy="100" r="66" fill="none" stroke="#FFFFFF" stroke-opacity=".5" stroke-width="1.2"/>`;
+  return `<svg class="rw-svg" viewBox="0 0 200 200" aria-hidden="true"><defs><radialGradient id="rwPlate" cx=".42" cy=".38"><stop offset="0" stop-color="#FAF8F3"/><stop offset=".75" stop-color="#E6E1D6"/><stop offset="1" stop-color="#C9C1B1"/></radialGradient><radialGradient id="rwSauce" cx=".45" cy=".4"><stop offset="0" stop-color="#C8452E"/><stop offset="1" stop-color="#8E2A1C"/></radialGradient><radialGradient id="rwSkyr" cx=".45" cy=".4"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#ECE8E0"/></radialGradient><radialGradient id="rwShadow"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>
+    <ellipse cx="104" cy="112" rx="92" ry="88" fill="url(#rwShadow)"/><g class="rw-spin">${plate}${food}</g><ellipse cx="78" cy="62" rx="30" ry="12" fill="#FFFFFF" opacity=".12" transform="rotate(-30 78 62)"/></svg>`;
+}
+const RWV = { i: 0, open: -1, steps: false };
+function rwOrder() { let plan = []; try { plan = csPlan().meals; } catch (e) {} const tags = {}; ['Aujourd’hui', 'Demain', 'Après-demain'].forEach((t, j) => { if (plan[j] != null && tags[plan[j]] == null) tags[plan[j]] = t; });
+  const L = PV_REC.map((_, i) => i); return { L: L.filter(i => tags[i] != null).sort((a, b) => plan.indexOf(a) - plan.indexOf(b)).concat(L.filter(i => tags[i] == null)), tags }; }
+function rwItem(i, tag) {
+  const [n, t] = PV_REC[i], [kc, P, G, Li] = PV_MAC[i] || [0, 0, 0, 0], ing = PV_REC[i][3];
+  const bub = [[`${kc}`, 'kcal', 'k'], [`${P} g`, 'protéines', 'p'], [`${G} g`, 'glucides', 'g'], [`${Li} g`, 'lipides', 'l'], [esc(t.replace(/ \(.*\)/, '')), 'temps', 't']];
+  const ang = [-160, -122, -90, -58, -20];
+  return `<div class="rw-item" data-rwi="${i}"><div class="rw-stage"><button class="rw-dish" data-rwd="${i}" aria-label="${esc(n)}">${rwDish(i)}</button>
+    ${bub.map(([v, l, c], k) => { const a = ang[k] * Math.PI / 180; return `<span class="rw-b rw-${c}" style="--x:${(Math.cos(a) * 106).toFixed(0)}px;--y:${(Math.sin(a) * 120).toFixed(0)}px;--d:${k * 70}ms"><b>${v}</b><small>${l}</small></span>`; }).join('')}</div>
+    <p class="rw-name">${tag ? `<span class="cs-tag">${tag}</span>` : ''}${esc(n)}</p>
+    <div class="rw-more"><div class="rw-ing">${ing.map((x, k) => `<span style="--d:${300 + k * 60}ms">${esc(x)}</span>`).join('')}</div>
+      ${PV_RNOTE[i] ? `<p class="pv-sub" style="text-align:center">${esc(PV_RNOTE[i])}</p>` : ''}
+      <div class="rw-btns"><button class="btn sm ghost" data-rwst="${i}">${RWV.steps && RWV.open === i ? 'Cacher la préparation' : 'Voir la préparation'}</button><button class="btn sm" data-rweat="${i}">J'ai mangé ça</button></div>
+      ${RWV.steps && RWV.open === i ? `<ol class="ap-steps rec-st rw-steps">${PV_REC[i][4].map(x => `<li><span>${esc(x)}</span></li>`).join('')}</ol>` : ''}</div></div>`;
+}
+function rwRender(el) {
+  const { L, tags } = rwOrder();
+  el.innerHTML = `<div class="rw-sky"></div><div class="rw-top"><div><p class="pv-k" style="margin:0">Mon monde</p><h2>Mes recettes</h2></div><button class="rw-x" data-rwx aria-label="Fermer">×</button></div>
+    <div class="rw-track">${L.map(i => rwItem(i, tags[i])).join('')}</div>
+    <div class="rw-dots">${L.map(i => `<i data-rwdot="${i}"></i>`).join('')}</div>
+    <p class="rw-hint">Glisse pour te balader · touche un plat pour l'ouvrir</p>`;
+  const tr = $('.rw-track', el), items = [...el.querySelectorAll('.rw-item')];
+  const fx = () => { const c = tr.scrollLeft + tr.clientWidth / 2; let best = 0, bd = 1e9;
+    items.forEach((it, k) => { const m = it.offsetLeft + it.offsetWidth / 2, d = (m - c) / it.offsetWidth; if (Math.abs(d) < bd) { bd = Math.abs(d); best = k; }
+      const a = Math.max(-1.4, Math.min(1.4, d)); it.style.setProperty('--r', `${(-a * 28).toFixed(1)}deg`); it.style.setProperty('--s', (1 - Math.min(1, Math.abs(a)) * .22).toFixed(3)); it.style.setProperty('--o', (1 - Math.min(1, Math.abs(a)) * .55).toFixed(3)); it.style.zIndex = String(10 - Math.round(Math.abs(a) * 5)); });
+    el.querySelectorAll('.rw-dots i').forEach((x, k) => x.classList.toggle('on', k === best)); RWV.i = best; items.forEach((it, k) => it.classList.toggle('c', k === best));
+    if (RWV.open >= 0 && L[best] !== RWV.open) { const o = el.querySelector('.rw-item.on'); if (o) o.classList.remove('on'); RWV.open = -1; RWV.steps = false; } };
+  tr.addEventListener('scroll', () => requestAnimationFrame(fx), { passive: true });
+  requestAnimationFrame(() => { const it = items[Math.min(RWV.i, items.length - 1)]; if (it) tr.scrollLeft = it.offsetLeft - (tr.clientWidth - it.offsetWidth) / 2; fx();
+    if (RWV.open >= 0) { const o = el.querySelector(`.rw-item[data-rwi="${RWV.open}"]`); if (o) o.classList.add('on', 'now'); } });
+}
+function rwOpen() {
+  const old = $('.rw'); if (old) old.remove(); RWV.open = -1; RWV.steps = false;
+  const el = document.createElement('div'); el.className = 'rw'; document.body.appendChild(el); document.documentElement.classList.add('rw-lock'); rwRender(el);
+  requestAnimationFrame(() => el.classList.add('in'));
+  el.addEventListener('click', e => { e.stopPropagation(); const t = e.target, c = s => t.closest(s); let b;
+    if (c('[data-rwx]')) { el.classList.remove('in'); document.documentElement.classList.remove('rw-lock'); setTimeout(() => { el.remove(); pvRe(); }, 300); return; }
+    if ((b = c('[data-rwd]'))) { const i = +b.dataset.rwd, it = b.closest('.rw-item'), tr = $('.rw-track', el);
+      if (Math.abs(it.offsetLeft - (tr.scrollLeft + (tr.clientWidth - it.offsetWidth) / 2)) > 30) { tr.scrollTo({ left: it.offsetLeft - (tr.clientWidth - it.offsetWidth) / 2, behavior: 'smooth' }); return; }
+      const on = !it.classList.contains('on'); el.querySelectorAll('.rw-item.on').forEach(x => x.classList.remove('on', 'now')); RWV.steps = false;
+      if (on) { it.classList.add('on'); RWV.open = i; haptic(); try { chime(false); } catch (er) {} } else RWV.open = -1; return; }
+    if ((b = c('[data-rwst]'))) { RWV.steps = !RWV.steps; const i = +b.dataset.rwst; rwRender(el); el.classList.add('in'); return; }
+    if ((b = c('[data-rweat]'))) { const r = PV_REC[+b.dataset.rweat], d = pvDay(), q = pvQ(d); Object.entries(r[5]).forEach(([id, n]) => { q[id] = Math.min(40, (q[id] || 0) + n); }); pvQSync(d); haptic(); save(); pvCheckDay(); toast(`${r[0]} : ajouté à ton repas`); burst(14, '✦', false); return; }
+    if ((b = c('[data-rwdot]'))) { const it = el.querySelector(`.rw-item[data-rwi="${b.dataset.rwdot}"]`), tr = $('.rw-track', el); if (it) tr.scrollTo({ left: it.offsetLeft - (tr.clientWidth - it.offsetWidth) / 2, behavior: 'smooth' }); }
+  });
+}
 function pvRecipes() {
   const pr = q => Math.round(Object.entries(q).reduce((a, [id, n]) => a + (PV_FDX[id] ? PV_FDX[id][3] * n : 0), 0));
   const card = (i, tag) => { const [n, t, w, ing, st, q] = PV_REC[i]; return `<details class="pv-det rec" data-k="rec-${tag}-${i}"><summary><b>${tag ? `<span class="cs-tag">${tag}</span>` : ''}${esc(n)}</b><small>${esc(t)} · ≈ ${pr(q)} g de protéines</small></summary>
@@ -6596,7 +6707,7 @@ function pvRecipes() {
   const others = PV_REC.map((x, i) => i).filter(i => i !== 8 && !P.meals.includes(i));
   return pvMore('Idées de repas', `aujourd’hui : ${PV_REC[P.meals[0]][0].toLowerCase()}`, `${pvCourses()}
     <p class="pv-k" style="margin-top:16px">Mes repas avec ces courses</p>${plan}${card(8, 'Chaque jour')}
-    <details class="pv-det rec" data-k="rec-autres"><summary><b>Autres idées</b><small>il faudra peut-être acheter un ingrédient en plus</small></summary>${others.map(i => card(i, '')).join('')}</details>`);
+    <button class="rw-door" data-rwopen><span class="rw-door-dishes">${[0, 2, 9].map(i => rwDish(i)).join('')}</span><span><b>Entrer dans mes recettes</b><small>${PV_REC.length} plats à explorer · macros et ingrédients</small></span>${ICON.chev}</button>`);
 }
 function vPvFood() {
   const d = pvDay(), p = pvS(), pt = pvProtTarget(), prot = pvProt(d), dayN = Math.round((parseDate(todayISO()) - parseDate(p.start)) / 864e5) + 1;
@@ -6606,9 +6717,10 @@ function vPvFood() {
     ${(() => { const q = pvQ(d), row = (id, n, u) => `<div class="pv-step"><span>${n}${u ? `<small class="fd-u">${u}</small>` : ''}</span><button class="icon-btn" data-fdm="${id}" aria-label="Un de moins">−</button><b class="num">${q[id] || 0}</b><button class="icon-btn" data-fdp="${id}" aria-label="Un de plus">+</button></div>`;
       const others = PV_FD.flatMap(([, L]) => L).filter(x => x[0] !== 'oe'), nOn = others.filter(x => q[x[0]]).length;
       return `${row('oe', 'Œufs', '')}<details class="pv-det fd-more" data-k="fd-more"><summary>Autres aliments${nOn ? ` · ${nOn} ajouté${nOn > 1 ? 's' : ''}` : ''}</summary>${PV_FD.map(([g, L]) => { const LL = L.filter(x => x[0] !== 'oe'); return LL.length ? `<p class="pv-k">${g}</p>${LL.map(([id, n, u]) => row(id, n, u)).join('')}` : ''; }).join('')}<p class="pv-sub" style="margin-top:8px">Fromage blanc nature uniquement. Thon : 2 à 3 boîtes par semaine maximum (mercure).</p></details>`; })()}
+    ${pvXpBlock(d)}
     <div class="pv-prot"><span>Protéines</span><b class="num">≈ ${prot} g${pt ? ` <small>/ ${pt} g</small>` : ''}</b></div>
     ${pt && d.meal && prot < pt * .7 ? `<p class="pv-warn">Il manque ≈ ${pt - prot} g : c'est ce qui protège ton muscle. Une boîte de thon (+26 g), un shaker de whey (+${PV_WHEY} g) ou deux pots de fromage blanc (+15 g).</p>` : ''}
-    <div class="pv-row" style="margin-top:6px"><span>Fruits</span><span class="chips" style="margin:0"><button class="chip" data-pvfr="fra" aria-pressed="${!!d.fr.fra}">Fraises</button><button class="chip" data-pvfr="ban" aria-pressed="${!!d.fr.ban}">1 banane</button></span></div>
+    <p class="pv-k" style="margin:10px 0 4px">Fruits · ${pvFruitN(d)}/2 ${pvFruitN(d) >= 2 ? '✓' : ''}</p><div class="chips" style="margin:0">${PV_FRUITS.map(([id, n]) => `<button class="chip" data-pvfr="${id}" aria-pressed="${!!d.fr[id]}">${n}</button>`).join('')}</div>
     ${d.meal ? `<div class="pv-row"><span>Ressenti</span><span class="chips" style="margin:0">${['Mal', 'Bof', 'Bien', 'Top'].map((l, i) => `<button class="chip" data-pvfeel="${i + 1}" aria-pressed="${d.feel === i + 1}">${l}</button>`).join('')}</span></div>` : ''}</section>`;
   const eau = `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Eau</h2><span class="num" style="font:400 1.3rem var(--serif);color:var(--${w >= PV_EAU[0] ? 'mint' : 'ink'})">${pvL(w)}<small class="muted" style="font-size:.75rem"> / 2-3 L</small></span></div>
     <div class="pv-wbar" style="margin-top:10px"><i style="width:${(wPct * 100).toFixed(0)}%"></i><em style="left:${(PV_EAU[0] / PV_EAU[1] * 100).toFixed(0)}%"></em></div>
@@ -6948,7 +7060,12 @@ function pvClick(t) {
   if ((el = c('[data-pvc]'))) { const d = pvDay(), id = el.dataset.pvc; d.comp[id] = !d.comp[id]; save(); pvRe(); return true; }
   if ((el = c('[data-pvegg]'))) { const d = pvDay(); d.eggs = Math.max(0, Math.min(12, numv(d.eggs) + Number(el.dataset.pvegg))); if (d.eggs) d.comp.oe = true; save(); pvRe(); return true; }
   if ((el = c('[data-pvfeel]'))) { pvDay().feel = Number(el.dataset.pvfeel); save(); pvRe(); return true; }
-  if ((el = c('[data-pvfr]'))) { const d = pvDay(), id = el.dataset.pvfr; d.fr[id] = !d.fr[id]; save(); if (d.fr.fra && d.fr.ban) pvOnce('fruit', 1); pvCheckDay(); pvRe(); return true; }
+  if ((el = c('[data-rwopen]'))) { rwOpen(); return true; }
+  if ((el = c('[data-xpfav]'))) { const d = pvDay(), x = pvXps()[+el.dataset.xpfav]; if (x) { (d.xp = Array.isArray(d.xp) ? d.xp : []).push({ n: x.n, g: numv(x.g) }); haptic(); save(); pvCheckDay(); pvRe(); toast(`+${numv(x.g)} g de protéines`); } return true; }
+  if ((el = c('[data-xpdel]'))) { const d = pvDay(); if (Array.isArray(d.xp)) d.xp.splice(+el.dataset.xpdel, 1); save(); pvRe(); return true; }
+  if ((el = c('[data-xpadd]'))) { const n = ($('#pvXn') || {}).value || '', g = numv((($('#pvXg') || {}).value || '').replace(',', '.')); if (!n.trim() || !(g > 0)) { toast('Indique un nom et les grammes de protéines'); return true; }
+    const d = pvDay(), F = pvXps(); (d.xp = Array.isArray(d.xp) ? d.xp : []).push({ n: n.trim(), g }); if (!F.some(x => x.n.toLowerCase() === n.trim().toLowerCase())) F.push({ n: n.trim(), g }); haptic(); save(); pvCheckDay(); pvRe(); toast(`+${g} g de protéines`); return true; }
+  if ((el = c('[data-pvfr]'))) { const d = pvDay(), id = el.dataset.pvfr; d.fr[id] = !d.fr[id]; save(); if (pvFruitN(d) >= 2) pvOnce('fruit', 1); pvCheckDay(); pvRe(); return true; }
   if ((el = c('[data-pvw]'))) { const d = pvDay(), v = el.dataset.pvw; d.wl = Array.isArray(d.wl) ? d.wl : [];
     if (v === 'undo') { d.water = Math.max(0, d.water - (d.wl.pop() || 250)); } else { d.wl.push(Number(v)); d.water += Number(v); haptic(); if (d.water >= PV_EAU[0]) pvOnce('eau', 2, ['2 litres', 'Le minimum du jour est bu.']); if (d.water >= PV_EAU[1]) pvOnce('eau3', 1); }
     save(); pvCheckDay(); pvRe(); return true; }
@@ -8355,7 +8472,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.40 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.42 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
