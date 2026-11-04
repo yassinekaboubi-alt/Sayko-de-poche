@@ -6510,7 +6510,7 @@ const pvChk = (on, attr, label, sub) => `<button class="pv-chk ${on ? 'on' : ''}
 const PV_COMP = [['pd', 'Patates douces', 2], ['pt', 'Patates', 2], ['oe', 'Œufs', 0], ['leg', 'Légumes', 2]];
 /* v5.23 : chaque aliment se compte à l'unité ; protéines par unité (valeurs moyennes, tables Ciqual). Plus de viande. */
 const PV_FD = [
-  ['Protéines', [['oe', 'Œuf', 'gros', 6.5], ['thon', 'Thon au naturel', '1 boîte', 26], ['fb', 'Fromage blanc 0 %', 'pot 100 g', 7.5], ['whey', 'Whey', '1 dose', 22]]],
+  ['Protéines', [['oe', 'Œuf', 'gros', 6.5], ['thon', 'Thon au naturel', '1 boîte', 26], ['fb', 'Skyr ou fromage blanc 0 %', '100 g', 9], ['whey', 'Whey', '1 dose', 22]]],
   ['Féculents', [['pd', 'Patate douce', 'moyenne', 3], ['pt', 'Pomme de terre', 'moyenne', 3]]],
   ['Légumes', [['courg', 'Courgette', '', 2.4], ['tom', 'Tomate', '', 1], ['tcer', 'Tomate cerise', '', .1], ['conc', 'Concombre', '', 1.8], ['sal', 'Salade', '1 bol', 1], ['car', 'Carotte', '', .6], ['broc', 'Brocoli', '1 bol', 2.8], ['poiv', 'Poivron', '', 1.3], ['epi', 'Épinards', '1 poignée', .9], ['har', 'Haricots verts', '1 bol', 1.8], ['chf', 'Chou-fleur', '1 bol', 2], ['champ', 'Champignon', '', .4], ['oign', 'Oignon', '', 1.1]]]
 ];
@@ -6529,6 +6529,13 @@ function pvXpBlock(d) {
     <p class="pv-k">Nouvelle source</p><div class="row" style="gap:8px"><input id="pvXn" placeholder="Ex. barre protéinée" autocomplete="off" style="flex:2;min-width:0;min-height:44px;border:0;border-radius:12px;background:var(--surface);padding:0 12px;color:var(--ink);font:inherit"><input id="pvXg" inputmode="decimal" placeholder="g" autocomplete="off" style="flex:1;min-width:0;min-height:44px;border:0;border-radius:12px;background:var(--surface);padding:0 12px;color:var(--ink);font:inherit"><button class="btn sm" data-xpadd>Ajouter</button></div>
     <p class="pv-sub">Écris les grammes de <b>protéines</b> (sur l'emballage), pas le poids de l'aliment. La source est gardée pour la prochaine fois.</p></details>`;
 }
+/* v5.43 · calories estimées du jour (repères moyens par unité), objectif 1 500 à 1 700 kcal (v5.44, rythme rapide mais sûr : ≈ 0,8 kg par semaine) */
+const PV_KC = { oe: 75, thon: 125, fb: 55, whey: 120, pd: 172, pt: 115, courg: 34, tom: 20, tcer: 3, conc: 15, sal: 10, car: 25, broc: 30, poiv: 25, epi: 7, har: 30, chf: 25, champ: 3, oign: 40 };
+const PV_KCF = { ban: 100, fra: 35, pom: 80, poi: 90, ora: 65, cle: 70, kiw: 45, rai: 100, dat: 70, aut: 70 };
+const PV_KOBJ = [1500, 1700];
+function pvKcal(d) { const q = d.q && typeof d.q === 'object' ? d.q : {}; let k = Object.entries(q).reduce((a, [id, n]) => a + (PV_KC[id] || 0) * numv(n), 0);
+  k += Object.keys(PV_KCF).reduce((a, id) => a + (d.fr && d.fr[id] ? PV_KCF[id] : 0), 0) + (Array.isArray(d.xp) ? d.xp : []).reduce((a, x) => a + numv(x.g) * 9, 0) + (d.meal ? 45 : 0);
+  return Math.round(k / 10) * 10; }
 function pvProt(d) { const xp = (Array.isArray(d.xp) ? d.xp : []).reduce((a, x) => a + numv(x.g), 0); return Math.round(xp + pvProt0(d)); }
 function pvProt0(d) { if (d.q && typeof d.q === 'object') return (Object.entries(d.q).reduce((a, [id, n]) => a + (PV_FDX[id] ? PV_FDX[id][3] * numv(n) : 0), 0) + (d.fr && d.fr.ban ? 1 : 0)); const c = d.comp || {}; return Math.round(PV_COMP.reduce((a, [id, , g]) => a + (id === 'oe' ? numv(d.eggs) * PV_EGG : c[id] ? g : 0), 0) + (d.whey ? PV_WHEY : 0) + (d.fr && d.fr.ban ? 1 : 0)); }
 const pvClean = d => PV_BAN.every(([id]) => !(d.ban || {})[id]);
@@ -6545,38 +6552,40 @@ function pvCleanStreak() { let n = 0; for (let i = 0; i < 400; i++) { const k = 
 function pvBanStreak(id) { let n = 0; for (let i = 1; i < 400; i++) { const k = iso(addDays(new Date(), -i)); if (k < pvS().start) break; const d = pvS().d[k]; if (d && d.ban && d.ban[id]) break; n++; } return n; }
 /* v5.25 : idées de repas simples, conformes au protocole (sans viande, sans pâtes, riz, pain ni sucre) + liste de courses.
    [nom, temps, quand, ingrédients affichés, étapes, unités pour « J'ai mangé ça » (clés de PV_FD)] */
+/* v5.43 · v5.44 · rythme « rapide mais sûr » (79 kg → 62-65 kg, ≈ 1 % par semaine) : le repas fait 650 à 980 kcal (moins de féculents et d'huile, le skyr reste : c'est la protéine la moins calorique),
+   le dessert protéiné 340 kcal ; avec 2 fruits et la barre si besoin, la journée tombe vers 1 500 à 1 700 kcal et 120 à 140 g de protéines. */
 const PV_REC = [
-  ['Bol patate douce, œufs au plat, épinards', '12 min', 'jour de travail', ['1 patate douce', '4 œufs', '2 poignées d\'épinards', 'Huile d\'olive, sel, poivre, paprika'], ['Pique la patate douce et passe-la 7 à 8 min au micro-ondes.', 'Fais tomber les épinards 2 min à la poêle avec un filet d\'huile.', 'Ajoute les 4 œufs au plat dans la même poêle.', 'Ouvre la patate, pose les épinards et les œufs dessus, assaisonne.'], { pd: 1, oe: 4, epi: 2 }],
-  ['Salade thon et pommes de terre', '15 min', 'jour de travail', ['2 pommes de terre', '1 boîte de thon au naturel', '2 œufs', '1 bol de salade, 6 tomates cerises, ½ concombre', 'Huile d\'olive, citron, sel, poivre'], ['Cuis les pommes de terre coupées en morceaux 8 min au micro-ondes (ou 15 min à l\'eau).', 'Cuis les œufs 9 min dans l\'eau bouillante (œufs durs).', 'Mélange salade, tomates, concombre, pommes de terre, thon égoutté et œufs coupés.', 'Vinaigrette : 1 cuillère d\'huile d\'olive, un jus de citron.'], { pt: 2, thon: 1, oe: 2, sal: 1, tcer: 6, conc: 1 }],
-  ['Shakshuka express', '15 min', 'jour de travail', ['4 œufs', '1 boîte de tomates concassées', '1 poivron, 1 oignon', '1 patate douce', 'Cumin, paprika, sel'], ['Passe la patate douce 7 à 8 min au micro-ondes.', 'Fais revenir l\'oignon et le poivron 3 min, ajoute les tomates et les épices.', 'Fais 4 creux, casse un œuf dans chacun, couvre 5 min à feu doux.', 'Mange avec la patate douce.'], { oe: 4, tom: 3, poiv: 1, oign: 1, pd: 1 }],
-  ['Patate douce farcie au thon', '12 min', 'jour de travail', ['1 grosse patate douce', '1 boîte de thon au naturel', '1 pot de fromage blanc 0 %', '1 bol de salade', 'Paprika, ciboulette, sel'], ['Passe la patate douce 8 min au micro-ondes, coupe-la en deux.', 'Écrase un peu la chair et mélange-la au thon, au fromage blanc et au paprika.', 'Remets le mélange dans la peau, ajoute la ciboulette.', 'Sers avec la salade.'], { pd: 1, thon: 1, fb: 1, sal: 1 }],
-  ['Poêlée patate douce, courgette et œufs', '15 min', 'jour de travail', ['1 patate douce', '1 courgette, 1 oignon', '4 œufs', 'Huile d\'olive, sel, paprika'], ['Coupe la patate douce en petits dés, la courgette et l\'oignon en morceaux.', 'Fais dorer le tout 10 min à la poêle avec un filet d\'huile.', 'Casse les 4 œufs par-dessus, couvre 4 min.', 'Assaisonne et mange directement.'], { pd: 1, courg: 1, oign: 1, oe: 4 }],
-  ['Omelette champignons-épinards, pommes de terre', '15 min', 'jour de travail', ['4 œufs', '6 champignons, 1 poignée d\'épinards', '2 pommes de terre', 'Huile d\'olive, sel, poivre'], ['Cuis les pommes de terre en dés 6 min au micro-ondes, puis dore-les 5 min à la poêle.', 'Mets-les de côté, fais revenir champignons et épinards 3 min.', 'Verse les œufs battus, laisse prendre 3 à 4 min à feu moyen.', 'Plie l\'omelette, sers avec les pommes de terre.'], { oe: 4, champ: 6, epi: 1, pt: 2 }],
-  ['Plaque de légumes rôtis', '35 min (pour 4 jours)', 'jour de repos', ['4 patates douces', '2 poivrons, 2 courgettes, 2 oignons, 1 brocoli', 'Huile d\'olive, sel, paprika, herbes'], ['Coupe tout en gros morceaux, étale sur une plaque, huile, sel, paprika.', '35 min à 200 °C en mélangeant à mi-cuisson.', 'Range en 4 boîtes au frigo (4 jours maximum).', 'Chaque jour : réchauffe une boîte et ajoute 4 œufs ou une boîte de thon.'], { pd: 1, poiv: 1, courg: 1, oign: 1, broc: 1, oe: 4 }],
-  ['Frittata au four', '30 min (pour 3 jours)', 'jour de repos', ['10 œufs', '2 patates douces, 1 brocoli, 1 oignon', 'Sel, poivre, herbes'], ['Cuis les patates douces en dés 6 min au micro-ondes.', 'Mélange les œufs battus, les patates, le brocoli en petits bouquets et l\'oignon.', 'Verse dans un plat huilé : 30 min à 180 °C.', 'Coupe en 3 parts : une part par jour, avec une salade et un fromage blanc.'], { oe: 3, pd: 1, broc: 1, sal: 1, fb: 1 }],
-  ['Le dessert protéiné', '2 min', 'tous les jours', ['200 g de fromage blanc 0 % ou de skyr nature', '1 banane ou 6 fraises', '1 dose de whey (si tu veux plus de protéines)', 'Cannelle (sans sucre)'], ['Verse le skyr ou le fromage blanc dans un bol.', 'Avec la whey : mélange-la 30 secondes à la cuillère, avec 1 ou 2 cuillères d\'eau si c\'est trop épais.', 'Écrase la moitié de la banane dedans, coupe l\'autre en rondelles par-dessus (ou les fraises), saupoudre de cannelle.'], { fb: 2 }],
-  ['Maxi wrap de carottes au thon', '35 min', 'jour de repos', ['300 g de carottes', '100 g de fromage protéiné (type Lindahls) ou de skyr épais', '1 œuf', '1 boîte de thon au naturel', '50 g de fromage frais 0 % (type Carré Frais)', '1 tomate, de la salade', 'Sauce : 20 g de skyr, moutarde, 1 cuillère de ketchup, un filet de jus de cornichons, épices'], ['Préchauffe le four à 200 °C. Râpe finement les carottes et presse-les dans un torchon pour enlever l\'eau.', 'Mélange les carottes avec le fromage protéiné, l\'œuf, le sel, le poivre et les épices.', 'Étale en un grand rectangle fin sur du papier cuisson : 15 à 20 min au four, jusqu\'à ce que les bords dorent.', 'Pendant ce temps, mélange le thon égoutté avec le fromage frais, et la sauce : skyr, moutarde, ketchup, jus de cornichons.', 'Garnis la galette de carottes encore tiède : thon, tomate, salade, sauce. Roule bien serré et coupe en deux.'], { car: 4, oe: 1, fb: 2, thon: 1, tom: 1, sal: 1 }]
+  ['Bol patate douce, œufs au plat, épinards', '15 min', 'jour de travail', ['1 grosse patate douce (≈ 300 g)', '6 œufs', '4 poignées d\'épinards', '100 g de skyr nature (sauce : skyr, ail, citron)', 'Huile d\'olive (1 cuillère à café), sel, poivre, paprika'], ['Pique la patate douce et passe-la 8 à 10 min au micro-ondes.', 'Fais tomber les épinards 2 min à la poêle avec un filet d\'huile.', 'Ajoute les 6 œufs au plat dans la même poêle, couvre 3 à 4 min.', 'Mélange le skyr avec un peu d\'ail, de citron et de sel.', 'Ouvre la patate, pose les épinards, les œufs et la sauce au skyr, assaisonne.'], { pd: 1.5, oe: 6, epi: 4, fb: 1 }],
+  ['Salade thon et pommes de terre', '20 min', 'jour de travail', ['2 pommes de terre (≈ 300 g)', '1 boîte de thon au naturel', '4 œufs', '1 bol de salade, 6 tomates cerises, ½ concombre', 'Huile d\'olive (1 cuillère à café), citron, sel, poivre'], ['Cuis les pommes de terre coupées en morceaux 10 min au micro-ondes (ou 15 min à l\'eau).', 'Cuis les œufs 9 min dans l\'eau bouillante (œufs durs).', 'Mélange salade, tomates, concombre, pommes de terre, thon égoutté et œufs coupés.', 'Vinaigrette : 1 cuillère à café d\'huile d\'olive, un jus de citron.'], { pt: 2, thon: 1, oe: 4, sal: 1, tcer: 6, conc: 1 }],
+  ['Shakshuka express', '20 min', 'jour de travail', ['6 œufs', '1 boîte de tomates concassées (ou ½ brique de purée)', '1 poivron, 1 oignon, quelques champignons', '1 grosse patate douce (≈ 300 g)', '100 g de skyr pour servir', 'Huile d\'olive (1 cuillère à café), cumin, paprika, sel'], ['Passe la patate douce 8 à 10 min au micro-ondes.', 'Fais revenir l\'oignon, le poivron et les champignons 4 à 5 min.', 'Ajoute les tomates et les épices, laisse épaissir 3 à 4 min.', 'Fais 6 creux, casse un œuf dans chacun, couvre 5 à 6 min à feu doux.', 'Sers avec la patate douce et une cuillère de skyr.'], { oe: 6, tom: 3, poiv: 1, oign: 1, champ: 4, pd: 1.5, fb: 1 }],
+  ['Patate douce farcie au thon', '15 min', 'jour de travail', ['1 très grosse patate douce (≈ 350 g)', '1 boîte de thon au naturel', '200 g de skyr ou de fromage blanc 0 %', '2 œufs durs', '1 bol de salade', 'Huile d\'olive (1 cuillère à café), paprika, ciboulette, sel'], ['Passe la patate douce 10 min au micro-ondes, coupe-la en deux.', 'Écrase un peu la chair et mélange-la au thon, au skyr et au paprika.', 'Remets le mélange dans la peau, ajoute les œufs durs coupés et la ciboulette.', 'Sers avec la salade et un filet d\'huile d\'olive.'], { pd: 1.75, thon: 1, fb: 2, oe: 2, sal: 1 }],
+  ['Poêlée patate douce, courgette et œufs', '20 min', 'jour de travail', ['1 grosse patate douce (≈ 300 g)', '1 courgette, 1 oignon', '6 œufs', '100 g de skyr', 'Huile d\'olive (1 cuillère à café), sel, paprika'], ['Coupe la patate douce en petits dés, la courgette et l\'oignon en morceaux.', 'Fais dorer le tout 12 min à la poêle avec un filet d\'huile.', 'Casse les 6 œufs par-dessus, couvre 4 à 5 min.', 'Assaisonne et sers avec une cuillère de skyr.'], { pd: 1.5, courg: 1, oign: 1, oe: 6, fb: 1 }],
+  ['Omelette champignons-épinards, pommes de terre', '20 min', 'jour de travail', ['6 œufs', '8 champignons, 2 poignées d\'épinards', '2 pommes de terre (≈ 300 g)', '100 g de skyr', 'Huile d\'olive (1 cuillère à café), sel, poivre'], ['Cuis les pommes de terre en dés 8 min au micro-ondes, puis dore-les 5 min à la poêle.', 'Mets-les de côté, fais revenir champignons et épinards 3 min.', 'Verse les œufs battus, laisse prendre 4 à 5 min à feu moyen.', 'Plie l\'omelette, sers avec les pommes de terre et le skyr.'], { oe: 6, champ: 8, epi: 2, pt: 2, fb: 1 }],
+  ['Plaque de légumes rôtis', '35 min (pour 4 jours)', 'jour de repos', ['4 patates douces', '2 poivrons, 2 courgettes, 2 oignons, 1 brocoli', 'Huile d\'olive (4 cuillères à café), sel, paprika, herbes', 'Chaque jour : 3 œufs + 1 boîte de thon, ou 5 œufs', 'Chaque jour : 150 g de skyr'], ['Coupe tout en gros morceaux, étale sur une plaque, huile, sel, paprika.', '35 min à 200 °C en mélangeant à mi-cuisson.', 'Range en 4 boîtes au frigo (4 jours maximum).', 'Chaque jour : réchauffe une boîte, ajoute 3 œufs et le thon (ou 5 œufs) et le skyr.'], { pd: 1, poiv: 1, courg: 1, oign: 1, broc: 1, oe: 3, thon: 1, fb: 1.5 }],
+  ['Frittata au four', '30 min (pour 3 jours)', 'jour de repos', ['12 œufs', '3 patates douces, 1 brocoli, 1 oignon', 'Chaque jour : une salade et 200 g de skyr', 'Sel, poivre, herbes'], ['Cuis 3 patates douces en dés 8 min au micro-ondes.', 'Mélange les œufs battus, les patates, le brocoli en petits bouquets et l\'oignon.', 'Verse dans un plat huilé : 30 min à 180 °C.', 'Coupe en 3 parts : une part par jour, avec une salade et le skyr.'], { oe: 4, pd: 1, broc: 1, sal: 1, fb: 2 }],
+  ['Le dessert protéiné', '2 min', 'tous les jours', ['200 g de skyr nature (ou de fromage blanc 0 %)', '1 dose de whey', '1 banane ou 6 fraises', 'Cannelle (sans sucre)'], ['Verse le skyr dans un bol.', 'Ajoute la whey et mélange 30 secondes à la cuillère, avec 1 ou 2 cuillères d\'eau si c\'est trop épais.', 'Écrase la moitié de la banane dedans, coupe l\'autre en rondelles par-dessus (ou les fraises), saupoudre de cannelle.'], { fb: 2, whey: 1 }],
+  ['Maxi wrap de carottes au thon', '35 min', 'jour de repos', ['300 g de carottes', '100 g de fromage protéiné (type Lindahls) ou de skyr épais', '1 œuf', '1 boîte de thon au naturel', '50 g de fromage frais 0 % (type Carré Frais)', '1 tomate, de la salade', 'Sauce : 20 g de skyr, moutarde, 1 cuillère de concentré de tomate, un filet de jus de cornichons, paprika, cumin', 'À côté : 1 patate douce'], ['Préchauffe le four à 200 °C. Râpe finement les carottes et presse-les dans un torchon pour enlever l\'eau.', 'Mélange les carottes avec le fromage protéiné, l\'œuf, le sel, le poivre et les épices.', 'Étale en un grand rectangle fin sur du papier cuisson : 15 à 20 min au four, jusqu\'à ce que les bords dorent. Passe la patate douce au micro-ondes pendant ce temps.', 'Mélange le thon égoutté avec le fromage frais, et la sauce : skyr, moutarde, concentré de tomate, jus de cornichons, épices.', 'Garnis la galette encore tiède : thon, tomate, salade, sauce. Roule bien serré et coupe en deux.'], { car: 4, oe: 1, fb: 2, thon: 1, tom: 1, sal: 1, pd: 1 }]
 ];
 
 /* v5.42 · macros estimées par recette (kcal, protéines, glucides, lipides) et ingrédients dessinés dans le monde des recettes */
-const PV_MAC = [[530, 31, 42, 25], [635, 49, 57, 20], [710, 35, 68, 30], [400, 40, 56, 2], [640, 32, 55, 30], [650, 37, 55, 30], [660, 35, 58, 30], [460, 34, 37, 18], [220, 21, 31, 1], [470, 54, 44, 8]];
-const PV_RNOTE = { 9: 'Version thon de la recette au poulet : environ 470 kcal et 54 g de protéines selon nos calculs (la vidéo annonce 72 g, un chiffre trop optimiste pour ces quantités). Le ketchup reste une petite touche.' };
+const PV_MAC = [[840, 57, 70, 35], [750, 62, 60, 26], [980, 61, 96, 36], [760, 66, 79, 16], [890, 57, 81, 35], [830, 62, 62, 35], [760, 71, 65, 21], [640, 52, 55, 21], [340, 43, 34, 2], [640, 57, 84, 9]];
+const PV_RNOTE = { 9: 'Version thon de la recette au poulet, sans ketchup (sucre) : le wrap seul fait ≈ 470 kcal et 54 g de protéines selon nos calculs (la vidéo annonce 72 g, trop optimiste). Avec la patate douce : ≈ 640 kcal. Repas plus léger : prends aussi la barre ou un skyr le soir.' };
 const PV_COURSES = [['Protéines', ['Œufs : 30 (pour la semaine)', 'Thon au naturel : 3 boîtes', 'Fromage blanc 0 % nature : 2 pots de 500 g', 'Whey (si besoin)']], ['Féculents', ['Patates douces : 5 à 7', 'Pommes de terre : 1 kg']], ['Légumes', ['Épinards (frais ou surgelés)', 'Courgettes : 3', 'Poivrons : 2', 'Oignons : 1 filet', 'Champignons : 1 barquette', 'Brocoli : 1', 'Salade : 1 sachet', 'Tomates cerises : 1 barquette', 'Concombre : 1', 'Tomates concassées : 2 boîtes']], ['Fruits', ['Fraises (surgelées l\'hiver)', 'Bananes : 7']], ['Placard', ['Huile d\'olive', 'Citron', 'Paprika, cumin, cannelle, herbes', 'Sel, poivre']]];
 /* v5.29 · Courses Swile liées aux repas : 25 €/jour max (+ tickets Mister Pizza), le reste pour ma femme.
    Chaque panier achète les ingrédients des repas des jours qu'il couvre (les paquets entamés servent aux jours suivants).
    r = recette PV_REC du jour (le dessert protéiné, index 8, tous les jours). Prix = moyennes supermarché (estimations). */
 const CS_J = [ /* tous les jours : 7 jours */
-  { r: 0, p: [['Œufs x12', 3.3], ['Patates douces 1 kg', 2.5], ['Épinards surgelés 1 kg', 2], ['Fromage blanc 0 % 1 kg', 2.2]] },
+  { r: 0, p: [['Œufs x12', 3.3], ['Patates douces 1 kg', 2.5], ['Épinards surgelés 1 kg', 2], ['Skyr ou fromage blanc 0 % 1 kg', 2.2]] },
   { r: 1, p: [['Pommes de terre 1 kg', 1.3], ['Thon au naturel x2', 3], ['Salade en sachet', 1.2], ['Tomates cerises', 1.5], ['Concombre', .9]] },
-  { r: 2, p: [['Tomates concassées', .8], ['Poivron', .9], ['Oignons 1 kg', 1.3], ['Bananes 1 kg', 1.8]] },
+  { r: 2, p: [['Œufs x12', 3.3], ['Tomates concassées', .8], ['Poivron', .9], ['Oignons 1 kg', 1.3], ['Champignons 250 g', 1.3], ['Skyr ou fromage blanc 0 % 1 kg', 2.2], ['Bananes 1 kg', 1.8]] },
   { r: 3, p: [['Fraises surgelées 500 g', 2.5]] },
-  { r: 4, p: [['Œufs x12', 3.3], ['Courgettes 1 kg', 2.5], ['Patates douces 1 kg', 2.5]] },
-  { r: 5, p: [['Champignons 250 g', 1.3], ['Fromage blanc 0 % 1 kg', 2.2]] },
+  { r: 4, p: [['Courgettes 1 kg', 2.5], ['Patates douces 1 kg', 2.5]] },
+  { r: 5, p: [['Œufs x12', 3.3], ['Champignons 250 g', 1.3], ['Skyr ou fromage blanc 0 % 1 kg', 2.2]] },
   { r: 0, p: [] }];
 const CS_3 = [ /* tous les 3 jours : 3 paniers de 3 jours */
-  { r: [0, 2, 5], p: [['Œufs x12', 3.3], ['Patates douces 1 kg', 2.5], ['Épinards surgelés 1 kg', 2], ['Tomates concassées', .8], ['Poivron', .9], ['Oignon', .3], ['Champignons 250 g', 1.3], ['Pommes de terre 1 kg', 1.3], ['Fromage blanc 0 % 1 kg', 2.2]] },
-  { r: [1, 3, 4], p: [['Œufs x6', 1.8], ['Thon au naturel x2', 3], ['Salade en sachet', 1.2], ['Tomates cerises', 1.5], ['Concombre', .9], ['Patates douces 1 kg', 2.5], ['Courgettes x2', 1.2], ['Oignon', .3], ['Fromage blanc 0 % 1 kg', 2.2]] },
-  { r: [7, 7, 7], p: [['Œufs x12', 3.3], ['Patates douces 1 kg', 2.5], ['Brocoli', 1.5], ['Oignon', .3], ['Salade en sachet', 1.2], ['Fromage blanc 0 % 1 kg', 2.2], ['Bananes 1 kg', 1.8]] }];
+  { r: [0, 2, 5], p: [['Œufs x12', 3.3], ['Œufs x6', 1.8], ['Patates douces 1 kg', 2.5], ['Épinards surgelés 1 kg', 2], ['Tomates concassées', .8], ['Poivron', .9], ['Oignon', .3], ['Champignons 250 g', 1.3], ['Pommes de terre 1 kg', 1.3], ['Skyr ou fromage blanc 0 % 1 kg', 2.2]] },
+  { r: [1, 3, 4], p: [['Œufs x12', 3.3], ['Thon au naturel x2', 3], ['Salade en sachet', 1.2], ['Tomates cerises', 1.5], ['Concombre', .9], ['Patates douces 1 kg', 2.5], ['Courgettes x2', 1.2], ['Oignon', .3], ['Skyr ou fromage blanc 0 % 1 kg', 2.2]] },
+  { r: [7, 7, 7], p: [['Œufs x12', 3.3], ['Patates douces 1,5 kg', 3.75], ['Brocoli', 1.5], ['Oignon', .3], ['Salade en sachet', 1.2], ['Skyr ou fromage blanc 0 % 1 kg', 2.2], ['Bananes 1 kg', 1.8]] }];
 function csS() { const p = pvS(); p.cs = p.cs && typeof p.cs === 'object' ? p.cs : {}; const c = p.cs; if (!c.ry) c.ry = 'j'; if (!c.start) c.start = todayISO(); c.done = c.done || {}; c.mp = 0; if (c.mpn == null) c.mpn = 18; c.mpn = Number(c.mpn) || 0; return c; }
 const eur = v => v.toFixed(2).replace('.', ',') + ' €';
 /* où j'en suis : jour du cycle, panier à faire, repas d'aujourd'hui et des prochains jours */
@@ -6699,7 +6708,7 @@ function rwOpen() {
 }
 function pvRecipes() {
   const pr = q => Math.round(Object.entries(q).reduce((a, [id, n]) => a + (PV_FDX[id] ? PV_FDX[id][3] * n : 0), 0));
-  const card = (i, tag) => { const [n, t, w, ing, st, q] = PV_REC[i]; return `<details class="pv-det rec" data-k="rec-${tag}-${i}"><summary><b>${tag ? `<span class="cs-tag">${tag}</span>` : ''}${esc(n)}</b><small>${esc(t)} · ≈ ${pr(q)} g de protéines</small></summary>
+  const card = (i, tag) => { const [n, t, w, ing, st, q] = PV_REC[i]; return `<details class="pv-det rec" data-k="rec-${tag}-${i}"><summary><b>${tag ? `<span class="cs-tag">${tag}</span>` : ''}${esc(n)}</b><small>${esc(t)} · ≈ ${(PV_MAC[i] || [0])[0]} kcal · ≈ ${pr(q)} g de protéines</small></summary>
       <p class="pv-k">Ingrédients</p><ul class="rec-ul">${ing.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       <p class="pv-k">Préparation</p><ol class="ap-steps rec-st">${st.map(x => `<li><span>${esc(x)}</span></li>`).join('')}</ol>
       <button class="btn sm block" data-pvrec="${i}">J'ai mangé ça · ajouter au repas</button></details>`; };
@@ -6719,6 +6728,7 @@ function vPvFood() {
       return `${row('oe', 'Œufs', '')}<details class="pv-det fd-more" data-k="fd-more"><summary>Autres aliments${nOn ? ` · ${nOn} ajouté${nOn > 1 ? 's' : ''}` : ''}</summary>${PV_FD.map(([g, L]) => { const LL = L.filter(x => x[0] !== 'oe'); return LL.length ? `<p class="pv-k">${g}</p>${LL.map(([id, n, u]) => row(id, n, u)).join('')}` : ''; }).join('')}<p class="pv-sub" style="margin-top:8px">Fromage blanc nature uniquement. Thon : 2 à 3 boîtes par semaine maximum (mercure).</p></details>`; })()}
     ${pvXpBlock(d)}
     <div class="pv-prot"><span>Protéines</span><b class="num">≈ ${prot} g${pt ? ` <small>/ ${pt} g</small>` : ''}</b></div>
+    ${(() => { const k = pvKcal(d); return k ? `<div class="pv-prot" style="margin-top:4px"><span>Calories <small class="muted">(estimation)</small></span><b class="num" style="color:var(--${k > PV_KOBJ[1] + 150 ? 'gold' : k >= PV_KOBJ[0] - 200 ? 'mint' : 'ink'})">≈ ${k} <small>/ ${PV_KOBJ[0]}-${PV_KOBJ[1]} kcal</small></b></div>${d.meal && k < 1300 ? '<p class="pv-sub">Journée très légère : ajoute le dessert protéiné, un fruit ou ta barre pour protéger ton muscle.</p>' : ''}` : ''; })()}
     ${pt && d.meal && prot < pt * .7 ? `<p class="pv-warn">Il manque ≈ ${pt - prot} g : c'est ce qui protège ton muscle. Une boîte de thon (+26 g), un shaker de whey (+${PV_WHEY} g) ou deux pots de fromage blanc (+15 g).</p>` : ''}
     <p class="pv-k" style="margin:10px 0 4px">Fruits · ${pvFruitN(d)}/2 ${pvFruitN(d) >= 2 ? '✓' : ''}</p><div class="chips" style="margin:0">${PV_FRUITS.map(([id, n]) => `<button class="chip" data-pvfr="${id}" aria-pressed="${!!d.fr[id]}">${n}</button>`).join('')}</div>
     ${d.meal ? `<div class="pv-row"><span>Ressenti</span><span class="chips" style="margin:0">${['Mal', 'Bof', 'Bien', 'Top'].map((l, i) => `<button class="chip" data-pvfeel="${i + 1}" aria-pressed="${d.feel === i + 1}">${l}</button>`).join('')}</span></div>` : ''}</section>`;
@@ -6728,7 +6738,7 @@ function vPvFood() {
   const ban = `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Zéro écart</h2><span class="small ${pvClean(d) ? '' : 'muted'}" style="color:var(--${pvClean(d) ? 'mint' : 'danger'})">${pvClean(d) ? (cs > 1 ? `${cs} jours propres` : 'tenu') : 'écart noté'}</span></div>
     <div class="chips">${PV_BAN.map(([id, n]) => `<button class="chip pv-banc ${d.ban[id] ? 'x' : ''}" data-pvban="${id}" aria-pressed="${!!d.ban[id]}">${n}</button>`).join('')}</div>
     <p class="pv-sub">Touche seulement en cas d'écart.</p></section>`;
-  return `${corpsTop('nutrition')}${pvWeightCard()}${meal}<div style="margin-top:12px">${pvRecipes()}</div>${eau}${ban}
+  return `${corpsTop('nutrition')}${pvWeightCard()}<button class="pv-buyline" data-bilopen style="margin:10px 0 0">Bilan pour Claude · poids, repas, dépenses →</button>${meal}<div style="margin-top:12px">${pvRecipes()}</div>${eau}${ban}
     ${pvMore('Bilan de la semaine', 'repas, eau, fruits, écarts', `<div class="pv-week">${Array.from({ length: 7 }, (_, i) => { const k = iso(addDays(new Date(), i - 6)), x = pvS().d[k], sc = x ? pvFoodScore(x).filter(Boolean).length : 0; return `<div class="pv-dd ${sc === 4 ? 'ok' : sc ? 'mid' : ''}"><i style="height:${(sc / 4 * 100).toFixed(0)}%"></i><span>${i === 6 ? 'auj.' : DAY_SHORT.format(parseDate(k)).replace('.', '')}</span></div>`; }).join('')}</div>${pvFeelLine()}<p class="pv-sub">Séries sans écart : ${PV_BAN.map(([id, n]) => `${n.toLowerCase()} ${pvBanStreak(id)} j`).join(' · ')}.</p>`)}`;
 }
 function pvFeelLine() {
@@ -7161,6 +7171,50 @@ function pvRate() {
 }
 const pvKg = v => String(Math.round(v * 10) / 10).replace('.', ',');
 function pvProtTarget() { const w = bodyWeight(); return w ? Math.round(w * 1.8 / 5) * 5 : null; }
+/* v5.45 · « Bilan pour Claude » : un export ciblé (poids, dépenses, alimentation) sur une période, en texte à copier-coller dans la conversation */
+const BIL = { n: 7, w: true, e: true, f: true };
+function bilText() {
+  const n = BIL.n, to = todayISO(), from = iso(addDays(new Date(), -(n - 1))), days = Array.from({ length: n }, (_, i) => iso(addDays(new Date(), -(n - 1 - i)))), fd = k => DAY_MONTH.format(parseDate(k));
+  const L = [`BILAN SAYKO DE POCHE · ${n} jours · du ${fd(from)} au ${fd(to)}`];
+  if (BIL.w) { const ws = sortedWeights(), inP = ws.filter(x => x.date >= from && x.date <= to), g = (() => { try { return pvWG(); } catch (e) { return {}; } })();
+    L.push('', '— POIDS —', `Départ : ${numv(g.start) || '?'} kg · objectif 62-65 kg · aujourd'hui : ${bodyWeight() || '?'} kg`);
+    L.push(inP.length ? inP.map(x => `${fd(x.date)} : ${numv(x.kg)} kg`).join(' · ') : 'Aucune pesée sur la période.');
+    const prev = ws.filter(x => x.date < from).pop(); if (inP.length && (prev || inP.length > 1)) { const a = prev || inP[0], b = inP[inP.length - 1]; L.push(`Variation : ${(numv(b.kg) - numv(a.kg)).toFixed(1).replace('.', ',')} kg (depuis le ${fd(a.date)})`); } }
+  if (BIL.f) { const P = pvS(); let sk = 0, sp = 0, nd = 0;
+    L.push('', '— ALIMENTATION ET ACTIVITÉ —', `Objectif : ${PV_KOBJ[0]}-${PV_KOBJ[1]} kcal, ${pvProtTarget() || 140} g de protéines, 15 000 pas`);
+    days.forEach(k => { const d = P.d[k], st = numv(P.steps[k]), ci = P.circ.some(x => x.date === k); if (!d && !st) { L.push(`${fd(k)} : rien noté`); return; }
+      const dd = d || { fr: {}, ban: {}, q: {} }, kc = pvKcal(dd), pr = pvProt(dd), ec = PV_BAN.filter(([id]) => dd.ban && dd.ban[id]).map(x => x[1].toLowerCase()), fr = PV_FRUITS.filter(([id]) => dd.fr && dd.fr[id]).map(x => x[1].toLowerCase()), xp = (dd.xp || []).map(x => `${x.n} ${numv(x.g)} g`);
+      if (dd.meal) { sk += kc; sp += pr; nd++; }
+      L.push(`${fd(k)} : ${dd.meal ? `repas${dd.mealAt ? ' à ' + dd.mealAt : ''}, ≈ ${kc} kcal, ≈ ${pr} g prot` : 'repas non noté'}${fr.length ? ` · fruits : ${fr.join(', ')}` : ''}${xp.length ? ` · + ${xp.join(', ')}` : ''} · eau ${pvL(numv(dd.water))} · ${ec.length ? 'écart : ' + ec.join(', ') : 'zéro écart'} · ${st ? pvFmt(st) + ' pas' : 'pas non notés'}${ci ? ' · circuit fait' : ''}`); });
+    if (nd) L.push(`Moyenne des jours notés : ≈ ${Math.round(sk / nd)} kcal, ≈ ${Math.round(sp / nd)} g de protéines (${nd} jour${nd > 1 ? 's' : ''})`); }
+  if (BIL.e) { const B = bpS(), tx = []; Object.values(B.m || {}).forEach(m => (m.tx || []).forEach(t => { if (t.k === 'exp' && t.d >= from && t.d <= to) tx.push(t); }));
+    (S.money.tx || []).forEach(t => { const d = t.date || t.d; if (d && d >= from && d <= to && numv(t.amt) < 0) tx.push({ d, pk: 'old', amt: -numv(t.amt), n: t.label || t.n || '' }); });
+    tx.sort((a, b) => a.d < b.d ? -1 : 1); const tot = {}; tx.forEach(t => { const k = t.pk === 'old' ? 'Ancien suivi' : bpPk(t.pk).n; tot[k] = (tot[k] || 0) + numv(t.amt); });
+    L.push('', '— DÉPENSES —'); L.push(tx.length ? tx.map(t => `${fd(t.d)} : ${numv(t.amt).toFixed(2).replace('.', ',')} € · ${t.pk === 'old' ? 'ancien suivi' : bpPk(t.pk).n}${t.n ? ' · ' + t.n : ''}`).join('\n') : 'Aucune dépense notée sur la période.');
+    if (tx.length) L.push(`Total : ${Object.entries(tot).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')} €`).join(' · ')}`);
+    try { const ym = to.slice(0, 7), pk = B.pk.map(p => { const v = bpBal(ym, false)[p.id] || 0; return `${p.n} ${(Math.abs(v) < .005 ? 0 : v).toFixed(2).replace('.', ',')} €`; }).join(' · '); L.push(`Soldes des pockets aujourd'hui : ${pk}`); } catch (e) {} }
+  L.push('', 'Claude, dis-moi si on est bons et ce qu\'il faut ajuster.');
+  return L.join('\n');
+}
+function bilOpen() {
+  const old = $('.jg-sheet'); if (old) old.remove();
+  const el = document.createElement('div'); el.className = 'jg-sheet';
+  const draw = () => { const chip = (k, v, l) => `<button class="chip" data-bil="${k}:${v}" aria-pressed="${BIL[k] === v || (typeof BIL[k] === 'boolean' && BIL[k])}">${l}</button>`;
+    el.innerHTML = `<div class="jg-sh-in"><div class="row between" style="align-items:center"><h2 class="pv-h" style="margin:0">Bilan pour Claude</h2><button class="link-btn" data-bilx>Fermer</button></div>
+      <p class="pv-sub" style="margin:4px 0 10px">Choisis la période et ce que tu veux envoyer, puis copie le texte et colle-le dans ta conversation avec Claude.</p>
+      <p class="pv-k">Période</p><div class="chips">${[7, 14, 30].map(v => `<button class="chip" data-bil="n:${v}" aria-pressed="${BIL.n === v}">${v} jours</button>`).join('')}</div>
+      <p class="pv-k" style="margin-top:10px">À inclure</p><div class="chips">${[['w', 'Poids'], ['f', 'Alimentation et pas'], ['e', 'Dépenses']].map(([k, l]) => `<button class="chip" data-bil="${k}:t" aria-pressed="${BIL[k]}">${l}</button>`).join('')}</div>
+      <textarea class="bil-txt" readonly>${esc(bilText())}</textarea>
+      <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm ghost" data-bilcp style="flex:1">Copier</button>${navigator.share ? '<button class="btn sm" data-bilsh style="flex:1">Partager</button>' : ''}</div></div>`; };
+  draw();
+  el.addEventListener('click', e => { e.stopPropagation(); const t = e.target, b = t.closest('[data-bil]');
+    if (b) { const [k, v] = b.dataset.bil.split(':'); if (k === 'n') BIL.n = +v; else BIL[k] = !BIL[k]; draw(); el.classList.add('on'); return; }
+    if (t.closest('[data-bilcp]')) { const txt = bilText(); const ok = () => toast('Bilan copié : colle-le dans ta conversation avec Claude');
+      try { navigator.clipboard.writeText(txt).then(ok, () => { const a = $('.bil-txt', el); a.select(); document.execCommand('copy'); ok(); }); } catch (er) { const a = $('.bil-txt', el); a.select(); document.execCommand('copy'); ok(); } return; }
+    if (t.closest('[data-bilsh]')) { navigator.share({ text: bilText() }).catch(() => {}); return; }
+    if (t.closest('[data-bilx]') || t === el) el.remove(); });
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+}
 function pvWeightCard() {
   const g = pvWG(), w = bodyWeight(), ws = sortedWeights(), lastW = ws[ws.length - 1], t = bodyTargets();
   const input = `<div class="row" style="margin-top:12px;gap:8px"><input id="wIn" inputmode="decimal" class="famt num" placeholder="${lastW ? pvKg(numv(lastW.kg)) : 'Ton poids en kg'}" aria-label="Poids du jour en kg" style="flex:1;text-align:left"><button class="btn sm" data-wsave>Peser</button></div>`;
@@ -8458,6 +8512,7 @@ function openSettings() {
     ${themeBlock()}
     <p class="gt">Sauvegarde</p>
     <div class="group">
+      <button class="cell tap" data-bilopen><span class="lbl">Bilan pour Claude</span><span class="small muted">poids, repas, dépenses</span>${ICON.chev}</button>
       <button class="cell tap" data-export><span class="lbl">Exporter mes données</span><span class="small muted">${backup}</span>${ICON.chev}</button>
       <button class="cell tap" data-tjexport><span class="lbl">Exporter le journal de test</span><span class="small muted">depuis le ${DAY_LONG.format(parseDate(tj().start))}</span>${ICON.chev}</button>
       <button class="cell tap" id="importBtn"><span class="lbl">Importer une sauvegarde</span>${ICON.chev}</button>
@@ -8472,7 +8527,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.42 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.45 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -10330,6 +10385,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-mdel]'))) { const [l, id] = el.dataset.mdel.split('.'); S.money[l] = S.money[l].filter(x => x.id !== id); save(); openBudgetSetup(); return; }
   if (c('[data-close]')) { c('dialog').close(); return; }
   if (c('[data-export]')) { exportData(); return; }
+  if (c('[data-bilopen]')) { bilOpen(); return; }
   if (c('#importBtn')) { $('#importFile').click(); return; }
   if (c('#impYes')) { applyImport(); return; }
   if (c('#impNo')) { pendingImport = null; $('#importConfirm').innerHTML = ''; return; }
