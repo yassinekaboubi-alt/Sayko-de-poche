@@ -1682,7 +1682,10 @@ function bindOrbitTouch() {
   });
   const end = e => {
     const d = orb.drag; orb.drag = null;
-    if (d && !d.moved) { const p = e.target.closest && e.target.closest('[data-planet]'); if (p) go(p.dataset.planet); else if (e.target.closest && e.target.closest('[data-sun]')) jgTap(); }
+    if (d && !d.moved) { let sun = e.target.closest && e.target.closest('[data-sun]'); const p = e.target.closest && e.target.closest('[data-planet]');
+      /* une planète peut passer devant le soleil : un toucher sur la zone du soleil ouvre toujours « Ta journée » */
+      const so = document.querySelector('.cs-orb [data-sun], .cs-orb, [data-sun]'); if (!sun && so) { const r = so.getBoundingClientRect(), cx = r.x + r.width / 2, cy = r.y + r.height / 2; if (Math.hypot(e.clientX - cx, e.clientY - cy) < Math.min(r.width, r.height) * .48) sun = so; }
+      if (sun) { e.preventDefault(); jgTap(); } else if (p) go(p.dataset.planet); }
   };
   stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', () => { orb.drag = null; });
 }
@@ -6551,6 +6554,8 @@ const PV_KOBJ = [1500, 1700];
 function pvKcal(d) { const q = d.q && typeof d.q === 'object' ? d.q : {}; let k = Object.entries(q).reduce((a, [id, n]) => a + (PV_KC[id] || 0) * numv(n), 0);
   k += Object.keys(PV_KCF).reduce((a, id) => a + (d.fr && d.fr[id] ? PV_KCF[id] : 0), 0) + (Array.isArray(d.xp) ? d.xp : []).reduce((a, x) => a + numv(x.g) * 9, 0) + (d.meal ? 45 : 0);
   return Math.round(k / 10) * 10; }
+/* v5.48 · ajouter une recette ou un aliment coche aussi « J'ai pris mon repas » (avec l'heure) s'il ne l'était pas */
+function pvMealOn(d) { if (d.meal) return false; const n = new Date(); d.meal = 1; d.mealAt = `${pad(n.getHours())}:${pad(n.getMinutes())}`; try { pvOnce('meal', 3, ['Repas pris', 'Un seul repas, mais un vrai : protéines, patates, légumes.']); } catch (e) {} return true; }
 function pvProt(d) { const xp = (Array.isArray(d.xp) ? d.xp : []).reduce((a, x) => a + numv(x.g), 0); return Math.round(xp + pvProt0(d)); }
 function pvProt0(d) { if (d.q && typeof d.q === 'object') return (Object.entries(d.q).reduce((a, [id, n]) => a + (PV_FDX[id] ? PV_FDX[id][3] * numv(n) : 0), 0) + (d.fr && d.fr.ban ? 1 : 0)); const c = d.comp || {}; return Math.round(PV_COMP.reduce((a, [id, , g]) => a + (id === 'oe' ? numv(d.eggs) * PV_EGG : c[id] ? g : 0), 0) + (d.whey ? PV_WHEY : 0) + (d.fr && d.fr.ban ? 1 : 0)); }
 const pvClean = d => PV_BAN.every(([id]) => !(d.ban || {})[id]);
@@ -6717,7 +6722,7 @@ function rwOpen() {
       const on = !it.classList.contains('on'); el.querySelectorAll('.rw-item.on').forEach(x => x.classList.remove('on', 'now')); RWV.steps = false;
       if (on) { it.classList.add('on'); RWV.open = i; haptic(); try { chime(false); } catch (er) {} } else RWV.open = -1; return; }
     if ((b = c('[data-rwst]'))) { RWV.steps = !RWV.steps; const i = +b.dataset.rwst; rwRender(el); el.classList.add('in'); return; }
-    if ((b = c('[data-rweat]'))) { const r = PV_REC[+b.dataset.rweat], d = pvDay(), q = pvQ(d); Object.entries(r[5]).forEach(([id, n]) => { q[id] = Math.min(40, (q[id] || 0) + n); }); pvQSync(d); haptic(); save(); pvCheckDay(); toast(`${r[0]} : ajouté à ton repas`); burst(14, '✦', false); return; }
+    if ((b = c('[data-rweat]'))) { const r = PV_REC[+b.dataset.rweat], d = pvDay(), q = pvQ(d); Object.entries(r[5]).forEach(([id, n]) => { q[id] = Math.min(40, (q[id] || 0) + n); }); pvQSync(d); const nm = pvMealOn(d); haptic(); save(); pvCheckDay(); toast(nm ? `${r[0]} : repas noté à ${d.mealAt}` : `${r[0]} : ajouté à ton repas`); burst(14, '✦', false); return; }
     if ((b = c('[data-rwdot]'))) { const it = el.querySelector(`.rw-item[data-rwi="${b.dataset.rwdot}"]`), tr = $('.rw-track', el); if (it) tr.scrollTo({ left: it.offsetLeft - (tr.clientWidth - it.offsetWidth) / 2, behavior: 'smooth' }); }
   });
 }
@@ -7073,7 +7078,7 @@ function pvClick(t) {
   if ((el = c('[data-pvbuyf]'))) { BUY.ess = el.dataset.pvbuyf === '1'; pvRe(); return true; }
   if (c('[data-pvwgreset]')) { pvS().wg = { date: todayISO() }; const w = bodyWeight(); if (w) { pvS().wg.start = w; pvS().wg.sdate = todayISO(); } save(); pvRe(); toast('Nouveau départ enregistré'); return true; }
   if ((el = c('[data-pvf]'))) { const d = pvDay(), a = el.dataset.pvf;
-    if (a === 'meal') { const n = new Date(); d.meal = 1; d.mealAt = `${pad(n.getHours())}:${pad(n.getMinutes())}`; save(); pvOnce('meal', 3, ['Repas pris', 'Un seul repas, mais un vrai : protéines, patates, légumes.']); pvCheckDay(); }
+    if (a === 'meal') { pvMealOn(d); save(); pvCheckDay(); }
     if (a === 'unmeal') { d.meal = 0; d.mealAt = ''; save(); }
     if (a === 'whey') { d.whey = !d.whey; save(); }
     pvRe(); return true; }
@@ -7081,8 +7086,8 @@ function pvClick(t) {
   if ((el = c('[data-csry]'))) { const x = csS(); if (x.ry !== el.dataset.csry) { x.start = todayISO(); x.done = {}; } x.ry = el.dataset.csry; haptic(); save(); pvRe(); return true; }
   if ((el = c('[data-csmp]'))) { const x = csS(); x.mpn = Math.max(0, (Number(x.mpn) || 0) + Number(el.dataset.csmp)); haptic(); save(); pvRe(); return true; }
   if ((el = c('[data-csdone]'))) { const x = csS(), k = todayISO(); if (x.done[k]) delete x.done[k]; else { x.done[k] = 1; toast('Courses notées'); } haptic(); save(); pvRe(); return true; }
-  if ((el = c('[data-pvrec]'))) { const r = PV_REC[+el.dataset.pvrec]; if (!r) return true; const d = pvDay(), q = pvQ(d); Object.entries(r[5]).forEach(([id, n]) => { q[id] = Math.min(40, (q[id] || 0) + n); }); pvQSync(d); haptic(); save(); pvCheckDay(); pvRe(); toast(`${r[0]} : ajouté à ton repas`); return true; }
-  if ((el = c('[data-fdp]')) || (el = c('[data-fdm]'))) { const d = pvDay(), q = pvQ(d), id = el.dataset.fdp || el.dataset.fdm, up = !!el.dataset.fdp; q[id] = Math.max(0, Math.min(40, (q[id] || 0) + (up ? 1 : -1))); if (!q[id]) delete q[id]; pvQSync(d); haptic(); save(); pvCheckDay(); pvRe(); return true; }
+  if ((el = c('[data-pvrec]'))) { const r = PV_REC[+el.dataset.pvrec]; if (!r) return true; const d = pvDay(), q = pvQ(d); Object.entries(r[5]).forEach(([id, n]) => { q[id] = Math.min(40, (q[id] || 0) + n); }); pvQSync(d); const nm = pvMealOn(d); haptic(); save(); pvCheckDay(); pvRe(); toast(nm ? `${r[0]} : repas noté à ${d.mealAt}` : `${r[0]} : ajouté à ton repas`); return true; }
+  if ((el = c('[data-fdp]')) || (el = c('[data-fdm]'))) { const d = pvDay(), q = pvQ(d), id = el.dataset.fdp || el.dataset.fdm, up = !!el.dataset.fdp; q[id] = Math.max(0, Math.min(40, (q[id] || 0) + (up ? 1 : -1))); if (!q[id]) delete q[id]; pvQSync(d); if (up) pvMealOn(d); haptic(); save(); pvCheckDay(); pvRe(); return true; }
   if ((el = c('[data-pvc]'))) { const d = pvDay(), id = el.dataset.pvc; d.comp[id] = !d.comp[id]; save(); pvRe(); return true; }
   if ((el = c('[data-pvegg]'))) { const d = pvDay(); d.eggs = Math.max(0, Math.min(12, numv(d.eggs) + Number(el.dataset.pvegg))); if (d.eggs) d.comp.oe = true; save(); pvRe(); return true; }
   if ((el = c('[data-pvfeel]'))) { pvDay().feel = Number(el.dataset.pvfeel); save(); pvRe(); return true; }
@@ -7437,28 +7442,37 @@ function homeCheck() { const [o, d] = homeScore(); if (o === d) pvOnce('home', 4
    Sayko choisit l'occasion ; l'app dit quoi porter et comment, de A à Z :
    crème, musc, parfum, nombre de vaporisations, zones, moment, pourquoi, alternative.
    La saison est déduite du mois (hiver : nov.→mars, été : juin→sept.).
-   Collection (31/10/2026) : Sheikh Al Shuyukh Supreme, Velvet Oud, Bottled Infinite,
+   Collection (05/11/2026) : Sheikh Al Shuyukh Supreme (Luxe Edition à racheter), Velvet Oud, Bottled Infinite,
    Dior Oud Ispahan, Gris Dior, Armaf Odyssey Dubai Chocolat, 2 parfums de La Mecque,
    dupe Baccarat Rouge 540. Crèmes : Sol de Janeiro (gourmande), Atoderm Ultra (neutre).
-   Muscs : Musk Abiyad (eau de parfum, propre), Narjis (huile, violette).
+   Muscs et huiles : Musk Abiyad, Narjis, Amjed Al Oud, Merida Oud, Green Tea, Hajar El Aswad, Musk Black.
+   Presque finis (grandes occasions seulement) : Luxe Edition, Gris Dior, dupe BR540, Khashab Al Oud.
    ===================================================================== */
 const PF_P = {
-  sheikh: { n: 'Sheikh Al Shuyukh Supreme', b: 'Lattafa', f: 'Oriental épicé et gourmand', notes: 'rose, safran, cannelle, caramel, vanille, ambre', pw: 3, star: 1, cr: 'sdj', sp: '3 à 4', when: 'Hiver, soirées, occasions' },
-  velvet: { n: 'Velvet Oud', b: 'Lattafa', f: 'Violette et velours', notes: 'feuille de violette, daim, oud, ambre, musc', pw: 2, star: 1, cr: 'sdj', mu: 'narjis', sp: '3', when: 'Hiver, en amoureux, rendez-vous' },
+  sheikh: { n: 'Sheikh Al Shuyukh Supreme', b: 'Lattafa', f: 'Gourmand doux et vanillé', notes: 'rose, safran, cannelle, caramel, vanille, ambre', feel: 'doux et sucré, « parfum de Sephora », entre Bottled Infinite et Odyssey Dubai Chocolat. Rien à voir avec la Luxe Edition.', tip: 'Pour retrouver un côté oriental : une goutte d\'Amjed Al Oud dessous (proposée par l\'app), ou 1 vaporisation de Raghba Wood Intense par-dessus. À tester sur ta peau.', pw: 2, cr: 'neutre', mu: 'amjed', sp: '2 à 3', when: 'Hiver, cocooning, en amoureux, soirées douces' },
+  sheikhlx: { n: 'Sheikh Al Shuyukh Luxe Edition', b: 'Lattafa', low: 1, f: 'Oriental boisé et puissant', notes: 'boisé, oud, épices (les sources ne donnent pas la même composition : à vérifier sur le flacon)', feel: 'il attaque le nez, « l\'odeur de la mosquée ». C\'était ta signature de soirée d\'hiver.', tip: 'Il t\'en reste peu : gardé pour les grandes occasions, 1 à 2 vaporisations. À racheter au prochain restock.', pw: 3, cr: 'neutre', sp: '1 à 2', when: 'Grandes occasions, Aïd, soirées d\'hiver' },
+  khashab: { n: 'Khashab Al Oud', b: 'Deluxe Collection (Hamidi)', low: 1, f: 'Oriental boisé très doux', notes: 'bergamote, pêche, armoise, vétiver, bois blancs, castoréum, ambre, musc, iris', feel: 'un oriental très doux qui rappelle la mosquée, avec de la douceur. Le liquide est blanc : c\'est un « water perfume », à base d\'eau et sans alcool.', tip: 'Il t\'en reste peu : gardé pour les grandes occasions. Sans alcool, il convient aussi à la peau, aux cheveux et aux vêtements.', pw: 2, cr: 'neutre', sp: '2 à 3', when: 'Grandes occasions, Aïd, famille' },
+  velvet: { n: 'Velvet Oud', b: 'Lattafa', f: 'Cuir doux et floral', notes: 'bergamote, cardamome, feuille de violette, patchouli, daim, oud, mousse de chêne, ambre, musc', feel: 'un cuir doux avec un côté floral, dans l\'esprit des cuirs façon Tom Ford. Il te plaît : à porter souvent, surtout en layering.', tip: 'Fait pour le layering selon toi : essaie-le sur Narjis, ou avec 1 vaporisation de Hatim par-dessus le soir. Porte-le aussi seul un jour pour comparer.', pw: 2, star: 1, cr: 'neutre', mu: 'narjis', sp: '3', when: 'Automne-hiver, en amoureux, soirées, journées dehors' },
   infinite: { n: 'Bottled Infinite', b: 'Hugo Boss', f: 'Frais, aromatique, boisé', notes: 'mandarine, pomme, sauge, lavande, patchouli', pw: 2, star: 1, cr: 'neutre', mu: 'abiyad', sp: '3 à 4', when: 'Journée, travail, printemps et été' },
   ispahan: { n: 'Oud Ispahan', b: 'Dior', f: 'Rose et oud, profond', notes: 'rose, oud, labdanum, patchouli', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '2 à 3', when: 'Grandes occasions, soirées d\'hiver' },
-  gris: { n: 'Gris Dior', b: 'Dior', f: 'Chypre poudré, élégant', notes: 'rose, patchouli, mousse, poudré', pw: 2, cr: 'neutre', mu: 'narjis', sp: '3', when: 'Mi-saison, journée chic, rendez-vous importants' },
+  gris: { n: 'Gris Dior', b: 'Dior', low: 1, f: 'Chypre poudré, élégant', notes: 'rose, patchouli, mousse, poudré', tip: 'Il t\'en reste peu : gardé pour les grandes occasions.', pw: 2, cr: 'neutre', mu: 'narjis', sp: '2', when: 'Grandes occasions, journée chic' },
   odyssey: { n: 'Odyssey Dubai Chocolat', b: 'Armaf', f: 'Gourmand pistache-chocolat', notes: 'pistache, chocolat, praliné, vanille', pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Froid, extérieur, cocooning' },
-  mecg: { n: 'La Mecque · oriental gourmand', b: 'Achat à La Mecque', f: 'Oriental avec une touche gourmande', notes: 'oriental, chaud, sucré', pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Hiver, Jumu\'a, famille' },
-  mecr: { n: 'La Mecque · rose d\'Arabie', b: 'Achat à La Mecque', f: 'Rose sèche, florale', notes: 'rose d\'Arabie, floral sec', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '1 à 2', when: 'Mosquée, Aïd, occasions' },
-  hatim: { n: 'Hatim', b: 'Al Absar', f: 'Boisé ambré, chaleureux', notes: 'cardamome, vanille, caramel, oud, ambre, musc', pw: 2, cr: 'sdj', sp: '3', when: 'Automne-hiver, journée et soirée, sorties' },
-  raghba: { n: 'Raghba Wood Intense', b: 'Lattafa', f: 'Encens et bois fumé', notes: 'encens façon bakhour, bois, feu de bois en forêt l\'hiver', pw: 3, cr: 'neutre', sp: '1 à 2', when: 'Soirs d\'hiver, dehors, ambiance feu de bois' },
+  mecg: { n: 'La Mecque · oriental gourmand', b: 'Achat à La Mecque', f: 'Oriental avec une touche gourmande', notes: 'oriental, chaud, sucré', feel: 'un de tes parfums préférés, et tu en as deux flacons : à porter souvent.', star: 1, pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Hiver, Jumu\'a, famille' },
+  mecr: { n: 'La Mecque · rose d\'Arabie', b: 'Achat à La Mecque', f: 'Rose sèche, florale', notes: 'rose d\'Arabie, floral sec', pw: 3, cr: 'neutre', mu: 'hajar', sp: '1 à 2', when: 'Mosquée, Aïd, occasions' },
+  hatim: { n: 'Hatim', b: 'Al Absar', f: 'Boisé ambré, chaleureux', notes: 'cardamome, vanille, caramel, oud, ambre, musc', pw: 2, cr: 'sdj', mu: 'merida', sp: '3', when: 'Automne-hiver, journée et soirée, sorties' },
+  raghba: { n: 'Raghba Wood Intense', b: 'Lattafa', f: 'Encens et bois fumé', notes: 'encens façon bakhour, bois, feu de bois en forêt l\'hiver', pw: 3, cr: 'neutre', mu: 'mblack', sp: '1 à 2', when: 'Soirs d\'hiver, dehors, ambiance feu de bois' },
   seoul: { n: 'Seoul', b: 'Zara', f: 'Aromatique, frais et chaud (eau de toilette)', notes: 'noisette, poivre, ambre', pw: 1, cr: 'neutre', mu: 'abiyad', sp: '4 à 5', when: 'Tous les jours, journée tranquille, mi-saison' },
-  lisboa: { n: 'Lisboa', b: 'Zara', f: 'Frais, agrumes, aquatique (eau de toilette)', notes: 'orange, citron, notes vertes, jasmin, musc', pw: 1, cr: 'neutre', mu: 'abiyad', sp: '4 à 5', when: 'Été, journée, livraisons' },
-  br540: { n: 'Dupe Baccarat Rouge 540', b: 'Dupe', f: 'Ambré, safrané, aérien', notes: 'safran, jasmin, ambre, bois', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '2 à 3', when: 'Toute l\'année, sorties' }
+  lisboa: { n: 'Lisboa', b: 'Zara', f: 'Frais, agrumes, aquatique (eau de toilette)', notes: 'orange, citron, notes vertes, jasmin, musc', pw: 1, cr: 'neutre', mu: 'greentea', sp: '4 à 5', when: 'Été, journée, livraisons' },
+  br540: { n: 'Dupe Baccarat Rouge 540', b: 'Dupe', low: 1, f: 'Ambré, safrané, aérien', notes: 'safran, jasmin, ambre, bois', tip: 'Il t\'en reste peu : gardé pour les grandes occasions.', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '2', when: 'Grandes occasions, toute l\'année' }
 };
 const PF_CR = { sdj: ['Sol de Janeiro', 'gourmande (pistache, caramel, vanille) : elle chauffe et prolonge les parfums sucrés'], neutre: ['Atoderm Crème Ultra', 'sans parfum : elle hydrate sans rien ajouter à l\'odeur'] };
-const PF_MU = { abiyad: ['Musk Abiyad', 'une vaporisation légère, en couche propre et douce'], narjis: ['Narjis (huile)', 'une goutte au cou et aux poignets, pour la violette poudrée'] };
+const PF_MU = { abiyad: ['Musk Abiyad', 'une vaporisation légère, en couche propre et douce'], narjis: ['Narjis (huile)', 'une goutte au cou et aux poignets, pour le côté floral'],
+  amjed: ['Amjed Al Oud (huile)', 'une goutte au cou et aux poignets : épicée et très orientale, elle réchauffe le parfum'],
+  merida: ['Merida Oud (huile)', 'une toute petite goutte au cou, pas plus : ce musc de Dubaï est très fort, un oud adouci qui donne du fond'],
+  greentea: ['Green Tea (huile)', 'une goutte au cou : thé vert léger, un peu citronné, pour la fraîcheur'],
+  hajar: ['Hajar El Aswad (attar)', '1 à 2 gouttes au cou, dans la barbe et sur les vêtements : pas très fort, c\'est l\'odeur de l\'enceinte de Masjid al-Haram, celle que tu as sentie à La Mecque'],
+  mblack: ['Musk Black (huile)', 'une goutte au cou et aux poignets : très oriental, il rappelle la pierre noire, avec une note de menthe assez forte'] };
+const PF_MU_SET = ['abiyad', 'narjis', 'amjed', 'merida', 'greentea', 'hajar', 'mblack']; /* huiles proposées dans les conseils */
 /* Occasions : [id, nom, icône, sous-titre] + choix par saison { parfum, layering?, musc?, sprays?, zones, quand, pourquoi, éviter, alt } */
 const PF_OC = [
   ['gare1', 'Gare · 5 h-14 h', '🚉', 'Contact avec les voyageurs, longue journée'],
@@ -7472,6 +7486,7 @@ const PF_OC = [
   ['home', 'Soirée à la maison', '🕯', 'Cocooning, en couple'],
   ['dehors', 'Journée dehors', '🚶', 'Courses, balade, en ville'],
   ['feu', 'Soir d\'hiver dehors', '🔥', 'Froid, plein air, ambiance feu de bois'],
+  ['grand', 'Grande occasion', '💎', 'Mariage, invitation, moment spécial'],
   ['mosq', 'Mosquée', '🕌', 'Prière, Jumu\'a'],
   ['aid', 'Aïd · famille', '🌙', 'Grandes occasions, visites']
 ];
@@ -7480,23 +7495,67 @@ const PF_SN = { hiver: 'hiver', ete: 'été', mi: 'mi-saison' };
 function pfPlan(oc, sn) {
   const W = sn !== 'ete'; /* la mi-saison à Cannes se traite comme l'hiver le soir */
   const P = {
-    gare1: { p: 'infinite', sp: '2 à 3', zones: 'cou et poitrine, sous le col', when: 'à la maison, juste après la douche (vers 4 h 15)', why: 'Tu es au contact des voyageurs, souvent de près, pendant 9 heures : il faut une odeur fraîche, propre, qui ne dérange personne et qui tient. Bottled Infinite fait exactement ça, et on te trouve agréable sans savoir pourquoi.', avoid: 'Pas de gourmand ni d\'oriental lourd le matin dans un espace fermé : ça écœure vite les gens qui t\'approchent.', alt: W ? 'hatim' : 'lisboa', altSp: W ? '2' : '4 à 5' },
-    gare2: { p: W ? 'hatim' : 'infinite', sp: W ? '3' : '3', zones: 'cou, nuque et poitrine', when: '20 à 30 minutes avant de partir', why: W ? 'Hatim a ce côté « parfum d\'homme » chaleureux, dans l\'esprit de Stronger With You : cardamome, vanille, bois. Il tient jusqu\'à 23 h et laisse une trace quand tu passes, sans jamais agresser : c\'est exactement ce qui fait remarquer une présence sans parler.' : 'Frais et propre pendant tout le service, même quand il fait chaud.', avoid: 'Évite les parfums très puissants : en fin de service, une odeur trop forte devient lourde.', alt: W ? 'gris' : 'seoul', altSp: W ? '3' : '4 à 5' },
+    gare1: { p: 'infinite', sp: '2 à 3', zones: 'cou et poitrine, sous le col', when: 'à la maison, juste après la douche (vers 4 h 15)', why: 'Tu es au contact des voyageurs, souvent de près, pendant 9 heures : il faut une odeur fraîche, propre, qui ne dérange personne et qui tient. Bottled Infinite fait exactement ça, et on te trouve agréable sans savoir pourquoi.', avoid: 'Pas de gourmand ni d\'oriental lourd le matin dans un espace fermé : ça écœure vite les gens qui t\'approchent.', alt: W ? 'hatim' : 'lisboa', altSp: W ? '2' : '4 à 5', altMu: W ? '' : undefined },
+    gare2: { p: W ? 'hatim' : 'infinite', mu: W ? '' : undefined, sp: W ? '3' : '3', zones: 'cou, nuque et poitrine', when: '20 à 30 minutes avant de partir', why: W ? 'Hatim a ce côté « parfum d\'homme » chaleureux, dans l\'esprit de Stronger With You : cardamome, vanille, bois. Il tient jusqu\'à 23 h et laisse une trace quand tu passes, sans jamais agresser : c\'est exactement ce qui fait remarquer une présence sans parler.' : 'Frais et propre pendant tout le service, même quand il fait chaud.', avoid: 'Évite les parfums très puissants : en fin de service, une odeur trop forte devient lourde.', alt: 'seoul', altSp: '4 à 5' },
     pizza: { p: 'infinite', sp: '2', zones: 'sur le t-shirt et le torse, sous la veste', when: 'avant de partir', why: 'En livraison, tu es dehors, au vent, sous un casque, et tu croises les clients quelques secondes à leur porte. Un parfum frais vaporisé sur les vêtements tient malgré le vent, et sent propre sans se mélanger à l\'odeur des pizzas.', avoid: 'Aucun gourmand (pistache, vanille) : avec l\'odeur de pizza dans le sac, c\'est écœurant.', alt: 'lisboa', altSp: '4 à 5' },
-    love: { p: W ? 'velvet' : 'br540', lay: W ? null : 'ispahan', sp: W ? '3' : '2', zones: 'cou, derrière les oreilles, dans la barbe et sur les poignets', when: '30 minutes avant de sortir', why: W ? 'La violette poudrée de Velvet Oud, adoucie par la vanille de la Sol de Janeiro et renforcée par Narjis : c\'est ton « Oud Satin Mood » maison. Chaud, velouté, on a envie de s\'approcher.' : 'Le duo dupe Baccarat Rouge 540 et Oud Ispahan : ambre safrané et rose profonde, un classique qui marque.', avoid: 'Ne vaporise pas trop : en intime, la personne est près de toi. Mieux vaut qu\'elle te découvre en s\'approchant.', alt: 'sheikh' },
-    rdv: { p: 'gris', sp: '2 à 3', zones: 'cou et poignets', when: '30 minutes avant', why: 'Gris Dior dit « soigné et sérieux » sans en faire trop. Dans un bureau, l\'odeur doit être une bonne impression discrète, pas un sujet de conversation.', avoid: 'Pas d\'oriental puissant ni de gourmand : dans une petite pièce, ça peut gêner.', alt: W ? 'velvet' : 'infinite' },
-    potes: { p: 'br540', sp: '3', zones: 'cou, nuque, poitrine et un peu sur les vêtements', when: '20 minutes avant de sortir', why: 'Le dupe de Baccarat Rouge 540 est l\'odeur qui fait réagir : aérienne, reconnaissable, elle diffuse autour de toi. C\'est le parfum à compliments.', avoid: 'Ne le mélange pas avec un gourmand : il perd sa signature.', alt: W ? 'hatim' : 'infinite' },
-    soir: { p: W ? 'sheikh' : 'br540', lay: W ? null : 'ispahan', sp: W ? '4' : '3', zones: 'cou, nuque, poitrine, poignets', when: '30 minutes avant de sortir', why: W ? 'Sheikh, c\'est ta signature de soirée d\'hiver : riche, épicé, sucré. Avec la Sol de Janeiro dessous, il retrouve la densité de ta Luxe Edition et tient toute la nuit.' : 'Ambre safrané et rose-oud : élégant, puissant, parfait pour une soirée d\'été.', avoid: 'Une seule couche de parfum fort suffit : ne rajoute rien par-dessus.', alt: W ? 'velvet' : 'sheikh' },
+    love: { p: 'velvet', sp: W ? '3' : '2', zones: 'cou, derrière les oreilles, dans la barbe et sur les poignets', when: '30 minutes avant de sortir', why: W ? 'Velvet Oud, c\'est un cuir doux avec un côté floral. Narjis dessous fait ressortir les fleurs, la crème neutre ne vient rien sucrer. On le découvre en s\'approchant. Plan B : Sheikh Supreme, gourmand et doux.' : 'Velvet Oud à dose légère, sur Narjis : le cuir doux et floral reste agréable même quand il fait chaud. Plan B : Sheikh Supreme.', avoid: 'Ne vaporise pas trop : en intime, la personne est près de toi. Mieux vaut qu\'elle te découvre en s\'approchant.', alt: 'sheikh' },
+    rdv: { p: 'infinite', sp: '2', zones: 'cou et poignets', when: '30 minutes avant', why: 'Bottled Infinite dit « propre et soigné » sans en faire trop. Dans un bureau, l\'odeur doit être une bonne impression discrète, pas un sujet de conversation. Gris Dior irait bien aussi, mais il t\'en reste peu : garde-le pour un rendez-vous vraiment important.', avoid: 'Pas d\'oriental puissant ni de gourmand : dans une petite pièce, ça peut gêner.', alt: W ? 'velvet' : 'seoul', altSp: W ? '2' : '4' },
+    potes: { p: W ? 'hatim' : 'infinite', sp: '3', zones: 'cou, nuque, poitrine et un peu sur les vêtements', when: '20 minutes avant de sortir', why: W ? 'Hatim est chaleureux et diffuse bien : cardamome, vanille, bois, avec une goutte de Merida Oud dessous pour le fond. On le remarque sans qu\'il soit lourd.' : 'Frais, aromatique, il diffuse bien dehors et plaît à tout le monde.', avoid: 'Une seule couche : entre potes, pas besoin d\'empiler.', alt: W ? 'velvet' : 'seoul', altSp: W ? '3' : '4 à 5' },
+    soir: { p: 'velvet', lay: W ? 'hatim' : null, sp: W ? '3' : '2', zones: 'cou, nuque, poitrine, poignets', when: '30 minutes avant de sortir', why: W ? 'Le cuir doux de Velvet Oud, avec une touche de Hatim par-dessus pour la chaleur (cardamome, vanille) : plus de présence le soir. C\'est un layering à tester sur ta peau. Pour une soirée vraiment spéciale, choisis plutôt « Grande occasion ».' : 'Velvet Oud à dose légère sur Narjis : élégant sans être lourd par une soirée d\'été.', avoid: 'Deux parfums maximum : n\'ajoute rien d\'autre par-dessus.', alt: W ? 'sheikh' : 'sheikh' },
     chill: { p: null, sp: '0', zones: 'crème neutre, puis Musk Abiyad (1 vaporisation)', when: 'après la douche', why: 'À la maison, garde tes parfums pour les vrais moments : une peau hydratée et un musc propre suffisent pour te sentir bien.', avoid: 'Inutile de gâcher un parfum puissant à la maison toute la journée.', alt: W ? 'seoul' : 'lisboa', altSp: '3 à 4' },
-    home: { p: 'velvet', sp: W ? '2 à 3' : '2', zones: 'cou, nuque et poignets', when: 'une heure avant, pour qu\'il soit doux', why: W ? 'Velvet Oud est fait pour le soir à deux : violette veloutée, daim, oud adouci. Avec la Sol de Janeiro dessous, il enveloppe la pièce sans l\'écraser. C\'est le parfum qu\'on a envie de sentir de près.' : 'Velvet Oud à dose légère : une ambiance douce et veloutée pour une soirée à deux, même quand il fait chaud dehors.', avoid: 'Reste léger : la pièce est petite et elle est tout près de toi.', alt: 'odyssey', altSp: '1 à 2' },
-    dehors: { p: W ? 'hatim' : 'lisboa', sp: W ? '3' : '4 à 5', zones: W ? 'cou, nuque et poitrine' : 'cou, poitrine et vêtements (une eau de toilette se dose plus)', when: 'juste avant de sortir', why: W ? 'Hatim a ce côté « parfum d\'homme » chaleureux, dans l\'esprit de Stronger With You : cardamome, vanille, bois. Parfait pour une journée en ville quand il fait frais, sans en faire trop.' : 'Lisboa est frais, citronné, léger : idéal quand il fait chaud et que tu marches. Comme c\'est une eau de toilette, tu peux en mettre plus et en remettre l\'après-midi.', avoid: W ? 'Pas de layering : il se suffit à lui-même.' : 'Pas d\'oriental lourd en plein soleil : la chaleur le rend écœurant.', alt: W ? 'seoul' : 'infinite' },
-    feu: { p: W ? 'raghba' : 'lisboa', sp: W ? '1 à 2' : '4', zones: W ? 'sur l\'écharpe, le manteau et un peu au cou' : 'cou et poitrine', when: 'avant de sortir dans le froid', why: W ? 'Raghba Wood Intense, c\'est le bakhour et le feu de bois d\'un soir d\'hiver en forêt. Le froid le rend plus doux, et sur la laine d\'une écharpe il tient des heures.' : 'En été, l\'encens fumé est trop lourd : reste sur du frais.', avoid: 'Très puissant : 1 à 2 vaporisations, jamais plus, et pas dans un espace fermé.', alt: W ? 'odyssey' : 'seoul', altSp: W ? '1 à 2' : '4' },
-    mosq: { p: 'mecr', sp: '1 à 2', zones: 'cou, barbe et vêtements', when: 'à la maison, avant de partir', why: 'Se parfumer pour la prière est une sunnah, surtout le vendredi. La rose d\'Arabie est faite pour ça : noble, florale, sans sucre. À petite dose, pour ne pas incommoder tes voisins dans les rangs.', avoid: 'Pas de parfum puissant en grande quantité : les rangs sont serrés. Pas de gourmand.', alt: 'narjis', altSp: 'quelques gouttes d\'huile' },
-    aid: { p: W ? 'ispahan' : 'mecr', lay: W ? 'br540' : null, sp: '2 à 3', zones: 'cou, barbe, poitrine et vêtements', when: 'le matin, avant la prière de l\'Aïd ou la visite', why: W ? 'Oud Ispahan, c\'est ton parfum de grande occasion : rose et oud, noble et profond. Une touche du dupe de Baccarat par-dessus le rend plus lumineux.' : 'La rose d\'Arabie, élégante et traditionnelle : parfaite pour la famille.', avoid: 'Une seule combinaison. Tu vas faire des accolades : pas besoin d\'en mettre beaucoup.', alt: W ? 'mecg' : 'ispahan' }
+    home: { p: W ? 'sheikh' : 'velvet', sp: '2', zones: 'cou, nuque et poignets', when: 'une heure avant, pour qu\'il soit doux', why: W ? 'Sheikh Supreme est doux, sucré, vanillé : parfait pour un soir de cocooning à deux. Pas besoin de Sol de Janeiro dessous, il est déjà assez gourmand.' : 'Velvet Oud à dose légère : un cuir doux et floral pour une soirée à deux, même quand il fait chaud dehors.', avoid: 'Reste léger : la pièce est petite et elle est tout près de toi.', alt: W ? 'velvet' : 'odyssey', altSp: W ? '2 à 3' : '1 à 2' },
+    dehors: { p: W ? 'hatim' : 'lisboa', sp: W ? '3' : '4 à 5', zones: W ? 'cou, nuque et poitrine' : 'cou, poitrine et vêtements (une eau de toilette se dose plus)', when: 'juste avant de sortir', why: W ? 'Hatim a ce côté « parfum d\'homme » chaleureux, dans l\'esprit de Stronger With You : cardamome, vanille, bois. Parfait pour une journée en ville quand il fait frais, sans en faire trop.' : 'Lisboa est frais, citronné, léger : idéal quand il fait chaud et que tu marches. Comme c\'est une eau de toilette, tu peux en mettre plus et en remettre l\'après-midi.', avoid: W ? 'Pas de layering : il se suffit à lui-même.' : 'Pas d\'oriental lourd en plein soleil : la chaleur le rend écœurant.', alt: W ? 'velvet' : 'infinite', altSp: W ? '3' : undefined },
+    feu: { p: W ? 'raghba' : 'lisboa', sp: W ? '1 à 2' : '4', zones: W ? 'sur l\'écharpe, le manteau et un peu au cou' : 'cou et poitrine', when: 'avant de sortir dans le froid', why: W ? 'Raghba Wood Intense, c\'est le bakhour et le feu de bois d\'un soir d\'hiver en forêt. Une goutte de Musk Black dessous ajoute son côté oriental et sa fraîcheur mentholée. Le froid rend le tout plus doux, et sur la laine d\'une écharpe il tient des heures.' : 'En été, l\'encens fumé est trop lourd : reste sur du frais.', avoid: 'Très puissant : 1 à 2 vaporisations, jamais plus, et pas dans un espace fermé.', alt: W ? 'odyssey' : 'seoul', altSp: W ? '1 à 2' : '4' },
+    mosq: { p: 'mecr', sp: '1 à 2', zones: 'cou, barbe et vêtements', when: 'à la maison, avant de partir', why: 'Se parfumer pour la prière est une sunnah, surtout le vendredi. Hajar El Aswad dessous, c\'est l\'odeur de Masjid al-Haram ; la rose d\'Arabie par-dessus, noble, florale, sans sucre. À petite dose, pour ne pas incommoder tes voisins dans les rangs.', avoid: 'Pas de parfum puissant en grande quantité : les rangs sont serrés. Pas de gourmand.', alt: 'narjis', altSp: 'quelques gouttes d\'huile' },
+    aid: { p: W ? 'ispahan' : 'mecr', lay: W ? 'br540' : null, sp: '2 à 3', zones: 'cou, barbe, poitrine et vêtements', when: 'le matin, avant la prière de l\'Aïd ou la visite', why: W ? 'Oud Ispahan, c\'est ton parfum de grande occasion : rose et oud, noble et profond. Une touche du dupe de Baccarat par-dessus le rend plus lumineux.' : 'La rose d\'Arabie, élégante et traditionnelle : parfaite pour la famille.', avoid: 'Une seule combinaison. Tu vas faire des accolades : pas besoin d\'en mettre beaucoup.', alt: 'khashab', altSp: '2' },
+    grand: { p: W ? 'sheikhlx' : 'br540', sp: W ? '1 à 2' : '2', zones: 'cou, barbe et poitrine', when: '30 minutes avant', why: W ? 'La Luxe Edition, c\'est ton oriental puissant, celui qui rappelle la mosquée. Il t\'en reste peu : c\'est pour ces moments-là, et 1 à 2 vaporisations suffisent, il est très fort.' : 'Le dupe de Baccarat Rouge 540 : aérien, reconnaissable, le parfum à compliments. Il t\'en reste peu, alors garde-le pour ces moments-là.', avoid: 'Il t\'en reste peu et il est puissant : pas plus de 2 vaporisations.', alt: W ? 'khashab' : 'gris', altSp: '2' }
   };
+  /* v5.53 · plusieurs compositions par occasion, pour alterner (crème → huile → parfum) */
+  const M = W ? {
+    gare1: [{ p: 'seoul', sp: '4 à 5', w: 'Seoul : noisette et poivre, léger et chaleureux. Une eau de toilette : tu peux en remettre dans la journée.' }],
+    gare2: [{ p: 'infinite', sp: '3', w: 'Frais et propre, sûr pour toute la vacation.' }, { p: 'velvet', sp: '2', w: 'Le cuir doux de Velvet Oud à petite dose : présent sans gêner les voyageurs.' }],
+    pizza: [{ p: 'seoul', sp: '4', w: 'Léger et chaleureux, il ne se mélange pas à l\'odeur des pizzas.' }],
+    love: [{ p: 'mecg', sp: '1 à 2', mu: 'amjed', w: 'Ton oriental gourmand de La Mecque, chaud et sucré, avec une goutte d\'Amjed Al Oud dessous pour les épices. Puissant : 1 à 2 vaporisations, on le découvre en s\'approchant.' }, { p: 'ispahan', sp: '2', mu: 'narjis', w: 'Oud Ispahan, rose et oud profonds, avec Narjis dessous pour le côté floral : élégant et intime.' }],
+    rdv: [{ p: 'hatim', sp: '2', mu: '', w: 'Hatim à petite dose, sans huile : chaleureux et soigné, sans envahir le bureau.' }],
+    potes: [{ p: 'mecg', sp: '2', w: 'Ton oriental gourmand de La Mecque : il diffuse et se remarque.' }, { p: 'sheikh', sp: '3', w: 'Sheikh Supreme, doux et sucré, avec Amjed Al Oud dessous pour le côté oriental.' }],
+    soir: [{ p: 'mecg', sp: '2', mu: 'amjed', w: 'Ton oriental gourmand de La Mecque avec Amjed Al Oud dessous : riche, épicé, sucré, il tient toute la soirée.' }, { p: 'ispahan', sp: '2 à 3', w: 'Oud Ispahan, rose et oud : noble et profond, parfait pour une sortie chic l\'hiver.' }],
+    chill: [{ p: 'mecg', sp: '1', w: 'Une seule vaporisation de ton parfum préféré de La Mecque, juste pour toi : tu en as deux flacons.' }],
+    home: [{ p: 'mecg', sp: '1 à 2', w: 'Oriental, gourmand et chaud : parfait pour un soir d\'hiver à la maison.' }, { p: 'odyssey', sp: '1 à 2', w: 'Pistache et chocolat, très cocooning. Puissant : pas plus de 2 vaporisations.' }],
+    dehors: [{ p: 'mecg', sp: '2', w: 'Au frais, son côté oriental gourmand se pose bien et tient toute la journée.' }, { p: 'seoul', sp: '4 à 5', w: 'Plus léger, pour une journée tranquille.' }],
+    feu: [{ p: 'mecg', sp: '1 à 2', w: 'Oriental et sucré, il s\'épanouit dans le froid.' }, { p: 'ispahan', sp: '2', mu: 'mblack', w: 'Rose et oud avec Musk Black dessous : profond et oriental, presque un bakhour.' }],
+    grand: [{ p: 'ispahan', sp: '2', lay: 'br540', w: 'Oud Ispahan avec une touche de dupe Baccarat par-dessus : noble et lumineux.' }, { p: 'mecg', sp: '2', mu: 'amjed', w: 'Ton oriental gourmand de La Mecque avec Amjed Al Oud : chaleureux, il marque les esprits.' }],
+    mosq: [{ p: 'hajar', w: 'Hajar El Aswad seul, quelques gouttes : l\'odeur de Masjid al-Haram, sans alcool.' }],
+    aid: [{ p: 'mecg', sp: '2', mu: 'hajar', w: 'Ton oriental de La Mecque avec Hajar El Aswad dessous : chaleureux et familial, parfait pour les visites.' }, { p: 'sheikhlx', sp: '1 à 2', w: 'La Luxe Edition, ton oriental puissant : c\'est une grande occasion, il t\'en reste peu.' }]
+  } : {
+    gare1: [{ p: 'seoul', sp: '4 à 5' }], gare2: [{ p: 'lisboa', sp: '4 à 5' }], pizza: [{ p: 'seoul', sp: '4' }],
+    love: [{ p: 'infinite', sp: '2', w: 'Frais et propre, agréable de près quand il fait chaud.' }],
+    rdv: [{ p: 'lisboa', sp: '4' }], potes: [{ p: 'lisboa', sp: '4 à 5' }], soir: [{ p: 'infinite', sp: '3' }],
+    chill: [{ p: 'greentea', w: 'Quelques gouttes d\'huile Green Tea, seule : fraîche et légère.' }],
+    dehors: [{ p: 'seoul', sp: '4 à 5' }], grand: [{ p: 'khashab', sp: '2' }],
+    mosq: [{ p: 'hajar', w: 'Hajar El Aswad seul, quelques gouttes : l\'odeur de Masjid al-Haram, sans alcool.' }],
+    aid: [{ p: 'br540', sp: '2' }]
+  };
+  if (P[oc]) P[oc].more = M[oc] || [];
   return P[oc];
 }
-const PFC = { oc: null, alt: false };
+function pfComps(pl) {
+  const L = [{ p: pl.p, sp: pl.sp, lay: pl.lay, mu: pl.mu, w: pl.why, main: 1 }];
+  if (pl.alt) L.push({ p: pl.alt, sp: pl.altSp, mu: pl.altMu });
+  (pl.more || []).forEach(c => L.push(c));
+  return L.map(c => {
+    const x = c.p && PF_P[c.p] ? PF_P[c.p] : null, oil = !x && c.p && PF_MU[c.p] ? c.p : null;
+    const mu = c.mu !== undefined ? (c.mu || null) : (x && x.mu) || null;
+    const name = x ? x.n : oil ? PF_MU[oil][0].replace(/ \(.*\)$/, '') : 'Musk Abiyad';
+    const w = c.w || (x ? `${x.n} : ${x.f.toLowerCase()}.${x.feel ? ' ' + x.feel[0].toUpperCase() + x.feel.slice(1) : ''}` : `${name}, seul : discret et sans alcool.`);
+    return Object.assign({}, c, { x, oil, mu, name, w, cr: c.cr || (x ? x.cr : 'neutre'), sp: c.sp || (x ? x.sp : '') });
+  });
+}
+function pfDefIdx(oc, n) { /* propose la composition suivante par rapport à la dernière fois, pour alterner */
+  const f = pfS(), t = todayISO(), ks = Object.keys(f.log).filter(k => k < t && f.log[k] && f.log[k].oc === oc).sort();
+  const last = ks.length ? f.log[ks[ks.length - 1]].i : undefined;
+  return typeof last === 'number' ? (last + 1) % n : 0;
+}
+const PFC = { oc: null, i: null };
 function pfS() { const p = pvS(); if (!p.pf || typeof p.pf !== 'object') p.pf = { log: {} }; if (!p.pf.log) p.pf.log = {}; return p.pf; }
 function pfSteps(pl, useAlt) {
   const pid = useAlt ? pl.alt : pl.p, x = pid && PF_P[pid] ? PF_P[pid] : null, sp = useAlt ? (pl.altSp || (x ? x.sp : '')) : pl.sp;
@@ -7521,39 +7580,41 @@ function vParfum() {
   const grid = `<div class="pf-oc">${PF_OC.map(([id, n, ic, sub]) => `<button class="pf-occ ${cur === id ? 'on' : ''}" data-pfoc="${id}" aria-pressed="${cur === id}"><span class="pf-ic" aria-hidden="true">${ic}</span><b>${n}</b></button>`).join('')}</div>`;
   let res = '';
   if (cur) {
-    const oc = PF_OC.find(o => o[0] === cur), pl = pfPlan(cur, sn), useAlt = PFC.alt && pl.alt !== undefined, pid = useAlt ? pl.alt : pl.p, x = pid && PF_P[pid];
-    const isOil = pid === 'narjis', title = isOil ? 'Narjis' : x ? x.n : 'Musk Abiyad';
-    const cr = x ? PF_CR[x.cr][0] : 'Atoderm', mu = x && x.mu ? PF_MU[x.mu][0].replace(' (huile)', '') : null;
-    const sp = useAlt ? (pl.altSp || (x ? x.sp : '')) : pl.sp;
-    const chain = [`<span><i>1</i>${cr}</span>`].concat(isOil ? [`<span><i>2</i>Narjis · quelques gouttes</span>`] : !x ? [`<span><i>2</i>Musk Abiyad · 1 pschitt</span>`] : (mu ? [`<span><i>2</i>${esc(mu)}</span>`] : []).concat([`<span class="pf-main"><i>${mu ? 3 : 2}</i>${esc(x.n)} · ${esc(sp)}</span>`]).concat(pl.lay && !useAlt ? [`<span><i>${mu ? 4 : 3}</i>+ 1 pschitt ${esc(PF_P[pl.lay].n)}</span>`] : []));
+    const oc = PF_OC.find(o => o[0] === cur), pl = pfPlan(cur, sn), comps = pfComps(pl);
     const done = today && today.oc === cur;
-    const altName = pl.alt === null ? null : pl.alt === 'narjis' ? 'Narjis' : PF_P[pl.alt] ? PF_P[pl.alt].n : null;
+    let idx = PFC.i !== null ? PFC.i : done && typeof today.i === 'number' ? today.i : pfDefIdx(cur, comps.length);
+    if (idx >= comps.length) idx = 0;
+    const c = comps[idx], cr = PF_CR[c.cr][0], mu = c.mu ? PF_MU[c.mu][0].replace(/ \(.*\)$/, '') : null;
+    const chain = [`<span><i>1</i>${cr}</span>`].concat(c.oil ? [`<span class="pf-main"><i>2</i>${esc(c.name)} · quelques gouttes</span>`] : !c.x ? [`<span><i>2</i>Musk Abiyad · 1 pschitt</span>`] : (mu ? [`<span><i>2</i>${esc(mu)} · 1 goutte</span>`] : []).concat([`<span class="pf-main"><i>${mu ? 3 : 2}</i>${esc(c.name)} · ${esc(c.sp)}</span>`]).concat(c.lay ? [`<span><i>${mu ? 4 : 3}</i>+ 1 pschitt ${esc(PF_P[c.lay].n)}</span>`] : []));
+    const pick = comps.length > 1 ? `<p class="pv-sub" style="margin:12px 0 6px">${comps.length} compositions pour alterner :</p><div style="display:flex;flex-wrap:wrap;gap:6px">${comps.map((k, i) => `<button class="chip ${i === idx ? 'on' : ''}" data-pfc="${i}" aria-pressed="${i === idx}">${i + 1} · ${esc(k.name)}${k.lay ? ' + ' + esc(PF_P[k.lay].n) : ''}</button>`).join('')}</div>` : '';
     res = `<section class="glass pv-card pf-res">
-      <p class="pv-k" style="margin-top:0">${oc[2]} ${oc[1]}</p>
-      <h2 class="pf-title">${esc(title)}</h2>
+      <p class="pv-k" style="margin-top:0">${oc[2]} ${oc[1]}${comps.length > 1 ? ` · composition ${idx + 1}/${comps.length}` : ''}</p>
+      <h2 class="pf-title">${esc(c.name)}</h2>
       <div class="pf-chain">${chain.join('<b>→</b>')}</div>
       <p class="pf-where">${esc(pl.zones)} · ${esc(pl.when)}</p>
-      <div class="pv-btns"><button class="btn sm ${done ? 'ghost' : ''}" data-pfdone style="flex:1">${done ? '✓ Fait' : 'C\'est fait'}</button>${altName ? `<button class="chip" data-pfalt>${useAlt ? '← Conseil' : 'Autre choix'}</button>` : ''}</div>
-      <details class="pv-det" data-k="pf-why"><summary>Pourquoi ?</summary><p>${useAlt ? 'Le plan B, si tu veux changer ou si le premier est fini.' : esc(pl.why)}</p><p><b>À éviter</b> : ${esc(pl.avoid)}</p><p class="pv-sub">Douche, crème sur peau encore humide, puis le reste à 15 cm, sans frotter.</p></details></section>`;
+      <div class="pv-btns"><button class="btn sm ${done && today.i === idx ? 'ghost' : ''}" data-pfdone style="flex:1">${done && today.i === idx ? '✓ Fait' : 'C\'est fait'}</button></div>
+      ${pick}
+      <details class="pv-det" data-k="pf-why"><summary>Pourquoi ?</summary><p>${esc(c.w)}</p><p><b>À éviter</b> : ${esc(pl.avoid)}</p><p class="pv-sub">Douche, crème sur peau encore humide, une goutte d'huile, puis le parfum à 15 cm, sans frotter.</p></details></section>`;
   }
-  const coll = Object.entries(PF_P).map(([id, x]) => `<details class="pv-det pv-sec" data-k="pf-${id}"><summary><b>${esc(x.n)}${x.star ? ' ⭐' : ''}</b><small>${esc(x.f.toLowerCase())}</small></summary><div class="pv-morein"><p class="pv-sub" style="margin-top:0"><b>Notes</b> : ${esc(x.notes)}</p><p class="pv-sub"><b>Quand</b> : ${esc(x.when)}</p><p class="pv-sub"><b>Crème</b> : ${PF_CR[x.cr][0]}${x.mu ? ` · <b>musc</b> : ${PF_MU[x.mu][0]}` : ''}</p><p class="pv-sub"><b>Dose</b> : ${x.sp} vaporisations${x.pw >= 3 ? ' (il est puissant)' : ''}</p></div></details>`).join('');
+  const coll = Object.entries(PF_P).map(([id, x]) => `<details class="pv-det pv-sec" data-k="pf-${id}"><summary><b>${esc(x.n)}${x.star ? ' ⭐' : ''}${x.low ? ' · presque fini' : ''}</b><small>${esc(x.f.toLowerCase())}</small></summary><div class="pv-morein"><p class="pv-sub" style="margin-top:0"><b>Notes</b> : ${esc(x.notes)}</p>${x.feel ? `<p class="pv-sub"><b>Ton ressenti</b> : ${esc(x.feel)}</p>` : ''}${x.tip ? `<p class="pv-sub"><b>À essayer</b> : ${esc(x.tip)}</p>` : ''}<p class="pv-sub"><b>Quand</b> : ${esc(x.when)}</p><p class="pv-sub"><b>Crème</b> : ${PF_CR[x.cr][0]}${x.mu ? ` · <b>musc</b> : ${PF_MU[x.mu][0]}` : ''}</p><p class="pv-sub"><b>Dose</b> : ${x.sp} vaporisations${x.pw >= 3 ? ' (il est puissant)' : ''}</p></div></details>`).join('');
   const rules = `<p class="pv-sub" style="margin-top:0"><b>L'ordre</b> : douche, crème, musc, parfum. Toujours.</p>
     <p class="pv-sub"><b>La crème</b> : Sol de Janeiro pour les parfums chauds et gourmands, Atoderm pour les frais, poudrés et floraux.</p>
     <p class="pv-sub"><b>Le layering</b> : 2 parfums maximum, de la même famille. Le plus léger d'abord.</p>
-    <p class="pv-sub"><b>La dose</b> : on doit te sentir quand on s'approche, pas à trois mètres. Les puissants (Odyssey, La Mecque, Raghba Wood Intense) : 1 à 2 vaporisations. Les eaux de toilette Zara (Seoul, Lisboa) : 4 à 5, et tu peux en remettre.</p>
+    <p class="pv-sub"><b>La dose</b> : on doit te sentir quand on s'approche, pas à trois mètres. Les puissants (Odyssey, La Mecque, Raghba Wood Intense) : 1 à 2 vaporisations. Les huiles : une goutte sous le parfum. Les eaux de toilette Zara (Seoul, Lisboa) : 4 à 5, et tu peux en remettre.</p>
     <p class="pv-sub"><b>Ne frotte jamais</b> tes poignets. Vaporise aussi sur les vêtements : l'odeur y tient plus longtemps.</p>
+    <p class="pv-sub"><b>Les presque finis</b> (Luxe Edition, Gris Dior, dupe Baccarat, Khashab Al Oud) : seulement pour les grandes occasions, 1 à 2 vaporisations.</p>
     <p class="pv-sub"><b>Conserve tes flacons</b> à l'abri de la lumière et de la chaleur (pas dans la salle de bain ni la voiture).</p>`;
   return `${corpsTop('soin')}${soinSeg('parfum')}
     ${res}
     <section class="glass pv-card"><h2 class="pv-h">${cur ? 'Une autre occasion ?' : 'Quelle occasion ?'}</h2>${grid}</section>
-    ${pvMore('Ma collection', `${Object.keys(PF_P).length} parfums · 2 crèmes · 2 muscs`, coll + `<p class="pv-sub"><b>Crèmes</b> : Sol de Janeiro (gourmande), Atoderm Crème Ultra (neutre). <b>Muscs</b> : Musk Abiyad (propre), Narjis (violette).</p>`)}
+    ${pvMore('Ma collection', `${Object.keys(PF_P).length} parfums · ${Object.keys(PF_MU).length} muscs et huiles`, coll + `<p class="pv-sub"><b>Crèmes</b> : Sol de Janeiro (gourmande), Atoderm Crème Ultra (neutre).</p><p class="pv-k">Muscs et huiles</p>${Object.values(PF_MU).map(m => `<p class="pv-sub"><b>${esc(m[0])}</b> : ${esc(m[1])}.</p>`).join('')}<p class="pv-sub">Les huiles s\'utilisent surtout en complément d\'un parfum, une goutte dessous ; rarement seules.</p>`)}
     ${pvMore('Les règles d\'or', 'ordre, dose, layering, conservation', rules)}`;
 }
 function pfClick(t) {
   let el;
-  if ((el = t.closest('[data-pfoc]'))) { PFC.oc = el.dataset.pfoc; PFC.alt = false; render(); scrollTo(0, 0); return true; }
-  if (t.closest('[data-pfalt]')) { PFC.alt = !PFC.alt; pvRe(); return true; }
-  if (t.closest('[data-pfdone]')) { const f = pfS(), k = todayISO(), oc = PFC.oc || (f.log[k] && f.log[k].oc); if (!oc) return true; const pl = pfPlan(oc, pfSeason()); f.log[k] = { oc, p: PFC.alt ? pl.alt : pl.p }; lkDay()['m-deo'] = 1; save(); pvOnce('parfum', 1); pvCheckDay(); pvRe(); toast('Parfumé. Bonne journée.'); return true; }
+  if ((el = t.closest('[data-pfoc]'))) { PFC.oc = el.dataset.pfoc; PFC.i = null; render(); scrollTo(0, 0); return true; }
+  if ((el = t.closest('[data-pfc]'))) { PFC.i = +el.dataset.pfc; pvRe(); return true; }
+  if (t.closest('[data-pfdone]')) { const f = pfS(), k = todayISO(), oc = PFC.oc || (f.log[k] && f.log[k].oc); if (!oc) return true; const comps = pfComps(pfPlan(oc, pfSeason())), tl = f.log[k]; let i = PFC.i !== null ? PFC.i : tl && tl.oc === oc && typeof tl.i === 'number' ? tl.i : pfDefIdx(oc, comps.length); if (i >= comps.length) i = 0; f.log[k] = { oc, p: comps[i].p, i }; lkDay()['m-deo'] = 1; save(); pvOnce('parfum', 1); pvCheckDay(); pvRe(); toast('Parfumé. Bonne journée.'); return true; }
   return false;
 }
 
@@ -8240,7 +8301,9 @@ function jgSheet(d) {
   el.innerHTML = `<div class="jg-sh-in"><div class="row between" style="align-items:center"><h2 class="pv-h" style="margin:0">Ta journée · ${d.P.length - d.todo.length}/${d.P.length}</h2><button class="link-btn" data-jgx aria-label="Fermer">Fermer</button></div>
     <p class="pv-sub" style="margin:4px 0 10px">Chaque pilier tenu remplit ta lune de verre.${d.st ? ` Série : ${d.st} jour${d.st > 1 ? 's' : ''} complet${d.st > 1 ? 's' : ''}.` : ''}</p>
     ${d.P.filter(x => x.n === 'Prières').concat(d.P.filter(x => x.n !== 'Prières')).map(row).join('')}</div>`;
-  el.addEventListener('click', e => { e.stopPropagation(); const g = e.target.closest('[data-jgo]');
+  /* v5.47 · le toucher qui ouvre la liste ne doit pas « traverser » et appuyer sur une ligne de la liste (bug : ça ouvrait parfois une étape) */
+  const t0 = Date.now();
+  el.addEventListener('click', e => { e.stopPropagation(); if (Date.now() - t0 < 450) { e.preventDefault(); return; } const g = e.target.closest('[data-jgo]');
     if (g) { el.remove(); go(g.dataset.jgo); return; }
     if (e.target.closest('[data-jgx]') || e.target === el) el.remove(); });
   document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
@@ -8544,7 +8607,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.46 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.53 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
