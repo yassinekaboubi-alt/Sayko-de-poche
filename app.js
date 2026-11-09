@@ -548,7 +548,7 @@ const COACH = {
   corps: ['Ton arc de combattant', 'Trois arcs : le Réveil à la maison, la Forge à la salle et au sac, le Tranchant. Chaque lundi, tu indiques tes jours libres : l\'app place tes séances de force, de combat, de vitesse et de mental. Le grimoire t\'apprend les techniques, la défense de rue, les points vitaux et le mental. La fiche mesure tes stats tous les 28 jours. Pendant une séance de combat, garde le téléphone près de toi : la voix t\'annonce les frappes.'],
   nutri: ['Ton carburant', 'Pour prendre du muscle : un léger surplus de calories et assez de protéines. Note tes repas du jour, ta whey et ta créatine : la jauge se remplit. Pèse-toi une fois par semaine : l\'app ajuste ta cible si tu prends trop vite ou trop lentement.'],
   psy: ['Cap Psychologie 2027', 'Ta planète prioritaire jusqu\'à la rentrée. Semaine : les séances, courtes, pour les temps calmes à la gare (objectif 5 h). Méthode : réapprendre à travailler. Carte L1 : le programme, chapitre par chapitre. Niveau : les tests. Cartes : les flashcards. Démarches : chaque étape administrative et sa date limite.'],
-  pvcorps: ['Ton protocole', '15 000 pas minimum chaque jour, et un circuit un jour sur deux : pompes, dips, tractions négatives, chacun jusqu\'à l\'échec, 3 à 4 tours. Note tes répétitions : les chiffres grisés sont ceux de ton dernier circuit, bats-en au moins un. Le jour sans circuit, c\'est la récupération : le muscle grossit là.'],
+  pvcorps: ['Ton protocole', '15 000 pas minimum chaque jour, et un circuit un jour sur deux : 9 exercices au poids du corps (squats, pompes, rowing sous une table, fentes, dips, pont fessier, pompes piquées, gainage, superman), 3 à 4 tours, 90 s de repos. Le schéma est dans la carte du circuit. Le jour sans circuit, c\'est la récupération : le muscle grossit là.'],
   pvnutri: ['Perdre 10 à 15 kg, garder le muscle', 'Pèse-toi une fois par semaine : l\'app suit ton rythme (0,5 à 1 % par semaine). En test : un vrai repas par jour (patates douces, patates, œufs, légumes, thon ou fromage blanc pour les protéines), 1 banane, des fraises, 2 à 3 L d\'eau. Sucres, pâtes, riz, soda et pain sont bannis : tout est tenu par défaut, touche seulement en cas d\'écart. Note ton ressenti : au bout de 14 jours, tu décides.'],
   maison: ['Le foyer', 'Aspirateur chaque jour, vitres et poussière un jour sur deux, draps une fois par semaine, une machine par jour : lancée, étendue, puis pliée. Ce qui n\'est pas dû aujourd\'hui reste grisé.'],
   intel: ['Six seuils', 'Lecture, sudoku, casse-tête, Coran avec son exégèse, écoute du Coran, écriture : 30 minutes chacun au minimum. ▶ lance un chrono. Le sudoku, les casse-tête et l\'écriture se font aussi dans l\'app, et le chrono y tourne tout seul.'],
@@ -904,6 +904,71 @@ function sysCheck() {
   sysAchCheck();
   if (s.seen !== k) { s.seen = k; save(); sanctionsDaily(); const pen = penaltyToday();
     setTimeout(() => sysPop('NOUVELLE QUÊTE', `<p class="sys-qt" style="text-align:center">QUÊTE QUOTIDIENNE · FORGER LE JOUEUR</p>${d.list.map(o => `<p class="sys-li">— ${esc(o.t)} <b class="num">[${Math.min(o.v, o.n)}/${o.n}]</b></p>`).join('')}${pen ? '<p class="sys-pt" style="color:var(--danger);text-align:center;margin-top:10px">Quête de pénalité active : 100 pompes aujourd\'hui.</p>' : ''}<p class="small" style="text-align:center;color:var(--muted);margin-top:10px">Récompense : +30 XP. Ne pas l'accomplir déclenche une pénalité demain.</p>`, 'Accepter'), 700); }
+}
+/* =====================================================================
+   v5.58 · LA LISTE DU JOUR (demande de Sayko, 06/11/2026)
+   5 à 7 tâches essentielles, figées à la première ouverture du jour. Fenêtre au premier lancement,
+   puis petite barre en haut de l'accueil. Chaque tâche se coche toute seule quand c'est fait dans l'app,
+   ou à la main. Toucher le nom = aller au bon endroit.
+   Fixes : prières, Coran ou dhikr, psycho, arabe, bouger, manger. + 1 au choix du jour (soin, maison, intellect), en rotation.
+   ===================================================================== */
+function arTick() { const k = todayISO(); S.ard = S.ard && typeof S.ard === 'object' ? S.ard : {}; S.ard[k] = (S.ard[k] || 0) + 1; }
+const TD_AR = 10;
+function tdS() { const t = S.todo = S.todo && typeof S.todo === 'object' ? S.todo : {}; if (!t.d || typeof t.d !== 'object') t.d = {}; return t; }
+function tdDefs() {
+  const k = todayISO(), d = pvPeek(), g = numv(pvS().goal) || PV_GOAL, st = pvSteps();
+  const cd = (() => { try { return pvCircDay(); } catch (e) { return { due: false }; } })(), cdone = pvS().circ.some(x => x.date === k);
+  const dkN = Object.values((dk().days || {})[k] || {}).reduce((a, b) => a + numv(b), 0), corMin = (() => { try { return pvMinLive('cor'); } catch (e) { return 0; } })();
+  const quranHab = (S.faith.habits || []).filter(h => !h.prayer).some(h => (S.faith.log[k] || {})[h.id]);
+  const ps = psyS(), psyStep = (() => { try { return psyNextStep(); } catch (e) { return null; } })(), psyDone = ps.log.some(x => x.d === k) || Object.values(ps.done).includes(k);
+  const arN = (S.ard || {})[k] || 0, fs = (() => { try { return pvFoodScore2(d); } catch (e) { return [false]; } })();
+  const ap = (() => { try { const [a, b] = pvApN(d, k); return [a, b]; } catch (e) { return [0, 1]; } })();
+  const hs = (() => { try { return homeScore(k); } catch (e) { return [0, 0]; } })(), it = (() => { try { return pvSeuils(k); } catch (e) { return 0; } })();
+  return {
+    pri: { ic: '🕌', n: 'Les 5 prières', s: `${prayToday()}/5 faites`, ok: prayToday() >= 5, go: 'habitudes' },
+    rel: { ic: '📖', n: 'Coran, dhikr ou geste du cœur', s: hgDoneToday() ? 'Geste du cœur fait' : '1 page de Coran, 100 dhikr, ou ton geste du cœur', ok: quranHab || corMin >= 10 || dkN >= 100 || hgDoneToday(), go: 'coeur' },
+    psy: psyStep || !psyDone ? { ic: '🧠', n: 'Psycho', s: psyDone ? 'Séance du jour faite' : psyStep ? `Séance : ${psyStep}` : 'Tes fiches du jour', ok: psyDone, go: 'psy' } : null,
+    ar: { ic: '✍️', n: 'Arabe', s: `${Math.min(arN, TD_AR)}/${TD_AR} réponses (quiz ou leçon en cours)`, ok: arN >= TD_AR, go: 'arabe' },
+    bou: { ic: '💪', n: cd.due || cdone ? 'Circuit + 15 000 pas' : '15 000 pas', s: `${pvFmt(st)} pas${cd.due || cdone ? (cdone ? ' · circuit fait' : ' · circuit à faire') : ''}`, ok: st >= g && (!cd.due || cdone), go: 'entrainement' },
+    man: { ic: '🥗', n: 'Protéines, calories, eau', s: 'les trois objectifs de Nutrition', ok: fs.every(Boolean), go: 'nutrition' },
+    soin: { ic: '🧴', n: 'Soin matin et soir', s: `${ap[0]}/${ap[1]} gestes`, ok: ap[0] >= ap[1], go: 'soin' },
+    mai: hs[1] ? { ic: '🏠', n: 'Maison', s: `${hs[0]}/${hs[1]} tâches du jour`, ok: hs[0] >= hs[1], go: 'maison' } : null,
+    int: { ic: '📚', n: '30 min d\'intellect', s: 'lecture, écriture, sudoku…', ok: it >= 1, go: 'intel' }
+  };
+}
+function tdToday() {
+  const T = tdS(), k = todayISO(); let x = T.d[k];
+  if (!x || !Array.isArray(x.ids)) {
+    const D = tdDefs(), ids = ['pri', 'rel', 'psy', 'ar', 'bou', 'man'].filter(i => D[i]);
+    const rot = ['soin', 'mai', 'int'].filter(i => D[i]), doy = Math.floor((parseDate(k) - parseDate(k.slice(0, 4) + '-01-01')) / 864e5);
+    for (let j = 0; ids.length < 7 && j < rot.length; j++) ids.push(rot[(doy + j) % rot.length]);
+    x = T.d[k] = { ids, man: {} }; Object.keys(T.d).filter(z => z < iso(addDays(new Date(), -40))).forEach(z => delete T.d[z]); save();
+  }
+  const D = tdDefs();
+  return x.ids.filter(i => D[i]).map(i => ({ id: i, ...D[i], done: D[i].ok || !!x.man[i], auto: D[i].ok }));
+}
+function tdBar() {
+  let L; try { L = tdToday(); } catch (e) { return ''; } const n = L.filter(x => x.done).length;
+  return `<button class="td-bar" data-tdopen><span class="td-ring" style="--p:${Math.round(n / L.length * 100)}%"></span><span class="grow"><b>Aujourd'hui · ${n}/${L.length}</b><small>${n >= L.length ? 'Tout est fait. Bravo.' : `Prochaine : ${esc((L.find(x => !x.done) || {}).n || '')}`}</small></span>${ICON.chev}</button>`;
+}
+function tdOpen(first) {
+  const old = $('.td-sheet'); if (old) old.remove();
+  const el = document.createElement('div'); el.className = 'jg-sheet td-sheet';
+  const draw = () => { const L = tdToday(), n = L.filter(x => x.done).length, h = new Date().getHours();
+    el.innerHTML = `<div class="jg-sh-in"><div class="row between" style="align-items:center"><h2 class="pv-h" style="margin:0">${first ? (h < 12 ? 'Ta journée commence' : 'Ta journée') : 'Aujourd\'hui'} · ${n}/${L.length}</h2><button class="link-btn" data-tdx>Réduire</button></div>
+      <p class="pv-sub" style="margin:4px 0 10px">${n >= L.length ? 'Tout est fait. Belle journée.' : 'Une chose à la fois. Ça se coche tout seul quand tu le fais dans l\'app.'}</p>
+      ${L.map(x => `<div class="td-row ${x.done ? 'ok' : ''}"><button class="td-chk" data-tdchk="${x.id}" ${x.auto ? 'disabled' : ''} aria-pressed="${x.done}" aria-label="${x.done ? 'Fait' : 'Cocher'}">${x.done ? '✓' : ''}</button><button class="td-go" data-tdgo="${x.go}"><span class="td-ic" aria-hidden="true">${x.ic}</span><span class="grow"><b>${esc(x.n)}</b><small>${esc(x.s)}</small></span>${ICON.chev}</button></div>`).join('')}
+      <button class="btn block ghost" data-tdx style="margin-top:14px">${first ? 'C\'est parti' : 'Réduire'}</button></div>`; };
+  draw(); const t0 = Date.now();
+  el.addEventListener('click', e => { e.stopPropagation(); if (Date.now() - t0 < 400) { e.preventDefault(); return; } const t = e.target;
+    const ch = t.closest('[data-tdchk]'); if (ch) { const T = tdS().d[todayISO()]; if (T) { const id = ch.dataset.tdchk; if (T.man[id]) delete T.man[id]; else T.man[id] = 1; save(); haptic(); draw(); try { if (tab === 'orbite') render(); } catch (er) {} } return; }
+    const g = t.closest('[data-tdgo]'); if (g) { el.remove(); go(g.dataset.tdgo); return; }
+    if (t.closest('[data-tdx]') || t === el) { el.classList.remove('on'); setTimeout(() => el.remove(), 250); if (tab === 'orbite') render(); } });
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+}
+function tdFirstLater() { /* au premier lancement du jour, après l'animation d'ouverture */
+  if (document.getElementById('intro')) { setTimeout(tdFirstLater, 600); return; }
+  const T = tdS(), k = todayISO(); if (T.seen === k) return; T.seen = k; try { tdToday(); } catch (e) { return; } save(); setTimeout(() => tdOpen(true), 500);
 }
 function gxDailyLater() { if (document.getElementById('intro')) { setTimeout(gxDailyLater, 600); return; } const s = sysS(), k = todayISO(); if (!s.start) { s.start = k; save(); }
   { const r = repS(); if (r && !r.closed && (repOn() || k >= r.end)) { try { repCheck(); } catch (e) {} } }
@@ -1624,7 +1689,7 @@ function vOrbite() {
   const wk = sumShifts(shiftsWeek(mondayOf(now))).worked, cm = currentMonth(), cur = MONTHS[cm - 1];
   const tb = S.days[todayISO()] ? 4 : todayBlocks();
   if (uiSys()) return `${vSys(now)}${pvHome()}<div class="gglass">${yesterdayCard()}${atStake()}${tjCard()}</div><div class="gglass tjbottom">${tjFeedback()}</div>`;
-  return `${vGalaxy(hello, now)}
+  return `${tdBar()}${vGalaxy(hello, now)}
   ${repOn() ? `<div class="gglass">${repWin()}</div>` : ''}
   ${(() => { try { const pn = prayerNow(), nx = nextPrayer(); const t = pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine prière : ${PNAMES[nx.id]} à ${hm(nx.start)}` : ''; return t ? `<button class="pv-prayline" data-goto="habitudes"><span>☾</span>${t}<em>→</em></button>` : ''; } catch (e) { return ''; } })()}
   ${tjCard() ? `<div class="gglass">${tjCard()}</div>` : ''}
@@ -1638,7 +1703,7 @@ function vOrbite() {
       ${(() => { const n = S.faith.habits.length, dn = dayDone(todayISO()); return `<button class="today-item" data-goto="habitudes">${miniOrb(n ? dn / n : 0, 'foi', true)}<span><b>${dn === n ? 'Habitudes du jour complètes' : `${dn} habitude${dn > 1 ? 's' : ''} sur ${n} aujourd'hui`}</b><span class="s">${(() => { const pn = prayerNow(), nx = nextPrayer(); return pn && !(S.faith.log[pn.k] || {})[pn.id] ? `${PNAMES[pn.id]} en cours · reste ${leftTxt(pn.end - new Date())}` : nx ? `Prochaine : ${PNAMES[nx.id]} à ${hm(nx.start)}` : `Régularité ${Math.round(faithScore().pct * 100)} % sur 30 jours`; })()}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const td = dkDay(), st = dkStreak(); return `<button class="today-item" data-goto="dhikr">${miniOrb(Math.min(1, td / 33), 'foi', true)}<span><b>${td >= 33 ? `Dhikr · ${td} aujourd'hui` : 'Dhikr · ton premier 33'}</b><span class="s">${st ? `${st} jour${st > 1 ? 's' : ''} d'affilée` : dkF(dk().cur)[2]}</span></span>${ICON.chev}</button>`; })()}
       ${(() => { const s = hairDays('soin'), c = hairDays('coupe'); const due = s != null && s >= 7 ? 'soin' : c != null && c >= 70 ? 'coupe' : null; if (!due) return ''; return `<button class="today-item" data-goto="apparence">${miniOrb(0, 'corps')}<span><b>${due === 'soin' ? 'Jour de soin des cheveux' : 'Pointes à couper'}</b><span class="s">${due === 'soin' ? `Dernier soin il y a ${s} jours` : `Dernière coupe il y a ${Math.round(c / 7)} semaines`}</span></span>${ICON.chev}</button>`; })()}
-      ${(() => { const h = hrt(), x = HEART.find(y => y.k === h.cur) || HEART[0], l = hLevel(x.k), done = !!hc(x.k).days[todayISO()]; return `<button class="today-item" data-goto="coeur">${miniOrb(l / 3, 'foi', true)}<span><b>Cœur · ${x.n}</b><span class="s">${l === 0 ? 'Commence par la leçon' : l === 3 ? 'Ancrée : continue de la pratiquer' : done ? (x.k === 'dua' ? 'Tu Lui as parlé aujourd\'hui' : 'Pratiqué aujourd\'hui') : x.k === 'dua' ? 'Une phrase pour Allah aujourd\'hui' : `Pratique du jour · ${hDays(x.k)} jour${hDays(x.k) > 1 ? 's' : ''} sur 21`}</span></span>${ICON.chev}</button>`; })()}
+      ${(() => { const x = hgToday(), hh = HG[x.i]; return `<button class="today-item" data-goto="coeur">${miniOrb(x.done ? 1 : 0, 'foi', true)}<span><b>Geste du cœur</b><span class="s">${x.done ? 'Fait aujourd\'hui · une plante a poussé' : esc(hh[1].length > 60 ? hh[1].slice(0, 58) + '…' : hh[1])}</span></span>${ICON.chev}</button>`; })()}
       <button class="today-item" data-goto="arabe">${miniOrb(wordsKnown() / WORDS.length, 'arabe', true)}<span><b>Réviser 5 mots</b><span class="s">${wordsKnown()} mots maîtrisés sur ${WORDS.length}</span></span>${ICON.chev}</button>
     </div>
     ${(() => { try { return `<button class="pv-pil" data-expl><span class="pv-ic">✦</span><span class="grow"><b>Exploit libre</b><small>Douche froide, gainage, 50 pompes, marche</small></span></button>`; } catch (e) { return ''; } })()}
@@ -1917,6 +1982,7 @@ function answerQuiz(btn) {
   quiz.answered = true;
   const pick = Number(btn.dataset.q), ok = pick === quiz.idx;
   session.n++;
+  try { arTick(); } catch (e) {}
   if (ok) { session.ok++; S.words[quiz.idx] = (S.words[quiz.idx] || 0) + 1; haptic(); if (S.words[quiz.idx] === 3) reward(2, { msg: ['Mot maîtrisé', `${WORDS[quiz.idx][0]} · ${WORDS[quiz.idx][1]}`] }); }
   else S.words[quiz.idx] = Math.max(0, (S.words[quiz.idx] || 0) - 1);
   save();
@@ -2772,9 +2838,7 @@ function vFoundations(b) {
   </section>
   <section>
     <div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Investissement</h2>${unlocked ? '' : `<span class="pill">${lockIcon.replace('width="18" height="18"', 'width="13" height="13"')} Verrouillé</span>`}</div>
-    ${unlocked ? vInvest() : rtOn() ? rtLock('dragon', 'Le dragon garde ce trésor. Il le laisse passer quand tes fondations sont posées :', [
-      s.debtOk ? ['✓', 'dette remboursée', true] : [eur0(s.total - s.repaid), 'de dette encore à rembourser'],
-      s.safeOk ? ['✓', 'épargne de sécurité constituée', true] : [eur0(s.goal - s.safety), `à mettre de côté pour l'épargne de sécurité (objectif ${eur0(s.goal)})`]]) : `<div class="locked-card">
+    ${unlocked ? vInvest() : `<div class="locked-card">
       <p>Débloqué une fois la dette remboursée et l'épargne de sécurité atteinte.</p>
       <div class="row" style="gap:18px;margin-top:12px">
         <div><b class="num">${Math.round((1 - s.debtP) * 100)} %</b><span>de dette restante</span></div>
@@ -2811,7 +2875,7 @@ function openInvestSetup() {
 
 /* ----- Onglet Foi : habitudes ----- */
 function foiTop(view) {
-  const sub = { arabe: 'Deux cycles : lire l\'arabe, puis penser en arabe.', dhikr: 'C\'est par l\'évocation d\'Allah que les cœurs s\'apaisent.', coeur: 'Les compétences du croyant, une à la fois, jusqu\'à ce qu\'elles s\'ancrent.', nafila: 'Ce qui te rapproche, au-delà de l\'obligatoire.', coran: 'Le garder dans ton cœur, verset après verset.' }[view] || 'La régularité avant tout. Chaque prière à l\'heure compte.';
+  const sub = { arabe: 'Deux cycles : lire l\'arabe, puis penser en arabe.', dhikr: 'C\'est par l\'évocation d\'Allah que les cœurs s\'apaisent.', coeur: 'Un geste par jour, et le cœur grandit en silence.', nafila: 'Ce qui te rapproche, au-delà de l\'obligatoire.', coran: 'Le garder dans ton cœur, verset après verset.' }[view] || 'La régularité avant tout. Chaque prière à l\'heure compte.';
   const tabs = [['habitudes', 'Pratique', true], ['nafila', 'Surérogatoires', nafUnlocked()], ['dhikr', 'Dhikr', true], ['coeur', 'Cœur', true], ['arabe', 'Arabe', true], ['coran', 'Coran', arDone(5)]];
   return `${pageHead('Foi', sub, ['arabe', 'dhikr', 'coeur'].includes(view) ? view : 'foi')}
   <div class="fseg" role="tablist" aria-label="Sections de la Foi">${tabs.map(([k, l, op]) => `<button data-fview="${k}" role="tab" aria-selected="${view === k}" class="${view === k ? 'on' : ''} ${op ? '' : 'lock'}">${op ? '' : `<svg viewBox="0 0 24 24" aria-hidden="true">${GLYPH.lock}</svg>`}${l}</button>`).join('')}</div>${view === 'habitudes' ? `<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn sm ghost" data-goto="qibla">${uiSys() ? 'Ouvrir le viseur' : 'Trouver la qibla'}</button>${adkPendingChip()}</div>` : ''}`;
@@ -3039,16 +3103,14 @@ function vBusiness() {
     const skillRows = st.skills.map(s => condRow(s.d === s.t, BIZ_LABEL[s.k], s.t ? s.d / s.t : 0, s.d === s.t ? 'Acquis.' : `${s.t - s.d} acquis restant${s.t - s.d > 1 ? 's' : ''} · mois ${s.months.join(', ')} du parcours`)).join('');
     const f = st.faith;
     return `${pageHead('Business', 'S\'ouvre quand les fondations sont posées.', 'business')}
-    ${rtOn() ? rtLock('gobelin', 'Le gobelin garde la porte du Business. Elle s\'ouvre quand ces deux objectifs sont atteints :', [
-      st.skillsOk ? ['✓', 'les 6 compétences clés sont acquises', true] : [st.left, `acquis restant${st.left > 1 ? 's' : ''} pour tes 6 compétences clés`],
-      st.faithOk ? ['✓', `régularité de foi au-dessus de ${Math.round(FAITH_GOAL * 100)} %`, true] : [`${Math.round(f.pct * 100)} %`, `de régularité de foi sur 30 jours · objectif ${Math.round(FAITH_GOAL * 100)} %`]]) : `<div class="locked-hero">
+    <div class="locked-hero">
       <span class="lock-big">${lockIcon.replace('width="18" height="18"', 'width="34" height="34"')}</span>
       <p>Cet onglet se déverrouille quand tes <b>6 compétences clés</b> sont acquises et que ta <b>régularité de foi</b> atteint ${Math.round(FAITH_GOAL * 100)} % sur 30 jours.</p>
       <div class="row" style="gap:22px;margin-top:14px;justify-content:center">
         <div><b class="num">${st.left}</b><span>acquis restants</span></div>
         <div><b class="num">${Math.round(f.pct * 100)} %</b><span>régularité (objectif ${Math.round(FAITH_GOAL * 100)})</span></div>
       </div>
-    </div>`}
+    </div>
     <section><div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Compétences clés</h2>${st.skillsOk ? '<span class="pill mint">Validé</span>' : ''}</div>${skillRows}
       <button class="btn sm ghost" data-goto="parcours">Ouvrir le parcours</button></section>
     <section><div class="row between" style="margin-bottom:14px"><h2 style="margin:0">Foi</h2>${st.faithOk ? '<span class="pill mint">Validé</span>' : ''}</div>
@@ -4470,11 +4532,11 @@ function fitraRing(id, name) {
       <text y="${days == null ? 5 : 2}" text-anchor="middle" style="font:400 ${days == null ? 18 : 20}px var(--serif);fill:var(--ink)">${days == null ? '—' : days}</text>${days == null ? '' : '<text y="14" text-anchor="middle" style="font-size:7.5px;font-weight:700;letter-spacing:.08em;fill:var(--muted)">JOURS</text>'}</svg>
     ${name}<small>${days == null ? 'à noter' : days >= FITRA_MAX ? 'à faire' : `reste ${FITRA_MAX - days} j`}</small></button>`;
 }
-function vSoin() {
+function vSleepOld() {
   const k = todayISO(), m = S.body.sleep[k], nap = (S.body.nap || {})[k] || 0, tot = sleepTot(k), logged = Array.from({ length: 7 }, (_, i) => sleepTot(iso(addDays(new Date(), -i)))).filter(Boolean);
   const avg = logged.length ? Math.round(logged.reduce((a, b) => a + b) / logged.length) : 0;
   const wake = toMin(S.body.wake || '04:30'), bed5 = wake - 450 - 15, bed4 = wake - 360 - 15;
-  return `${corpsTop('soin')}${soinSeg('soin')}
+  return `
   <section class="glass pv-card">
     <div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Cette nuit</h2><span class="small muted">${avg ? `moyenne 7 j : ${fmtDur(avg)}` : 'objectif 7 h minimum'}</span></div>
     <div class="row" style="margin-top:10px;gap:8px">
@@ -5507,6 +5569,119 @@ function vLook() {
     ${dueRows ? `<section class="glass pv-card"><h2 class="pv-h">À prévoir</h2>${dueRows}</section>` : ''}
     ${pvMore('Guides et réglages', 'codex, grand soin, fitra, lavage, test de peau', more)}`;
 }
+/* =====================================================================
+   v5.57 · SOIN EN TROIS BOUTONS (demande de Sayko, 06/11/2026)
+   Matin / Soir : une fenêtre par routine, avec ses étapes et un seul « C'est fait ».
+   Une fois faite, la fenêtre se réduit en pastille ✓ (toucher = rouvrir / annuler).
+   Les soins occasionnels n'apparaissent que le jour où ils sont dus (lavage, bain d'huile,
+   soin du vendredi, fitra, coiffeur). Tout le reste (courbe de sommeil, objectifs, guides) : « Mon suivi ».
+   Chaque fenêtre coche les mêmes gestes que le pilier Apparence (PV_AP).
+   ===================================================================== */
+const SNU = { m: null, at: 0 };
+function snMode() { if (!SNU.m || Date.now() - SNU.at > 30 * 60e3) { const h = new Date().getHours(); SNU.m = h >= 3 && h < 15 ? 'am' : 'pm'; } return SNU.m; }
+const SN_OIL = [['Coco + nigelle + olive', 'la plus nourrissante : 2 shampoings pour bien rincer'], ['Coco + ricin + jojoba', 'le ricin : une cuillère sur quatre, pas plus'], ['Coco + jojoba + nigelle', 'la plus légère, idéale aussi en massage du cuir chevelu']];
+const SN_AM = [
+  ['m-dents', 'Dents', ['m-dents'], ['Brosse 2 min, dentifrice fluoré, brosse inclinée vers la gencive.', 'Gratte-langue d\'arrière en avant.']],
+  ['m-visage', 'Visage', ['m-visage'], ['Eau fraîche (ou ton nettoyant si la peau brille).', 'Crème hydratante.', 'SPF 30 si tu sors au soleil.']],
+  ['m-barbe', 'Barbe', ['m-barbe'], ['Brosse vers le bas.', '2-3 gouttes d\'huile entre les paumes, jusqu\'à la peau.']],
+  ['m-cheveux', 'Cheveux', ['m-cheveux'], ['Un peu d\'eau au vaporisateur.', 'Crème Coco Curl Light (ou ton 2 en 1) sur les longueurs, des racines aux pointes, en faisant un mouvement de ressort.', 'Une touche de gelée si une mèche a perdu sa forme. Jamais de peigne à sec.']],
+  ['m-mains', 'Mains', ['m-mains'], ['Mains propres.', 'Une noisette de crème, masse aussi les ongles.']],
+  ['m-deo', 'Déo et parfum', ['m-deo'], ['Déodorant sur aisselles sèches.', 'Parfum : touche le bouton « Parfum » pour savoir lequel et comment.'], 'parfum'],
+  ['jour', 'Dans la journée', ['siwak', 'gum'], ['Siwak avant une prière.', 'Gummies cheveux avec ton repas.']]
+];
+const SN_PM = [
+  ['corps', 'Douche et corps', ['s-douche', 's-corps', 's-at'], ['Douche complète, savon doux : aisselles, pieds, plis.', 'Crème corps sur peau encore humide.', 'Anti-transpirant sur aisselles bien sèches.']],
+  ['s-visage', 'Visage', ['s-visage'], ['Nettoyant doux, eau tiède.', 'Sèche en tamponnant.', 'Crème de nuit.']],
+  ['s-dents', 'Dents', ['s-dents', 'bdb'], ['Brosse 2 min, puis fil dentaire ou brossettes.', 'Crache sans rincer : le fluor continue d\'agir.', 'Bain de bouche sans alcool, un peu plus tard.']],
+  ['s-mains', 'Mains', ['s-mains'], ['Une noisette de crème mains.', 'Masse les ongles, repousse doucement les cuticules.', 'Lime si un ongle accroche.']],
+  ['ch-h', 'Cheveux', ['ch-h'], ['Une goutte d\'huile sur les pointes.', 'Bonnet ou taie en satin pour la nuit.']],
+  ['demain', 'Prêt pour demain', ['tenue', 's-linge'], ['Tenue choisie, repassée, posée. Chaussures propres.', 'Pyjama propre, sous-vêtements de demain sortis.']]
+];
+const snApDef = id => pvApList().find(x => x[0] === id);
+function snOn(id, d = pvDay()) { const x = snApDef(id); return x ? pvApOn(x, d) : false; }
+function snSet(id, on) { const x = snApDef(id); if (!x) return; const d = pvDay(); if (x[3]) { const l = lkDay(); if (on) l[id] = 1; else delete l[id]; } else { if (on) d.ap[id] = true; else delete d.ap[id]; } }
+function snOilDue() { /* veille d'un jour de lavage, si le dernier bain d'huile date d'au moins 14 jours */
+  const p = pvS();
+  const tmr = (((new Date().getDay() + 6) % 7) + 1) % 7; if (!p.wash.includes(tmr)) return null;
+  const L = lkS().oil = Array.isArray(lkS().oil) ? lkS().oil : [], last = L[L.length - 1];
+  if (last === todayISO()) return { done: true, n: L.length - 1 };
+  if (last && (parseDate(todayISO()) - parseDate(last)) / 864e5 < 14) return null;
+  return { done: false, n: L.length };
+}
+function snWins(m) {
+  const d = pvDay(), W = [];
+  if (m === 'am') {
+    W.push({ id: 'sleep', t: 'Ton sommeil', done: !!S.body.sleep[todayISO()], sleep: true });
+    SN_AM.forEach(([id, t, ids, st, link]) => { if (ids.some(x => snApDef(x))) W.push({ id, t, ids: ids.filter(x => snApDef(x)), st, link }); });
+    if (pvWashDay()) W.push({ id: 'lavage', t: 'Lavage des cheveux', ids: ['lavage'], st: snWashSteps(), occ: 1 });
+  } else {
+    SN_PM.forEach(([id, t, ids, st]) => W.push({ id, t, ids: ids.filter(x => snApDef(x)), st }));
+    if (pvWashDay()) W.push({ id: 'lavage', t: 'Lavage des cheveux', ids: ['lavage'], st: snWashSteps(), occ: 1 });
+    const o = snOilDue(); if (o) { const r = SN_OIL[o.n % 3]; W.push({ id: 'oil', t: 'Bain d\'huile', occ: 1, done: o.done, st: [`Mélange du jour : ${r[0]} (${r[1]}).`, '2 à 3 cuillères à soupe, surtout sur les longueurs et les pointes. Un peu de jojoba ou de nigelle en massage sur le cuir chevelu.', 'Laisse poser toute la nuit : bonnet ou foulard en satin, ou une serviette sur l\'oreiller.', 'Demain : shampoing sur cheveux encore secs et huilés, frotte, puis l\'eau. Deuxième shampoing, puis après-shampoing.'] }); }
+    if (new Date().getDay() === 5) { const g = lkWkVal('w-gommage') >= 1, mk = lkWkVal('w-masque') >= 1; W.push({ id: 'ven', t: 'Soin du vendredi', occ: 1, done: g && mk, wk: ['w-gommage', 'w-masque'], st: ['Gommage doux du visage, en petits cercles, 30 secondes. Rince.', 'Masque visage 10 minutes.', 'Ta crème de nuit ensuite.'] }); }
+    const fd = FITRA.map(([id, nm]) => { const hs = S.body.fitra[id] || [], last = hs[hs.length - 1]; return [id, nm, last ? Math.round((parseDate(todayISO()) - parseDate(last)) / 864e5) : null, last === todayISO()]; }).filter(x => x[3] || (x[2] != null && x[2] >= FITRA_MAX - 5));
+    if (fd.length) W.push({ id: 'fitra', t: 'Fitra', occ: 1, fitra: fd, done: fd.every(x => x[3]) });
+    const bd = pvBarberDays(); if (bd != null && (bd >= PV_BARBER || bd === 0)) W.push({ id: 'barber', t: 'Coiffeur', occ: 1, barber: bd, done: bd === 0 });
+  }
+  W.forEach(w => { if (w.done === undefined) w.done = w.ids.length ? w.ids.every(x => snOn(x, d)) : false; });
+  return W;
+}
+const SN_WASH = ['Mouille tes cheveux. Shampoing Energie Fruit Curl Coco sur le cuir chevelu, massage 2-3 min avec la pulpe des doigts. Si le jaune revient : shampoing violet à la place, 2 à 5 min (au plus toutes les 2 semaines).', 'Après-shampoing So\'Bio Cheveux nourris. Démêle sous la douche, avec un peigne : d\'abord les pointes, puis des racines aux pointes. Jamais à sec.', 'Rince, puis sèche en tamponnant (microfibre ou t-shirt), sans frotter.', 'Crème Coco Curl Light (ou ton 2 en 1) partout sur les longueurs, des racines aux pointes, en faisant un mouvement de ressort. Puis la gelée Coco Curl Jelly par-dessus si tu veux plus de tenue.'];
+/* v5.60 · ta routine d'avant : le masque une fois sur deux, 5 min AVANT le shampoing */
+function snMaskDue() { const D = pvS().d, k = todayISO(); return Object.keys(D).filter(x => x < k && D[x] && D[x].ap && D[x].ap.lavage).length % 2 === 0; }
+function snWashSteps() { return snMaskDue() ? ['Aujourd\'hui, jour de masque : masque Curl Coco 2 en 1 sur cheveux mouillés, laisse poser 5 minutes, puis lave.'].concat(SN_WASH) : SN_WASH; }
+function snWinHtml(w) {
+  const steps = w.st ? `<ol class="sn-st">${w.st.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '';
+  let act = `<button class="btn block" data-snok="${w.id}" style="margin-top:12px">C'est fait</button>`;
+  if (w.sleep) { const bedV = S.body.bedT || '23:00', wakeV = S.body.wakeT || S.body.wake || '07:30';
+    return `<section class="glass pv-card sn-w"><h2 class="pv-h" style="margin:0">Ton sommeil</h2><p class="pv-sub" style="margin:2px 0 10px">Note ta nuit : l'app calcule la durée.</p>
+      <div class="row" style="gap:10px"><label class="nr-l">Couché à<input type="time" id="snBed" value="${esc(bedV)}"></label><label class="nr-l">Réveillé à<input type="time" id="snWake" value="${esc(wakeV)}"></label></div>
+      <button class="btn block" data-snsleep style="margin-top:12px">Noter ma nuit</button></section>`; }
+  if (w.fitra) return `<section class="glass pv-card sn-w"><h2 class="pv-h" style="margin:0">Fitra</h2><p class="pv-sub" style="margin:2px 0 8px">Pas plus de 40 nuits (Muslim). Touche ce que tu as fait.</p><div class="chips">${w.fitra.map(([id, nm, dd, t]) => `<button class="chip" data-fitra="${id}" aria-pressed="${t}">${nm}${t ? ' ✓' : dd != null ? ` · ${dd} j` : ''}</button>`).join('')}</div></section>`;
+  if (w.barber != null) return `<section class="glass pv-card sn-w"><h2 class="pv-h" style="margin:0">Coiffeur</h2><p class="pv-sub" style="margin:2px 0 8px">Dernier passage il y a ${w.barber} jours. Tu laisses pousser : seulement le contour.</p><button class="btn block" data-pvbarber>J'y suis allé</button></section>`;
+  if (w.link) act = `<div class="row" style="gap:8px;margin-top:12px"><button class="btn sm ghost" data-cview="${w.link}" style="flex:1">Ouvrir Parfum</button><button class="btn sm" data-snok="${w.id}" style="flex:1">C'est fait</button></div>`;
+  return `<section class="glass pv-card sn-w"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">${esc(w.t)}</h2>${w.occ ? '<span class="sn-tag">aujourd\'hui</span>' : ''}</div>${steps}${act}</section>`;
+}
+function vSoin() {
+  const m = snMode();
+  if (m === 'suivi') return vSoinSuivi();
+  const W = snWins(m), todo = W.filter(w => !w.done), done = W.filter(w => w.done);
+  const wake = toMin(S.body.wake || '04:30'), bed5 = wake - 450 - 15;
+  const head = m === 'pm' ? `<p class="pv-sub" style="text-align:center;margin:12px 0 0">Au lit vers <b class="num" style="color:var(--gold)">${fmtClock(bed5)}</b> pour 7 h 30 avant ton réveil de ${esc(S.body.wake || '04:30')}.</p>` : '';
+  const pills = done.length ? `<div class="sn-done"><p class="pv-k" style="margin:0 0 6px">Fait</p><div class="chips" style="margin:0">${done.map(w => `<button class="chip on" data-snundo="${w.id}">${esc(w.t)} ✓</button>`).join('')}</div><p class="pv-sub" style="margin:6px 0 0">Touche une pastille pour la rouvrir.</p></div>` : '';
+  return `${corpsTop('soin')}${soinSeg('soin')}${head}
+    ${todo.length ? todo.map(snWinHtml).join('') : `<section class="glass pv-card"><p class="pv-line" style="margin:0;text-align:center"><b>${m === 'am' ? 'Ta routine du matin est faite.' : 'Ta routine du soir est faite.'}</b></p></section>`}
+    ${pills}`;
+}
+function vSoinSuivi() {
+  const goals = LK_GOALS.map(([id, t, sb, ids, at]) => { const n = lkGoalDays(ids); return `<button class="lk-goal" ${at}><span class="lk-gr" style="--p:${Math.round(n / 7 * 100)}%"><b class="num">${n}/7</b></span><span><b>${t}</b><small>${sb}</small></span></button>`; }).join('');
+  const p = pvS(), oil = Array.isArray(lkS().oil) ? lkS().oil : [];
+  return `${corpsTop('soin')}${soinSeg('soin')}${vSleepOld()}
+    <section class="glass pv-card"><h2 class="pv-h" style="margin:0 0 4px">Tes objectifs</h2><p class="pv-sub" style="margin:0 0 10px">Sur les 7 derniers jours, combien de jours tu as fait tous les gestes de chaque objectif.</p><div class="lk-goals">${goals}</div></section>
+    <section class="glass pv-card"><h2 class="pv-h">Fitra</h2><div class="fits">${FITRA.map(([id, nm]) => fitraRing(id, nm)).join('')}</div></section>
+    ${pvMore('Cheveux', `lavage : ${p.wash.map(i => PV_WD[i].toLowerCase()).join(', ') || 'à choisir'} · ${oil.length} bain${oil.length > 1 ? 's' : ''} d'huile`, `<p class="pv-k" style="margin-top:0">Jours de lavage</p><div class="chips">${PV_WD.map((w, i) => `<button class="chip" data-pvwash="${i}" aria-pressed="${p.wash.includes(i)}">${w}</button>`).join('')}</div><p class="pv-sub">1 à 2 lavages par semaine. Le bain d'huile apparaît le soir avant un lavage, au plus toutes les 2 semaines.${oil.length ? ` Dernier : ${DAY_MONTH.format(parseDate(oil[oil.length - 1]))}.` : ''}</p>`)}
+    ${pvMore('Guides détaillés', 'barbe, peau, cheveux, dents, mains, tous les gestes', `<div class="chips">${[['barbe', 'Barbe'], ['peau', 'Peau'], ['cheveux', 'Cheveux'], ['dents', 'Dents'], ['mains', 'Mains'], ['liste', 'Tous mes gestes']].map(([id, n]) => `<button class="chip" data-apt="${id}">${n}</button>`).join('')}</div>`)}`;
+}
+function snClick(t) {
+  const c = s => t.closest(s); let el;
+  if ((el = c('[data-snm]'))) { SNU.m = el.dataset.snm; SNU.at = Date.now(); go('soin'); return true; }
+  if (c('[data-snsleep]')) { const b = ($('#snBed') || {}).value, w = ($('#snWake') || {}).value; if (!b || !w) { toast('Indique les deux heures'); return true; }
+    let m = toMin(w) - toMin(b); if (m <= 0) m += 1440; if (m < 60 || m > 840) { toast('Vérifie les heures'); return true; }
+    S.body.sleep[todayISO()] = m; S.body.bedT = b; S.body.wakeT = w; (S.body.slog = S.body.slog || {})[todayISO()] = { b, w }; save(); haptic();
+    if (m >= 420) reward(2, { noBonus: true }); pvRe(); toast(`Nuit notée : ${fmtDur(m)}`); return true; }
+  if ((el = c('[data-snok]'))) { const id = el.dataset.snok, w = snWins(snMode()).find(x => x.id === id); if (!w) return true;
+    if (id === 'oil') { const L = lkS().oil = Array.isArray(lkS().oil) ? lkS().oil : []; if (L[L.length - 1] !== todayISO()) L.push(todayISO()); }
+    else if (w.wk) { const k = lkWk(); w.wk.forEach(x => { k[x] = Math.max(1, k[x] || 0); }); }
+    else w.ids.forEach(x => snSet(x, true));
+    save(); haptic(); pvCheckDay(); pvRe(); return true; }
+  if ((el = c('[data-snundo]'))) { const id = el.dataset.snundo, w = snWins(snMode()).find(x => x.id === id); if (!w) return true;
+    if (id === 'sleep') delete S.body.sleep[todayISO()];
+    else if (id === 'oil') { const L = lkS().oil || []; if (L[L.length - 1] === todayISO()) L.pop(); }
+    else if (w.wk) { const k = lkWk(); w.wk.forEach(x => { delete k[x]; }); }
+    else if (w.ids) w.ids.forEach(x => snSet(x, false));
+    save(); pvRe(); return true; }
+  return false;
+}
 /* Les objectifs d'apparence de Sayko, chacun relié à ses gestes du jour et à sa page détaillée */
 const LK_GOALS = [
   ['barbe', 'Barbe propre', 'bouclée, nette, sunna', ['m-barbe'], 'data-apt="barbe"'],
@@ -5522,10 +5697,11 @@ function lkGoalDays(ids) {
 const pvMO = (k, t, sub) => `<details class="pv-more" data-k="${k}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">`, pvMC = '</div></details>';
 function pvMore(t, sub, html) { return `<details class="pv-more" data-k="m-${esc(t)}"><summary><b>${t}</b><span>${sub}</span></summary><div class="pv-morein">${html}</div></details>`; }
 function soinSeg(v) {
-  /* v5.12 : plus de sous-onglet « Apparence » : chaque soin a son bouton, dans le même style que Sommeil et Parfum */
-  const cur = v === 'apparence' ? APU.t : v === 'parfum' ? 'parfum' : 'sommeil';
-  const B = [['sommeil', 'Sommeil', 'data-cview="soin"'], ['barbe', 'Barbe', 'data-apt="barbe"'], ['peau', 'Peau', 'data-apt="peau"'], ['cheveux', 'Cheveux', 'data-apt="cheveux"'], ['dents', 'Dents', 'data-apt="dents"'], ['mains', 'Mains', 'data-apt="mains"'], ['parfum', 'Parfum', 'data-cview="parfum"'], ['liste', 'Ma liste', 'data-apt="liste"']];
-  return `<div class="seg lk-seg seg-soin" role="group" aria-label="Soin" style="margin-top:12px">${B.map(([id, n, at]) => `<button ${at} aria-pressed="${cur === id}">${n}</button>`).join('')}</div>`;
+  /* v5.57 · trois boutons seulement : Matin, Soir, Parfum (+ « Mon suivi » discret) */
+  const cur = v === 'parfum' ? 'parfum' : v === 'soin' ? snMode() : '';
+  const B = [['am', 'Matin', 'data-snm="am"'], ['pm', 'Soir', 'data-snm="pm"'], ['parfum', 'Parfum', 'data-cview="parfum"']];
+  return `<div class="seg seg3" role="group" aria-label="Soin" style="margin-top:12px">${B.map(([id, n, at]) => `<button ${at} aria-pressed="${cur === id}">${n}</button>`).join('')}</div>
+    <p style="text-align:center;margin:8px 0 0"><button class="link-btn small" data-snm="suivi" style="min-width:0;padding:0;color:var(--${cur === 'suivi' ? 'gold' : 'muted'})">Mon suivi · sommeil, objectifs, guides</button></p>`;
 }
 /* Test de peau */
 const LK_Q = [['Une heure après avoir lavé ton visage, sans rien mettre, ta peau :', ['Tire, inconfortable', 'Normale, rien de spécial', 'Brille sur le front et le nez', 'Brille partout']],
@@ -6557,21 +6733,83 @@ const PV_KCF = { ban: 100, fra: 35, pom: 80, poi: 90, ora: 65, cle: 70, kiw: 45,
 const PV_KOBJ = [1500, 1700];
 function pvKcal(d) { const q = d.q && typeof d.q === 'object' ? d.q : {}; let k = Object.entries(q).reduce((a, [id, n]) => a + (PV_KC[id] || 0) * numv(n), 0);
   k += Object.keys(PV_KCF).reduce((a, id) => a + (d.fr && d.fr[id] ? PV_KCF[id] : 0), 0) + (Array.isArray(d.xp) ? d.xp : []).reduce((a, x) => a + numv(x.g) * 9, 0) + (d.meal ? 45 : 0);
-  return Math.round(k / 10) * 10; }
+  return Math.round(k / 10) * 10 + pvEntK(d); }
 /* v5.48 · ajouter une recette ou un aliment coche aussi « J'ai pris mon repas » (avec l'heure) s'il ne l'était pas */
 function pvMealOn(d) { if (d.meal) return false; const n = new Date(); d.meal = 1; d.mealAt = `${pad(n.getHours())}:${pad(n.getMinutes())}`; try { pvOnce('meal', 3, ['Repas pris', 'Un seul repas, mais un vrai : protéines, patates, légumes.']); } catch (e) {} return true; }
-function pvProt(d) { const xp = (Array.isArray(d.xp) ? d.xp : []).reduce((a, x) => a + numv(x.g), 0); return Math.round(xp + pvProt0(d)); }
+function pvProt(d) { const xp = (Array.isArray(d.xp) ? d.xp : []).reduce((a, x) => a + numv(x.g), 0); return Math.round(xp + pvProt0(d) + pvEntP(d)); }
 function pvProt0(d) { if (d.q && typeof d.q === 'object') return (Object.entries(d.q).reduce((a, [id, n]) => a + (PV_FDX[id] ? PV_FDX[id][3] * numv(n) : 0), 0) + (d.fr && d.fr.ban ? 1 : 0)); const c = d.comp || {}; return Math.round(PV_COMP.reduce((a, [id, , g]) => a + (id === 'oe' ? numv(d.eggs) * PV_EGG : c[id] ? g : 0), 0) + (d.whey ? PV_WHEY : 0) + (d.fr && d.fr.ban ? 1 : 0)); }
 const pvClean = d => PV_BAN.every(([id]) => !(d.ban || {})[id]);
 /* v5.37 · ce qui manque vraiment, en clair */
-function pvFoodMiss(d) { const [m, w, f, c] = pvFoodScore(d), fr = d.fr || {};
+function pvFoodMiss(d, k) { if ((k || todayISO()) >= PV_N2) return pvFoodMiss2(d); const [m, w, f, c] = pvFoodScore(d, k), fr = d.fr || {};
   if (!m) return 'Repas unique pas encore pris';
   const miss = []; if (!w) miss.push(`encore ${pvL(Math.max(0, PV_EAU[0] - numv(d.water)))} d'eau`); if (!f) miss.push(pvFruitN(d) ? 'un 2e fruit' : '2 fruits');
   return miss.length ? `Il manque ${miss.join(' et ')}` : c ? 'Tout est fait' : 'Écart noté aujourd\'hui : on repart à zéro demain'; }
 /* v5.41 · tous les fruits comptent : 2 fruits au choix valident le point (plus seulement banane + fraises) */
 const PV_FRUITS = [['ban', 'Banane'], ['fra', 'Fraises'], ['pom', 'Pomme'], ['poi', 'Poire'], ['ora', 'Orange'], ['cle', 'Clémentines'], ['kiw', 'Kiwi'], ['rai', 'Raisin'], ['dat', '3 dattes'], ['aut', 'Autre fruit']];
 const pvFruitN = d => PV_FRUITS.filter(([id]) => d.fr && d.fr[id]).length;
-function pvFoodScore(d) { return [!!d.meal, numv(d.water) >= PV_EAU[0], pvFruitN(d) >= 2, pvClean(d)]; }
+function pvFoodScore(d, k) { if ((k || todayISO()) >= PV_N2) return pvFoodScore2(d); return [!!d.meal, numv(d.water) >= PV_EAU[0], pvFruitN(d) >= 2, pvClean(d)]; }
+/* =====================================================================
+   v5.55 · NUTRITION SIMPLIFIÉE (demande de Sayko, 06/11/2026)
+   Plus de repas imposé, de liste de courses ni de « zéro écart » : deux compteurs (protéines, calories)
+   remplis à la main ou avec des boutons rapides, la bibliothèque de recettes (+ ses propres recettes), le poids et l'eau.
+   Objectifs : 79 kg → 65 kg, 1,78 m, 24 ans, travail surtout assis, ~12-15 000 pas/jour.
+   Calories = Mifflin-St Jeor × 1,2 (sédentaire) + ≈ 370 kcal (marche) − 700 kcal de déficit, arrondi à 50, ± 100.
+   → 79 kg ≈ 1 800 kcal (1 700-1 900), soit ≈ 0,6-0,8 % du poids par semaine.
+   Ajustement auto toutes les 2 semaines d'après la pente des pesées (pvRate) : > 1 %/sem → +150 kcal, < 0,5 %/sem → −150 kcal
+   (entre −300 et +300, jamais sous 1 600 au centre). Protéines = 1,8 g/kg (pvProtTarget).
+   Pilier Alimentation (à partir du 06/11/2026) : protéines atteintes + calories dans la fourchette + ≥ 2 L d'eau.
+   ===================================================================== */
+const PV_N2 = '2026-11-06';
+function pvKT() {
+  const p = pvS(), pr = S.body.profile || {}, w = bodyWeight() || 79, h = numv(pr.height) || 178, a = numv(pr.age) || 24;
+  const bmr = 10 * w + 6.25 * h - 5 * a + 5, adj = numv(p.kadj) || 0;
+  const mid = Math.max(1600, Math.round((bmr * 1.2 + 370 - 700) / 50) * 50 + adj);
+  return { mid, lo: mid - 100, hi: mid + 100, adj };
+}
+function pvKAuto() { /* revu au plus toutes les 2 semaines, à partir des vraies pesées */
+  const p = pvS(), t = todayISO(); if (p.kadjAt && (parseDate(t) - parseDate(p.kadjAt)) / 864e5 < 14) return;
+  if (!p.kadjAt) { p.kadjAt = t; return; }
+  const r = pvRate(); if (!r || r.wait) return; const loss = -r.pct, a = numv(p.kadj) || 0;
+  let n = a; if (loss > 1) n = Math.min(300, a + 150); else if (loss < .5) n = Math.max(-300, a - 150);
+  p.kadjAt = t; if (n !== a) { p.kadj = n; p.kmsg = { d: t, up: n > a, loss: Math.round(loss * 100) / 100 }; save(); }
+}
+const PV_QK = [
+  ['Fruits', [['ban', 'Banane', 105, 1.3], ['pom', 'Pomme', 80, .4], ['poi', 'Poire', 95, .6], ['ora', 'Orange', 65, 1.2], ['cle', 'Clémentine', 35, .6], ['kiw', 'Kiwi', 45, .8], ['fra', 'Fraises · 150 g', 50, 1], ['rai', 'Raisin · 150 g', 100, 1], ['mang', 'Mangue · ½', 90, 1.2], ['ana', 'Ananas · 2 tranches', 50, .5], ['grn', 'Grenade · ½', 80, 1.5], ['dat', '3 dattes', 70, .6]]],
+  ['Boissons', [['jor', 'Jus d\'orange maison · 25 cl', 110, 1.7], ['jpo', 'Jus de pomme maison · 25 cl', 115, .3], ['smo', 'Smoothie aux fruits · 30 cl', 160, 2], ['cal', 'Café au lait · 15 cl de lait', 55, 3.5], ['lait', 'Verre de lait demi-écrémé', 115, 8], ['the', 'Thé ou café · 1 sucre', 20, 0]]],
+  ['Protéines', [['oe', 'Œuf', 75, 6.5], ['sky', 'Skyr nature · 100 g', 60, 10.5], ['fb', 'Fromage blanc 0 % · 100 g', 50, 7.5], ['whey', 'Whey · 1 dose', 120, 24], ['thon', 'Thon au naturel · 1 boîte', 125, 26], ['barre', 'Barre protéinée sans sucre', 190, 20]]],
+  ['Fruits secs', [['amd', 'Amandes · poignée 30 g', 175, 6.3], ['noix', 'Noix · poignée 30 g', 195, 4.5], ['caj', 'Cajou · poignée 30 g', 165, 5.4], ['pist', 'Pistaches · poignée 30 g', 170, 6], ['abr', 'Abricots secs · 5', 85, 1.2], ['rsec', 'Raisins secs · 30 g', 90, .9]]]
+];
+const PV_QKX = Object.fromEntries(PV_QK.flatMap(([, L]) => L.map(x => [x[0], x])));
+const pvEnt = d => Array.isArray(d.ent) ? d.ent : [];
+const pvEntK = d => pvEnt(d).reduce((a, x) => a + numv(x.k), 0);
+const pvEntP = d => pvEnt(d).reduce((a, x) => a + numv(x.p), 0);
+function pvEntAdd(n, k, p) { const d = pvDay(); (d.ent = pvEnt(d)).push({ id: uid(), n: n || '', k: Math.round(numv(k)), p: Math.round(numv(p) * 10) / 10, t: `${pad(new Date().getHours())}:${pad(new Date().getMinutes())}` }); save(); pvCheckDay(); }
+const pvMyRec = () => { const p = pvS(); if (!Array.isArray(p.myrec)) p.myrec = []; return p.myrec; };
+function pvFoodScore2(d) { const K = pvKT(), pt = pvProtTarget() || 140, k = pvKcal(d); return [pvProt(d) >= pt, k >= K.lo && k <= K.hi, numv(d.water) >= PV_EAU[0]]; }
+function pvFoodMiss2(d) {
+  const K = pvKT(), pt = pvProtTarget() || 140, k = pvKcal(d), pr = pvProt(d), m = [];
+  if (pr < pt) m.push(`encore ${Math.ceil(pt - pr)} g de protéines`);
+  if (k > K.hi) m.push(`${Math.round(k - K.hi)} kcal au-dessus`); else if (k < K.lo) m.push(k ? `${Math.round(K.lo - k)} kcal avant le minimum` : 'rien de noté');
+  if (numv(d.water) < PV_EAU[0]) m.push(`${pvL(Math.max(0, PV_EAU[0] - numv(d.water)))} d'eau`);
+  return m.length ? `Reste : ${m.join(', ')}` : 'Protéines, calories et eau : tout est bon';
+}
+function pvRecCard(r) { /* r = { key, n, sub, k, p, ing[], st[], my } */
+  return `<details class="pv-det rec" data-k="rec-${r.key}"><summary><b>${esc(r.n)}</b><small>${r.sub ? esc(r.sub) + ' · ' : ''}≈ ${Math.round(r.k)} kcal · ≈ ${Math.round(r.p)} g de protéines</small></summary>
+    ${r.ing.length ? `<p class="pv-k">Ingrédients</p><ul class="rec-ul">${r.ing.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    ${r.st.length ? `<p class="pv-k">Préparation</p><ol class="ap-steps rec-st">${r.st.map(x => `<li><span>${esc(x)}</span></li>`).join('')}</ol>` : ''}
+    <button class="btn sm block" data-neat="${r.key}">J'ai mangé ça · +${Math.round(r.k)} kcal, +${Math.round(r.p)} g</button>
+    ${r.my ? `<button class="link-btn small" data-nrdel="${r.key}" style="color:var(--muted);min-width:0;padding:0;margin-top:8px">Supprimer cette recette</button>` : ''}</details>`;
+}
+function pvRecAll() {
+  const my = pvMyRec().map(x => ({ key: 'm' + x.id, n: x.n, sub: 'ma recette', k: numv(x.k), p: numv(x.p), ing: String(x.ing || '').split('\n').map(y => y.trim()).filter(Boolean), st: String(x.st || '').split('\n').map(y => y.trim()).filter(Boolean), my: 1 }));
+  const base = PV_REC.map((r, i) => ({ key: 'b' + i, n: r[0], sub: r[1], k: (PV_MAC[i] || [0])[0], p: (PV_MAC[i] || [0, 0])[1], ing: r[3], st: r[4] }));
+  return my.concat(base);
+}
+const NRU = { add: false };
+function pvLibrary() {
+  const n = pvRecAll().length, nMy = pvMyRec().length;
+  return `<button class="rw-door" data-rwopen style="margin-top:12px"><span class="rw-door-dishes">${[0, 2, 9].map(i => rwDish(i)).join('')}</span><span><b>Entrer dans mon monde des repas</b><small>${n} recettes${nMy ? ` dont ${nMy} à toi` : ''} · ajoute les tiennes à l'intérieur</small></span>${ICON.chev}</button>`;
+}
 function pvCleanStreak() { let n = 0; for (let i = 0; i < 400; i++) { const k = iso(addDays(new Date(), -i)), d = pvS().d[k]; if (!d || !d.meal) { if (i === 0) continue; break; } if (!pvClean(d)) break; n++; } return n; }
 function pvBanStreak(id) { let n = 0; for (let i = 1; i < 400; i++) { const k = iso(addDays(new Date(), -i)); if (k < pvS().start) break; const d = pvS().d[k]; if (d && d.ban && d.ban[id]) break; n++; } return n; }
 /* v5.25 : idées de repas simples, conformes au protocole (sans viande, sans pâtes, riz, pain ni sucre) + liste de courses.
@@ -6642,8 +6880,8 @@ function pvCourses() {
    Un bouton ouvre un monde plein écran : les plats, dessinés à partir de leurs vrais ingrédients, flottent dans un carrousel
    en perspective. Toucher un plat fait jaillir des bulles : macros autour, ingrédients en dessous, puis la préparation. */
 const RW_BASE = { 2: 'pan', 7: 'tart', 8: 'bowl', 9: 'wrap' };
-function rwDish(i) {
-  const q = PV_REC[i][5] || {}, base = RW_BASE[i] || 'plate';
+function rwDish(i, qOv, baseOv) {
+  const q = qOv || (PV_REC[i] && PV_REC[i][5]) || {}, base = baseOv || RW_BASE[i] || 'plate';
   let seed = 31 + i * 97; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   const spot = (r = 44) => { const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * r; return [100 + Math.cos(a) * d, 100 + Math.sin(a) * d * .92]; };
   const rot = () => Math.round(rnd() * 360);
@@ -6675,7 +6913,7 @@ function rwDish(i) {
     if (q.sal || q.epi) food += `<ellipse cx="100" cy="100" rx="52" ry="48" fill="${q.epi ? '#2C5A31' : '#6FA84A'}" opacity=".55"/>`;
     order.forEach(k => { const v = numv(q[k]) || 0; if (!v) return; const n = Math.min((cap[k] || 3) * 2, Math.max(1, Math.round(v * (many[k] || 1)))); for (let j = 0; j < n; j++) food += D[k] ? D[k]() : ''; });
     food = `<g transform="translate(100 100) scale(1.22) translate(-100 -100)">${food}</g>`;
-    if (i === 8) { for (let k = 0; k < 4; k++) { const [x, y] = spot(30); food += `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="6.5" fill="#F6E7A0"/><circle r="4.6" fill="#FBF3CF"/></g>`; } for (let k = 0; k < 3; k++) { const [x, y] = spot(34); food += `<path transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})" d="M0 -7C5 -7 7 -3 6 1C5 5 1 8 0 8C-1 8 -5 5 -6 1C-7 -3 -5 -7 0 -7Z" fill="#D7303A"/>`; } }
+    if (i === 8 && !qOv) { for (let k = 0; k < 4; k++) { const [x, y] = spot(30); food += `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="6.5" fill="#F6E7A0"/><circle r="4.6" fill="#FBF3CF"/></g>`; } for (let k = 0; k < 3; k++) { const [x, y] = spot(34); food += `<path transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot()})" d="M0 -7C5 -7 7 -3 6 1C5 5 1 8 0 8C-1 8 -5 5 -6 1C-7 -3 -5 -7 0 -7Z" fill="#D7303A"/>`; } }
   }
   const plate = base === 'pan' ? `<circle cx="100" cy="100" r="84" fill="#20262A"/><circle cx="100" cy="100" r="76" fill="#2D3438"/><rect x="176" y="92" width="22" height="16" rx="6" fill="#1A1F22"/><circle cx="100" cy="100" r="70" fill="url(#rwSauce)"/>`
     : base === 'bowl' ? `<circle cx="100" cy="100" r="80" fill="#EDE9E1"/><circle cx="100" cy="100" r="68" fill="#D9D3C6"/><circle cx="100" cy="100" r="62" fill="#FFFFFF"/><circle cx="100" cy="100" r="62" fill="url(#rwSkyr)"/>`
@@ -6684,39 +6922,49 @@ function rwDish(i) {
   return `<svg class="rw-svg" viewBox="0 0 200 200" aria-hidden="true"><defs><radialGradient id="rwPlate" cx=".42" cy=".38"><stop offset="0" stop-color="#FAF8F3"/><stop offset=".75" stop-color="#E6E1D6"/><stop offset="1" stop-color="#C9C1B1"/></radialGradient><radialGradient id="rwSauce" cx=".45" cy=".4"><stop offset="0" stop-color="#C8452E"/><stop offset="1" stop-color="#8E2A1C"/></radialGradient><radialGradient id="rwSkyr" cx=".45" cy=".4"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#ECE8E0"/></radialGradient><radialGradient id="rwShadow"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>
     <ellipse cx="104" cy="112" rx="92" ry="88" fill="url(#rwShadow)"/><g class="rw-spin">${plate}${food}</g><ellipse cx="78" cy="62" rx="30" ry="12" fill="#FFFFFF" opacity=".12" transform="rotate(-30 78 62)"/></svg>`;
 }
-const RWV = { i: 0, open: -1, steps: false };
-function rwOrder() { let plan = []; try { plan = csPlan().meals; } catch (e) {} const tags = {}; ['Aujourd’hui', 'Demain', 'Après-demain'].forEach((t, j) => { if (plan[j] != null && tags[plan[j]] == null) tags[plan[j]] = t; });
-  const L = PV_REC.map((_, i) => i); return { L: L.filter(i => tags[i] != null).sort((a, b) => plan.indexOf(a) - plan.indexOf(b)).concat(L.filter(i => tags[i] == null)), tags }; }
-function rwItem(i, tag) {
-  const [n, t] = PV_REC[i], [kc, P, G, Li] = PV_MAC[i] || [0, 0, 0, 0], ing = PV_REC[i][3];
-  const bub = [[`${kc}`, 'kcal', 'k'], [`${P} g`, 'protéines', 'p'], [`${G} g`, 'glucides', 'g'], [`${Li} g`, 'lipides', 'l'], [esc(t.replace(/ \(.*\)/, '')), 'temps', 't']];
-  const ang = [-160, -122, -90, -58, -20];
-  return `<div class="rw-item" data-rwi="${i}"><div class="rw-stage"><button class="rw-dish" data-rwd="${i}" aria-label="${esc(n)}">${rwDish(i)}</button>
-    ${bub.map(([v, l, c], k) => { const a = ang[k] * Math.PI / 180; return `<span class="rw-b rw-${c}" style="--x:${(Math.cos(a) * 106).toFixed(0)}px;--y:${(Math.sin(a) * 120).toFixed(0)}px;--d:${k * 70}ms"><b>${v}</b><small>${l}</small></span>`; }).join('')}</div>
-    <p class="rw-name">${tag ? `<span class="cs-tag">${tag}</span>` : ''}${esc(n)}</p>
-    <div class="rw-more"><div class="rw-ing">${ing.map((x, k) => `<span style="--d:${300 + k * 60}ms">${esc(x)}</span>`).join('')}</div>
-      ${PV_RNOTE[i] ? `<p class="pv-sub" style="text-align:center">${esc(PV_RNOTE[i])}</p>` : ''}
-      <div class="rw-btns"><button class="btn sm ghost" data-rwst="${i}">${RWV.steps && RWV.open === i ? 'Cacher la préparation' : 'Voir la préparation'}</button><button class="btn sm" data-rweat="${i}">J'ai mangé ça</button></div>
-      ${RWV.steps && RWV.open === i ? `<ol class="ap-steps rec-st rw-steps">${PV_REC[i][4].map(x => `<li><span>${esc(x)}</span></li>`).join('')}</ol>` : ''}</div></div>`;
+const RWV = { i: 0, open: -1, steps: false, add: false };
+/* v5.56 · le monde contient toutes les recettes : les tiennes d'abord, puis celles de base. Index = position dans pvRecAll(). */
+const RW_KW = [[/œuf|oeuf/i, 'oe', 3], [/patate douce/i, 'pd', 1], [/pomme de terre|patate(?! douce)/i, 'pt', 2], [/thon/i, 'thon', 1], [/épinard|epinard/i, 'epi', 1], [/salade/i, 'sal', 1], [/tomate cerise/i, 'tcer', 4], [/tomate/i, 'tom', 1], [/poivron/i, 'poiv', 1], [/oignon/i, 'oign', 1], [/skyr|fromage blanc/i, 'fb', 1], [/courgette/i, 'courg', 1], [/champignon/i, 'champ', 3], [/brocoli/i, 'broc', 1], [/concombre/i, 'conc', 1], [/carotte/i, 'car', 2]];
+function rwGuessQ(r) { const txt = r.n + ' ' + r.ing.join(' '), q = {}; RW_KW.forEach(([re, id, n]) => { if (re.test(txt) && !(id === 'tom' && q.tcer)) q[id] = n; }); if (!Object.keys(q).length) { q.sal = 1; q.tom = 1; q.oe = 2; } return q; }
+const rwB = r => r.key[0] === 'b' ? +r.key.slice(1) : -1;
+function rwItem(r, k) {
+  const i = rwB(r), mac = i >= 0 ? (PV_MAC[i] || [0, 0, 0, 0]) : [Math.round(r.k), Math.round(r.p)], t = i >= 0 ? PV_REC[i][1] : '';
+  const bub = i >= 0 ? [[`${mac[0]}`, 'kcal', 'k'], [`${mac[1]} g`, 'protéines', 'p'], [`${mac[2]} g`, 'glucides', 'g'], [`${mac[3]} g`, 'lipides', 'l'], [esc(t.replace(/ \(.*\)/, '')), 'temps', 't']] : [[`${mac[0]}`, 'kcal', 'k'], [`${String(mac[1]).replace('.', ',')} g`, 'protéines', 'p']];
+  const ang = i >= 0 ? [-160, -122, -90, -58, -20] : [-130, -50];
+  const dish = i >= 0 ? rwDish(i) : rwDish(200 + k, rwGuessQ(r), /wrap/i.test(r.n) ? 'wrap' : 'plate');
+  return `<div class="rw-item" data-rwi="${k}"><div class="rw-stage"><button class="rw-dish" data-rwd="${k}" aria-label="${esc(r.n)}">${dish}</button>
+    ${bub.map(([v, l, c], j) => { const a = ang[j] * Math.PI / 180; return `<span class="rw-b rw-${c}" style="--x:${(Math.cos(a) * 106).toFixed(0)}px;--y:${(Math.sin(a) * 120).toFixed(0)}px;--d:${j * 70}ms"><b>${v}</b><small>${l}</small></span>`; }).join('')}</div>
+    <p class="rw-name">${r.my ? '<span class="cs-tag">Ma recette</span>' : ''}${esc(r.n)}</p>
+    <div class="rw-more">${r.ing.length ? `<div class="rw-ing">${r.ing.map((x, j) => `<span style="--d:${300 + j * 60}ms">${esc(x)}</span>`).join('')}</div>` : ''}
+      ${i >= 0 && PV_RNOTE[i] ? `<p class="pv-sub" style="text-align:center">${esc(PV_RNOTE[i])}</p>` : ''}
+      <div class="rw-btns">${r.st.length ? `<button class="btn sm ghost" data-rwst="${k}">${RWV.steps && RWV.open === k ? 'Cacher la préparation' : 'Voir la préparation'}</button>` : ''}<button class="btn sm" data-rweat="${k}">J'ai mangé ça</button></div>
+      ${RWV.steps && RWV.open === k ? `<ol class="ap-steps rec-st rw-steps">${r.st.map(x => `<li><span>${esc(x)}</span></li>`).join('')}</ol>` : ''}
+      ${r.my ? `<button class="link-btn small" data-rwdel="${k}" style="display:block;margin:10px auto 0;color:rgba(255,255,255,.55);min-width:0">Supprimer cette recette</button>` : ''}</div></div>`;
 }
 function rwRender(el) {
-  const { L, tags } = rwOrder();
-  el.innerHTML = `<div class="rw-sky"></div><div class="rw-top"><div><p class="pv-k" style="margin:0">Mon monde</p><h2>Mes recettes</h2></div><button class="rw-x" data-rwx aria-label="Fermer">×</button></div>
-    <div class="rw-track">${L.map(i => rwItem(i, tags[i])).join('')}</div>
-    <div class="rw-dots">${L.map(i => `<i data-rwdot="${i}"></i>`).join('')}</div>
-    <p class="rw-hint">Glisse pour te balader · touche un plat pour l'ouvrir</p>`;
+  const R = pvRecAll(), L = R.map((_, k) => k);
+  el.innerHTML = `<div class="rw-sky"></div><div class="rw-top"><div><p class="pv-k" style="margin:0">Mon monde</p><h2>Mes recettes</h2></div><div class="row" style="gap:8px;align-items:center"><button class="rw-add" data-rwadd aria-label="Ajouter une recette">+ Ajouter</button><button class="rw-x" data-rwx aria-label="Fermer">×</button></div></div>
+    <div class="rw-track">${R.map((r, k) => rwItem(r, k)).join('')}</div>
+    <div class="rw-dots">${L.map(k => `<i data-rwdot="${k}"></i>`).join('')}</div>
+    <p class="rw-hint">Glisse pour te balader · touche un plat pour l'ouvrir</p>
+    ${RWV.add ? `<div class="rw-form"><h3>Nouvelle recette</h3>
+      <input id="nrN" placeholder="Nom de la recette" autocomplete="off">
+      <div class="row" style="gap:8px;margin-top:8px"><label class="nr-l">kcal / portion<input id="nrK" inputmode="numeric" placeholder="0"></label><label class="nr-l">Protéines (g)<input id="nrP" inputmode="decimal" placeholder="0"></label></div>
+      <textarea id="nrI" rows="4" placeholder="Ingrédients et quantités (un par ligne)"></textarea>
+      <textarea id="nrS" rows="3" placeholder="Préparation (une étape par ligne, facultatif)"></textarea>
+      <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm ghost" data-rwadd style="flex:1">Annuler</button><button class="btn sm" data-rwsave style="flex:1">Enregistrer</button></div></div>` : ''}`;
   const tr = $('.rw-track', el), items = [...el.querySelectorAll('.rw-item')];
   const fx = () => { const c = tr.scrollLeft + tr.clientWidth / 2; let best = 0, bd = 1e9;
     items.forEach((it, k) => { const m = it.offsetLeft + it.offsetWidth / 2, d = (m - c) / it.offsetWidth; if (Math.abs(d) < bd) { bd = Math.abs(d); best = k; }
       const a = Math.max(-1.4, Math.min(1.4, d)); it.style.setProperty('--r', `${(-a * 28).toFixed(1)}deg`); it.style.setProperty('--s', (1 - Math.min(1, Math.abs(a)) * .22).toFixed(3)); it.style.setProperty('--o', (1 - Math.min(1, Math.abs(a)) * .55).toFixed(3)); it.style.zIndex = String(10 - Math.round(Math.abs(a) * 5)); });
     el.querySelectorAll('.rw-dots i').forEach((x, k) => x.classList.toggle('on', k === best)); RWV.i = best; items.forEach((it, k) => it.classList.toggle('c', k === best));
-    if (RWV.open >= 0 && L[best] !== RWV.open) { const o = el.querySelector('.rw-item.on'); if (o) o.classList.remove('on'); RWV.open = -1; RWV.steps = false; } };
+    if (RWV.open >= 0 && best !== RWV.open) { const o = el.querySelector('.rw-item.on'); if (o) o.classList.remove('on'); RWV.open = -1; RWV.steps = false; } };
   tr.addEventListener('scroll', () => requestAnimationFrame(fx), { passive: true });
   requestAnimationFrame(() => { const it = items[Math.min(RWV.i, items.length - 1)]; if (it) tr.scrollLeft = it.offsetLeft - (tr.clientWidth - it.offsetWidth) / 2; fx();
     if (RWV.open >= 0) { const o = el.querySelector(`.rw-item[data-rwi="${RWV.open}"]`); if (o) o.classList.add('on', 'now'); } });
 }
 function rwOpen() {
-  const old = $('.rw'); if (old) old.remove(); RWV.open = -1; RWV.steps = false;
+  const old = $('.rw'); if (old) old.remove(); RWV.open = -1; RWV.steps = false; RWV.add = false;
   const el = document.createElement('div'); el.className = 'rw'; document.body.appendChild(el); document.documentElement.classList.add('rw-lock'); rwRender(el);
   requestAnimationFrame(() => el.classList.add('in'));
   el.addEventListener('click', e => { e.stopPropagation(); const t = e.target, c = s => t.closest(s); let b;
@@ -6726,7 +6974,12 @@ function rwOpen() {
       const on = !it.classList.contains('on'); el.querySelectorAll('.rw-item.on').forEach(x => x.classList.remove('on', 'now')); RWV.steps = false;
       if (on) { it.classList.add('on'); RWV.open = i; haptic(); try { chime(false); } catch (er) {} } else RWV.open = -1; return; }
     if ((b = c('[data-rwst]'))) { RWV.steps = !RWV.steps; const i = +b.dataset.rwst; rwRender(el); el.classList.add('in'); return; }
-    if ((b = c('[data-rweat]'))) { const r = PV_REC[+b.dataset.rweat], d = pvDay(), q = pvQ(d); Object.entries(r[5]).forEach(([id, n]) => { q[id] = Math.min(40, (q[id] || 0) + n); }); pvQSync(d); const nm = pvMealOn(d); haptic(); save(); pvCheckDay(); toast(nm ? `${r[0]} : repas noté à ${d.mealAt}` : `${r[0]} : ajouté à ton repas`); burst(14, '✦', false); return; }
+    if ((b = c('[data-rweat]'))) { const r = pvRecAll()[+b.dataset.rweat]; if (!r) return; pvEntAdd(r.n, r.k, r.p); haptic(); toast(`${r.n} : +${Math.round(r.k)} kcal, +${Math.round(r.p)} g`); burst(14, '✦', false); return; }
+    if (c('[data-rwadd]')) { RWV.add = !RWV.add; rwRender(el); el.classList.add('in'); if (RWV.add) setTimeout(() => { const x = $('#nrN', el); if (x) x.focus(); }, 50); return; }
+    if (c('[data-rwsave]')) { const v = id => (($('#' + id, el) || {}).value || '').trim(), n = v('nrN'), kk = numv(v('nrK').replace(',', '.')), pr = numv(v('nrP').replace(',', '.'));
+      if (!n || !(kk > 0)) { toast('Indique au moins le nom et les calories par portion'); return; }
+      pvMyRec().unshift({ id: uid(), n, k: Math.round(kk), p: Math.round(pr * 10) / 10, ing: v('nrI'), st: v('nrS') }); save(); RWV.add = false; RWV.i = 0; RWV.open = -1; rwRender(el); el.classList.add('in'); haptic(); toast('Recette ajoutée à ton monde'); return; }
+    if ((b = c('[data-rwdel]'))) { const r = pvRecAll()[+b.dataset.rwdel]; if (!r || !r.my) return; const L = pvMyRec(), j = L.findIndex(x => 'm' + x.id === r.key); if (j >= 0) { L.splice(j, 1); save(); RWV.open = -1; RWV.i = Math.max(0, RWV.i - 1); rwRender(el); el.classList.add('in'); toast('Recette supprimée'); } return; }
     if ((b = c('[data-rwdot]'))) { const it = el.querySelector(`.rw-item[data-rwi="${b.dataset.rwdot}"]`), tr = $('.rw-track', el); if (it) tr.scrollTo({ left: it.offsetLeft - (tr.clientWidth - it.offsetWidth) / 2, behavior: 'smooth' }); }
   });
 }
@@ -6743,27 +6996,28 @@ function pvRecipes() {
     <button class="rw-door" data-rwopen><span class="rw-door-dishes">${[0, 2, 9].map(i => rwDish(i)).join('')}</span><span><b>Entrer dans mes recettes</b><small>${PV_REC.length} plats à explorer · macros et ingrédients</small></span>${ICON.chev}</button>`);
 }
 function vPvFood() {
-  const d = pvDay(), p = pvS(), pt = pvProtTarget(), prot = pvProt(d), dayN = Math.round((parseDate(todayISO()) - parseDate(p.start)) / 864e5) + 1;
-  const w = numv(d.water), wPct = Math.min(1, w / PV_EAU[1]), cs = pvCleanStreak();
-  const meal = `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Le repas</h2><span class="small muted">test · jour ${dayN}/14</span></div>
-    ${d.meal ? `<div class="pv-done" style="margin-top:10px"><b>Pris${d.mealAt ? ` à ${esc(d.mealAt)}` : ''}</b><button class="link-btn small" data-pvf="unmeal">Annuler</button></div>` : '<button class="btn block" data-pvf="meal" style="margin-top:10px">J\'ai pris mon repas</button>'}
-    ${(() => { const q = pvQ(d), row = (id, n, u) => `<div class="pv-step"><span>${n}${u ? `<small class="fd-u">${u}</small>` : ''}</span><button class="icon-btn" data-fdm="${id}" aria-label="Un de moins">−</button><b class="num">${q[id] || 0}</b><button class="icon-btn" data-fdp="${id}" aria-label="Un de plus">+</button></div>`;
-      const others = PV_FD.flatMap(([, L]) => L).filter(x => x[0] !== 'oe'), nOn = others.filter(x => q[x[0]]).length;
-      return `${row('oe', 'Œufs', '')}<details class="pv-det fd-more" data-k="fd-more"><summary>Autres aliments${nOn ? ` · ${nOn} ajouté${nOn > 1 ? 's' : ''}` : ''}</summary>${PV_FD.map(([g, L]) => { const LL = L.filter(x => x[0] !== 'oe'); return LL.length ? `<p class="pv-k">${g}</p>${LL.map(([id, n, u]) => row(id, n, u)).join('')}` : ''; }).join('')}<p class="pv-sub" style="margin-top:8px">Fromage blanc nature uniquement. Thon : 2 à 3 boîtes par semaine maximum (mercure).</p></details>`; })()}
-    ${pvXpBlock(d)}
-    <div class="pv-prot"><span>Protéines</span><b class="num">≈ ${prot} g${pt ? ` <small>/ ${pt} g</small>` : ''}</b></div>
-    ${(() => { const k = pvKcal(d); return k ? `<div class="pv-prot" style="margin-top:4px"><span>Calories <small class="muted">(estimation)</small></span><b class="num" style="color:var(--${k > PV_KOBJ[1] + 150 ? 'gold' : k >= PV_KOBJ[0] - 200 ? 'mint' : 'ink'})">≈ ${k} <small>/ ${PV_KOBJ[0]}-${PV_KOBJ[1]} kcal</small></b></div>${d.meal && k < 1300 ? '<p class="pv-sub">Journée très légère : ajoute le dessert protéiné, un fruit ou ta barre pour protéger ton muscle.</p>' : ''}` : ''; })()}
-    ${pt && d.meal && prot < pt * .7 ? `<p class="pv-warn">Il manque ≈ ${pt - prot} g : c'est ce qui protège ton muscle. Une boîte de thon (+26 g), un shaker de whey (+${PV_WHEY} g) ou deux pots de fromage blanc (+15 g).</p>` : ''}
-    <p class="pv-k" style="margin:10px 0 4px">Fruits · ${pvFruitN(d)}/2 ${pvFruitN(d) >= 2 ? '✓' : ''}</p><div class="chips" style="margin:0">${PV_FRUITS.map(([id, n]) => `<button class="chip" data-pvfr="${id}" aria-pressed="${!!d.fr[id]}">${n}</button>`).join('')}</div>
-    ${d.meal ? `<div class="pv-row"><span>Ressenti</span><span class="chips" style="margin:0">${['Mal', 'Bof', 'Bien', 'Top'].map((l, i) => `<button class="chip" data-pvfeel="${i + 1}" aria-pressed="${d.feel === i + 1}">${l}</button>`).join('')}</span></div>` : ''}</section>`;
-  const eau = `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Eau</h2><span class="num" style="font:400 1.3rem var(--serif);color:var(--${w >= PV_EAU[0] ? 'mint' : 'ink'})">${pvL(w)}<small class="muted" style="font-size:.75rem"> / 2-3 L</small></span></div>
-    <div class="pv-wbar" style="margin-top:10px"><i style="width:${(wPct * 100).toFixed(0)}%"></i><em style="left:${(PV_EAU[0] / PV_EAU[1] * 100).toFixed(0)}%"></em></div>
-    <div class="pv-btns">${[[250, '25 cl'], [500, '50 cl'], [750, '75 cl'], [1000, '1 L']].map(([v, l]) => `<button class="chip" data-pvw="${v}">+ ${l}</button>`).join('')}${w ? '<button class="chip" data-pvw="undo" aria-label="Annuler">↶</button>' : ''}</div></section>`;
-  const ban = `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Zéro écart</h2><span class="small ${pvClean(d) ? '' : 'muted'}" style="color:var(--${pvClean(d) ? 'mint' : 'danger'})">${pvClean(d) ? (cs > 1 ? `${cs} jours propres` : 'tenu') : 'écart noté'}</span></div>
-    <div class="chips">${PV_BAN.map(([id, n]) => `<button class="chip pv-banc ${d.ban[id] ? 'x' : ''}" data-pvban="${id}" aria-pressed="${!!d.ban[id]}">${n}</button>`).join('')}</div>
-    <p class="pv-sub">Touche seulement en cas d'écart.</p></section>`;
-  return `${corpsTop('nutrition')}${pvWeightCard()}<button class="pv-buyline" data-bilopen style="margin:10px 0 0">Bilan pour Claude · poids, repas, dépenses →</button>${meal}<div style="margin-top:12px">${pvRecipes()}</div>${eau}${ban}
-    ${pvMore('Bilan de la semaine', 'repas, eau, fruits, écarts', `<div class="pv-week">${Array.from({ length: 7 }, (_, i) => { const k = iso(addDays(new Date(), i - 6)), x = pvS().d[k], sc = x ? pvFoodScore(x).filter(Boolean).length : 0; return `<div class="pv-dd ${sc === 4 ? 'ok' : sc ? 'mid' : ''}"><i style="height:${(sc / 4 * 100).toFixed(0)}%"></i><span>${i === 6 ? 'auj.' : DAY_SHORT.format(parseDate(k)).replace('.', '')}</span></div>`; }).join('')}</div>${pvFeelLine()}<p class="pv-sub">Séries sans écart : ${PV_BAN.map(([id, n]) => `${n.toLowerCase()} ${pvBanStreak(id)} j`).join(' · ')}.</p>`)}`;
+  try { pvKAuto(); } catch (e) {}
+  const d = pvDay(), p = pvS(), pt = pvProtTarget() || 140, K = pvKT(), prot = pvProt(d), kc = pvKcal(d);
+  const w = numv(d.water), wPct = Math.min(1, w / PV_EAU[1]);
+  const bar = (v, max, ok) => `<div class="pv-wbar" style="margin-top:6px"><i style="width:${Math.min(100, v / max * 100).toFixed(0)}%;${ok ? '' : 'background:var(--gold)'}"></i></div>`;
+  const kOk = kc >= K.lo && kc <= K.hi, kCol = kc > K.hi ? 'danger' : kOk ? 'mint' : 'ink';
+  const ents = pvEnt(d), sameDay = n => ents.filter(x => x.n === n).length;
+  const quick = PV_QK.map(([g, L]) => `<p class="pv-k" style="margin:10px 0 4px">${g}</p><div class="chips" style="margin:0">${L.map(([id, n, k, pr]) => { const c = sameDay(n); return `<button class="chip" data-nq="${id}" aria-label="${esc(n)}, ${k} kcal, ${String(pr).replace('.', ',')} g de protéines">${esc(n)}${c ? ` <b>×${c}</b>` : ''}</button>`; }).join('')}</div>`).join('');
+  const msg = p.kmsg && (parseDate(todayISO()) - parseDate(p.kmsg.d)) / 864e5 < 7 ? `<p class="pv-sub" style="color:var(--gold)">Objectif ajusté le ${DAY_MONTH.format(parseDate(p.kmsg.d))} : ${p.kmsg.up ? '+150 kcal, tu perdais trop vite (risque pour le muscle)' : '−150 kcal, la perte ralentissait'}.</p>` : '';
+  const counters = `<section class="glass pv-card"><h2 class="pv-h" style="margin:0 0 6px">Aujourd'hui</h2>
+    <div class="row between" style="align-items:baseline;margin-top:8px"><span>Protéines</span><b class="num" style="font:400 1.35rem var(--serif);color:var(--${prot >= pt ? 'mint' : 'ink'})">${pvFmt(prot)} <small class="muted" style="font-size:.75rem">/ ${pt} g</small></b></div>${bar(prot, pt, prot >= pt)}
+    <div class="row between" style="align-items:baseline;margin-top:12px"><span>Calories</span><b class="num" style="font:400 1.35rem var(--serif);color:var(--${kCol})">${pvFmt(kc)} <small class="muted" style="font-size:.75rem">/ ${pvFmt(K.lo)}-${pvFmt(K.hi)} kcal</small></b></div>${bar(kc, K.hi, kc <= K.hi)}
+    <div class="row between" style="align-items:baseline;margin-top:12px"><span>Eau</span><b class="num" style="font:400 1.35rem var(--serif);color:var(--${w >= PV_EAU[0] ? 'mint' : 'ink'})">${pvL(w)} <small class="muted" style="font-size:.75rem">/ 2-3 L</small></b></div>
+    <div class="pv-wbar" style="margin-top:6px"><i style="width:${(wPct * 100).toFixed(0)}%"></i><em style="left:${(PV_EAU[0] / PV_EAU[1] * 100).toFixed(0)}%"></em></div>
+    <div class="pv-btns" style="margin-top:8px">${[[250, '25 cl'], [500, '50 cl'], [750, '75 cl'], [1000, '1 L']].map(([v, l]) => `<button class="chip" data-pvw="${v}">+ ${l}</button>`).join('')}${w ? '<button class="chip" data-pvw="undo" aria-label="Annuler">↶</button>' : ''}</div>
+    <p class="pv-sub" style="margin-top:6px">${kc > K.hi ? `Au-dessus de ${pvFmt(kc - K.hi)} kcal : pas grave, demain on reprend.` : prot < pt ? `Encore ${Math.ceil(pt - prot)} g de protéines${kc < K.hi ? ` et ${pvFmt(Math.max(0, K.hi - kc))} kcal de marge` : ''}.` : kOk ? 'Objectifs atteints.' : `Il te reste ${pvFmt(K.hi - kc)} kcal.`}</p>${msg}
+    <p class="pv-k" style="margin:14px 0 6px">Ajouter à la main</p>
+    <input id="nN" placeholder="Quoi ? (facultatif)" autocomplete="off">
+    <div class="row" style="gap:8px;margin-top:8px"><label class="nr-l">kcal<input id="nK" inputmode="numeric" placeholder="0"></label><label class="nr-l">Protéines (g)<input id="nP" inputmode="decimal" placeholder="0"></label><button class="btn sm" data-nadd style="align-self:flex-end">Ajouter</button></div>
+    ${pvMore('Boutons rapides', 'fruits, boissons, protéines, fruits secs · un toucher = ajouté', quick + '<p class="pv-sub" style="margin-top:10px">Valeurs moyennes (tables Ciqual), arrondies.</p>')}
+    ${ents.length ? pvMore('Ce que tu as noté', `${ents.length} ajout${ents.length > 1 ? 's' : ''}`, ents.map(x => `<div class="pv-row"><span>${x.t ? `<small class="muted">${esc(x.t)}</small> ` : ''}${esc(x.n || 'Ajout manuel')}</span><span class="num">${pvFmt(numv(x.k))} kcal · ${String(numv(x.p)).replace('.', ',')} g <button class="link-btn small" data-ndel="${x.id}" aria-label="Retirer" style="min-width:0;padding:0 0 0 8px;color:var(--muted)">×</button></span></div>`).join('')) : ''}
+    ${pvMore('Comment sont calculés tes objectifs', `${pvFmt(K.mid)} kcal · ${pt} g`, `<p class="pv-sub" style="margin-top:0"><b>Calories</b> : ta dépense estimée (1,78 m, ${pvKg(bodyWeight() || 79)} kg, travail surtout assis, ≈ 12 000 à 15 000 pas) moins ≈ 700 kcal. Ça vise une perte de 0,5 à 1 % de ton poids par semaine : le rythme qui garde le muscle.</p><p class="pv-sub"><b>Protéines</b> : 1,8 g par kilo. C'est ce qui protège tes muscles pendant la sèche.</p><p class="pv-sub"><b>Ajustement automatique</b> toutes les 2 semaines, d'après tes pesées : trop vite → +150 kcal, trop lent → −150 kcal${K.adj ? ` (en ce moment ${K.adj > 0 ? '+' : ''}${K.adj} kcal)` : ''}. L'objectif suit aussi ton poids quand il baisse.</p>`)}</section>`;
+  return `${corpsTop('nutrition')}${pvWeightCard2()}${counters}${pvLibrary()}`;
 }
 function pvFeelLine() {
   const L = Object.entries(pvS().d).filter(([k, x]) => x.feel && x.meal).map(([, x]) => x.feel); if (L.length < 3) return '';
@@ -6809,7 +7063,7 @@ function pvSetSteps(n) {
 const PV_EXO = [['p', 'Pompes', 'pompes', 'Corps gainé de la tête aux talons, poitrine à 2 cm du sol, coudes à 45°. Jusqu\'à l\'échec : la répétition que tu ne peux plus finir proprement.'],
   ['d', 'Dips', 'dips', 'Sur deux chaises solides dos à dos, ou un banc. Descends jusqu\'à 90° aux coudes, pas plus bas, épaules basses.'],
   ['t', 'Tractions négatives', 'pullup', 'Monte en haut de la barre avec un saut ou une chaise, menton au-dessus. Puis descends le plus lentement possible (3 à 5 s) jusqu\'à bras tendus. Recommence.']];
-const PV_REST = 120;
+const PV_REST = 90;
 const PVC = { r: null, rest: 0, restT: 0 };
 function pvLastCirc() { const c = pvS().circ; return c.length ? c[c.length - 1] : null; }
 function pvCircDay() {
@@ -6834,6 +7088,31 @@ function pvCircCard() {
     <p class="pv-sub">Matériel : une barre de traction de porte et deux chaises stables. Plus de 8 tractions négatives lentes : passe aux vraies tractions.</p>`);
   return pCard(st.due && !st.done ? 'Circuit du jour' : 'Circuit · 1 jour sur 2', head + (st.due || st.done ? grid : '') + tips, st.due && !st.done ? 'pv-hot' : '');
 }
+/* v5.61 · NOUVEAU CIRCUIT AU POIDS DU CORPS (9 exercices, tout le corps, sans barre ni salle) + schéma (circuit.jpg) */
+const PV_EX2 = [['squat', 'Squats', '15 à 20', 'Dos droit, genoux dans l\'axe des pieds.', 'squat_pdc'], ['pomp', 'Pompes', 'max − 2', 'Corps gainé en planche (sur les genoux si besoin).', 'pompes'], ['row', 'Rowing inversé sous une table', '8 à 12', 'Tirer la poitrine vers la table, corps droit. Table solide !', 'row_table'],
+  ['fente', 'Fentes alternées', '10 / jambe', 'Genou arrière près du sol, buste droit.', 'fentes'], ['dips', 'Dips sur une chaise', '8 à 12', 'Coudes vers l\'arrière, épaules basses.', 'dips'], ['pont', 'Pont fessier', '15 à 20', 'Serrer les fessiers en haut.', ''],
+  ['pike', 'Pompes piquées', '6 à 10', 'Hanches hautes, tête vers le sol.', 'pike'], ['plan', 'Gainage planche', '30 à 45 s', 'Ventre et fessiers serrés, dos plat.', 'planche'], ['sup', 'Superman', '12 à 15', 'Lever bras et jambes, regard au sol.', '']];
+const PVC2 = { t: 3, v: null };
+function pvCircCard2() {
+  const st = pvCircDay(), C = pvS().circ, last = C[C.length - 1], prev = (st.done ? C[C.length - 2] : last);
+  const pv = prev && prev.v === 2 ? prev : null;
+  if (!PVC2.v) PVC2.v = PV_EX2.map(() => '');
+  const img = `<button class="circ-img" data-circimg aria-label="Voir le schéma du circuit en grand"><img src="circuit.jpg" alt="Schéma du circuit : 9 exercices" loading="lazy"><span>Voir le schéma en grand</span></button>`;
+  const head = st.done ? `<div class="pv-done"><b>Circuit fait aujourd'hui${last && last.v === 2 ? ` · ${last.t} tours` : ''}</b></div>`
+    : st.due ? '<p class="pv-sub" style="margin-top:0">Tous les 2 jours · 3 à 4 tours · 90 s de repos entre les tours. Les 9 exercices à la suite, sans pause.</p>'
+    : '<p class="pv-big">Repos</p><p class="pv-sub">Le muscle se répare en 48 h. Circuit demain.</p>';
+  const form = st.done || !st.due ? '' : `<p class="pv-k" style="margin:12px 0 4px">Répétitions par tour <small class="muted">(facultatif, grisé = la dernière fois)</small></p>
+    ${PV_EX2.map(([id, n, tg], i) => `<div class="circ-row"><span><b>${i + 1}. ${esc(n)}</b><small>${esc(tg)}</small></span><input class="num" inputmode="numeric" data-pvr2="${i}" value="${esc(PVC2.v[i])}" placeholder="${pv && pv.reps[i] ? pv.reps[i] : '—'}" aria-label="${esc(n)}"></div>`).join('')}
+    <p class="pv-k" style="margin:12px 0 4px">Tours faits</p><div class="chips" style="margin:0">${[3, 4].map(n => `<button class="chip" data-pvc2t="${n}" aria-pressed="${PVC2.t === n}">${n} tours</button>`).join('')}<button class="chip" data-pvcirc="rest">${PVC.rest ? `Repos <span id="pvRest" class="num">${pvRestTxt()}</span>` : 'Lancer 90 s de repos'}</button></div>
+    <button class="btn block" data-pvc2save style="margin-top:12px">Valider le circuit</button>`;
+  const hist = C.slice(-5).reverse().map(x => `<div class="pv-hr"><span>${DAY_MONTH.format(parseDate(x.date))}</span><span class="num">${x.v === 2 ? x.t : x.r.length} tours</span><span class="num">${x.v === 2 ? 'circuit complet' : 'ancien circuit'}</span></div>`).join('');
+  const tips = pvMore('Bien faire et historique', `${C.length} circuit${C.length > 1 ? 's' : ''} notés`, `${hist ? `<div class="pv-hist">${hist}</div>` : ''}${PV_EX2.map(([, n, tg, cue, k]) => `<p><b>${esc(n)}</b> · ${esc(cue)}</p>${k && EX_ERR[k] ? `<p class="pv-sub">À éviter : ${esc(EX_ERR[k])}</p>` : ''}`).join('')}<p class="pv-sub">Progression : +1 à 2 répétitions par semaine, puis +1 tour.</p><div class="pv-btns"><button class="chip" data-mirror>Miroir</button></div>`);
+  return pCard(st.due && !st.done ? 'Circuit du jour' : 'Circuit · 1 jour sur 2', img + head + form + tips, st.due && !st.done ? 'pv-hot' : '');
+}
+function circImgOpen() {
+  const el = document.createElement('div'); el.className = 'circ-ov'; el.innerHTML = '<button class="circ-x" aria-label="Fermer">×</button><div class="circ-sc"><img src="circuit.jpg" alt="Schéma du circuit"></div><p>Glisse pour te déplacer · touche × pour fermer</p>';
+  el.addEventListener('click', e => { if (e.target.closest('.circ-x')) el.remove(); }); document.body.appendChild(el);
+}
 function pvCircHist() {
   const c = pvS().circ.slice(-5).reverse(); if (!c.length) return '';
   const best = [0, 1, 2].map(j => Math.max(...pvS().circ.map(x => Math.max(0, ...x.r.map(r => numv(r[j]))))));
@@ -6850,7 +7129,7 @@ function pvCircSave() {
   pvCheckDay(); render(); scrollTo(0, 0);
 }
 function vPvTrain() {
-  return `${corpsTop('entrainement')}${pvStepsCard()}${pvCircCard()}<button class="pv-buyline" data-expl style="margin-top:14px">✦ Noter un exploit libre (douche froide, gainage…) →</button>`;
+  return `${corpsTop('entrainement')}${pvStepsCard()}${pvCircCard2()}<button class="pv-buyline" data-expl style="margin-top:14px">✦ Noter un exploit libre (douche froide, gainage…) →</button>`;
 }
 
 /* ---------- APPARENCE ---------- */
@@ -7034,13 +7313,13 @@ function pzMove(fn) { if (pzWon()) return; fn(); PZ.mv++; haptic(); if (pzWon())
 const PRAY_PIL = '2026-11-04';
 function pvPillars(k = todayISO()) {
   const d = k === todayISO() ? pvPeek() : (pvS().d[k] || { comp: {}, ban: {}, ap: {}, rw: {}, fr: {}, water: 0 }), g = numv(pvS().goal) || PV_GOAL;
-  const fs = pvFoodScore(d).filter(Boolean).length, st = numv(pvS().steps[k]), c = pvS().circ.some(x => x.date === k);
+  const FS = pvFoodScore(d, k), fs = FS.filter(Boolean).length, st = numv(pvS().steps[k]), c = pvS().circ.some(x => x.date === k);
   const due = k === todayISO() ? pvCircDay().due : !pvS().circ.some(x => x.date === iso(addDays(parseDate(k), -1)));
   const [an, at] = pvApN(d, k), it = pvSeuils(k), ph = puffPhase(k), pn = puffN(k);
   return [
-    { id: 'nutrition', n: 'Alimentation', v: fs / 4, t: `${fs}/4`, s: pvFoodMiss(d), stuck: (() => { const f = pvFoodScore(d); return f[0] && f[1] && f[2] && !f[3]; })() },
+    { id: 'nutrition', n: 'Alimentation', v: fs / FS.length, t: `${fs}/${FS.length}`, s: pvFoodMiss(d, k), stuck: FS.length === 4 && FS[0] && FS[1] && FS[2] && !FS[3] },
     { id: 'entrainement', n: '15K pas', v: st / g, t: pvFmt(st), s: st >= g ? 'Objectif atteint' : `Reste ${pvFmt(g - st)} pas` },
-    { id: 'entrainement', n: 'Circuit', v: c || !due ? 1 : 0, t: c ? 'fait' : due ? 'à faire' : 'repos', s: c ? 'Validé aujourd\'hui' : due ? 'Pompes, dips, tractions négatives' : 'Récupération, circuit demain', rest: !due && !c },
+    { id: 'entrainement', n: 'Circuit', v: c || !due ? 1 : 0, t: c ? 'fait' : due ? 'à faire' : 'repos', s: c ? 'Validé aujourd\'hui' : due ? '9 exercices · 3 à 4 tours' : 'Récupération, circuit demain', rest: !due && !c },
     { id: 'apparence', n: 'Apparence', v: at ? an / at : 0, t: `${an}/${at}`, s: (() => { const b = pvBarberDays(), cf = b != null && b >= PV_BARBER ? ' · coiffeur à prévoir' : ''; if (an >= at) return `Tous les gestes sont faits${cf}`; const rem = pvApList().filter(x => !pvApOn(x, d, k)), pm = rem.filter(x => x[4] === 'pm').length, nw = rem.length - pm, pl = v => v > 1 ? 's' : '';
       return nw ? `${nw} geste${pl(nw)} à faire${pm && new Date().getHours() < 15 ? ` · ${pm} ce soir` : ''}${cf}` : `Matin fait ✓ · ${pm} geste${pl(pm)} ce soir${cf}`; })() },
     (() => { const fm = ph && !ph.free ? puffFreeMin(k) : 0; return { id: 'sante', n: 'Santé · puff', v: !ph ? 0 : ph.free ? (pn ? 0 : 1) : Math.min(1, fm / (ph.target * 60)), t: !ph ? '—' : ph.free ? (pn ? 'rechute' : 'libre') : `${Math.floor(fm / 60)}/${ph.target} h`, s: !ph ? 'Lancer le plan d\'arrêt' : ph.free ? `${puffFreeStreak()} jour${puffFreeStreak() > 1 ? 's' : ''} sans puff` : puffS().run ? 'Rangée · le chrono tourne' : `${ph.target} h sans puff · jour J dans ${ph.left} j` }; })(),
@@ -7073,6 +7352,7 @@ function pvClick(t) {
   if (tlClick(t)) return true;
   if (apClick(t)) return true;
   if (bpClick(t)) return true;
+  if (snClick(t)) return true;
   if (pfClick(t)) return true;
   { const hb = t.closest('[data-hint]'); if (hb) { const r = hb.closest('.pv-hr2'), n = r && r.nextElementSibling; if (n && n.classList.contains('pv-hint')) n.classList.toggle('on'); return true; } }
   if (puffClick(t)) return true;
@@ -7081,6 +7361,16 @@ function pvClick(t) {
   if ((el = c('[data-pvbuy]'))) { const g = lkS().gear, id = el.dataset.pvbuy; if (g[id]) delete g[id]; else { g[id] = 1; const b = pvBuyN(); if (b.e === b.et && PV_BUY.some(([, L]) => L.some(x => x[0] === id && x[2]))) reward(5, { big: true, msg: ['Essentiels réunis', 'Tu as tout ce qu\'il faut pour tenir le protocole.'] }); } save(); haptic(); pvRe(); return true; }
   if ((el = c('[data-pvbuyf]'))) { BUY.ess = el.dataset.pvbuyf === '1'; pvRe(); return true; }
   if (c('[data-pvwgreset]')) { pvS().wg = { date: todayISO() }; const w = bodyWeight(); if (w) { pvS().wg.start = w; pvS().wg.sdate = todayISO(); } save(); pvRe(); toast('Nouveau départ enregistré'); return true; }
+  if ((el = c('[data-nq]'))) { const x = PV_QKX[el.dataset.nq]; if (x) { pvEntAdd(x[1], x[2], x[3]); haptic(); pvRe(); toast(`${x[1]} : +${x[2]} kcal, +${String(x[3]).replace('.', ',')} g`); } return true; }
+  if (c('[data-nadd]')) { const k = numv((($('#nK') || {}).value || '').replace(',', '.')), pr = numv((($('#nP') || {}).value || '').replace(',', '.')), n = (($('#nN') || {}).value || '').trim();
+    if (!(k > 0) && !(pr > 0)) { toast('Indique les calories ou les protéines'); return true; } pvEntAdd(n, k, pr); haptic(); pvRe(); toast(`+${Math.round(k)} kcal, +${String(Math.round(pr * 10) / 10).replace('.', ',')} g`); return true; }
+  if ((el = c('[data-ndel]'))) { const d = pvDay(); d.ent = pvEnt(d).filter(x => x.id !== el.dataset.ndel); save(); pvRe(); return true; }
+  if ((el = c('[data-neat]'))) { const r = pvRecAll().find(x => x.key === el.dataset.neat); if (r) { pvEntAdd(r.n, r.k, r.p); haptic(); pvRe(); toast(`${r.n} : +${Math.round(r.k)} kcal, +${Math.round(r.p)} g`); } return true; }
+  if ((el = c('[data-nradd]'))) { NRU.add = el.dataset.nradd === '1'; pvRe(); return true; }
+  if (c('[data-nrsave]')) { const v = id => (($('#' + id) || {}).value || '').trim(), n = v('nrN'), k = numv(v('nrK').replace(',', '.')), pr = numv(v('nrP').replace(',', '.'));
+    if (!n || !(k > 0)) { toast('Indique au moins le nom et les calories par portion'); return true; }
+    pvMyRec().unshift({ id: uid(), n, k: Math.round(k), p: Math.round(pr * 10) / 10, ing: v('nrI'), st: v('nrS') }); NRU.add = false; haptic(); save(); pvRe(); toast('Recette ajoutée à ta bibliothèque'); return true; }
+  if ((el = c('[data-nrdel]'))) { const id = el.dataset.nrdel.slice(1), L = pvMyRec(), i = L.findIndex(x => x.id === id); if (i >= 0) { L.splice(i, 1); save(); pvRe(); toast('Recette supprimée'); } return true; }
   if ((el = c('[data-pvf]'))) { const d = pvDay(), a = el.dataset.pvf;
     if (a === 'meal') { pvMealOn(d); save(); pvCheckDay(); }
     if (a === 'unmeal') { d.meal = 0; d.mealAt = ''; save(); }
@@ -7111,7 +7401,12 @@ function pvClick(t) {
     else pvSetSteps(pvSteps() + Number(a));
     return true; }
   if ((el = c('[data-pvgoal]'))) { const p = pvS(); p.goal = Math.max(5000, Math.min(40000, (numv(p.goal) || PV_GOAL) + Number(el.dataset.pvgoal))); save(); pvRe(); return true; }
-  if ((el = c('[data-pvcirc]'))) { const a = el.dataset.pvcirc; pvReadGrid();
+  if (c('[data-circimg]')) { circImgOpen(); return true; }
+  if ((el = c('[data-pvc2t]'))) { pvReadGrid2(); PVC2.t = +el.dataset.pvc2t; pvRe(); return true; }
+  if (c('[data-pvc2save]')) { pvReadGrid2(); const p = pvS(), k = todayISO(), reps = PVC2.v.map(v => Math.max(0, Math.round(numv(v))));
+    p.circ = p.circ.filter(x => x.date !== k).concat([{ date: k, v: 2, t: PVC2.t, reps }]); PVC2.v = null; PVC.rest = 0; save();
+    pvOnce('circ', 5, ['Circuit validé', `${PVC2.t} tours · tout le corps a travaillé.`]); pvCheckDay(); render(); scrollTo(0, 0); return true; }
+  if ((el = c('[data-pvcirc]'))) { const a = el.dataset.pvcirc; pvReadGrid(); pvReadGrid2();
     if (a === 'add' && PVC.r.length < 4) PVC.r.push(['', '', '']);
     if (a === 'del' && PVC.r.length > 3) PVC.r.pop();
     if (a === 'rest') { PVC.rest = 1; PVC.restT = Date.now() + PV_REST * 1000; }
@@ -7162,6 +7457,7 @@ function pvClick(t) {
 }
 function pvRun(id) { const r = pvS().run; if (r && r.id === id) pvStop(); else { pvStart(id); toast(`Chrono lancé · ${PV_IT.find(x => x[0] === id)[1]}`); } pvRe(); }
 function pvSetIntV(v) { const r = pvS().run; if (r && r.auto && r.id !== v) pvStop(); INT.v = v; if (v === 'sudo' || v === 'puz') pvStart(v, true); }
+function pvReadGrid2() { if (!PVC2.v) return; document.querySelectorAll('[data-pvr2]').forEach(i => { PVC2.v[+i.dataset.pvr2] = i.value; }); }
 function pvReadGrid() { if (!PVC.r) return; document.querySelectorAll('[data-pvr]').forEach(i => { const [a, b] = i.dataset.pvr.split('.').map(Number); if (PVC.r[a]) PVC.r[a][b] = i.value; }); }
 function pvInput(t) {
   if (t.dataset && t.dataset.pvr) { const [a, b] = t.dataset.pvr.split('.').map(Number); if (PVC.r && PVC.r[a]) PVC.r[a][b] = t.value; return true; }
@@ -7206,11 +7502,11 @@ function bilText() {
     L.push(inP.length ? inP.map(x => `${fd(x.date)} : ${numv(x.kg)} kg`).join(' · ') : 'Aucune pesée sur la période.');
     const prev = ws.filter(x => x.date < from).pop(); if (inP.length && (prev || inP.length > 1)) { const a = prev || inP[0], b = inP[inP.length - 1]; L.push(`Variation : ${(numv(b.kg) - numv(a.kg)).toFixed(1).replace('.', ',')} kg (depuis le ${fd(a.date)})`); } }
   if (BIL.f) { const P = pvS(); let sk = 0, sp = 0, nd = 0;
-    L.push('', '— ALIMENTATION ET ACTIVITÉ —', `Objectif : ${PV_KOBJ[0]}-${PV_KOBJ[1]} kcal, ${pvProtTarget() || 140} g de protéines, 15 000 pas`);
+    L.push('', '— ALIMENTATION ET ACTIVITÉ —', `Objectif : ${pvKT().lo}-${pvKT().hi} kcal, ${pvProtTarget() || 140} g de protéines, 15 000 pas`);
     days.forEach(k => { const d = P.d[k], st = numv(P.steps[k]), ci = P.circ.some(x => x.date === k); if (!d && !st) { L.push(`${fd(k)} : rien noté`); return; }
       const dd = d || { fr: {}, ban: {}, q: {} }, kc = pvKcal(dd), pr = pvProt(dd), ec = PV_BAN.filter(([id]) => dd.ban && dd.ban[id]).map(x => x[1].toLowerCase()), fr = PV_FRUITS.filter(([id]) => dd.fr && dd.fr[id]).map(x => x[1].toLowerCase()), xp = (dd.xp || []).map(x => `${x.n} ${numv(x.g)} g`);
-      if (dd.meal) { sk += kc; sp += pr; nd++; }
-      L.push(`${fd(k)} : ${dd.meal ? `repas${dd.mealAt ? ' à ' + dd.mealAt : ''}, ≈ ${kc} kcal, ≈ ${pr} g prot` : 'repas non noté'}${fr.length ? ` · fruits : ${fr.join(', ')}` : ''}${xp.length ? ` · + ${xp.join(', ')}` : ''} · eau ${pvL(numv(dd.water))} · ${ec.length ? 'écart : ' + ec.join(', ') : 'zéro écart'} · ${st ? pvFmt(st) + ' pas' : 'pas non notés'}${ci ? ' · circuit fait' : ''}`); });
+      const en = pvEnt(dd), noted = dd.meal || en.length; if (noted) { sk += kc; sp += pr; nd++; }
+      L.push(`${fd(k)} : ${noted ? `${dd.meal ? `repas${dd.mealAt ? ' à ' + dd.mealAt : ''}, ` : ''}≈ ${kc} kcal, ≈ ${pr} g prot${en.length ? ` (${en.map(x => x.n || 'ajout').join(', ')})` : ''}` : 'rien noté'}${fr.length ? ` · fruits : ${fr.join(', ')}` : ''}${xp.length ? ` · + ${xp.join(', ')}` : ''} · eau ${pvL(numv(dd.water))} · ${ec.length ? 'écart : ' + ec.join(', ') : 'zéro écart'} · ${st ? pvFmt(st) + ' pas' : 'pas non notés'}${ci ? ' · circuit fait' : ''}`); });
     if (nd) L.push(`Moyenne des jours notés : ≈ ${Math.round(sk / nd)} kcal, ≈ ${Math.round(sp / nd)} g de protéines (${nd} jour${nd > 1 ? 's' : ''})`); }
   if (BIL.e) { const B = bpS(), tx = []; Object.values(B.m || {}).forEach(m => (m.tx || []).forEach(t => { if (t.k === 'exp' && t.d >= from && t.d <= to) tx.push(t); }));
     (S.money.tx || []).forEach(t => { const d = t.date || t.d; if (d && d >= from && d <= to && numv(t.amt) < 0) tx.push({ d, pk: 'old', amt: -numv(t.amt), n: t.label || t.n || '' }); });
@@ -7240,6 +7536,48 @@ function bilOpen() {
     if (t.closest('[data-bilx]') || t === el) el.remove(); });
   document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
 }
+/* v5.56 · carte de pesée redessinée : jauge en arc de départ → 65 kg, rythme, mini-courbe des pesées */
+const PV_GOALKG = 65;
+function pvWeightCard2() {
+  const g = pvWG(), w = bodyWeight(), ws = sortedWeights(), lastW = ws[ws.length - 1], goal = numv(g.goal) || PV_GOALKG;
+  const input = `<div class="row" style="gap:8px;margin-top:10px"><input id="wIn" inputmode="decimal" class="famt num" placeholder="${lastW ? pvKg(numv(lastW.kg)) : 'Ton poids en kg'}" aria-label="Poids du jour en kg" style="flex:1;text-align:left"><button class="btn sm" data-wsave>Peser</button></div>`;
+  if (!numv(g.start) || !w) return `<section class="glass pv-card wt"><p class="wt-k">Objectif ${goal} kg</p><p class="pv-sub">Une première pesée, le matin à jeun : ce sera ton point de départ.</p>${input}</section>`;
+  const start = numv(g.start), lost = start - w, tot = Math.max(.1, start - goal), f = Math.max(0, Math.min(1, lost / tot)), left = Math.max(0, w - goal);
+  const r = pvRate(), since = lastW ? Math.round((parseDate(todayISO()) - parseDate(lastW.date)) / 864e5) : 99;
+  let pill = '<span class="wt-pill">rythme dans 10 jours</span>', eta = '';
+  if (r && !r.wait) { const loss = -r.pct, kgw = -r.kgw, cls = loss > 1.1 ? 'warn' : loss >= .4 ? 'ok' : 'slow';
+    pill = `<span class="wt-pill ${cls}">${kgw >= 0 ? '−' : '+'}${pvKg(Math.abs(kgw))} kg/sem · ${cls === 'ok' ? 'bon rythme' : cls === 'warn' ? 'trop vite' : 'trop lent'}</span>`;
+    if (kgw > .1 && left > 0) eta = `${goal} kg vers le ${DAY_MONTH.format(addDays(new Date(), Math.round(left / kgw * 7)))}`; }
+  /* arc : 220° ouvert vers le bas */
+  const R = 74, A0 = 160, SW = 220, pt = a => { const t = a * Math.PI / 180; return [(Math.cos(t) * R).toFixed(1), (Math.sin(t) * R).toFixed(1)]; };
+  const arc = (a1, a2) => { const [x1, y1] = pt(a1), [x2, y2] = pt(a2); return `M${x1} ${y1}A${R} ${R} 0 ${a2 - a1 > 180 ? 1 : 0} 1 ${x2} ${y2}`; };
+  const aEnd = A0 + SW * Math.max(.002, f), [dx, dy] = pt(aEnd);
+  const ticks = [.25, .5, .75].map(t => { const a = (A0 + SW * t) * Math.PI / 180; return `<line x1="${(Math.cos(a) * (R - 9)).toFixed(1)}" y1="${(Math.sin(a) * (R - 9)).toFixed(1)}" x2="${(Math.cos(a) * (R + 9)).toFixed(1)}" y2="${(Math.sin(a) * (R + 9)).toFixed(1)}" stroke="var(--line)" stroke-width="1.2"/>`; }).join('');
+  const [sx, sy] = pt(A0), [ex, ey] = pt(A0 + SW);
+  const gauge = `<svg class="wt-g" viewBox="-100 -96 200 150" aria-hidden="true"><defs><linearGradient id="wtGr" x1="0" x2="1"><stop offset="0" stop-color="var(--gold)"/><stop offset="1" stop-color="var(--mint)"/></linearGradient><filter id="wtGl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+    <path d="${arc(A0, A0 + SW)}" fill="none" stroke="var(--raise)" stroke-width="12" stroke-linecap="round"/>${ticks}
+    <path d="${arc(A0, aEnd)}" fill="none" stroke="url(#wtGr)" stroke-width="12" stroke-linecap="round" class="wt-arc"/>
+    <circle cx="${dx}" cy="${dy}" r="9" fill="var(--mint)" opacity=".45" filter="url(#wtGl)"/><circle cx="${dx}" cy="${dy}" r="5.5" fill="#fff"/>
+    <text x="${(+sx - 4).toFixed(0)}" y="${(+sy + 22).toFixed(0)}" text-anchor="middle" class="wt-e">${pvKg(start)}</text><text x="${(+ex + 4).toFixed(0)}" y="${(+ey + 22).toFixed(0)}" text-anchor="middle" class="wt-e">${goal}</text>
+    <text x="0" y="-6" text-anchor="middle" class="wt-big">${pvKg(w)}</text><text x="0" y="14" text-anchor="middle" class="wt-u">kg aujourd'hui</text>
+    <text x="0" y="40" text-anchor="middle" class="wt-pc">${Math.round(f * 100)} % du chemin</text></svg>`;
+  const pts = ws.slice(-10);
+  let spark = '';
+  if (pts.length >= 2) { const ks = pts.map(x => numv(x.kg)), hi = Math.max(...ks, goal + .5), lo = Math.min(...ks, goal) - .5, W = 280, H = 54;
+    const X = j => (j / (pts.length - 1) * (W - 16) + 8).toFixed(1), Y = v => ((hi - v) / (hi - lo) * (H - 12) + 6).toFixed(1);
+    spark = `<svg class="wt-sp" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2="${W}" y1="${Y(goal)}" y2="${Y(goal)}" stroke="var(--mint)" stroke-dasharray="3 4" stroke-width="1" opacity=".6"/><polyline points="${pts.map((x, j) => `${X(j)},${Y(numv(x.kg))}`).join(' ')}" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${pts.map((x, j) => `<circle cx="${X(j)}" cy="${Y(numv(x.kg))}" r="${j === pts.length - 1 ? 3.6 : 2.4}" fill="${j === pts.length - 1 ? '#fff' : 'var(--gold)'}"/>`).join('')}</svg><p class="wt-cap">${pts.length} dernières pesées · pointillés : ${goal} kg</p>`; }
+  return `<section class="glass pv-card wt">
+    <div class="row between" style="align-items:center"><p class="wt-k">Objectif ${goal} kg</p>${pill}</div>
+    ${gauge}
+    <div class="wt-stats"><div><b class="num">${lost >= 0 ? '−' : '+'}${pvKg(Math.abs(lost))}</b><span>kg perdus</span></div><div><b class="num">${pvKg(left)}</b><span>kg à perdre</span></div><div><b class="num">${since >= 99 ? '—' : since === 0 ? 'auj.' : `${since} j`}</b><span>dernière pesée</span></div></div>
+    ${eta ? `<p class="wt-eta">${eta}</p>` : ''}
+    ${spark}
+    ${since >= 6 ? `<p class="wt-k" style="margin-top:12px">Pesée de la semaine · le matin à jeun</p>${input}` : `<details class="pv-det" data-k="wt-in"><summary>Nouvelle pesée</summary>${input}</details>`}
+    <details class="pv-det" data-k="wt-opt"><summary>Options</summary>
+      <p class="pv-sub" style="margin-top:0">Le bon rythme : 0,5 à 1 % de ton poids par semaine (${pvKg(w * .005)} à ${pvKg(w * .01)} kg). La balance bouge de ± 1 kg d'un jour à l'autre : seule la tendance compte.</p>
+      ${lastW ? `<button class="link-btn small" data-wdel style="color:var(--muted);min-width:0;padding:0;margin-top:8px">Supprimer la dernière pesée (${DAY_MONTH.format(parseDate(lastW.date))})</button>` : ''}
+      <button class="link-btn small" data-pvwgreset style="color:var(--muted);min-width:0;padding:0;margin-top:6px;display:block">Repartir de mon poids actuel</button></details></section>`;
+}
 function pvWeightCard() {
   const g = pvWG(), w = bodyWeight(), ws = sortedWeights(), lastW = ws[ws.length - 1], t = bodyTargets();
   const input = `<div class="row" style="margin-top:12px;gap:8px"><input id="wIn" inputmode="decimal" class="famt num" placeholder="${lastW ? pvKg(numv(lastW.kg)) : 'Ton poids en kg'}" aria-label="Poids du jour en kg" style="flex:1;text-align:left"><button class="btn sm" data-wsave>Peser</button></div>`;
@@ -7247,7 +7585,7 @@ function pvWeightCard() {
   const lost = g.start - w, f = Math.max(0, Math.min(1, lost / PV_LOSS[1])), r = pvRate(), since = lastW ? Math.round((parseDate(todayISO()) - parseDate(lastW.date)) / 864e5) : 99;
   let verdict = '';
   if (r && !r.wait) { const loss = -r.pct, lbl = `${r.kgw <= 0 ? '−' : '+'}${pvKg(Math.abs(r.kgw))} kg/sem.`; verdict = loss > 1.1 ? `<p class="pv-warn"><b>${lbl}</b> : trop vite, tu perds du muscle. Ajoute des protéines.</p>` : loss >= .4 ? `<p class="pv-line" style="color:var(--mint)">${lbl} : le bon rythme${lost < PV_LOSS[0] && loss > .2 ? ` · −10 kg vers le ${DAY_MONTH.format(addDays(new Date(), Math.round((PV_LOSS[0] - lost) / Math.abs(r.kgw) * 7)))}` : ''}</p>` : `<p class="pv-warn"><b>${lbl}</b> : trop lent. Vérifie les écarts et tes 15K pas.</p>`; }
-  const kc = t ? Math.max(1700, Math.round((t.maint - 500) / 50) * 50) : null, pt = pvProtTarget();
+  const kc = pvKT().mid, pt = pvProtTarget();
   return `<section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">−10 à −15 kg</h2><span class="num" style="font:400 1.3rem var(--serif);color:var(--${lost > 0 ? 'mint' : 'ink'})">${lost > 0 ? '−' : ''}${pvKg(Math.abs(lost))} kg</span></div>
     <div class="pv-lbar"><i style="width:${(f * 100).toFixed(1)}%"></i><em style="left:${(PV_LOSS[0] / PV_LOSS[1] * 100).toFixed(1)}%"><span>−10</span></em><em style="left:100%"><span>−15</span></em></div>
     <p class="pv-sub" style="margin-top:2px">${pvKg(g.start)} → <b>${pvKg(w)} kg</b> · cible ${pvKg(g.start - PV_LOSS[1])} à ${pvKg(g.start - PV_LOSS[0])} kg</p>
@@ -7265,11 +7603,11 @@ const PV_APG = [
   ['Bouche', [['m-dents', 'Dents', '2 min, dentifrice fluoré, brosse inclinée vers la gencive, puis gratte-langue d\'arrière en avant.', 1, 'am'], ['s-dents', 'Dents + fil', '2 min, puis fil dentaire ou brossettes. Crache sans rincer : le fluor continue d\'agir.', 1, 'pm'], ['siwak', 'Siwak', 'Avant les prières, au moins une fois par jour : c\'est la sunnah. Frotte dents et gencives, puis coupe 1 cm d\'extrémité tous les 2-3 jours.', 0, 'day'], ['bdb', 'Bain de bouche', 'Sans alcool, 30 s, le soir, à distance du brossage (pas juste après, sinon il rince le fluor).', 0, 'pm']]],
   ['Peau', [['m-visage', 'Visage', 'Eau fraîche (ou nettoyant si peau grasse), crème hydratante, puis SPF 30 à 50 dès qu\'il fait beau.', 1, 'am'], ['s-visage', 'Visage', 'Nettoyant doux, eau tiède, sèche en tamponnant, puis crème de nuit.', 1, 'pm']]],
   ['Corps', [['s-douche', 'Douche complète', 'Savon doux partout, insiste sur aisselles, pieds et plis. Sèche complètement.', 1, 'pm'], ['s-corps', 'Crème corps', 'Sur peau encore humide : bras, jambes, coudes, genoux. Le parfum tient mieux ensuite.', 1, 'pm'], ['s-at', 'Anti-transpirant', 'Le soir sur aisselles sèches : il agit la nuit et tient toute la journée du lendemain.', 1, 'pm']]],
-  ['Barbe & cheveux', [['m-barbe', 'Barbe · brosser + huile', 'Brosse en poils de sanglier vers le bas, puis 2-3 gouttes d\'huile entre les paumes, jusqu\'à la peau.', 1, 'am'], ['m-cheveux', 'Boucles rafraîchies', 'Un peu d\'eau et une noisette de soin sans rinçage, froisser sans peigner à sec.', 1, 'am'], ['ch-h', 'Huile cheveux', 'Longueurs et cuir chevelu, le soir ou avant le lavage.', 0, 'pm'], ['gum', 'Gummies cheveux', 'Avec ton repas.', 0, 'day']]],
-  ['Mains', [['s-mains', 'Mains · crème + cuticules', 'Le soir : une noisette de crème mains, masse les ongles, repousse doucement les cuticules avec une serviette tiède. Lime si un ongle accroche. 1 minute.', 0, 'pm']]],
+  ['Barbe & cheveux', [['m-barbe', 'Barbe · brosser + huile', 'Brosse en poils de sanglier vers le bas, puis 2-3 gouttes d\'huile entre les paumes, jusqu\'à la peau.', 1, 'am'], ['m-cheveux', 'Boucles rafraîchies', 'Un peu d\'eau au vaporisateur, crème Coco Curl Light sur les longueurs en mouvement de ressort, sans peigner à sec.', 1, 'am'], ['ch-h', 'Huile cheveux', 'Longueurs et cuir chevelu, le soir ou avant le lavage.', 0, 'pm'], ['gum', 'Gummies cheveux', 'Avec ton repas.', 0, 'day']]],
+  ['Mains', [['m-mains', 'Mains · crème', 'Le matin : mains propres, une noisette de crème, masse aussi les ongles.', 0, 'am'], ['s-mains', 'Mains · crème + cuticules', 'Le soir : une noisette de crème mains, masse les ongles, repousse doucement les cuticules avec une serviette tiède. Lime si un ongle accroche. 1 minute.', 0, 'pm']]],
   ['Style', [['m-deo', 'Déo + parfum', 'Déodorant, puis Soin → Parfum : choisis ton occasion, l\'app te dit quelle crème, quel musc et quel parfum mettre.', 1, 'am'], ['tenue', 'Tenue de demain prête', 'Choisie, repassée, posée. Chaussures nettes.', 0, 'pm'], ['s-linge', 'Pyjama propre', 'Un vrai pyjama, et tes sous-vêtements de demain sortis.', 1, 'pm']]]];
 const PV_AP = PV_APG.reduce((a, g) => a.concat(g[1]), []);
-function pvApList() { return PV_AP.concat(pvWashDay() ? [['lavage', 'Lavage des cheveux', 'Shampoing doux sans sulfates, après-shampoing, masque si c\'est le jour. Sèche en tamponnant.', 0, 'day']] : []); }
+function pvApList() { return PV_AP.concat(pvWashDay() ? [['lavage', 'Lavage des cheveux', 'Masque 5 min avant (un lavage sur deux), shampoing Curl Coco, après-shampoing So\'Bio Cheveux nourris, démêlage au peigne sous la douche, crème Light (+ gelée).', 0, 'day']] : []); }
 const pvApOn = (x, d, k = todayISO()) => x[3] ? !!((lkS().log[k] || {})[x[0]]) : !!(d.ap || {})[x[0]];
 function pvApN(d = pvPeek(), k = todayISO()) { const L = pvApList(); return [L.filter(x => pvApOn(x, d, k)).length, L.length]; }
 function pvApToggle(id) {
@@ -7446,28 +7784,37 @@ function homeCheck() { const [o, d] = homeScore(); if (o === d) pvOnce('home', 4
    Sayko choisit l'occasion ; l'app dit quoi porter et comment, de A à Z :
    crème, musc, parfum, nombre de vaporisations, zones, moment, pourquoi, alternative.
    La saison est déduite du mois (hiver : nov.→mars, été : juin→sept.).
-   Collection (31/10/2026) : Sheikh Al Shuyukh Supreme, Velvet Oud, Bottled Infinite,
+   Collection (05/11/2026) : Sheikh Al Shuyukh Supreme (Luxe Edition à racheter), Velvet Oud, Bottled Infinite,
    Dior Oud Ispahan, Gris Dior, Armaf Odyssey Dubai Chocolat, 2 parfums de La Mecque,
    dupe Baccarat Rouge 540. Crèmes : Sol de Janeiro (gourmande), Atoderm Ultra (neutre).
-   Muscs : Musk Abiyad (eau de parfum, propre), Narjis (huile, violette).
+   Muscs et huiles : Musk Abiyad, Narjis, Amjed Al Oud, Merida Oud, Green Tea, Hajar El Aswad, Musk Black.
+   Presque finis (grandes occasions seulement) : Luxe Edition, Gris Dior, dupe BR540, Khashab Al Oud.
    ===================================================================== */
 const PF_P = {
-  sheikh: { n: 'Sheikh Al Shuyukh Supreme', b: 'Lattafa', f: 'Oriental épicé et gourmand', notes: 'rose, safran, cannelle, caramel, vanille, ambre', pw: 3, star: 1, cr: 'sdj', sp: '3 à 4', when: 'Hiver, soirées, occasions' },
-  velvet: { n: 'Velvet Oud', b: 'Lattafa', f: 'Violette et velours', notes: 'feuille de violette, daim, oud, ambre, musc', pw: 2, star: 1, cr: 'sdj', mu: 'narjis', sp: '3', when: 'Hiver, en amoureux, rendez-vous' },
+  sheikh: { n: 'Sheikh Al Shuyukh Supreme', b: 'Lattafa', f: 'Gourmand doux et vanillé', notes: 'rose, safran, cannelle, caramel, vanille, ambre', feel: 'doux et sucré, « parfum de Sephora », entre Bottled Infinite et Odyssey Dubai Chocolat. Rien à voir avec la Luxe Edition.', tip: 'Pour retrouver un côté oriental : une goutte d\'Amjed Al Oud dessous (proposée par l\'app), ou 1 vaporisation de Raghba Wood Intense par-dessus. À tester sur ta peau.', pw: 2, cr: 'neutre', mu: 'amjed', sp: '2 à 3', when: 'Hiver, cocooning, en amoureux, soirées douces' },
+  sheikhlx: { n: 'Sheikh Al Shuyukh Luxe Edition', b: 'Lattafa', low: 1, f: 'Oriental boisé et puissant', notes: 'boisé, oud, épices (les sources ne donnent pas la même composition : à vérifier sur le flacon)', feel: 'il attaque le nez, « l\'odeur de la mosquée ». C\'était ta signature de soirée d\'hiver.', tip: 'Il t\'en reste peu : gardé pour les grandes occasions, 1 à 2 vaporisations. À racheter au prochain restock.', pw: 3, cr: 'neutre', sp: '1 à 2', when: 'Grandes occasions, Aïd, soirées d\'hiver' },
+  khashab: { n: 'Khashab Al Oud', b: 'Deluxe Collection (Hamidi)', low: 1, f: 'Oriental boisé très doux', notes: 'bergamote, pêche, armoise, vétiver, bois blancs, castoréum, ambre, musc, iris', feel: 'un oriental très doux qui rappelle la mosquée, avec de la douceur. Le liquide est blanc : c\'est un « water perfume », à base d\'eau et sans alcool.', tip: 'Il t\'en reste peu : gardé pour les grandes occasions. Sans alcool, il convient aussi à la peau, aux cheveux et aux vêtements.', pw: 2, cr: 'neutre', sp: '2 à 3', when: 'Grandes occasions, Aïd, famille' },
+  velvet: { n: 'Velvet Oud', b: 'Lattafa', f: 'Cuir doux et floral', notes: 'bergamote, cardamome, feuille de violette, patchouli, daim, oud, mousse de chêne, ambre, musc', feel: 'un cuir doux avec un côté floral, dans l\'esprit des cuirs façon Tom Ford. Il te plaît : à porter souvent, surtout en layering.', tip: 'Fait pour le layering selon toi : essaie-le sur Narjis, ou avec 1 vaporisation de Hatim par-dessus le soir. Porte-le aussi seul un jour pour comparer.', pw: 2, star: 1, cr: 'neutre', mu: 'narjis', sp: '3', when: 'Automne-hiver, en amoureux, soirées, journées dehors' },
   infinite: { n: 'Bottled Infinite', b: 'Hugo Boss', f: 'Frais, aromatique, boisé', notes: 'mandarine, pomme, sauge, lavande, patchouli', pw: 2, star: 1, cr: 'neutre', mu: 'abiyad', sp: '3 à 4', when: 'Journée, travail, printemps et été' },
   ispahan: { n: 'Oud Ispahan', b: 'Dior', f: 'Rose et oud, profond', notes: 'rose, oud, labdanum, patchouli', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '2 à 3', when: 'Grandes occasions, soirées d\'hiver' },
-  gris: { n: 'Gris Dior', b: 'Dior', f: 'Chypre poudré, élégant', notes: 'rose, patchouli, mousse, poudré', pw: 2, cr: 'neutre', mu: 'narjis', sp: '3', when: 'Mi-saison, journée chic, rendez-vous importants' },
+  gris: { n: 'Gris Dior', b: 'Dior', low: 1, f: 'Chypre poudré, élégant', notes: 'rose, patchouli, mousse, poudré', tip: 'Il t\'en reste peu : gardé pour les grandes occasions.', pw: 2, cr: 'neutre', mu: 'narjis', sp: '2', when: 'Grandes occasions, journée chic' },
   odyssey: { n: 'Odyssey Dubai Chocolat', b: 'Armaf', f: 'Gourmand pistache-chocolat', notes: 'pistache, chocolat, praliné, vanille', pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Froid, extérieur, cocooning' },
-  mecg: { n: 'La Mecque · oriental gourmand', b: 'Achat à La Mecque', f: 'Oriental avec une touche gourmande', notes: 'oriental, chaud, sucré', pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Hiver, Jumu\'a, famille' },
-  mecr: { n: 'La Mecque · rose d\'Arabie', b: 'Achat à La Mecque', f: 'Rose sèche, florale', notes: 'rose d\'Arabie, floral sec', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '1 à 2', when: 'Mosquée, Aïd, occasions' },
-  hatim: { n: 'Hatim', b: 'Al Absar', f: 'Boisé ambré, chaleureux', notes: 'cardamome, vanille, caramel, oud, ambre, musc', pw: 2, cr: 'sdj', sp: '3', when: 'Automne-hiver, journée et soirée, sorties' },
-  raghba: { n: 'Raghba Wood Intense', b: 'Lattafa', f: 'Encens et bois fumé', notes: 'encens façon bakhour, bois, feu de bois en forêt l\'hiver', pw: 3, cr: 'neutre', sp: '1 à 2', when: 'Soirs d\'hiver, dehors, ambiance feu de bois' },
+  mecg: { n: 'La Mecque · oriental gourmand', b: 'Achat à La Mecque', f: 'Oriental avec une touche gourmande', notes: 'oriental, chaud, sucré', feel: 'un de tes parfums préférés, et tu en as deux flacons : à porter souvent.', star: 1, pw: 3, cr: 'sdj', sp: '1 à 2', when: 'Hiver, Jumu\'a, famille' },
+  mecr: { n: 'La Mecque · rose d\'Arabie', b: 'Achat à La Mecque', f: 'Rose sèche, florale', notes: 'rose d\'Arabie, floral sec', pw: 3, cr: 'neutre', mu: 'hajar', sp: '1 à 2', when: 'Mosquée, Aïd, occasions' },
+  hatim: { n: 'Hatim', b: 'Al Absar', f: 'Boisé ambré, chaleureux', notes: 'cardamome, vanille, caramel, oud, ambre, musc', pw: 2, cr: 'sdj', mu: 'merida', sp: '3', when: 'Automne-hiver, journée et soirée, sorties' },
+  raghba: { n: 'Raghba Wood Intense', b: 'Lattafa', f: 'Encens et bois fumé', notes: 'encens façon bakhour, bois, feu de bois en forêt l\'hiver', pw: 3, cr: 'neutre', mu: 'mblack', sp: '1 à 2', when: 'Soirs d\'hiver, dehors, ambiance feu de bois' },
   seoul: { n: 'Seoul', b: 'Zara', f: 'Aromatique, frais et chaud (eau de toilette)', notes: 'noisette, poivre, ambre', pw: 1, cr: 'neutre', mu: 'abiyad', sp: '4 à 5', when: 'Tous les jours, journée tranquille, mi-saison' },
-  lisboa: { n: 'Lisboa', b: 'Zara', f: 'Frais, agrumes, aquatique (eau de toilette)', notes: 'orange, citron, notes vertes, jasmin, musc', pw: 1, cr: 'neutre', mu: 'abiyad', sp: '4 à 5', when: 'Été, journée, livraisons' },
-  br540: { n: 'Dupe Baccarat Rouge 540', b: 'Dupe', f: 'Ambré, safrané, aérien', notes: 'safran, jasmin, ambre, bois', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '2 à 3', when: 'Toute l\'année, sorties' }
+  lisboa: { n: 'Lisboa', b: 'Zara', f: 'Frais, agrumes, aquatique (eau de toilette)', notes: 'orange, citron, notes vertes, jasmin, musc', pw: 1, cr: 'neutre', mu: 'greentea', sp: '4 à 5', when: 'Été, journée, livraisons' },
+  br540: { n: 'Dupe Baccarat Rouge 540', b: 'Dupe', low: 1, f: 'Ambré, safrané, aérien', notes: 'safran, jasmin, ambre, bois', tip: 'Il t\'en reste peu : gardé pour les grandes occasions.', pw: 3, cr: 'neutre', mu: 'abiyad', sp: '2', when: 'Grandes occasions, toute l\'année' }
 };
 const PF_CR = { sdj: ['Sol de Janeiro', 'gourmande (pistache, caramel, vanille) : elle chauffe et prolonge les parfums sucrés'], neutre: ['Atoderm Crème Ultra', 'sans parfum : elle hydrate sans rien ajouter à l\'odeur'] };
-const PF_MU = { abiyad: ['Musk Abiyad', 'une vaporisation légère, en couche propre et douce'], narjis: ['Narjis (huile)', 'une goutte au cou et aux poignets, pour la violette poudrée'] };
+const PF_MU = { abiyad: ['Musk Abiyad', 'une vaporisation légère, en couche propre et douce'], narjis: ['Narjis (huile)', 'une goutte au cou et aux poignets, pour le côté floral'],
+  amjed: ['Amjed Al Oud (huile)', 'une goutte au cou et aux poignets : épicée et très orientale, elle réchauffe le parfum'],
+  merida: ['Merida Oud (huile)', 'une toute petite goutte au cou, pas plus : ce musc de Dubaï est très fort, un oud adouci qui donne du fond'],
+  greentea: ['Green Tea (huile)', 'une goutte au cou : thé vert léger, un peu citronné, pour la fraîcheur'],
+  hajar: ['Hajar El Aswad (attar)', '1 à 2 gouttes au cou, dans la barbe et sur les vêtements : pas très fort, c\'est l\'odeur de l\'enceinte de Masjid al-Haram, celle que tu as sentie à La Mecque'],
+  mblack: ['Musk Black (huile)', 'une goutte au cou et aux poignets : très oriental, il rappelle la pierre noire, avec une note de menthe assez forte'] };
+const PF_MU_SET = ['abiyad', 'narjis', 'amjed', 'merida', 'greentea', 'hajar', 'mblack']; /* huiles proposées dans les conseils */
 /* Occasions : [id, nom, icône, sous-titre] + choix par saison { parfum, layering?, musc?, sprays?, zones, quand, pourquoi, éviter, alt } */
 const PF_OC = [
   ['gare1', 'Gare · 5 h-14 h', '🚉', 'Contact avec les voyageurs, longue journée'],
@@ -7481,6 +7828,7 @@ const PF_OC = [
   ['home', 'Soirée à la maison', '🕯', 'Cocooning, en couple'],
   ['dehors', 'Journée dehors', '🚶', 'Courses, balade, en ville'],
   ['feu', 'Soir d\'hiver dehors', '🔥', 'Froid, plein air, ambiance feu de bois'],
+  ['grand', 'Grande occasion', '💎', 'Mariage, invitation, moment spécial'],
   ['mosq', 'Mosquée', '🕌', 'Prière, Jumu\'a'],
   ['aid', 'Aïd · famille', '🌙', 'Grandes occasions, visites']
 ];
@@ -7489,23 +7837,67 @@ const PF_SN = { hiver: 'hiver', ete: 'été', mi: 'mi-saison' };
 function pfPlan(oc, sn) {
   const W = sn !== 'ete'; /* la mi-saison à Cannes se traite comme l'hiver le soir */
   const P = {
-    gare1: { p: 'infinite', sp: '2 à 3', zones: 'cou et poitrine, sous le col', when: 'à la maison, juste après la douche (vers 4 h 15)', why: 'Tu es au contact des voyageurs, souvent de près, pendant 9 heures : il faut une odeur fraîche, propre, qui ne dérange personne et qui tient. Bottled Infinite fait exactement ça, et on te trouve agréable sans savoir pourquoi.', avoid: 'Pas de gourmand ni d\'oriental lourd le matin dans un espace fermé : ça écœure vite les gens qui t\'approchent.', alt: W ? 'hatim' : 'lisboa', altSp: W ? '2' : '4 à 5' },
-    gare2: { p: W ? 'hatim' : 'infinite', sp: W ? '3' : '3', zones: 'cou, nuque et poitrine', when: '20 à 30 minutes avant de partir', why: W ? 'Hatim a ce côté « parfum d\'homme » chaleureux, dans l\'esprit de Stronger With You : cardamome, vanille, bois. Il tient jusqu\'à 23 h et laisse une trace quand tu passes, sans jamais agresser : c\'est exactement ce qui fait remarquer une présence sans parler.' : 'Frais et propre pendant tout le service, même quand il fait chaud.', avoid: 'Évite les parfums très puissants : en fin de service, une odeur trop forte devient lourde.', alt: W ? 'gris' : 'seoul', altSp: W ? '3' : '4 à 5' },
+    gare1: { p: 'infinite', sp: '2 à 3', zones: 'cou et poitrine, sous le col', when: 'à la maison, juste après la douche (vers 4 h 15)', why: 'Tu es au contact des voyageurs, souvent de près, pendant 9 heures : il faut une odeur fraîche, propre, qui ne dérange personne et qui tient. Bottled Infinite fait exactement ça, et on te trouve agréable sans savoir pourquoi.', avoid: 'Pas de gourmand ni d\'oriental lourd le matin dans un espace fermé : ça écœure vite les gens qui t\'approchent.', alt: W ? 'hatim' : 'lisboa', altSp: W ? '2' : '4 à 5', altMu: W ? '' : undefined },
+    gare2: { p: W ? 'hatim' : 'infinite', mu: W ? '' : undefined, sp: W ? '3' : '3', zones: 'cou, nuque et poitrine', when: '20 à 30 minutes avant de partir', why: W ? 'Hatim a ce côté « parfum d\'homme » chaleureux, dans l\'esprit de Stronger With You : cardamome, vanille, bois. Il tient jusqu\'à 23 h et laisse une trace quand tu passes, sans jamais agresser : c\'est exactement ce qui fait remarquer une présence sans parler.' : 'Frais et propre pendant tout le service, même quand il fait chaud.', avoid: 'Évite les parfums très puissants : en fin de service, une odeur trop forte devient lourde.', alt: 'seoul', altSp: '4 à 5' },
     pizza: { p: 'infinite', sp: '2', zones: 'sur le t-shirt et le torse, sous la veste', when: 'avant de partir', why: 'En livraison, tu es dehors, au vent, sous un casque, et tu croises les clients quelques secondes à leur porte. Un parfum frais vaporisé sur les vêtements tient malgré le vent, et sent propre sans se mélanger à l\'odeur des pizzas.', avoid: 'Aucun gourmand (pistache, vanille) : avec l\'odeur de pizza dans le sac, c\'est écœurant.', alt: 'lisboa', altSp: '4 à 5' },
-    love: { p: W ? 'velvet' : 'br540', lay: W ? null : 'ispahan', sp: W ? '3' : '2', zones: 'cou, derrière les oreilles, dans la barbe et sur les poignets', when: '30 minutes avant de sortir', why: W ? 'La violette poudrée de Velvet Oud, adoucie par la vanille de la Sol de Janeiro et renforcée par Narjis : c\'est ton « Oud Satin Mood » maison. Chaud, velouté, on a envie de s\'approcher.' : 'Le duo dupe Baccarat Rouge 540 et Oud Ispahan : ambre safrané et rose profonde, un classique qui marque.', avoid: 'Ne vaporise pas trop : en intime, la personne est près de toi. Mieux vaut qu\'elle te découvre en s\'approchant.', alt: 'sheikh' },
-    rdv: { p: 'gris', sp: '2 à 3', zones: 'cou et poignets', when: '30 minutes avant', why: 'Gris Dior dit « soigné et sérieux » sans en faire trop. Dans un bureau, l\'odeur doit être une bonne impression discrète, pas un sujet de conversation.', avoid: 'Pas d\'oriental puissant ni de gourmand : dans une petite pièce, ça peut gêner.', alt: W ? 'velvet' : 'infinite' },
-    potes: { p: 'br540', sp: '3', zones: 'cou, nuque, poitrine et un peu sur les vêtements', when: '20 minutes avant de sortir', why: 'Le dupe de Baccarat Rouge 540 est l\'odeur qui fait réagir : aérienne, reconnaissable, elle diffuse autour de toi. C\'est le parfum à compliments.', avoid: 'Ne le mélange pas avec un gourmand : il perd sa signature.', alt: W ? 'hatim' : 'infinite' },
-    soir: { p: W ? 'sheikh' : 'br540', lay: W ? null : 'ispahan', sp: W ? '4' : '3', zones: 'cou, nuque, poitrine, poignets', when: '30 minutes avant de sortir', why: W ? 'Sheikh, c\'est ta signature de soirée d\'hiver : riche, épicé, sucré. Avec la Sol de Janeiro dessous, il retrouve la densité de ta Luxe Edition et tient toute la nuit.' : 'Ambre safrané et rose-oud : élégant, puissant, parfait pour une soirée d\'été.', avoid: 'Une seule couche de parfum fort suffit : ne rajoute rien par-dessus.', alt: W ? 'velvet' : 'sheikh' },
+    love: { p: 'velvet', sp: W ? '3' : '2', zones: 'cou, derrière les oreilles, dans la barbe et sur les poignets', when: '30 minutes avant de sortir', why: W ? 'Velvet Oud, c\'est un cuir doux avec un côté floral. Narjis dessous fait ressortir les fleurs, la crème neutre ne vient rien sucrer. On le découvre en s\'approchant. Plan B : Sheikh Supreme, gourmand et doux.' : 'Velvet Oud à dose légère, sur Narjis : le cuir doux et floral reste agréable même quand il fait chaud. Plan B : Sheikh Supreme.', avoid: 'Ne vaporise pas trop : en intime, la personne est près de toi. Mieux vaut qu\'elle te découvre en s\'approchant.', alt: 'sheikh' },
+    rdv: { p: 'infinite', sp: '2', zones: 'cou et poignets', when: '30 minutes avant', why: 'Bottled Infinite dit « propre et soigné » sans en faire trop. Dans un bureau, l\'odeur doit être une bonne impression discrète, pas un sujet de conversation. Gris Dior irait bien aussi, mais il t\'en reste peu : garde-le pour un rendez-vous vraiment important.', avoid: 'Pas d\'oriental puissant ni de gourmand : dans une petite pièce, ça peut gêner.', alt: W ? 'velvet' : 'seoul', altSp: W ? '2' : '4' },
+    potes: { p: W ? 'hatim' : 'infinite', sp: '3', zones: 'cou, nuque, poitrine et un peu sur les vêtements', when: '20 minutes avant de sortir', why: W ? 'Hatim est chaleureux et diffuse bien : cardamome, vanille, bois, avec une goutte de Merida Oud dessous pour le fond. On le remarque sans qu\'il soit lourd.' : 'Frais, aromatique, il diffuse bien dehors et plaît à tout le monde.', avoid: 'Une seule couche : entre potes, pas besoin d\'empiler.', alt: W ? 'velvet' : 'seoul', altSp: W ? '3' : '4 à 5' },
+    soir: { p: 'velvet', lay: W ? 'hatim' : null, sp: W ? '3' : '2', zones: 'cou, nuque, poitrine, poignets', when: '30 minutes avant de sortir', why: W ? 'Le cuir doux de Velvet Oud, avec une touche de Hatim par-dessus pour la chaleur (cardamome, vanille) : plus de présence le soir. C\'est un layering à tester sur ta peau. Pour une soirée vraiment spéciale, choisis plutôt « Grande occasion ».' : 'Velvet Oud à dose légère sur Narjis : élégant sans être lourd par une soirée d\'été.', avoid: 'Deux parfums maximum : n\'ajoute rien d\'autre par-dessus.', alt: W ? 'sheikh' : 'sheikh' },
     chill: { p: null, sp: '0', zones: 'crème neutre, puis Musk Abiyad (1 vaporisation)', when: 'après la douche', why: 'À la maison, garde tes parfums pour les vrais moments : une peau hydratée et un musc propre suffisent pour te sentir bien.', avoid: 'Inutile de gâcher un parfum puissant à la maison toute la journée.', alt: W ? 'seoul' : 'lisboa', altSp: '3 à 4' },
-    home: { p: 'velvet', sp: W ? '2 à 3' : '2', zones: 'cou, nuque et poignets', when: 'une heure avant, pour qu\'il soit doux', why: W ? 'Velvet Oud est fait pour le soir à deux : violette veloutée, daim, oud adouci. Avec la Sol de Janeiro dessous, il enveloppe la pièce sans l\'écraser. C\'est le parfum qu\'on a envie de sentir de près.' : 'Velvet Oud à dose légère : une ambiance douce et veloutée pour une soirée à deux, même quand il fait chaud dehors.', avoid: 'Reste léger : la pièce est petite et elle est tout près de toi.', alt: 'odyssey', altSp: '1 à 2' },
-    dehors: { p: W ? 'hatim' : 'lisboa', sp: W ? '3' : '4 à 5', zones: W ? 'cou, nuque et poitrine' : 'cou, poitrine et vêtements (une eau de toilette se dose plus)', when: 'juste avant de sortir', why: W ? 'Hatim a ce côté « parfum d\'homme » chaleureux, dans l\'esprit de Stronger With You : cardamome, vanille, bois. Parfait pour une journée en ville quand il fait frais, sans en faire trop.' : 'Lisboa est frais, citronné, léger : idéal quand il fait chaud et que tu marches. Comme c\'est une eau de toilette, tu peux en mettre plus et en remettre l\'après-midi.', avoid: W ? 'Pas de layering : il se suffit à lui-même.' : 'Pas d\'oriental lourd en plein soleil : la chaleur le rend écœurant.', alt: W ? 'seoul' : 'infinite' },
-    feu: { p: W ? 'raghba' : 'lisboa', sp: W ? '1 à 2' : '4', zones: W ? 'sur l\'écharpe, le manteau et un peu au cou' : 'cou et poitrine', when: 'avant de sortir dans le froid', why: W ? 'Raghba Wood Intense, c\'est le bakhour et le feu de bois d\'un soir d\'hiver en forêt. Le froid le rend plus doux, et sur la laine d\'une écharpe il tient des heures.' : 'En été, l\'encens fumé est trop lourd : reste sur du frais.', avoid: 'Très puissant : 1 à 2 vaporisations, jamais plus, et pas dans un espace fermé.', alt: W ? 'odyssey' : 'seoul', altSp: W ? '1 à 2' : '4' },
-    mosq: { p: 'mecr', sp: '1 à 2', zones: 'cou, barbe et vêtements', when: 'à la maison, avant de partir', why: 'Se parfumer pour la prière est une sunnah, surtout le vendredi. La rose d\'Arabie est faite pour ça : noble, florale, sans sucre. À petite dose, pour ne pas incommoder tes voisins dans les rangs.', avoid: 'Pas de parfum puissant en grande quantité : les rangs sont serrés. Pas de gourmand.', alt: 'narjis', altSp: 'quelques gouttes d\'huile' },
-    aid: { p: W ? 'ispahan' : 'mecr', lay: W ? 'br540' : null, sp: '2 à 3', zones: 'cou, barbe, poitrine et vêtements', when: 'le matin, avant la prière de l\'Aïd ou la visite', why: W ? 'Oud Ispahan, c\'est ton parfum de grande occasion : rose et oud, noble et profond. Une touche du dupe de Baccarat par-dessus le rend plus lumineux.' : 'La rose d\'Arabie, élégante et traditionnelle : parfaite pour la famille.', avoid: 'Une seule combinaison. Tu vas faire des accolades : pas besoin d\'en mettre beaucoup.', alt: W ? 'mecg' : 'ispahan' }
+    home: { p: W ? 'sheikh' : 'velvet', sp: '2', zones: 'cou, nuque et poignets', when: 'une heure avant, pour qu\'il soit doux', why: W ? 'Sheikh Supreme est doux, sucré, vanillé : parfait pour un soir de cocooning à deux. Pas besoin de Sol de Janeiro dessous, il est déjà assez gourmand.' : 'Velvet Oud à dose légère : un cuir doux et floral pour une soirée à deux, même quand il fait chaud dehors.', avoid: 'Reste léger : la pièce est petite et elle est tout près de toi.', alt: W ? 'velvet' : 'odyssey', altSp: W ? '2 à 3' : '1 à 2' },
+    dehors: { p: W ? 'hatim' : 'lisboa', sp: W ? '3' : '4 à 5', zones: W ? 'cou, nuque et poitrine' : 'cou, poitrine et vêtements (une eau de toilette se dose plus)', when: 'juste avant de sortir', why: W ? 'Hatim a ce côté « parfum d\'homme » chaleureux, dans l\'esprit de Stronger With You : cardamome, vanille, bois. Parfait pour une journée en ville quand il fait frais, sans en faire trop.' : 'Lisboa est frais, citronné, léger : idéal quand il fait chaud et que tu marches. Comme c\'est une eau de toilette, tu peux en mettre plus et en remettre l\'après-midi.', avoid: W ? 'Pas de layering : il se suffit à lui-même.' : 'Pas d\'oriental lourd en plein soleil : la chaleur le rend écœurant.', alt: W ? 'velvet' : 'infinite', altSp: W ? '3' : undefined },
+    feu: { p: W ? 'raghba' : 'lisboa', sp: W ? '1 à 2' : '4', zones: W ? 'sur l\'écharpe, le manteau et un peu au cou' : 'cou et poitrine', when: 'avant de sortir dans le froid', why: W ? 'Raghba Wood Intense, c\'est le bakhour et le feu de bois d\'un soir d\'hiver en forêt. Une goutte de Musk Black dessous ajoute son côté oriental et sa fraîcheur mentholée. Le froid rend le tout plus doux, et sur la laine d\'une écharpe il tient des heures.' : 'En été, l\'encens fumé est trop lourd : reste sur du frais.', avoid: 'Très puissant : 1 à 2 vaporisations, jamais plus, et pas dans un espace fermé.', alt: W ? 'odyssey' : 'seoul', altSp: W ? '1 à 2' : '4' },
+    mosq: { p: 'mecr', sp: '1 à 2', zones: 'cou, barbe et vêtements', when: 'à la maison, avant de partir', why: 'Se parfumer pour la prière est une sunnah, surtout le vendredi. Hajar El Aswad dessous, c\'est l\'odeur de Masjid al-Haram ; la rose d\'Arabie par-dessus, noble, florale, sans sucre. À petite dose, pour ne pas incommoder tes voisins dans les rangs.', avoid: 'Pas de parfum puissant en grande quantité : les rangs sont serrés. Pas de gourmand.', alt: 'narjis', altSp: 'quelques gouttes d\'huile' },
+    aid: { p: W ? 'ispahan' : 'mecr', lay: W ? 'br540' : null, sp: '2 à 3', zones: 'cou, barbe, poitrine et vêtements', when: 'le matin, avant la prière de l\'Aïd ou la visite', why: W ? 'Oud Ispahan, c\'est ton parfum de grande occasion : rose et oud, noble et profond. Une touche du dupe de Baccarat par-dessus le rend plus lumineux.' : 'La rose d\'Arabie, élégante et traditionnelle : parfaite pour la famille.', avoid: 'Une seule combinaison. Tu vas faire des accolades : pas besoin d\'en mettre beaucoup.', alt: 'khashab', altSp: '2' },
+    grand: { p: W ? 'sheikhlx' : 'br540', sp: W ? '1 à 2' : '2', zones: 'cou, barbe et poitrine', when: '30 minutes avant', why: W ? 'La Luxe Edition, c\'est ton oriental puissant, celui qui rappelle la mosquée. Il t\'en reste peu : c\'est pour ces moments-là, et 1 à 2 vaporisations suffisent, il est très fort.' : 'Le dupe de Baccarat Rouge 540 : aérien, reconnaissable, le parfum à compliments. Il t\'en reste peu, alors garde-le pour ces moments-là.', avoid: 'Il t\'en reste peu et il est puissant : pas plus de 2 vaporisations.', alt: W ? 'khashab' : 'gris', altSp: '2' }
   };
+  /* v5.53 · plusieurs compositions par occasion, pour alterner (crème → huile → parfum) */
+  const M = W ? {
+    gare1: [{ p: 'seoul', sp: '4 à 5', w: 'Seoul : noisette et poivre, léger et chaleureux. Une eau de toilette : tu peux en remettre dans la journée.' }],
+    gare2: [{ p: 'infinite', sp: '3', w: 'Frais et propre, sûr pour toute la vacation.' }, { p: 'velvet', sp: '2', w: 'Le cuir doux de Velvet Oud à petite dose : présent sans gêner les voyageurs.' }],
+    pizza: [{ p: 'seoul', sp: '4', w: 'Léger et chaleureux, il ne se mélange pas à l\'odeur des pizzas.' }],
+    love: [{ p: 'mecg', sp: '1 à 2', mu: 'amjed', w: 'Ton oriental gourmand de La Mecque, chaud et sucré, avec une goutte d\'Amjed Al Oud dessous pour les épices. Puissant : 1 à 2 vaporisations, on le découvre en s\'approchant.' }, { p: 'ispahan', sp: '2', mu: 'narjis', w: 'Oud Ispahan, rose et oud profonds, avec Narjis dessous pour le côté floral : élégant et intime.' }],
+    rdv: [{ p: 'hatim', sp: '2', mu: '', w: 'Hatim à petite dose, sans huile : chaleureux et soigné, sans envahir le bureau.' }],
+    potes: [{ p: 'mecg', sp: '2', w: 'Ton oriental gourmand de La Mecque : il diffuse et se remarque.' }, { p: 'sheikh', sp: '3', w: 'Sheikh Supreme, doux et sucré, avec Amjed Al Oud dessous pour le côté oriental.' }],
+    soir: [{ p: 'mecg', sp: '2', mu: 'amjed', w: 'Ton oriental gourmand de La Mecque avec Amjed Al Oud dessous : riche, épicé, sucré, il tient toute la soirée.' }, { p: 'ispahan', sp: '2 à 3', w: 'Oud Ispahan, rose et oud : noble et profond, parfait pour une sortie chic l\'hiver.' }],
+    chill: [{ p: 'mecg', sp: '1', w: 'Une seule vaporisation de ton parfum préféré de La Mecque, juste pour toi : tu en as deux flacons.' }],
+    home: [{ p: 'mecg', sp: '1 à 2', w: 'Oriental, gourmand et chaud : parfait pour un soir d\'hiver à la maison.' }, { p: 'odyssey', sp: '1 à 2', w: 'Pistache et chocolat, très cocooning. Puissant : pas plus de 2 vaporisations.' }],
+    dehors: [{ p: 'mecg', sp: '2', w: 'Au frais, son côté oriental gourmand se pose bien et tient toute la journée.' }, { p: 'seoul', sp: '4 à 5', w: 'Plus léger, pour une journée tranquille.' }],
+    feu: [{ p: 'mecg', sp: '1 à 2', w: 'Oriental et sucré, il s\'épanouit dans le froid.' }, { p: 'ispahan', sp: '2', mu: 'mblack', w: 'Rose et oud avec Musk Black dessous : profond et oriental, presque un bakhour.' }],
+    grand: [{ p: 'ispahan', sp: '2', lay: 'br540', w: 'Oud Ispahan avec une touche de dupe Baccarat par-dessus : noble et lumineux.' }, { p: 'mecg', sp: '2', mu: 'amjed', w: 'Ton oriental gourmand de La Mecque avec Amjed Al Oud : chaleureux, il marque les esprits.' }],
+    mosq: [{ p: 'hajar', w: 'Hajar El Aswad seul, quelques gouttes : l\'odeur de Masjid al-Haram, sans alcool.' }],
+    aid: [{ p: 'mecg', sp: '2', mu: 'hajar', w: 'Ton oriental de La Mecque avec Hajar El Aswad dessous : chaleureux et familial, parfait pour les visites.' }, { p: 'sheikhlx', sp: '1 à 2', w: 'La Luxe Edition, ton oriental puissant : c\'est une grande occasion, il t\'en reste peu.' }]
+  } : {
+    gare1: [{ p: 'seoul', sp: '4 à 5' }], gare2: [{ p: 'lisboa', sp: '4 à 5' }], pizza: [{ p: 'seoul', sp: '4' }],
+    love: [{ p: 'infinite', sp: '2', w: 'Frais et propre, agréable de près quand il fait chaud.' }],
+    rdv: [{ p: 'lisboa', sp: '4' }], potes: [{ p: 'lisboa', sp: '4 à 5' }], soir: [{ p: 'infinite', sp: '3' }],
+    chill: [{ p: 'greentea', w: 'Quelques gouttes d\'huile Green Tea, seule : fraîche et légère.' }],
+    dehors: [{ p: 'seoul', sp: '4 à 5' }], grand: [{ p: 'khashab', sp: '2' }],
+    mosq: [{ p: 'hajar', w: 'Hajar El Aswad seul, quelques gouttes : l\'odeur de Masjid al-Haram, sans alcool.' }],
+    aid: [{ p: 'br540', sp: '2' }]
+  };
+  if (P[oc]) P[oc].more = M[oc] || [];
   return P[oc];
 }
-const PFC = { oc: null, alt: false };
+function pfComps(pl) {
+  const L = [{ p: pl.p, sp: pl.sp, lay: pl.lay, mu: pl.mu, w: pl.why, main: 1 }];
+  if (pl.alt) L.push({ p: pl.alt, sp: pl.altSp, mu: pl.altMu });
+  (pl.more || []).forEach(c => L.push(c));
+  return L.map(c => {
+    const x = c.p && PF_P[c.p] ? PF_P[c.p] : null, oil = !x && c.p && PF_MU[c.p] ? c.p : null;
+    const mu = c.mu !== undefined ? (c.mu || null) : (x && x.mu) || null;
+    const name = x ? x.n : oil ? PF_MU[oil][0].replace(/ \(.*\)$/, '') : 'Musk Abiyad';
+    const w = c.w || (x ? `${x.n} : ${x.f.toLowerCase()}.${x.feel ? ' ' + x.feel[0].toUpperCase() + x.feel.slice(1) : ''}` : `${name}, seul : discret et sans alcool.`);
+    return Object.assign({}, c, { x, oil, mu, name, w, cr: c.cr || (x ? x.cr : 'neutre'), sp: c.sp || (x ? x.sp : '') });
+  });
+}
+function pfDefIdx(oc, n) { /* propose la composition suivante par rapport à la dernière fois, pour alterner */
+  const f = pfS(), t = todayISO(), ks = Object.keys(f.log).filter(k => k < t && f.log[k] && f.log[k].oc === oc).sort();
+  const last = ks.length ? f.log[ks[ks.length - 1]].i : undefined;
+  return typeof last === 'number' ? (last + 1) % n : 0;
+}
+const PFC = { oc: null, i: null };
 function pfS() { const p = pvS(); if (!p.pf || typeof p.pf !== 'object') p.pf = { log: {} }; if (!p.pf.log) p.pf.log = {}; return p.pf; }
 function pfSteps(pl, useAlt) {
   const pid = useAlt ? pl.alt : pl.p, x = pid && PF_P[pid] ? PF_P[pid] : null, sp = useAlt ? (pl.altSp || (x ? x.sp : '')) : pl.sp;
@@ -7530,39 +7922,41 @@ function vParfum() {
   const grid = `<div class="pf-oc">${PF_OC.map(([id, n, ic, sub]) => `<button class="pf-occ ${cur === id ? 'on' : ''}" data-pfoc="${id}" aria-pressed="${cur === id}"><span class="pf-ic" aria-hidden="true">${ic}</span><b>${n}</b></button>`).join('')}</div>`;
   let res = '';
   if (cur) {
-    const oc = PF_OC.find(o => o[0] === cur), pl = pfPlan(cur, sn), useAlt = PFC.alt && pl.alt !== undefined, pid = useAlt ? pl.alt : pl.p, x = pid && PF_P[pid];
-    const isOil = pid === 'narjis', title = isOil ? 'Narjis' : x ? x.n : 'Musk Abiyad';
-    const cr = x ? PF_CR[x.cr][0] : 'Atoderm', mu = x && x.mu ? PF_MU[x.mu][0].replace(' (huile)', '') : null;
-    const sp = useAlt ? (pl.altSp || (x ? x.sp : '')) : pl.sp;
-    const chain = [`<span><i>1</i>${cr}</span>`].concat(isOil ? [`<span><i>2</i>Narjis · quelques gouttes</span>`] : !x ? [`<span><i>2</i>Musk Abiyad · 1 pschitt</span>`] : (mu ? [`<span><i>2</i>${esc(mu)}</span>`] : []).concat([`<span class="pf-main"><i>${mu ? 3 : 2}</i>${esc(x.n)} · ${esc(sp)}</span>`]).concat(pl.lay && !useAlt ? [`<span><i>${mu ? 4 : 3}</i>+ 1 pschitt ${esc(PF_P[pl.lay].n)}</span>`] : []));
+    const oc = PF_OC.find(o => o[0] === cur), pl = pfPlan(cur, sn), comps = pfComps(pl);
     const done = today && today.oc === cur;
-    const altName = pl.alt === null ? null : pl.alt === 'narjis' ? 'Narjis' : PF_P[pl.alt] ? PF_P[pl.alt].n : null;
+    let idx = PFC.i !== null ? PFC.i : done && typeof today.i === 'number' ? today.i : pfDefIdx(cur, comps.length);
+    if (idx >= comps.length) idx = 0;
+    const c = comps[idx], cr = PF_CR[c.cr][0], mu = c.mu ? PF_MU[c.mu][0].replace(/ \(.*\)$/, '') : null;
+    const chain = [`<span><i>1</i>${cr}</span>`].concat(c.oil ? [`<span class="pf-main"><i>2</i>${esc(c.name)} · quelques gouttes</span>`] : !c.x ? [`<span><i>2</i>Musk Abiyad · 1 pschitt</span>`] : (mu ? [`<span><i>2</i>${esc(mu)} · 1 goutte</span>`] : []).concat([`<span class="pf-main"><i>${mu ? 3 : 2}</i>${esc(c.name)} · ${esc(c.sp)}</span>`]).concat(c.lay ? [`<span><i>${mu ? 4 : 3}</i>+ 1 pschitt ${esc(PF_P[c.lay].n)}</span>`] : []));
+    const pick = comps.length > 1 ? `<p class="pv-sub" style="margin:12px 0 6px">${comps.length} compositions pour alterner :</p><div style="display:flex;flex-wrap:wrap;gap:6px">${comps.map((k, i) => `<button class="chip ${i === idx ? 'on' : ''}" data-pfc="${i}" aria-pressed="${i === idx}">${i + 1} · ${esc(k.name)}${k.lay ? ' + ' + esc(PF_P[k.lay].n) : ''}</button>`).join('')}</div>` : '';
     res = `<section class="glass pv-card pf-res">
-      <p class="pv-k" style="margin-top:0">${oc[2]} ${oc[1]}</p>
-      <h2 class="pf-title">${esc(title)}</h2>
+      <p class="pv-k" style="margin-top:0">${oc[2]} ${oc[1]}${comps.length > 1 ? ` · composition ${idx + 1}/${comps.length}` : ''}</p>
+      <h2 class="pf-title">${esc(c.name)}</h2>
       <div class="pf-chain">${chain.join('<b>→</b>')}</div>
       <p class="pf-where">${esc(pl.zones)} · ${esc(pl.when)}</p>
-      <div class="pv-btns"><button class="btn sm ${done ? 'ghost' : ''}" data-pfdone style="flex:1">${done ? '✓ Fait' : 'C\'est fait'}</button>${altName ? `<button class="chip" data-pfalt>${useAlt ? '← Conseil' : 'Autre choix'}</button>` : ''}</div>
-      <details class="pv-det" data-k="pf-why"><summary>Pourquoi ?</summary><p>${useAlt ? 'Le plan B, si tu veux changer ou si le premier est fini.' : esc(pl.why)}</p><p><b>À éviter</b> : ${esc(pl.avoid)}</p><p class="pv-sub">Douche, crème sur peau encore humide, puis le reste à 15 cm, sans frotter.</p></details></section>`;
+      <div class="pv-btns"><button class="btn sm ${done && today.i === idx ? 'ghost' : ''}" data-pfdone style="flex:1">${done && today.i === idx ? '✓ Fait' : 'C\'est fait'}</button></div>
+      ${pick}
+      <details class="pv-det" data-k="pf-why"><summary>Pourquoi ?</summary><p>${esc(c.w)}</p><p><b>À éviter</b> : ${esc(pl.avoid)}</p><p class="pv-sub">Douche, crème sur peau encore humide, une goutte d'huile, puis le parfum à 15 cm, sans frotter.</p></details></section>`;
   }
-  const coll = Object.entries(PF_P).map(([id, x]) => `<details class="pv-det pv-sec" data-k="pf-${id}"><summary><b>${esc(x.n)}${x.star ? ' ⭐' : ''}</b><small>${esc(x.f.toLowerCase())}</small></summary><div class="pv-morein"><p class="pv-sub" style="margin-top:0"><b>Notes</b> : ${esc(x.notes)}</p><p class="pv-sub"><b>Quand</b> : ${esc(x.when)}</p><p class="pv-sub"><b>Crème</b> : ${PF_CR[x.cr][0]}${x.mu ? ` · <b>musc</b> : ${PF_MU[x.mu][0]}` : ''}</p><p class="pv-sub"><b>Dose</b> : ${x.sp} vaporisations${x.pw >= 3 ? ' (il est puissant)' : ''}</p></div></details>`).join('');
+  const coll = Object.entries(PF_P).map(([id, x]) => `<details class="pv-det pv-sec" data-k="pf-${id}"><summary><b>${esc(x.n)}${x.star ? ' ⭐' : ''}${x.low ? ' · presque fini' : ''}</b><small>${esc(x.f.toLowerCase())}</small></summary><div class="pv-morein"><p class="pv-sub" style="margin-top:0"><b>Notes</b> : ${esc(x.notes)}</p>${x.feel ? `<p class="pv-sub"><b>Ton ressenti</b> : ${esc(x.feel)}</p>` : ''}${x.tip ? `<p class="pv-sub"><b>À essayer</b> : ${esc(x.tip)}</p>` : ''}<p class="pv-sub"><b>Quand</b> : ${esc(x.when)}</p><p class="pv-sub"><b>Crème</b> : ${PF_CR[x.cr][0]}${x.mu ? ` · <b>musc</b> : ${PF_MU[x.mu][0]}` : ''}</p><p class="pv-sub"><b>Dose</b> : ${x.sp} vaporisations${x.pw >= 3 ? ' (il est puissant)' : ''}</p></div></details>`).join('');
   const rules = `<p class="pv-sub" style="margin-top:0"><b>L'ordre</b> : douche, crème, musc, parfum. Toujours.</p>
     <p class="pv-sub"><b>La crème</b> : Sol de Janeiro pour les parfums chauds et gourmands, Atoderm pour les frais, poudrés et floraux.</p>
     <p class="pv-sub"><b>Le layering</b> : 2 parfums maximum, de la même famille. Le plus léger d'abord.</p>
-    <p class="pv-sub"><b>La dose</b> : on doit te sentir quand on s'approche, pas à trois mètres. Les puissants (Odyssey, La Mecque, Raghba Wood Intense) : 1 à 2 vaporisations. Les eaux de toilette Zara (Seoul, Lisboa) : 4 à 5, et tu peux en remettre.</p>
+    <p class="pv-sub"><b>La dose</b> : on doit te sentir quand on s'approche, pas à trois mètres. Les puissants (Odyssey, La Mecque, Raghba Wood Intense) : 1 à 2 vaporisations. Les huiles : une goutte sous le parfum. Les eaux de toilette Zara (Seoul, Lisboa) : 4 à 5, et tu peux en remettre.</p>
     <p class="pv-sub"><b>Ne frotte jamais</b> tes poignets. Vaporise aussi sur les vêtements : l'odeur y tient plus longtemps.</p>
+    <p class="pv-sub"><b>Les presque finis</b> (Luxe Edition, Gris Dior, dupe Baccarat, Khashab Al Oud) : seulement pour les grandes occasions, 1 à 2 vaporisations.</p>
     <p class="pv-sub"><b>Conserve tes flacons</b> à l'abri de la lumière et de la chaleur (pas dans la salle de bain ni la voiture).</p>`;
   return `${corpsTop('soin')}${soinSeg('parfum')}
     ${res}
     <section class="glass pv-card"><h2 class="pv-h">${cur ? 'Une autre occasion ?' : 'Quelle occasion ?'}</h2>${grid}</section>
-    ${pvMore('Ma collection', `${Object.keys(PF_P).length} parfums · 2 crèmes · 2 muscs`, coll + `<p class="pv-sub"><b>Crèmes</b> : Sol de Janeiro (gourmande), Atoderm Crème Ultra (neutre). <b>Muscs</b> : Musk Abiyad (propre), Narjis (violette).</p>`)}
+    ${pvMore('Ma collection', `${Object.keys(PF_P).length} parfums · ${Object.keys(PF_MU).length} muscs et huiles`, coll + `<p class="pv-sub"><b>Crèmes</b> : Sol de Janeiro (gourmande), Atoderm Crème Ultra (neutre).</p><p class="pv-k">Muscs et huiles</p>${Object.values(PF_MU).map(m => `<p class="pv-sub"><b>${esc(m[0])}</b> : ${esc(m[1])}.</p>`).join('')}<p class="pv-sub">Les huiles s\'utilisent surtout en complément d\'un parfum, une goutte dessous ; rarement seules.</p>`)}
     ${pvMore('Les règles d\'or', 'ordre, dose, layering, conservation', rules)}`;
 }
 function pfClick(t) {
   let el;
-  if ((el = t.closest('[data-pfoc]'))) { PFC.oc = el.dataset.pfoc; PFC.alt = false; render(); scrollTo(0, 0); return true; }
-  if (t.closest('[data-pfalt]')) { PFC.alt = !PFC.alt; pvRe(); return true; }
-  if (t.closest('[data-pfdone]')) { const f = pfS(), k = todayISO(), oc = PFC.oc || (f.log[k] && f.log[k].oc); if (!oc) return true; const pl = pfPlan(oc, pfSeason()); f.log[k] = { oc, p: PFC.alt ? pl.alt : pl.p }; lkDay()['m-deo'] = 1; save(); pvOnce('parfum', 1); pvCheckDay(); pvRe(); toast('Parfumé. Bonne journée.'); return true; }
+  if ((el = t.closest('[data-pfoc]'))) { PFC.oc = el.dataset.pfoc; PFC.i = null; render(); scrollTo(0, 0); return true; }
+  if ((el = t.closest('[data-pfc]'))) { PFC.i = +el.dataset.pfc; pvRe(); return true; }
+  if (t.closest('[data-pfdone]')) { const f = pfS(), k = todayISO(), oc = PFC.oc || (f.log[k] && f.log[k].oc); if (!oc) return true; const comps = pfComps(pfPlan(oc, pfSeason())), tl = f.log[k]; let i = PFC.i !== null ? PFC.i : tl && tl.oc === oc && typeof tl.i === 'number' ? tl.i : pfDefIdx(oc, comps.length); if (i >= comps.length) i = 0; f.log[k] = { oc, p: comps[i].p, i }; lkDay()['m-deo'] = 1; save(); pvOnce('parfum', 1); pvCheckDay(); pvRe(); toast('Parfumé. Bonne journée.'); return true; }
   return false;
 }
 
@@ -7622,7 +8016,62 @@ function bpS() {
   if (!B.mig1) { B.mig1 = 1; try { bpMigWifey(B); } catch (e) {} }
   if (!B.mig2) { B.mig2 = 1; try { bpMigSadaqa(B); } catch (e) {} }
   if (!B.mig3) { B.mig3 = 1; try { bpMig1Nov(B); } catch (e) {} }
+  if (!B.mig4) { B.mig4 = 1; try { bpMigDec(B); } catch (e) {} }
   return B;
+}
+/* v5.54 · Nouvelle méthode à partir de décembre 2026, choisie par Sayko :
+   base = 2 200 € (le minimum, avec le minimum d'heures) → 50 % charges fixes (1 100), 20 % réserve (440),
+   10 % argent de poche (220), 15 % projets (330), 5 % liquide (110). Tout ce qui dépasse la base va dans « Hausse ».
+   Pockets : Argent de poche, Charges fixes (hors loyer), Hausse, Liquide, Projets, Épargne (+ LCL pour le loyer et la RC Pro).
+   Les anciennes pockets (CF Joint, Coiffeur, Protocole, Wifey, Sadaqa) s'arrêtent après novembre. */
+function bpMigDec(B) {
+  const cf = B.pk.find(p => p.id === 'cfp'); if (cf) { cf.n = 'Charges fixes (hors loyer)'; cf.ico = '🧾'; cf.h = 'Factures, abonnements, coiffeur, bus, sadaqa'; }
+  const adp = B.pk.find(p => p.id === 'adp'); if (adp) adp.h = 'Ta vie, et les petits plaisirs pour ta femme';
+  const ep = B.pk.find(p => p.id === 'epar'); if (ep) ep.h = 'Ta réserve · on n\'y touche pas';
+  ['cfj', 'coif', 'proto', 'wifey', 'sadaqa'].forEach(id => { const x = B.pk.find(p => p.id === id); if (x) x.until = '2026-11'; });
+  const ins = (id, n, ico, h) => { if (!B.pk.some(p => p.id === id)) B.pk.splice(B.pk.findIndex(p => p.id === 'epar'), 0, { id, n, ico, h }); };
+  ins('projets', 'Projets', '🎯', 'Permis, psycho, parfums, gros achats du protocole');
+  ins('liquide', 'Liquide', '💵', 'Retiré en espèces : secours si l\'argent de poche est fini, sinon épargne');
+  ins('hausse', 'Hausse', '📈', 'Tout ce qui dépasse 2 200 € · mis de côté');
+  const st = (to, amt, n) => ({ id: uid(), to, amt, n: n || '', done: false });
+  const fx = (n, amt, pk, note) => ({ id: uid(), n, amt, pk, paid: false, ...(note ? { note } : {}) });
+  const old = B.m['2026-12'];
+  B.m['2026-12'] = {
+    inc: [
+      { id: 'nassist', n: 'Salaire N\'assist', est: 1523, base: 1523, got: null, land: 'lcl', note: '774 € restent sur LCL pour le loyer et la RC Pro', steps: [
+        st('cfp', 326, '274 € de charges + 52 € de marge'), st('adp', 220, '10 %'), st('liquide', 110, '5 % · à retirer en espèces'), st('projets', 93, 'Une partie des 15 %')] },
+      { id: 'mister', n: 'Salaire Mister Pizza', est: 677, base: 677, got: null, land: 'lcl', note: 'Le minimum d\'heures : tout ce qui dépasse va dans Hausse', steps: [
+        st('epar', 440, '20 % · ta réserve'), st('projets', 237, 'Le reste des 15 %')] }
+    ],
+    fix: [
+      fx('Loyer', 766, 'lcl'), fx('RC Pro', 8, 'lcl'),
+      fx('Électricité', 44, 'cfp'), fx('Box', 47, 'cfp'), fx('Forfaits mobiles', 28, 'cfp'), fx('Prime', 7, 'cfp'),
+      fx('Apple', 10, 'cfp'), fx('Revolut Metal', 19, 'cfp'), fx('Claude', 22, 'cfp'), fx('Snap+', 2, 'cfp'),
+      fx('Coiffeur', 50, 'cfp'), fx('Abonnement bus', 25, 'cfp', 'L\'employeur en rembourse 50 % sur la paie'),
+      fx('Donner la sadaqa du mois', 20, 'cfp', 'Petite mais régulière : c\'est ce qu\'Allah aime le plus')
+    ],
+    tx: old && old.tx ? old.tx : []
+  };
+}
+/* Paie reçue : au-dessus de la base → la différence va dans Hausse ; en dessous → on baisse Projets, puis Liquide, puis Épargne */
+function bpRule(i, v) {
+  if (!i.base) return '';
+  i.steps = i.steps.filter(s => !(s.hz && !s.done));
+  i.steps.forEach(s => { if (!s.done && s.a0 != null) { s.amt = s.a0; delete s.a0; delete s.cut; } });
+  const diff = Math.round((v - numv(i.base)) * 100) / 100;
+  if (diff > .004) { i.steps.push({ id: uid(), to: 'hausse', amt: diff, n: 'Tout ce qui dépasse le minimum', done: false, hz: 1 }); return ` · +${bpE(diff)} pour Hausse`; }
+  let need = -diff; if (need <= .004) return '';
+  const cutBy = {};
+  for (const to of ['projets', 'liquide', 'epar', 'adp']) i.steps.filter(s => s.to === to && !s.done).forEach(s => {
+    if (need <= .004) return; const t = Math.min(need, numv(s.amt)); if (t <= 0) return;
+    s.a0 = numv(s.amt); s.amt = Math.round((s.a0 - t) * 100) / 100; s.cut = 1; need = Math.round((need - t) * 100) / 100; cutBy[to] = (cutBy[to] || 0) + t;
+  });
+  return ` · paie plus basse : ${Object.entries(cutBy).map(([k, t]) => `−${bpE(t)} ${bpPk(k).n}`).join(', ')}`;
+}
+/* Pockets à afficher pour un mois : les anciennes disparaissent après leur dernier mois, sauf s'il y reste de l'argent ou un mouvement */
+function bpPkVis(ym) {
+  const B = bpS(), m = B.m[ym];
+  return B.pk.filter(p => !p.until || ym <= p.until || Math.abs(bpBal(ym, true)[p.id] || 0) > .004 || (m && (m.fix.some(f => f.pk === p.id) || m.tx.some(t => t.pk === p.id || t.to === p.id) || m.inc.some(i => i.land === p.id || i.steps.some(x => x.to === p.id)))));
 }
 /* v5.6 · cadeaux de novembre pour ta femme (prix vérifiés le 31/10/2026) */
 function bpMigWifey(B) {
@@ -7760,7 +8209,7 @@ function vPlan() {
       ${open ? `<div class="bp-recv"><label class="amount"><input id="bpGot" type="text" inputmode="decimal" value="${String(numv(next.est)).replace('.', ',')}" aria-label="Montant reçu"><span>€</span></label><button class="btn block" data-bpgotok="${next.id}">Valider le montant reçu</button></div>`
         : `<button class="btn block" data-bpgot="${next.id}" style="margin-top:12px">Elle est arrivée</button>`}</div>`);
   }
-  const bad = B.pk.map(p => [p, bpPkInfo(ym, p.id)]).filter(([, I]) => I.st === 'bad');
+  const PKV = bpPkVis(ym), bad = PKV.map(p => [p, bpPkInfo(ym, p.id)]).filter(([, I]) => I.st === 'bad');
   bad.forEach(([p, I]) => { const nx = m.inc.find(i => (i.got == null || i.got === '') && i.steps.some(s => s.to === 'adp' && !s.done && numv(s.amt) > 0));
     todo.push(`<div class="bp-alert">⚠ ${esc(p.n)} : il manquera ${bpE(-I.end)} en fin de mois.${nx && p.id !== 'adp' ? `<button class="btn sm block" data-bpcover="${p.id}" style="margin-top:8px">Le reprendre sur mon argent de poche (${esc(nx.n)})</button>` : ''}</div>`); });
   if (!todo.length) todo.push('<p class="pv-line">✓ Toutes les paies sont reçues et réparties. Il ne reste qu\'à suivre tes dépenses.</p>');
@@ -7772,9 +8221,9 @@ function vPlan() {
     <p class="bp-sub">Sur la pocket maintenant : <b class="num">${bpE(H.now)}</b>${H.inc.filter(x => x.v > 0).map(x => ` · +${bpE(x.v)} ${x.got ? 'à virer' : esc(bpFrom(x.n))}`).join('')}</p></section>`;
 
   /* 3 · Pockets */
-  const tiles = B.pk.map(p => {
+  const tiles = PKV.map(p => {
     const I = bpPkInfo(ym, p.id), fx = m.fix.filter(f => f.pk === p.id), tx = m.tx.filter(t => t.pk === p.id || t.to === p.id);
-    return `<details class="bp-tile bp-${I.st}" data-k="bp-${p.id}"><summary><span class="bp-ico">${p.ico}</span><span class="grow"><b>${esc(p.n)}</b><small>${I.line || esc(p.h || '')}</small></span><em class="num">${bpE(I.now)}</em></summary>
+    return `<details class="bp-tile bp-${I.st}" data-k="bp-${p.id}"><summary><span class="bp-ico">${p.ico}</span><span class="grow"><b>${esc(p.n)}</b><small>${p.until && ym > p.until ? `Ancienne pocket : vire ses ${bpE(I.now)} vers Projets ou Épargne` : (I.line || esc(p.h || ''))}</small></span><em class="num">${bpE(I.now)}</em></summary>
       <div class="bp-in">
         ${fx.length ? `<p class="pv-k">À payer avec cette pocket</p>${fx.map(f => pvChk(f.paid, `data-bpfix="${f.id}"`, `${esc(f.n)} <span class="num bp-amt">${numv(f.amt) ? bpE(numv(f.amt)) : 'prix à saisir'}</span>`, f.paid ? 'Payé' : (f.note ? esc(f.note) : 'Pas encore prélevé'))).join('')}` : ''}
         ${I.inc.length ? `<p class="pv-k">À venir</p>${I.inc.map(x => `<p class="bp-prev"><span>${x.got ? 'Virement à faire' : esc(x.n)}</span><b class="num">${x.v > 0 ? '+' : '−'}${bpE(Math.abs(x.v))}</b></p>`).join('')}` : ''}
@@ -7784,7 +8233,7 @@ function vPlan() {
   }).join('');
 
   /* 4 · Ajouter */
-  const chips = (attr, sel, skip) => B.pk.filter(p => p.id !== skip).map(p => `<button class="chip" ${attr}="${p.id}" aria-pressed="${sel === p.id}">${p.ico} ${esc(p.n)}</button>`).join('');
+  const chips = (attr, sel, skip) => PKV.filter(p => p.id !== skip).map(p => `<button class="chip" ${attr}="${p.id}" aria-pressed="${sel === p.id}">${p.ico} ${esc(p.n)}</button>`).join('');
   const add = `<section class="glass pv-card"><h2 class="pv-h">Noter un mouvement</h2>
     <div class="seg" role="group" aria-label="Type"><button data-bpk="exp" aria-pressed="${BPU.k === 'exp'}"><span class="dot"></span>Dépense</button><button data-bpk="mv" aria-pressed="${BPU.k === 'mv'}"><span class="dot"></span>Virement</button><button data-bpk="in" aria-pressed="${BPU.k === 'in'}"><span class="dot"></span>Rentrée</button></div>
     <label class="amount"><input id="bpAmt" type="text" inputmode="decimal" placeholder="0" autocomplete="off" aria-label="Montant en euros"><span>€</span></label>
@@ -7858,7 +8307,7 @@ function bpCopy(ym) {
   if (!src) { B.m[ym] = { inc: [], fix: [], tx: [] }; return; }
   const m = B.m[src];
   B.m[ym] = {
-    inc: m.inc.filter(i => !i.once).map(i => ({ ...i, got: null, d: '', steps: i.steps.filter(s => !s.once).map(s => ({ ...s, ...(s.next || {}), next: undefined, id: uid(), done: false })) })),
+    inc: m.inc.filter(i => !i.once).map(i => ({ ...i, got: null, d: '', steps: i.steps.filter(s => !s.once && !s.hz).map(s => ({ ...s, ...(s.a0 != null ? { amt: s.a0 } : {}), ...(s.next || {}), next: undefined, a0: undefined, cut: undefined, id: uid(), done: false })) })),
     fix: m.fix.filter(f => !f.once).map(f => ({ ...f, id: uid(), paid: false })),
     tx: []
   };
@@ -7877,7 +8326,7 @@ function bpClick(t) {
   if ((el = c('[data-bpm]'))) { if (el.dataset.bpm) { BPU.m = el.dataset.bpm; BPU.recv = null; } pvRe(); return true; }
   if ((el = c('[data-bpprep]'))) { bpCopy(el.dataset.bpprep); save(); pvRe(); toast('Plan préparé'); return true; }
   if ((el = c('[data-bpgot]'))) { BPU.recv = el.dataset.bpgot; pvRe(); setTimeout(() => { const i = $('#bpGot'); if (i) { i.focus(); i.select(); } }, 60); return true; }
-  if ((el = c('[data-bpgotok]'))) { const i = findInc(el.dataset.bpgotok), v = numv($('#bpGot') && $('#bpGot').value); if (!i || !(v > 0)) { toast('Indique le montant reçu'); return true; } i.got = v; i.d = todayISO(); BPU.recv = null; haptic(); save(); pvRe(); toast(i.steps.length ? 'Reçu. Fais maintenant les virements de la liste.' : 'Rentrée enregistrée'); return true; }
+  if ((el = c('[data-bpgotok]'))) { const i = findInc(el.dataset.bpgotok), v = numv($('#bpGot') && $('#bpGot').value); if (!i || !(v > 0)) { toast('Indique le montant reçu'); return true; } i.got = v; i.d = todayISO(); const rr = bpRule(i, v); BPU.recv = null; haptic(); save(); pvRe(); toast((i.steps.length ? 'Reçu. Fais maintenant les virements de la liste.' : 'Rentrée enregistrée') + rr); return true; }
   if ((el = c('[data-bpstep]'))) { const [a, b] = el.dataset.bpstep.split('|'), i = findInc(a), s = i && i.steps.find(x => x.id === b); if (s) { s.done = !s.done; if (s.done) haptic(); save(); pvRe(); } return true; }
   if ((el = c('[data-bpall]'))) { const i = findInc(el.dataset.bpall); if (i) { i.steps.forEach(s => { s.done = true; }); haptic(); save(); pvRe(); toast('Tout est réparti'); } return true; }
   if ((el = c('[data-bpungot]'))) { const i = findInc(el.dataset.bpungot); if (i) { i.got = null; i.d = ''; i.steps.forEach(s => { s.done = false; }); save(); pvRe(); } return true; }
@@ -8359,7 +8808,7 @@ function tlCatalog() {
   /* Corps et maison */
   try { const P = pvPillars(), steps = P[1], circ = P[2];
     if (steps.v < 1) L.push({ k: 'walk', ic: '🚶', n: 'Marche', ctx: ['maison', 'gare'], min: 10, max: 20, w: 2, txt: m => `${Math.round(m * 100)} pas environ. ${steps.s}. Mets la récitation dans tes oreilles : ça compte aussi pour l'écoute du Coran.`, go: 'entrainement' });
-    if (circ.v < 1) L.push({ k: 'circ', ic: '💪', n: 'Circuit', ctx: ['maison'], min: 15, max: 25, w: 2.8, txt: () => 'Pompes, dips, tractions négatives, à l\'échec, 3 à 4 tours. 90 secondes de repos entre les tours. Lance-le depuis Corps → Entraînement.', go: 'entrainement' }); } catch (e) {}
+    if (circ.v < 1) L.push({ k: 'circ', ic: '💪', n: 'Circuit', ctx: ['maison'], min: 15, max: 25, w: 2.8, txt: () => 'Le circuit de 9 exercices au poids du corps, 3 à 4 tours, 90 secondes de repos entre les tours. Le schéma est dans Corps → Entraînement.', go: 'entrainement' }); } catch (e) {}
   try { const h = homeS(), k = todayISO(); PV_HOME.forEach(([id, n, f, tip]) => { if (homeDue(id, f) && !homeDoneOn(id, k)) L.push({ k: 'hm-' + id, ic: '🧹', n, ctx: ['maison'], min: 5, max: 15, w: 1.8, txt: () => tip, go: 'maison', fx: () => { const Lh = h.last[id] = h.last[id] || []; if (!Lh.includes(k)) { Lh.push(k); Lh.sort(); } } }); }); } catch (e) {}
   try { const [an, at] = pvApN(); if (an < at) L.push({ k: 'soin', ic: '🧴', n: 'Soin', ctx: ['maison'], min: 5, max: 10, w: 1.4, txt: () => `${at - an} geste${at - an > 1 ? 's' : ''} de soin restant${at - an > 1 ? 's' : ''} aujourd'hui (barbe, peau, dents…). Ouvre Corps → Soin et suis les étapes du moment.`, go: 'apparence' }); } catch (e) {}
   return L;
@@ -8372,7 +8821,7 @@ function tlPlan(ctx, T, t0 = Date.now(), skip = []) {
   const long = T >= 180, workCap = long ? 50 : 25, pauseLen = long ? 10 : 5;
   const blocks = [], used = {}; let rem = T, clock = 0, work = 0, sinceMe = 0, meal = false, guard = 0;
   let pr = []; if (ctx !== 'trans') { try { const end = t0 + T * 60000; for (const k of [todayISO(), iso(addDays(new Date(), 1))]) { const W = ptDay(k).win; Object.keys(W).forEach(id => { const st = +W[id][0]; if (!skip.includes('pri-' + id) && st > t0 + 60000 && st < end - 5 * 60000) pr.push({ id, off: Math.round((st - t0) / 60000) }); }); } pr.sort((a, b) => a.off - b.off); } catch (e) { pr = []; } }
-  let mealTaken = false; try { mealTaken = !!pvPeek().meal; } catch (e) {}
+  let mealTaken = false; try { const pk = pvPeek(); mealTaken = !!pk.meal || pvEnt(pk).length > 0; } catch (e) {}
   const push = b => { const last = blocks[blocks.length - 1]; if (last && last.k === b.k && b.k !== 'pause') { last.m += b.m; last.txt = b.re ? b.re(last.m) : last.txt; } else blocks.push(b); rem -= b.m; clock += b.m; };
   while (rem >= 3 && guard++ < 120) {
     if (pr.length && pr[0].off <= clock + 2) { const x = pr.shift(), m = Math.min(10, rem); push({ k: 'pri-' + x.id, ic: '🕌', n: `Prière de ${PNAMES[x.id]}`, m, txt: `C'est l'heure de ${PNAMES[x.id]}. Ablutions, puis prie sereinement. Coche-la ensuite dans Foi.`, go: 'habitudes' }); work = 0; continue; }
@@ -8555,7 +9004,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.50 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.62 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
@@ -8982,7 +9431,7 @@ function hc(k) { const h = hrt(), c = h.c[k] = h.c[k] || {}; c.days = c.days || 
 function hLevel(k) { const c = hc(k), n = Object.keys(c.days).length; if (c.anch) return 3; if (!c.read) return 0; return n >= 7 ? 2 : 1; }
 const hDays = k => Object.keys(hc(k).days).length;
 const hAnchored = () => HEART.filter(x => hc(x.k).anch).length;
-function vHeart() {
+function vHeartOld() {
   const h = hrt(), cur = HEART.find(x => x.k === h.cur) || HEART[0], c = hc(cur.k), lv = hLevel(cur.k), nd = hDays(cur.k), k = todayISO();
   const pdone = !!c.days[k], canAnchor = nd >= 21 && cur.refl.every((_, i) => (c.refl[i] || '').trim().length >= 10);
   return `${foiTop('coeur')}
@@ -9008,6 +9457,96 @@ function vHeart() {
   ${cur.moments || (cur.k === 'dua' && (c.journal || []).length) ? `${pvMO('h-plus', 'Moments exaucés et carnet', 'quand invoquer, tes mots à Allah')}` : ''}${cur.moments ? `<section><h2>Les moments où l'invocation est exaucée</h2><div class="group">${cur.moments.map(([t, s]) => `<div class="cell" style="flex-direction:column;align-items:flex-start;gap:2px"><span class="lbl">${t}</span><span class="small muted">${s}</span></div>`).join('')}</div></section>` : ''}
   ${cur.k === 'dua' && (c.journal || []).length ? `<section><h2>Mon carnet de duʿa</h2><p class="small muted" style="margin:-6px 0 10px">Tes mots à Allah, du plus récent au premier. Ils restent sur ton téléphone.</p>${c.journal.slice().reverse().slice(0, 30).map(e => `<div class="djent"><p>${esc(e.t)}</p><time>${DAY_LONG.format(parseDate(e.d))}</time></div>`).join('')}</section>` : ''}${cur.moments || (cur.k === 'dua' && (c.journal || []).length) ? pvMC : ''}`;
 }
+/* =====================================================================
+   v5.59 · LE CŒUR, NATURELLEMENT (demande de Sayko, 06/11/2026)
+   Plus de leçons ni de paliers à valider : un seul geste du cœur par jour (1 à 2 min), concret, avec sa source repliée.
+   Chaque geste fait pousse une plante dans ton jardin (« Celui qui dit Subhâna-llâhi wa bihamdihi, un palmier est planté
+   pour lui au Paradis. » Tirmidhi 3464). Les anciennes leçons restent à lire, sans obligation.
+   Qualités : amour d'Allah, tawakkul, duʿa, ihsan, douceur, patience, gratitude, sincérité, examen de soi.
+   ===================================================================== */
+const HG_Q = { mah: ['Amour d\'Allah', 'palm'], taw: ['Tawakkul', 'tree'], dua: ['Duʿa', 'lily'], ihs: ['Ihsan', 'rose'], hil: ['Douceur', 'rose'], sab: ['Patience', 'tree'], shu: ['Gratitude', 'flower'], ikh: ['Sincérité', 'lily'], muh: ['Examen de soi', 'bush'] };
+const HG = [
+  ['mah', 'Dans un moment ordinaire (bus, scooter, pause), dis 10 fois : Subhâna-llâhi wa bihamdihi.', '« Celui qui dit Subhâna-llâhi wa bihamdihi, un palmier est planté pour lui au Paradis. »', 'Tirmidhi 3464'],
+  ['mah', 'Prie 10 fois sur le Prophète ﷺ : Allâhumma salli ʿalâ Muhammad.', '« Celui qui prie sur moi une fois, Allah prie sur lui dix fois. »', 'Muslim 408'],
+  ['mah', 'Ce soir, regarde le ciel une minute en silence, et pense à Celui qui l\'a créé.', '« Dans la création des cieux et de la terre… il y a des signes pour ceux qui sont doués d\'intelligence. »', 'Coran 3:190'],
+  ['mah', 'Dans une difficulté aujourd\'hui, dis-toi : Allah veut mon bien. Pense du bien de Lui.', '« Je suis tel que Mon serviteur pense de Moi. »', 'Bukhari 7405, Muslim 2675'],
+  ['mah', 'Retiens un nom d\'Allah aujourd\'hui : Al-Wadûd, Celui qui aime. Redis-le dans une invocation.', '« C\'est Lui le Pardonneur, le Très-Aimant (Al-Wadûd). »', 'Coran 85:14'],
+  ['mah', 'Dis à un frère ou un ami que tu l\'aimes pour Allah.', '« Si l\'un de vous aime son frère, qu\'il le lui dise. »', 'Abu Dawud 5124'],
+  ['taw', 'En sortant de chez toi : Bismillâh, tawakkaltu ʿala-llâh, wa lâ hawla wa lâ quwwata illâ billâh.', 'Il lui est dit : « Tu es guidé, suffi et protégé. »', 'Abu Dawud 5095, Tirmidhi 3426'],
+  ['taw', 'Une chose t\'inquiète ? Fais ce qui dépend de toi, puis dis : Hasbiya-llâhu wa niʿma-l-wakîl.', '« Allah nous suffit, Il est notre meilleur garant. »', 'Coran 3:173'],
+  ['taw', 'Prépare une chose concrète pour demain (sac, tenue, papier), puis confie le reste à Allah.', '« Attache-la, et remets-t\'en à Allah. »', 'Tirmidhi 2517'],
+  ['taw', 'Si quelque chose ne se passe pas comme prévu, dis : Qaddara-llâhu wa mâ shâʾa faʿal.', '« Allah l\'a décrété, et ce qu\'Il veut, Il le fait. » Et ne dis pas : si j\'avais fait…', 'Muslim 2664'],
+  ['dua', 'Dans une prosternation aujourd\'hui, demande une chose précise avec tes propres mots. Une phrase suffit.', '« Le serviteur n\'est jamais aussi proche de son Seigneur que lorsqu\'il est prosterné : multipliez-y les invocations. »', 'Muslim 482'],
+  ['dua', 'Invoque pour ta femme ou un proche, en son absence.', '« Un ange dit : et pour toi la même chose. »', 'Muslim 2732'],
+  ['dua', 'Entre l\'adhan et l\'iqama d\'une prière, demande quelque chose.', '« L\'invocation entre l\'adhan et l\'iqama n\'est pas rejetée. »', 'Abu Dawud 521, Tirmidhi 212'],
+  ['dua', 'Commence ta duʿa en louant Allah et en priant sur le Prophète ﷺ, puis demande.', 'Le Prophète ﷺ entendit un homme invoquer sans cela et dit : « Il s\'est trop pressé. »', 'Tirmidhi 3477'],
+  ['ihs', 'Fais une prière aujourd\'hui lentement, comme si c\'était la dernière.', '« Prie la prière de celui qui fait ses adieux. »', 'Ibn Mâjah 4171'],
+  ['ihs', 'Avant une prière, prends 10 secondes pour te rappeler devant Qui tu te tiens.', '« L\'ihsan, c\'est adorer Allah comme si tu Le voyais ; et si tu ne Le vois pas, Lui te voit. »', 'Muslim 8'],
+  ['ihs', 'Au travail, aide un voyageur avec un peu plus de soin que nécessaire, même si personne ne regarde.', '« Allah a prescrit l\'excellence en toute chose. »', 'Muslim 1955'],
+  ['ihs', 'Fais une tâche du jour un peu mieux que d\'habitude, juste pour Allah.', '« Allah aime, lorsque l\'un de vous accomplit une tâche, qu\'il l\'accomplisse avec excellence. »', 'Bayhaqi, Shuʿab al-Îmân'],
+  ['hil', 'Si quelqu\'un t\'agace aujourd\'hui, ne réponds pas tout de suite : respire, et assieds-toi si tu es debout.', '« Si l\'un de vous se met en colère debout, qu\'il s\'assoie. »', 'Abu Dawud 4782'],
+  ['hil', 'Quand l\'énervement monte : Aʿûdhu billâhi mina-sh-shaytâni-r-rajîm.', 'Le Prophète ﷺ dit à propos d\'un homme en colère : s\'il disait cela, ce qu\'il ressent partirait.', 'Bukhari 3282'],
+  ['hil', 'Parle doucement à ta femme ce soir, même si tu es fatigué.', '« Le meilleur d\'entre vous est le meilleur envers sa famille. »', 'Tirmidhi 3895'],
+  ['hil', 'Fais une remarque avec douceur au lieu de la faire sèchement.', '« Allah est doux et Il aime la douceur en toute chose. »', 'Bukhari 6927'],
+  ['sab', 'À la première contrariété du jour, dis : Innâ lillâhi wa innâ ilayhi râjiʿûn.', '« Ceux qui, frappés d\'un malheur, disent : nous sommes à Allah et c\'est vers Lui que nous retournons. »', 'Coran 2:156'],
+  ['sab', 'Finis une tâche pénible sans te plaindre une seule fois.', '« Celui qui s\'efforce à la patience, Allah le rend patient. »', 'Bukhari 1469'],
+  ['sab', 'Quand quelque chose te coûte, rappelle-toi que c\'est un bien pour toi.', '« Le cas du croyant est étonnant : tout est un bien pour lui… s\'il patiente, c\'est un bien pour lui. »', 'Muslim 2999'],
+  ['shu', 'Ce soir, nomme 3 bienfaits précis de ta journée et dis Al-hamdu lillâh pour chacun.', '« Si vous êtes reconnaissants, J\'augmenterai certes pour vous. »', 'Coran 14:7'],
+  ['shu', 'Au réveil : Al-hamdu lillâhi-lladhî ahyânâ baʿda mâ amâtanâ wa ilayhi-n-nushûr.', 'Le Prophète ﷺ le disait en se réveillant.', 'Bukhari 6312'],
+  ['shu', 'Dis Al-hamdu lillâh après avoir mangé ou bu.', '« Allah agrée le serviteur qui mange une bouchée et L\'en loue. »', 'Muslim 2734'],
+  ['shu', 'Remercie une personne aujourd\'hui, sincèrement, en la regardant.', '« Celui qui ne remercie pas les gens ne remercie pas Allah. »', 'Abu Dawud 4811, Tirmidhi 1954'],
+  ['shu', 'Pense à quelqu\'un qui a moins que toi, pas à quelqu\'un qui a plus.', '« Regardez celui qui est en dessous de vous… c\'est plus digne pour ne pas mépriser les bienfaits d\'Allah. »', 'Muslim 2963'],
+  ['ikh', 'Fais une bonne action que personne ne saura jamais.', 'Parmi les sept à l\'ombre d\'Allah : celui qui donne si discrètement que sa main gauche ignore ce que donne sa droite.', 'Bukhari 1423'],
+  ['ikh', 'Avant ta prochaine bonne action, redis-toi pourquoi tu la fais.', '« Les actes ne valent que par les intentions. »', 'Bukhari 1'],
+  ['ikh', 'Fais deux rakʿat surérogatoires seul, à la maison.', '« La meilleure prière de l\'homme est celle qu\'il fait chez lui, sauf la prière prescrite. »', 'Bukhari 731'],
+  ['ikh', 'Ne raconte à personne une bonne chose que tu as faite aujourd\'hui.', '« N\'annulez pas vos aumônes par le rappel et le tort. »', 'Coran 2:264'],
+  ['muh', 'Avant de dormir, une minute : une chose bien faite aujourd\'hui, une chose à faire mieux demain.', '« Faites vos comptes avant qu\'on ne vous les fasse. »', 'Parole de ʿUmar, rapportée par Tirmidhi après le 2459'],
+  ['muh', 'Pense à une erreur précise de la journée et dis 3 fois : Astaghfirullâh.', '« Je demande pardon à Allah cent fois par jour. »', 'Muslim 2702'],
+  ['muh', 'Avant de dormir, pardonne dans ton cœur à quelqu\'un qui t\'a blessé.', '« Qu\'ils pardonnent et passent outre. N\'aimez-vous pas qu\'Allah vous pardonne ? »', 'Coran 24:22']
+];
+function hgS() { const g = S.hg = S.hg && typeof S.hg === 'object' ? S.hg : {}; if (!g.d || typeof g.d !== 'object') g.d = {}; return g; }
+function hgToday() { /* geste du jour : une qualité différente chaque jour, choisi d'après la date (et « un autre » si tu veux changer) */
+  const g = hgS(), k = todayISO(); let x = g.d[k];
+  if (!x) { const n = Math.floor(parseDate(k) / 864e5), qs = Object.keys(HG_Q), q = qs[n % qs.length], L = HG.map((h, i) => i).filter(i => HG[i][0] === q); x = g.d[k] = { i: L[Math.floor(n / qs.length) % L.length], done: false, sw: 0 }; }
+  return x;
+}
+const hgDoneToday = () => { const x = (hgS().d || {})[todayISO()]; return !!(x && x.done); };
+function hgPlantSvg(type, x, y, s, hue) {
+  const g = `transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${s.toFixed(2)})"`;
+  if (type === 'palm') return `<g ${g}><path d="M0 0C-1 -10 1 -20 0 -30" stroke="#8A6A3B" stroke-width="2.4" fill="none"/>${[-60, -20, 20, 60, 100, 140].map(a => `<path d="M0 -30q${(Math.cos(a * Math.PI / 180) * 9).toFixed(1)} ${(Math.sin(a * Math.PI / 180) * 6 - 4).toFixed(1)} ${(Math.cos(a * Math.PI / 180) * 15).toFixed(1)} ${(Math.sin(a * Math.PI / 180) * 9 + 3).toFixed(1)}" stroke="#4E9A5B" stroke-width="2.6" fill="none" stroke-linecap="round"/>`).join('')}</g>`;
+  if (type === 'tree') return `<g ${g}><rect x="-1.4" y="-14" width="2.8" height="14" fill="#7A5A33"/><circle cy="-20" r="9" fill="#3F8A55"/><circle cx="-5" cy="-16" r="6" fill="#4FA066"/><circle cx="5" cy="-17" r="6" fill="#4FA066"/></g>`;
+  if (type === 'rose') return `<g ${g}><path d="M0 0V-14" stroke="#4E8A3E" stroke-width="1.6"/><path d="M0 -8q-5 -2 -6 2" stroke="#4E8A3E" stroke-width="1.4" fill="none"/><circle cy="-17" r="4.6" fill="hsl(${hue},70%,62%)"/><circle cy="-17" r="2.2" fill="hsl(${hue},70%,48%)"/></g>`;
+  if (type === 'lily') return `<g ${g}><path d="M0 0V-15" stroke="#4E8A3E" stroke-width="1.6"/>${[-40, 0, 40].map(a => `<ellipse cx="0" cy="-19" rx="2.4" ry="5.5" transform="rotate(${a} 0 -15)" fill="#F4F0E6"/>`).join('')}<circle cy="-16" r="1.4" fill="#E2B553"/></g>`;
+  if (type === 'flower') return `<g ${g}><path d="M0 0V-12" stroke="#4E8A3E" stroke-width="1.6"/>${[0, 72, 144, 216, 288].map(a => `<circle cx="${(Math.cos(a * Math.PI / 180) * 3.6).toFixed(1)}" cy="${(-15 + Math.sin(a * Math.PI / 180) * 3.6).toFixed(1)}" r="2.6" fill="#E2B553"/>`).join('')}<circle cy="-15" r="2" fill="#C2792E"/></g>`;
+  return `<g ${g}><circle cx="-4" cy="-5" r="5.5" fill="#3F7F4E"/><circle cx="4" cy="-6" r="6" fill="#4C9460"/><circle cy="-9" r="5" fill="#5AA56C"/></g>`;
+}
+function hgGarden() {
+  const D = Object.entries(hgS().d).filter(([, x]) => x.done).sort((a, b) => a[0] < b[0] ? -1 : 1), n = D.length, W = 340, H = 140;
+  let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const plants = D.map(([k, x], j) => { const q = HG[x.i] ? HG[x.i][0] : 'mah', type = (HG_Q[q] || HG_Q.mah)[1], row = j % 3, px = 14 + rnd() * (W - 28), py = 92 + row * 15 + rnd() * 6; return [py, hgPlantSvg(type, px, py, .78 + row * .14, Math.round(rnd() * 40))]; }).sort((a, b) => a[0] - b[0]).map(x => x[1]).join('');
+  return `<svg class="hg-garden" viewBox="0 0 ${W} ${H}" aria-label="Ton jardin : ${n} plante${n > 1 ? 's' : ''}"><defs><linearGradient id="hgSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B1A24"/><stop offset="1" stop-color="#1B2E2A"/></linearGradient><linearGradient id="hgGr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2F5A3A"/><stop offset="1" stop-color="#1A3524"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" rx="16" fill="url(#hgSky)"/><path d="M${W - 64} 30a14 14 0 1 0 10 -24a11 11 0 1 1 -10 24z" fill="#F3E2A9" opacity=".9"/>
+    <path d="M0 84Q85 72 170 80T${W} 78V${H}H0Z" fill="url(#hgGr)"/>${plants}
+    ${n ? '' : `<text x="${W / 2}" y="118" text-anchor="middle" fill="rgba(255,255,255,.55)" font-size="11">Ton premier geste plantera ta première plante</text>`}</svg>`;
+}
+function vHeart() {
+  const x = hgToday(), h = HG[x.i], q = HG_Q[h[0]], nDone = Object.values(hgS().d).filter(y => y.done).length;
+  const card = `<section class="glass pv-card hg-card"><p class="hg-q">${esc(q[0])}</p>
+    <h2 class="hg-t">${esc(h[1])}</h2>
+    <details class="pv-det" data-k="hg-src"><summary>Pourquoi ce geste</summary><blockquote class="hq sm"><p>${esc(h[2])}</p><cite>${esc(h[3])}</cite></blockquote></details>
+    ${x.done ? `<div class="pv-done" style="margin-top:10px"><b>Fait aujourd'hui · une plante a poussé</b><button class="link-btn small" data-hgundo>Annuler</button></div>`
+      : `<div class="row" style="gap:8px;margin-top:12px"><button class="btn sm ghost" data-hgsw style="flex:1" ${x.sw >= 3 ? 'disabled' : ''}>Un autre</button><button class="btn sm" data-hgok style="flex:2">C'est fait</button></div>`}</section>`;
+  return `${foiTop('coeur')}${card}
+    <section class="glass pv-card"><div class="row between" style="align-items:baseline"><h2 class="pv-h" style="margin:0">Ton jardin</h2><span class="small muted">${nDone} geste${nDone > 1 ? 's' : ''}</span></div>${hgGarden()}<p class="pv-sub" style="margin-top:8px">Pas de note, pas de niveau. Un geste par jour, quand tu peux : le cœur grandit en silence.</p></section>
+    ${pvMore('Pour aller plus loin', 'les qualités du cœur, à lire quand tu en as envie', HEART.map(c => `<details class="pv-det" data-k="hl-${c.k}"><summary><span lang="ar" class="ar">${c.ar}</span> ${esc(c.n)} · <small class="muted">${esc(c.s)}</small></summary>${c.learn.map(p2 => `<p class="small">${p2}</p>`).join('')}<blockquote class="hq sm"><p>${c.src[0]}</p><cite>${c.src[1]}</cite></blockquote></details>`).join(''))}`;
+}
+function hgClick(t) {
+  const c = s => t.closest(s), x = hgToday();
+  if (c('[data-hgok]')) { x.done = true; save(); haptic(); try { reward(2, { noBonus: true, msg: ['Une plante a poussé', 'Un geste de plus pour ton cœur.'] }); } catch (e) {} render(); return true; }
+  if (c('[data-hgundo]')) { x.done = false; save(); render(); return true; }
+  if (c('[data-hgsw]')) { if (x.sw >= 3) return true; const L = HG.map((h, i) => i).filter(i => i !== x.i); x.i = L[Math.floor(Math.random() * L.length)]; x.sw = (x.sw || 0) + 1; save(); render(); return true; }
+  return false;
+}
 /* Duʿa : 4 marches selon les jours de pratique, et le carnet. */
 function duaSteps(cur, c, nd) {
   const si = cur.steps.findIndex(s => nd < s.to), st = cur.steps[si < 0 ? cur.steps.length - 1 : si];
@@ -9019,6 +9558,7 @@ function duaSteps(cur, c, nd) {
     <p class="small muted" style="margin:0 0 12px">Écrire compte comme ta pratique du jour. Si tu Lui as parlé à voix basse, touche plutôt le bouton en dessous.</p>` : ''}`;
 }
 function heartClick(t) {
+  if (hgClick(t)) return true;
   const c = s => t.closest(s); let el; const h = hrt();
   if ((el = c('[data-hsel]'))) { h.cur = el.dataset.hsel; save(); render(); return true; }
   if (c('[data-hread]')) { hc(h.cur).read = todayISO(); save(); render(); reward(5, { msg: [HEART.find(x => x.k === h.cur).n, 'La leçon est comprise. Place à la pratique, sept jours.'] }); return true; }
@@ -9057,7 +9597,6 @@ const THEME_DEFAULT = 'emeraude', THEME_EXTRA = null;
 const TKEYS = ['bg', 'bg-2', 'surface', 'raise', 'ink', 'ink-2', 'muted', 'line', 'orbit', 'gold', 'gold-hi', 'gold-ink', 'gold-soft', 'glow', 'mint', 'mint-soft', 'seg-bg', 'seg-on'];
 const THEMES = {
   emeraude: { n: 'Émeraude & or', l: '#EEF2EE #E4EBE6 #FFFFFF #E3EAE5 #0B1F19 #2E4A40 #5B7369 #D0DBD4 #B9C9BF #94700F #B8901F #FFFFFF #F3EAD2 rgba(184,144,31,.18) #187F5B #DDF0E7 #E3EAE5 #FFFFFF', d: '#08130F #0C1C17 #0F221C #163029 #EEF3EF #C3D3CB #86A197 #1D3A31 #27473D #E9C46A #F5D98E #1A1405 #2A2615 rgba(233,196,106,.22) #5ED3A8 #123328 #0F221C #23463C' },
-  retro: { n: 'Rétro Fantasy 1998', l: '#07051A #0C0926 #110C34 #1C1550 #F2ECFF #D8CEF7 #A99BD9 #2C2275 #3B2D8F #FF9A1F #FFBE5C #1A0A00 #2E1C3A rgba(255,154,31,.26) #5EF0C2 #0E2C35 #0E0A2C #2B3BFF', d: '#07051A #0C0926 #110C34 #1C1550 #F2ECFF #D8CEF7 #A99BD9 #2C2275 #3B2D8F #FF9A1F #FFBE5C #1A0A00 #2E1C3A rgba(255,154,31,.26) #5EF0C2 #0E2C35 #0E0A2C #2B3BFF' },
   nuit: { n: 'Nuit & bleu pastel', l: '#EEF2FA #E3E9F6 #FFFFFF #E4EAF6 #0D1733 #2E3C63 #5C6A8E #D4DCEE #BAC6E2 #3B6FD6 #5B8FF0 #FFFFFF #E1EAFC rgba(59,111,214,.16) #1E8468 #DCF1EA #E4EAF6 #FFFFFF', d: '#0A1024 #0D1530 #111A36 #18234A #EEF2FB #C5CFE8 #8A97B8 #212D52 #2B3A62 #74A7FF #A9C8FF #07122E #16244A rgba(116,167,255,.22) #7FD1B9 #12302E #111A36 #22305C' },
   sable: { n: 'Sable & terracotta', l: '#F6F1EA #EDE5DA #FFFFFF #EEE6DB #2A1D14 #5A4535 #8A7360 #E2D6C6 #CDBBA6 #B4532F #CF6E47 #FFFFFF #F7E3D8 rgba(180,83,47,.16) #3E7D5A #E1EFE5 #EEE6DB #FFFFFF', d: '#17110C #1E1711 #251C15 #30251C #F4ECE3 #D6C7B6 #A08C78 #3A2D22 #4B3B2E #E4835C #F0A07F #1E0E06 #3A2218 rgba(228,131,92,.22) #7CC59C #14291D #251C15 #3E3024' },
   rose: { n: 'Rose poudré & prune', l: '#F8F0F2 #F0E4E8 #FFFFFF #F1E5E9 #2A1420 #5B3A4B #8B6B7B #E8D5DC #D5BCC6 #8E3A63 #AE5481 #FFFFFF #F6E2EB rgba(142,58,99,.15) #2F7F68 #DFF0EA #F1E5E9 #FFFFFF', d: '#160C12 #1E1119 #26151F #331C2A #F6ECF1 #D9C3CE #A88A99 #3B2331 #4D2E40 #E59BC0 #F2BBD5 #2A0E1C #3A1D2C rgba(229,155,192,.22) #7FD1B9 #13302A #26151F #43283A' },
@@ -9087,8 +9626,7 @@ document.addEventListener('input', e => {
 
 function thConf() { const t = S.theme = S.theme && typeof S.theme === 'object' ? S.theme : {}; if (!t.custom || !t.custom.a) t.custom = { a: '#E9C46A', b: '#0F221C' }; THEMES.custom = customTheme(t.custom); if (!THEMES[t.id]) t.id = THEME_DEFAULT; if (!['auto', 'light', 'dark'].includes(t.mode)) t.mode = 'auto'; return t; }
 function applyTheme() {
-  const t = thConf(), rt = t.id === 'retro', dark = rt || (typeof S !== 'undefined' && (S.ui || 'systeme') === 'systeme') || document.body.classList.contains('gal-home') || t.mode === 'dark' || (t.mode === 'auto' && tMQ && tMQ.matches), v = dark ? 'd' : 'l';
-  document.documentElement.classList.toggle('retro', rt); rtSky(rt);
+  const t = thConf(), dark = (typeof S !== 'undefined' && (S.ui || 'systeme') === 'systeme') || document.body.classList.contains('gal-home') || t.mode === 'dark' || (t.mode === 'auto' && tMQ && tMQ.matches), v = dark ? 'd' : 'l';
   const vals = THEMES[t.id][v].split(' '), r = document.documentElement;
   TKEYS.forEach((k, i) => r.style.setProperty('--' + k, vals[i]));
   Object.entries(Object.assign({}, TSTATE[v], (THEME_EXTRA || {})[v] || {})).forEach(([k, x]) => r.style.setProperty('--' + k, x));
@@ -9102,72 +9640,18 @@ function themeBlock() {
   const t = thConf();
   return `${repSetting()}<p class="gt">Couleurs</p>
     ${uiSys() ? `${repSetting()}<p class="gt">Aura du Système</p><div class="seg" role="group" aria-label="Aura" style="margin-bottom:8px">${Object.entries(AURA_L).map(([k, x]) => `<button data-aural="${k}" aria-pressed="${auraLine() === k}"><span class="dot" style="background:${x.c[0]}"></span>${x.n}</button>`).join('')}</div><div class="aura-strip" style="margin-bottom:8px">${SR_SW.map(c => `<i style="--c:${c}" class="ok"></i>`).join('')}</div><p class="hint" style="margin-bottom:16px">L'aura évolue avec ton rang, de E à S (aura actuelle : <b>${AURA[auraIdx()]}</b>).</p><button class="sys-btn big ghost" data-replay-eveil style="margin:0 0 18px">REVOIR L'ÉVEIL</button>${sfxBlock()}` : `<p class="gt">Apparence</p>
-    <div class="thgrid">${Object.entries(THEMES).map(([id, x]) => { const l = x.l.split(' '), d = x.d.split(' '); return `<button class="thsw" data-theme="${id}" aria-pressed="${t.id === id}"><span class="thdots">${id === 'retro' ? ['#07051A', '#2B3BFF', '#7B2CFF', '#FF9A1F'].map(c => `<i style="background:${c};box-shadow:inset 0 0 0 1px #3B2D8F"></i>`).join('') : `<i style="background:${l[0]};box-shadow:inset 0 0 0 1px ${l[7]}"></i><i style="background:${l[9]}"></i><i style="background:${d[0]}"></i><i style="background:${d[9]}"></i>`}</span><span>${x.n}</span></button>`; }).join('')}</div>
+    <div class="thgrid">${Object.entries(THEMES).map(([id, x]) => { const l = x.l.split(' '), d = x.d.split(' '); return `<button class="thsw" data-theme="${id}" aria-pressed="${t.id === id}"><span class="thdots"><i style="background:${l[0]};box-shadow:inset 0 0 0 1px ${l[7]}"></i><i style="background:${l[9]}"></i><i style="background:${d[0]}"></i><i style="background:${d[9]}"></i></span><span>${x.n}</span></button>`; }).join('')}</div>
     ${t.id === 'custom' ? `<div class="thpick"><label><input type="color" data-tcol="a" value="${t.custom.a}"><span>Couleur principale<small>boutons, chiffres, accents</small></span></label><label><input type="color" data-tcol="b" value="${t.custom.b}"><span>Teinte du fond<small>l'ambiance générale</small></span></label></div><p class="hint" style="margin-top:6px">L'app en tire toute seule une version claire et une version sombre lisibles.</p>` : ''}
-    ${t.id === 'retro' ? `<p class="hint" style="margin-top:10px">Rétro Fantasy 1998 est toujours sombre : un sorcier, un hibou, un dragon et un gobelin gardent tes onglets. Les animations s'arrêtent si ton téléphone est réglé sur « réduire les animations ».</p>` : `<div class="seg" role="group" aria-label="Mode" style="margin-top:10px">${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([m, l]) => `<button data-tmode="${m}" aria-pressed="${t.mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
-    <p class="hint">Auto suit le réglage clair ou sombre de ton téléphone.</p>`}`}`;
+    <div class="seg" role="group" aria-label="Mode" style="margin-top:10px">${[['auto', 'Auto'], ['light', 'Clair'], ['dark', 'Sombre']].map(([m, l]) => `<button data-tmode="${m}" aria-pressed="${t.mode === m}"><span class="dot"></span>${l}</button>`).join('')}</div>
+    <p class="hint">Auto suit le réglage clair ou sombre de ton téléphone.</p>`}`;
 }
-/* =====================================================================
-   v5.50 · THÈME « RÉTRO FANTASY 1998 »
-   Choisi comme une palette (THEMES.retro) : applyTheme() pose html.retro et le ciel,
-   render() ajoute dans l'en-tête la lanterne et le gardien de l'onglet (rtDecorate).
-   Gardiens : Accueil → sorcier, Heures → hibou, Argent → dragon, Business → gobelin.
-   Onglets verrouillés : le gardien en grand, « Pas encore… » et l'objectif restant (rtLock).
-   Images et polices : assets/theme-retro/. Yeux : positions en % de l'image (RT_G).
-   ===================================================================== */
-const RT_DIR = 'assets/theme-retro/';
-const RT_G = {
-  sorcier: { e: [[48.5, 15.8], [53.2, 15.3]], w: 3.2, h: 2.2, lid: '', bd: 1.2 },
-  hibou: { e: [[44.5, 16.8], [56.7, 16.8]], w: 5.4, h: 3.4, lid: '#8A52D6', bd: .4 },
-  dragon: { e: [[71.6, 22.5], [80.4, 23.8]], w: 3.8, h: 2.4, lid: '#3C36C8', bd: 2.1 },
-  gobelin: { e: [[55.4, 25.3], [64.7, 25.2]], w: 5.6, h: 2.8, lid: '#8F8A22', bd: 3 }
-};
-function rtOn() { try { return !!S && thConf().id === 'retro'; } catch (e) { return false; } }
-function rtGuard(n, big) {
-  const g = RT_G[n]; if (!g) return '';
-  return `<span class="rt-g ${big ? 'big' : ''}"><img src="${RT_DIR}${n}.png" alt="" draggable="false" decoding="async">${g.e.map(([x, y]) => `<i class="rt-eye ${g.lid ? '' : 'glint'}" style="left:${x}%;top:${y}%;width:${g.w}%;height:${g.h}%;${g.lid ? `--lid:${g.lid};` : ''}--bd:${g.bd}s"></i>`).join('')}</span>`;
-}
-function rtGuardKey() {
-  if (tab === 'orbite') return 'sorcier';
-  if (tab === 'argent') return A.view === 'heures' ? 'hibou' : 'dragon';
-  if (tab === 'business') return S.unlocks.business ? 'gobelin' : '';
-  return '';
-}
-function rtLock(n, sub, items) {
-  return `<div class="rt-lock" role="group" aria-label="Pas encore débloqué"><div class="rt-lock-g" aria-hidden="true">${rtGuard(n, true)}</div>
-    <p class="rt-lock-t">Pas encore…</p><p class="rt-lock-s">${sub}</p>
-    <ul class="rt-lock-l">${items.map(([v, l, ok]) => `<li class="${ok ? 'ok' : ''}"><b class="num">${v}</b><span>${l}</span></li>`).join('')}</ul></div>`;
-}
-function rtDecorate() {
-  if (!rtOn()) return;
-  const h = document.querySelector('#app header.top'); if (!h || h.classList.contains('rt-head')) return;
-  const n = rtGuardKey(); h.classList.add('rt-head'); h.classList.toggle('rt-has-g', !!n);
-  h.insertAdjacentHTML('afterbegin', `<span class="rt-lant" aria-hidden="true"><i></i><img src="${RT_DIR}lanterne-1.png" alt="" draggable="false"></span>${n ? `<span class="rt-gw" aria-hidden="true">${rtGuard(n)}</span>` : ''}`);
-}
-let rtRaf = 0, rtBound = false;
-function rtOnScroll() { if (rtRaf) return; rtRaf = requestAnimationFrame(() => { rtRaf = 0; document.documentElement.style.setProperty('--sy', String(Math.round(Math.max(0, scrollY)))); }); }
-function rtSky(on) {
-  if (on && !document.getElementById('rtSky')) {
-    let seed = 11; const r = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
-    const stars = Array.from({ length: 34 }, (_, i) => `<b class="${i % 6 ? '' : 'x'}" style="left:${(r() * 100).toFixed(1)}%;top:${(r() * 72).toFixed(1)}%;--d:${(3 + r() * 4).toFixed(1)}s;--dl:-${(r() * 7).toFixed(1)}s"></b>`).join('');
-    const fl = [['planete', 'planete'], ['ile', 'ile'], ['gemme', 'gemme'], ['montre', 'montre'], ['lant2', 'lanterne-2']].map(([c, f]) => `<span class="rt-fl ${c}"><img src="${RT_DIR}${f}.png" alt="" decoding="async"></span>`).join('');
-    const sky = document.createElement('div'); sky.id = 'rtSky'; sky.setAttribute('aria-hidden', 'true');
-    sky.innerHTML = `<div class="rt-fond"></div><div class="rt-stars">${stars}</div>${fl}`;
-    document.body.prepend(sky);
-    const gr = document.createElement('div'); gr.id = 'rtGrain'; gr.setAttribute('aria-hidden', 'true'); document.body.appendChild(gr);
-  }
-  const want = on && !reduceMotion();
-  if (want && !rtBound) { rtBound = true; addEventListener('scroll', rtOnScroll, { passive: true }); rtOnScroll(); }
-  if (!want && rtBound) { rtBound = false; removeEventListener('scroll', rtOnScroll); document.documentElement.style.removeProperty('--sy'); }
-}
-
 function openSettingsBody() { openSettings(); }
 function themeClick(t) {
   const al = t.closest('[data-aural]'); if (al) { setAuraLine(al.dataset.aural); try { sfx('win'); } catch (e) {} applyTheme(); render(); const sb = $('#settingsBody'), y = sb ? sb.scrollTop : 0; openSettingsBody(); if (sb) sb.scrollTop = y; haptic(); return true; }
   const u = t.closest('[data-ui]'); if (u) { S.ui = u.dataset.ui; try { localStorage.setItem('sdp-ui', S.ui); } catch (e) {} save(); applyTheme(); render(); const sb = $('#settingsBody'), y = sb ? sb.scrollTop : 0; openSettingsBody(); if (sb) sb.scrollTop = y; haptic(); return true; }
   const el = t.closest('[data-theme],[data-tmode]'); if (!el) return false;
   const c = thConf();
-  if (el.dataset.theme) { const was = c.id; c.id = el.dataset.theme; $$('[data-theme]').forEach(b => b.setAttribute('aria-pressed', b === el)); if ((was === 'retro') !== (c.id === 'retro')) { save(); applyTheme(); render(); const sb = $('#settingsBody'), y = sb ? sb.scrollTop : 0; openSettingsBody(); if (sb) sb.scrollTop = y; haptic(); return true; } if ((was === 'custom') !== (c.id === 'custom')) { save(); applyTheme(); const sb = $('#settingsBody'), y = sb ? sb.scrollTop : 0; openSettingsBody(); if (sb) sb.scrollTop = y; return true; } }
+  if (el.dataset.theme) { const was = c.id; c.id = el.dataset.theme; $$('[data-theme]').forEach(b => b.setAttribute('aria-pressed', b === el)); if ((was === 'custom') !== (c.id === 'custom')) { save(); applyTheme(); const sb = $('#settingsBody'), y = sb ? sb.scrollTop : 0; openSettingsBody(); if (sb) sb.scrollTop = y; return true; } }
   else { c.mode = el.dataset.tmode; $$('[data-tmode]').forEach(b => b.setAttribute('aria-pressed', b === el)); }
   save(); applyTheme(); haptic(); return true;
 }
@@ -9754,11 +10238,11 @@ function arC2Click(t) {
   if ((el = c('[data-ard]'))) { const v = el.dataset.ard; if (v === 'go') { AR.dq = { kind: el.dataset.kind, list: arDeckItems(el.dataset.kind), i: 0, score: 0, pick: null, opts: null }; render(); window.scrollTo(0, 0); return true; }
     if (v === 'next') { AR.dq.i++; AR.dq.pick = null; AR.dq.opts = null; } if (v === 'end') AR.dq = null; rr(); return true; }
   if ((el = c('[data-ardo]'))) { const q = AR.dq, x = q.list[q.i], D = AR_DECK[q.kind], k = Number(el.dataset.ardo), st = arDk(q.kind), r = st[x[0]] = st[x[0]] || { st: 0 }; q.pick = k;
-    if (q.opts[k] === (D.rev ? x[1] : x[2])) { q.score++; r.st = (r.st || 0) + 1; haptic(); } else r.st = 0; save(); rr(); return true; }
+    try { arTick(); } catch (e) {} if (q.opts[k] === (D.rev ? x[1] : x[2])) { q.score++; r.st = (r.st || 0) + 1; haptic(); } else r.st = 0; save(); rr(); return true; }
   if ((el = c('[data-arpe]'))) { const v = el.dataset.arpe, P = arPe();
     if (v === 'go') { const td = todayISO(); AR.pq = { list: AR_PE.slice().sort((x, y) => new Set(P[x[0]] || []).size - new Set(P[y[0]] || []).size || ((P[x[0]] || []).includes(td) ? 1 : 0) - ((P[y[0]] || []).includes(td) ? 1 : 0) || Math.random() - .5).slice(0, 6).map(x => x[0]), i: 0, score: 0, show: false }; render(); window.scrollTo(0, 0); return true; }
     if (v === 'show') AR.pq.show = true;
-    if (v === 'ok' || v === 'ko') { const id = AR.pq.list[AR.pq.i]; if (v === 'ok') { const d = P[id] = P[id] || []; if (!d.includes(todayISO())) d.push(todayISO()); AR.pq.score++; haptic(); save(); } AR.pq.i++; AR.pq.show = false; }
+    if (v === 'ok' || v === 'ko') { try { arTick(); } catch (e) {} const id = AR.pq.list[AR.pq.i]; if (v === 'ok') { const d = P[id] = P[id] || []; if (!d.includes(todayISO())) d.push(todayISO()); AR.pq.score++; haptic(); save(); } AR.pq.i++; AR.pq.show = false; }
     if (v === 'end') AR.pq = null; rr(); return true; }
   return false;
 }
@@ -10166,7 +10650,7 @@ function render(animate) {
   const sysOn = uiSys(); document.body.classList.toggle('sys-on', sysOn); applyAura(); sysNav();
   const deco = tab !== 'flux' && tab !== 'z' && !arcOn && !sysOn;
   document.body.classList.toggle('gal-on', deco); document.body.classList.toggle('gal-home', tab === 'orbite'); document.body.classList.toggle('gal-soft', deco && tab !== 'orbite');
-  if (deco && !rtOn()) ensureGalaxy();
+  if (deco) ensureGalaxy();
   applyTheme();
   if (!tjLast) tjOpen();
   const app = $('#app');
@@ -10178,8 +10662,8 @@ function render(animate) {
   const _openK = render._t === tab + (C.view || '') ? new Set([...app.querySelectorAll('details[data-k][open]')].map(d => d.dataset.k)) : new Set(); render._t = tab + (C.view || '');
   try { app.innerHTML = gx({ psy: vPsy, qibla: vQibla, chasse: vChasse, orbite: vOrbite, flux: vFlux, parcours: vParcours, foi: () => F.view === 'nafila' ? vNafila() : F.view === 'coran' ? vCoran() : F.view === 'arabe' ? vArabe() : F.view === 'dhikr' ? vDhikr() : F.view === 'coeur' ? vHeart() : vHabits(), corps: () => C.view === 'nutrition' ? vPvFood() : C.view === 'soin' ? vSoin() : C.view === 'apparence' ? vApparence() : C.view === 'parfum' ? vParfum() : vPvTrain(), intel: vIntel, libre: vLibre, sante: vSante, achats: vAchats, maison: vMaison, routine: vRoutine, argent: () => A.view === 'heures' ? vHeures() : A.view === 'zakat' ? (zkTick(), vZakat()) : vPlan(), business: vBusiness, z: () => window.__z ? window.__z.view() : vOrbite() }[tab]()); } catch (err) { console.error(err); app.innerHTML = `<div style="padding-top:calc(var(--sat) + 30px)">${sysWin('ERREUR DU SYSTÈME', `<p class="sys-li">Cette porte n'a pas pu s'ouvrir.</p><p class="sys-xpt" style="text-align:left">${esc(String(err && err.message || err))}</p><button class="sys-btn big" data-goto="orbite">RETOUR AU STATUT</button>`, 'pen')}</div>`; }
   if (_openK.size) app.querySelectorAll('details[data-k]').forEach(d => { if (_openK.has(d.dataset.k)) d.open = true; });
-  coreGlyph(); rtDecorate();
-  if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); gxDailyLater(); } }
+  coreGlyph();
+  if (tab === 'orbite') { if (uiSys()) sysCheckLater(); else { startOrbit(); checkGalaxy(); gxDailyLater(); tdFirstLater(); } }
   if (tab === 'qibla') requestAnimationFrame(qiblaInit);
   if (uiSys() && (tab === 'orbite' || tab === 'foi') && !missedDismissed) setTimeout(missedOverlay, 700);
   if (tab === 'flux') bindFlux();
@@ -10373,6 +10857,7 @@ document.addEventListener('click', e => {
   }
   if ((el = c('[data-funsave]'))) { S.flux.saved = S.flux.saved.filter(x => x !== el.dataset.funsave); save(); openSaved(); const b = $(`.fc[data-fid="${el.dataset.funsave}"] [data-fsave]`); if (b) { b.setAttribute('aria-pressed', 'false'); $('span', b).textContent = 'Garder'; } return; }
   // Corps
+  if (c('[data-tdopen]')) { tdOpen(false); return; }
   if ((el = c('[data-cview]'))) { go(el.dataset.cview); return; }
   if ((el = c('[data-phase]'))) {
     const id = Number(el.dataset.phase), st = phaseStatus(id);
