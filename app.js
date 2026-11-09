@@ -548,7 +548,7 @@ const COACH = {
   corps: ['Ton arc de combattant', 'Trois arcs : le Réveil à la maison, la Forge à la salle et au sac, le Tranchant. Chaque lundi, tu indiques tes jours libres : l\'app place tes séances de force, de combat, de vitesse et de mental. Le grimoire t\'apprend les techniques, la défense de rue, les points vitaux et le mental. La fiche mesure tes stats tous les 28 jours. Pendant une séance de combat, garde le téléphone près de toi : la voix t\'annonce les frappes.'],
   nutri: ['Ton carburant', 'Pour prendre du muscle : un léger surplus de calories et assez de protéines. Note tes repas du jour, ta whey et ta créatine : la jauge se remplit. Pèse-toi une fois par semaine : l\'app ajuste ta cible si tu prends trop vite ou trop lentement.'],
   psy: ['Cap Psychologie 2027', 'Ta planète prioritaire jusqu\'à la rentrée. Semaine : les séances, courtes, pour les temps calmes à la gare (objectif 5 h). Méthode : réapprendre à travailler. Carte L1 : le programme, chapitre par chapitre. Niveau : les tests. Cartes : les flashcards. Démarches : chaque étape administrative et sa date limite.'],
-  pvcorps: ['Ton protocole', '15 000 pas minimum chaque jour, et un circuit un jour sur deux : pompes, dips, tractions négatives, chacun jusqu\'à l\'échec, 3 à 4 tours. Note tes répétitions : les chiffres grisés sont ceux de ton dernier circuit, bats-en au moins un. Le jour sans circuit, c\'est la récupération : le muscle grossit là.'],
+  pvcorps: ['Ton protocole', '15 000 pas minimum chaque jour, et un circuit un jour sur deux : 9 exercices au poids du corps (squats, pompes, rowing sous une table, fentes, dips, pont fessier, pompes piquées, gainage, superman), 3 à 4 tours, 90 s de repos. Le schéma est dans la carte du circuit. Le jour sans circuit, c\'est la récupération : le muscle grossit là.'],
   pvnutri: ['Perdre 10 à 15 kg, garder le muscle', 'Pèse-toi une fois par semaine : l\'app suit ton rythme (0,5 à 1 % par semaine). En test : un vrai repas par jour (patates douces, patates, œufs, légumes, thon ou fromage blanc pour les protéines), 1 banane, des fraises, 2 à 3 L d\'eau. Sucres, pâtes, riz, soda et pain sont bannis : tout est tenu par défaut, touche seulement en cas d\'écart. Note ton ressenti : au bout de 14 jours, tu décides.'],
   maison: ['Le foyer', 'Aspirateur chaque jour, vitres et poussière un jour sur deux, draps une fois par semaine, une machine par jour : lancée, étendue, puis pliée. Ce qui n\'est pas dû aujourd\'hui reste grisé.'],
   intel: ['Six seuils', 'Lecture, sudoku, casse-tête, Coran avec son exégèse, écoute du Coran, écriture : 30 minutes chacun au minimum. ▶ lance un chrono. Le sudoku, les casse-tête et l\'écriture se font aussi dans l\'app, et le chrono y tourne tout seul.'],
@@ -5584,7 +5584,7 @@ const SN_AM = [
   ['m-dents', 'Dents', ['m-dents'], ['Brosse 2 min, dentifrice fluoré, brosse inclinée vers la gencive.', 'Gratte-langue d\'arrière en avant.']],
   ['m-visage', 'Visage', ['m-visage'], ['Eau fraîche (ou ton nettoyant si la peau brille).', 'Crème hydratante.', 'SPF 30 si tu sors au soleil.']],
   ['m-barbe', 'Barbe', ['m-barbe'], ['Brosse vers le bas.', '2-3 gouttes d\'huile entre les paumes, jusqu\'à la peau.']],
-  ['m-cheveux', 'Cheveux', ['m-cheveux'], ['Un peu d\'eau au vaporisateur.', 'Une noisette de 2 en 1 Curl Coco.', 'Froisse avec les mains : jamais de peigne à sec.']],
+  ['m-cheveux', 'Cheveux', ['m-cheveux'], ['Un peu d\'eau au vaporisateur.', 'Crème Coco Curl Light (ou ton 2 en 1) sur les longueurs, des racines aux pointes, en faisant un mouvement de ressort.', 'Une touche de gelée si une mèche a perdu sa forme. Jamais de peigne à sec.']],
   ['m-mains', 'Mains', ['m-mains'], ['Mains propres.', 'Une noisette de crème, masse aussi les ongles.']],
   ['m-deo', 'Déo et parfum', ['m-deo'], ['Déodorant sur aisselles sèches.', 'Parfum : touche le bouton « Parfum » pour savoir lequel et comment.'], 'parfum'],
   ['jour', 'Dans la journée', ['siwak', 'gum'], ['Siwak avant une prière.', 'Gummies cheveux avec ton repas.']]
@@ -5613,11 +5613,11 @@ function snWins(m) {
   if (m === 'am') {
     W.push({ id: 'sleep', t: 'Ton sommeil', done: !!S.body.sleep[todayISO()], sleep: true });
     SN_AM.forEach(([id, t, ids, st, link]) => { if (ids.some(x => snApDef(x))) W.push({ id, t, ids: ids.filter(x => snApDef(x)), st, link }); });
-    if (pvWashDay()) W.push({ id: 'lavage', t: 'Lavage des cheveux', ids: ['lavage'], st: SN_WASH, occ: 1 });
+    if (pvWashDay()) W.push({ id: 'lavage', t: 'Lavage des cheveux', ids: ['lavage'], st: snWashSteps(), occ: 1 });
   } else {
     SN_PM.forEach(([id, t, ids, st]) => W.push({ id, t, ids: ids.filter(x => snApDef(x)), st }));
-    if (pvWashDay()) W.push({ id: 'lavage', t: 'Lavage des cheveux', ids: ['lavage'], st: SN_WASH, occ: 1 });
-    const o = snOilDue(); if (o) { const r = SN_OIL[o.n % 3]; W.push({ id: 'oil', t: 'Bain d\'huile', occ: 1, done: o.done, st: [`Mélange du jour : ${r[0]} (${r[1]}).`, '2 à 3 cuillères à soupe, surtout sur les longueurs et les pointes. Un peu de jojoba ou de nigelle en massage sur le cuir chevelu.', 'Bonnet en satin par-dessus, une vieille taie sur l\'oreiller.', 'Demain : shampoing sur cheveux encore secs et huilés, frotte, puis l\'eau. Deuxième shampoing, puis après-shampoing.'] }); }
+    if (pvWashDay()) W.push({ id: 'lavage', t: 'Lavage des cheveux', ids: ['lavage'], st: snWashSteps(), occ: 1 });
+    const o = snOilDue(); if (o) { const r = SN_OIL[o.n % 3]; W.push({ id: 'oil', t: 'Bain d\'huile', occ: 1, done: o.done, st: [`Mélange du jour : ${r[0]} (${r[1]}).`, '2 à 3 cuillères à soupe, surtout sur les longueurs et les pointes. Un peu de jojoba ou de nigelle en massage sur le cuir chevelu.', 'Laisse poser toute la nuit : bonnet ou foulard en satin, ou une serviette sur l\'oreiller.', 'Demain : shampoing sur cheveux encore secs et huilés, frotte, puis l\'eau. Deuxième shampoing, puis après-shampoing.'] }); }
     if (new Date().getDay() === 5) { const g = lkWkVal('w-gommage') >= 1, mk = lkWkVal('w-masque') >= 1; W.push({ id: 'ven', t: 'Soin du vendredi', occ: 1, done: g && mk, wk: ['w-gommage', 'w-masque'], st: ['Gommage doux du visage, en petits cercles, 30 secondes. Rince.', 'Masque visage 10 minutes.', 'Ta crème de nuit ensuite.'] }); }
     const fd = FITRA.map(([id, nm]) => { const hs = S.body.fitra[id] || [], last = hs[hs.length - 1]; return [id, nm, last ? Math.round((parseDate(todayISO()) - parseDate(last)) / 864e5) : null, last === todayISO()]; }).filter(x => x[3] || (x[2] != null && x[2] >= FITRA_MAX - 5));
     if (fd.length) W.push({ id: 'fitra', t: 'Fitra', occ: 1, fitra: fd, done: fd.every(x => x[3]) });
@@ -5626,7 +5626,10 @@ function snWins(m) {
   W.forEach(w => { if (w.done === undefined) w.done = w.ids.length ? w.ids.every(x => snOn(x, d)) : false; });
   return W;
 }
-const SN_WASH = ['Shampoing Curl Coco sur le cuir chevelu, massage 2-3 min avec la pulpe des doigts.', 'Après-shampoing (ou le masque, une fois sur deux, 10 min) : démêle avec les doigts, des pointes vers les racines.', 'Rince à l\'eau tiède, sèche en tamponnant avec une microfibre ou un t-shirt.', '2 en 1 Curl Coco sur cheveux mouillés, forme tes boucles.'];
+const SN_WASH = ['Mouille tes cheveux. Shampoing Energie Fruit Curl Coco sur le cuir chevelu, massage 2-3 min avec la pulpe des doigts. Si le jaune revient : shampoing violet à la place, 2 à 5 min (au plus toutes les 2 semaines).', 'Après-shampoing So\'Bio Cheveux nourris. Démêle sous la douche, avec un peigne : d\'abord les pointes, puis des racines aux pointes. Jamais à sec.', 'Rince, puis sèche en tamponnant (microfibre ou t-shirt), sans frotter.', 'Crème Coco Curl Light (ou ton 2 en 1) partout sur les longueurs, des racines aux pointes, en faisant un mouvement de ressort. Puis la gelée Coco Curl Jelly par-dessus si tu veux plus de tenue.'];
+/* v5.60 · ta routine d'avant : le masque une fois sur deux, 5 min AVANT le shampoing */
+function snMaskDue() { const D = pvS().d, k = todayISO(); return Object.keys(D).filter(x => x < k && D[x] && D[x].ap && D[x].ap.lavage).length % 2 === 0; }
+function snWashSteps() { return snMaskDue() ? ['Aujourd\'hui, jour de masque : masque Curl Coco 2 en 1 sur cheveux mouillés, laisse poser 5 minutes, puis lave.'].concat(SN_WASH) : SN_WASH; }
 function snWinHtml(w) {
   const steps = w.st ? `<ol class="sn-st">${w.st.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : '';
   let act = `<button class="btn block" data-snok="${w.id}" style="margin-top:12px">C'est fait</button>`;
@@ -7060,7 +7063,7 @@ function pvSetSteps(n) {
 const PV_EXO = [['p', 'Pompes', 'pompes', 'Corps gainé de la tête aux talons, poitrine à 2 cm du sol, coudes à 45°. Jusqu\'à l\'échec : la répétition que tu ne peux plus finir proprement.'],
   ['d', 'Dips', 'dips', 'Sur deux chaises solides dos à dos, ou un banc. Descends jusqu\'à 90° aux coudes, pas plus bas, épaules basses.'],
   ['t', 'Tractions négatives', 'pullup', 'Monte en haut de la barre avec un saut ou une chaise, menton au-dessus. Puis descends le plus lentement possible (3 à 5 s) jusqu\'à bras tendus. Recommence.']];
-const PV_REST = 120;
+const PV_REST = 90;
 const PVC = { r: null, rest: 0, restT: 0 };
 function pvLastCirc() { const c = pvS().circ; return c.length ? c[c.length - 1] : null; }
 function pvCircDay() {
@@ -7085,6 +7088,31 @@ function pvCircCard() {
     <p class="pv-sub">Matériel : une barre de traction de porte et deux chaises stables. Plus de 8 tractions négatives lentes : passe aux vraies tractions.</p>`);
   return pCard(st.due && !st.done ? 'Circuit du jour' : 'Circuit · 1 jour sur 2', head + (st.due || st.done ? grid : '') + tips, st.due && !st.done ? 'pv-hot' : '');
 }
+/* v5.61 · NOUVEAU CIRCUIT AU POIDS DU CORPS (9 exercices, tout le corps, sans barre ni salle) + schéma (circuit.jpg) */
+const PV_EX2 = [['squat', 'Squats', '15 à 20', 'Dos droit, genoux dans l\'axe des pieds.', 'squat_pdc'], ['pomp', 'Pompes', 'max − 2', 'Corps gainé en planche (sur les genoux si besoin).', 'pompes'], ['row', 'Rowing inversé sous une table', '8 à 12', 'Tirer la poitrine vers la table, corps droit. Table solide !', 'row_table'],
+  ['fente', 'Fentes alternées', '10 / jambe', 'Genou arrière près du sol, buste droit.', 'fentes'], ['dips', 'Dips sur une chaise', '8 à 12', 'Coudes vers l\'arrière, épaules basses.', 'dips'], ['pont', 'Pont fessier', '15 à 20', 'Serrer les fessiers en haut.', ''],
+  ['pike', 'Pompes piquées', '6 à 10', 'Hanches hautes, tête vers le sol.', 'pike'], ['plan', 'Gainage planche', '30 à 45 s', 'Ventre et fessiers serrés, dos plat.', 'planche'], ['sup', 'Superman', '12 à 15', 'Lever bras et jambes, regard au sol.', '']];
+const PVC2 = { t: 3, v: null };
+function pvCircCard2() {
+  const st = pvCircDay(), C = pvS().circ, last = C[C.length - 1], prev = (st.done ? C[C.length - 2] : last);
+  const pv = prev && prev.v === 2 ? prev : null;
+  if (!PVC2.v) PVC2.v = PV_EX2.map(() => '');
+  const img = `<button class="circ-img" data-circimg aria-label="Voir le schéma du circuit en grand"><img src="circuit.jpg" alt="Schéma du circuit : 9 exercices" loading="lazy"><span>Voir le schéma en grand</span></button>`;
+  const head = st.done ? `<div class="pv-done"><b>Circuit fait aujourd'hui${last && last.v === 2 ? ` · ${last.t} tours` : ''}</b></div>`
+    : st.due ? '<p class="pv-sub" style="margin-top:0">Tous les 2 jours · 3 à 4 tours · 90 s de repos entre les tours. Les 9 exercices à la suite, sans pause.</p>'
+    : '<p class="pv-big">Repos</p><p class="pv-sub">Le muscle se répare en 48 h. Circuit demain.</p>';
+  const form = st.done || !st.due ? '' : `<p class="pv-k" style="margin:12px 0 4px">Répétitions par tour <small class="muted">(facultatif, grisé = la dernière fois)</small></p>
+    ${PV_EX2.map(([id, n, tg], i) => `<div class="circ-row"><span><b>${i + 1}. ${esc(n)}</b><small>${esc(tg)}</small></span><input class="num" inputmode="numeric" data-pvr2="${i}" value="${esc(PVC2.v[i])}" placeholder="${pv && pv.reps[i] ? pv.reps[i] : '—'}" aria-label="${esc(n)}"></div>`).join('')}
+    <p class="pv-k" style="margin:12px 0 4px">Tours faits</p><div class="chips" style="margin:0">${[3, 4].map(n => `<button class="chip" data-pvc2t="${n}" aria-pressed="${PVC2.t === n}">${n} tours</button>`).join('')}<button class="chip" data-pvcirc="rest">${PVC.rest ? `Repos <span id="pvRest" class="num">${pvRestTxt()}</span>` : 'Lancer 90 s de repos'}</button></div>
+    <button class="btn block" data-pvc2save style="margin-top:12px">Valider le circuit</button>`;
+  const hist = C.slice(-5).reverse().map(x => `<div class="pv-hr"><span>${DAY_MONTH.format(parseDate(x.date))}</span><span class="num">${x.v === 2 ? x.t : x.r.length} tours</span><span class="num">${x.v === 2 ? 'circuit complet' : 'ancien circuit'}</span></div>`).join('');
+  const tips = pvMore('Bien faire et historique', `${C.length} circuit${C.length > 1 ? 's' : ''} notés`, `${hist ? `<div class="pv-hist">${hist}</div>` : ''}${PV_EX2.map(([, n, tg, cue, k]) => `<p><b>${esc(n)}</b> · ${esc(cue)}</p>${k && EX_ERR[k] ? `<p class="pv-sub">À éviter : ${esc(EX_ERR[k])}</p>` : ''}`).join('')}<p class="pv-sub">Progression : +1 à 2 répétitions par semaine, puis +1 tour.</p><div class="pv-btns"><button class="chip" data-mirror>Miroir</button></div>`);
+  return pCard(st.due && !st.done ? 'Circuit du jour' : 'Circuit · 1 jour sur 2', img + head + form + tips, st.due && !st.done ? 'pv-hot' : '');
+}
+function circImgOpen() {
+  const el = document.createElement('div'); el.className = 'circ-ov'; el.innerHTML = '<button class="circ-x" aria-label="Fermer">×</button><div class="circ-sc"><img src="circuit.jpg" alt="Schéma du circuit"></div><p>Glisse pour te déplacer · touche × pour fermer</p>';
+  el.addEventListener('click', e => { if (e.target.closest('.circ-x')) el.remove(); }); document.body.appendChild(el);
+}
 function pvCircHist() {
   const c = pvS().circ.slice(-5).reverse(); if (!c.length) return '';
   const best = [0, 1, 2].map(j => Math.max(...pvS().circ.map(x => Math.max(0, ...x.r.map(r => numv(r[j]))))));
@@ -7101,7 +7129,7 @@ function pvCircSave() {
   pvCheckDay(); render(); scrollTo(0, 0);
 }
 function vPvTrain() {
-  return `${corpsTop('entrainement')}${pvStepsCard()}${pvCircCard()}<button class="pv-buyline" data-expl style="margin-top:14px">✦ Noter un exploit libre (douche froide, gainage…) →</button>`;
+  return `${corpsTop('entrainement')}${pvStepsCard()}${pvCircCard2()}<button class="pv-buyline" data-expl style="margin-top:14px">✦ Noter un exploit libre (douche froide, gainage…) →</button>`;
 }
 
 /* ---------- APPARENCE ---------- */
@@ -7291,7 +7319,7 @@ function pvPillars(k = todayISO()) {
   return [
     { id: 'nutrition', n: 'Alimentation', v: fs / FS.length, t: `${fs}/${FS.length}`, s: pvFoodMiss(d, k), stuck: FS.length === 4 && FS[0] && FS[1] && FS[2] && !FS[3] },
     { id: 'entrainement', n: '15K pas', v: st / g, t: pvFmt(st), s: st >= g ? 'Objectif atteint' : `Reste ${pvFmt(g - st)} pas` },
-    { id: 'entrainement', n: 'Circuit', v: c || !due ? 1 : 0, t: c ? 'fait' : due ? 'à faire' : 'repos', s: c ? 'Validé aujourd\'hui' : due ? 'Pompes, dips, tractions négatives' : 'Récupération, circuit demain', rest: !due && !c },
+    { id: 'entrainement', n: 'Circuit', v: c || !due ? 1 : 0, t: c ? 'fait' : due ? 'à faire' : 'repos', s: c ? 'Validé aujourd\'hui' : due ? '9 exercices · 3 à 4 tours' : 'Récupération, circuit demain', rest: !due && !c },
     { id: 'apparence', n: 'Apparence', v: at ? an / at : 0, t: `${an}/${at}`, s: (() => { const b = pvBarberDays(), cf = b != null && b >= PV_BARBER ? ' · coiffeur à prévoir' : ''; if (an >= at) return `Tous les gestes sont faits${cf}`; const rem = pvApList().filter(x => !pvApOn(x, d, k)), pm = rem.filter(x => x[4] === 'pm').length, nw = rem.length - pm, pl = v => v > 1 ? 's' : '';
       return nw ? `${nw} geste${pl(nw)} à faire${pm && new Date().getHours() < 15 ? ` · ${pm} ce soir` : ''}${cf}` : `Matin fait ✓ · ${pm} geste${pl(pm)} ce soir${cf}`; })() },
     (() => { const fm = ph && !ph.free ? puffFreeMin(k) : 0; return { id: 'sante', n: 'Santé · puff', v: !ph ? 0 : ph.free ? (pn ? 0 : 1) : Math.min(1, fm / (ph.target * 60)), t: !ph ? '—' : ph.free ? (pn ? 'rechute' : 'libre') : `${Math.floor(fm / 60)}/${ph.target} h`, s: !ph ? 'Lancer le plan d\'arrêt' : ph.free ? `${puffFreeStreak()} jour${puffFreeStreak() > 1 ? 's' : ''} sans puff` : puffS().run ? 'Rangée · le chrono tourne' : `${ph.target} h sans puff · jour J dans ${ph.left} j` }; })(),
@@ -7373,7 +7401,12 @@ function pvClick(t) {
     else pvSetSteps(pvSteps() + Number(a));
     return true; }
   if ((el = c('[data-pvgoal]'))) { const p = pvS(); p.goal = Math.max(5000, Math.min(40000, (numv(p.goal) || PV_GOAL) + Number(el.dataset.pvgoal))); save(); pvRe(); return true; }
-  if ((el = c('[data-pvcirc]'))) { const a = el.dataset.pvcirc; pvReadGrid();
+  if (c('[data-circimg]')) { circImgOpen(); return true; }
+  if ((el = c('[data-pvc2t]'))) { pvReadGrid2(); PVC2.t = +el.dataset.pvc2t; pvRe(); return true; }
+  if (c('[data-pvc2save]')) { pvReadGrid2(); const p = pvS(), k = todayISO(), reps = PVC2.v.map(v => Math.max(0, Math.round(numv(v))));
+    p.circ = p.circ.filter(x => x.date !== k).concat([{ date: k, v: 2, t: PVC2.t, reps }]); PVC2.v = null; PVC.rest = 0; save();
+    pvOnce('circ', 5, ['Circuit validé', `${PVC2.t} tours · tout le corps a travaillé.`]); pvCheckDay(); render(); scrollTo(0, 0); return true; }
+  if ((el = c('[data-pvcirc]'))) { const a = el.dataset.pvcirc; pvReadGrid(); pvReadGrid2();
     if (a === 'add' && PVC.r.length < 4) PVC.r.push(['', '', '']);
     if (a === 'del' && PVC.r.length > 3) PVC.r.pop();
     if (a === 'rest') { PVC.rest = 1; PVC.restT = Date.now() + PV_REST * 1000; }
@@ -7424,6 +7457,7 @@ function pvClick(t) {
 }
 function pvRun(id) { const r = pvS().run; if (r && r.id === id) pvStop(); else { pvStart(id); toast(`Chrono lancé · ${PV_IT.find(x => x[0] === id)[1]}`); } pvRe(); }
 function pvSetIntV(v) { const r = pvS().run; if (r && r.auto && r.id !== v) pvStop(); INT.v = v; if (v === 'sudo' || v === 'puz') pvStart(v, true); }
+function pvReadGrid2() { if (!PVC2.v) return; document.querySelectorAll('[data-pvr2]').forEach(i => { PVC2.v[+i.dataset.pvr2] = i.value; }); }
 function pvReadGrid() { if (!PVC.r) return; document.querySelectorAll('[data-pvr]').forEach(i => { const [a, b] = i.dataset.pvr.split('.').map(Number); if (PVC.r[a]) PVC.r[a][b] = i.value; }); }
 function pvInput(t) {
   if (t.dataset && t.dataset.pvr) { const [a, b] = t.dataset.pvr.split('.').map(Number); if (PVC.r && PVC.r[a]) PVC.r[a][b] = t.value; return true; }
@@ -7569,11 +7603,11 @@ const PV_APG = [
   ['Bouche', [['m-dents', 'Dents', '2 min, dentifrice fluoré, brosse inclinée vers la gencive, puis gratte-langue d\'arrière en avant.', 1, 'am'], ['s-dents', 'Dents + fil', '2 min, puis fil dentaire ou brossettes. Crache sans rincer : le fluor continue d\'agir.', 1, 'pm'], ['siwak', 'Siwak', 'Avant les prières, au moins une fois par jour : c\'est la sunnah. Frotte dents et gencives, puis coupe 1 cm d\'extrémité tous les 2-3 jours.', 0, 'day'], ['bdb', 'Bain de bouche', 'Sans alcool, 30 s, le soir, à distance du brossage (pas juste après, sinon il rince le fluor).', 0, 'pm']]],
   ['Peau', [['m-visage', 'Visage', 'Eau fraîche (ou nettoyant si peau grasse), crème hydratante, puis SPF 30 à 50 dès qu\'il fait beau.', 1, 'am'], ['s-visage', 'Visage', 'Nettoyant doux, eau tiède, sèche en tamponnant, puis crème de nuit.', 1, 'pm']]],
   ['Corps', [['s-douche', 'Douche complète', 'Savon doux partout, insiste sur aisselles, pieds et plis. Sèche complètement.', 1, 'pm'], ['s-corps', 'Crème corps', 'Sur peau encore humide : bras, jambes, coudes, genoux. Le parfum tient mieux ensuite.', 1, 'pm'], ['s-at', 'Anti-transpirant', 'Le soir sur aisselles sèches : il agit la nuit et tient toute la journée du lendemain.', 1, 'pm']]],
-  ['Barbe & cheveux', [['m-barbe', 'Barbe · brosser + huile', 'Brosse en poils de sanglier vers le bas, puis 2-3 gouttes d\'huile entre les paumes, jusqu\'à la peau.', 1, 'am'], ['m-cheveux', 'Boucles rafraîchies', 'Un peu d\'eau et une noisette de soin sans rinçage, froisser sans peigner à sec.', 1, 'am'], ['ch-h', 'Huile cheveux', 'Longueurs et cuir chevelu, le soir ou avant le lavage.', 0, 'pm'], ['gum', 'Gummies cheveux', 'Avec ton repas.', 0, 'day']]],
+  ['Barbe & cheveux', [['m-barbe', 'Barbe · brosser + huile', 'Brosse en poils de sanglier vers le bas, puis 2-3 gouttes d\'huile entre les paumes, jusqu\'à la peau.', 1, 'am'], ['m-cheveux', 'Boucles rafraîchies', 'Un peu d\'eau au vaporisateur, crème Coco Curl Light sur les longueurs en mouvement de ressort, sans peigner à sec.', 1, 'am'], ['ch-h', 'Huile cheveux', 'Longueurs et cuir chevelu, le soir ou avant le lavage.', 0, 'pm'], ['gum', 'Gummies cheveux', 'Avec ton repas.', 0, 'day']]],
   ['Mains', [['m-mains', 'Mains · crème', 'Le matin : mains propres, une noisette de crème, masse aussi les ongles.', 0, 'am'], ['s-mains', 'Mains · crème + cuticules', 'Le soir : une noisette de crème mains, masse les ongles, repousse doucement les cuticules avec une serviette tiède. Lime si un ongle accroche. 1 minute.', 0, 'pm']]],
   ['Style', [['m-deo', 'Déo + parfum', 'Déodorant, puis Soin → Parfum : choisis ton occasion, l\'app te dit quelle crème, quel musc et quel parfum mettre.', 1, 'am'], ['tenue', 'Tenue de demain prête', 'Choisie, repassée, posée. Chaussures nettes.', 0, 'pm'], ['s-linge', 'Pyjama propre', 'Un vrai pyjama, et tes sous-vêtements de demain sortis.', 1, 'pm']]]];
 const PV_AP = PV_APG.reduce((a, g) => a.concat(g[1]), []);
-function pvApList() { return PV_AP.concat(pvWashDay() ? [['lavage', 'Lavage des cheveux', 'Shampoing doux sans sulfates, après-shampoing, masque si c\'est le jour. Sèche en tamponnant.', 0, 'day']] : []); }
+function pvApList() { return PV_AP.concat(pvWashDay() ? [['lavage', 'Lavage des cheveux', 'Masque 5 min avant (un lavage sur deux), shampoing Curl Coco, après-shampoing So\'Bio Cheveux nourris, démêlage au peigne sous la douche, crème Light (+ gelée).', 0, 'day']] : []); }
 const pvApOn = (x, d, k = todayISO()) => x[3] ? !!((lkS().log[k] || {})[x[0]]) : !!(d.ap || {})[x[0]];
 function pvApN(d = pvPeek(), k = todayISO()) { const L = pvApList(); return [L.filter(x => pvApOn(x, d, k)).length, L.length]; }
 function pvApToggle(id) {
@@ -8774,7 +8808,7 @@ function tlCatalog() {
   /* Corps et maison */
   try { const P = pvPillars(), steps = P[1], circ = P[2];
     if (steps.v < 1) L.push({ k: 'walk', ic: '🚶', n: 'Marche', ctx: ['maison', 'gare'], min: 10, max: 20, w: 2, txt: m => `${Math.round(m * 100)} pas environ. ${steps.s}. Mets la récitation dans tes oreilles : ça compte aussi pour l'écoute du Coran.`, go: 'entrainement' });
-    if (circ.v < 1) L.push({ k: 'circ', ic: '💪', n: 'Circuit', ctx: ['maison'], min: 15, max: 25, w: 2.8, txt: () => 'Pompes, dips, tractions négatives, à l\'échec, 3 à 4 tours. 90 secondes de repos entre les tours. Lance-le depuis Corps → Entraînement.', go: 'entrainement' }); } catch (e) {}
+    if (circ.v < 1) L.push({ k: 'circ', ic: '💪', n: 'Circuit', ctx: ['maison'], min: 15, max: 25, w: 2.8, txt: () => 'Le circuit de 9 exercices au poids du corps, 3 à 4 tours, 90 secondes de repos entre les tours. Le schéma est dans Corps → Entraînement.', go: 'entrainement' }); } catch (e) {}
   try { const h = homeS(), k = todayISO(); PV_HOME.forEach(([id, n, f, tip]) => { if (homeDue(id, f) && !homeDoneOn(id, k)) L.push({ k: 'hm-' + id, ic: '🧹', n, ctx: ['maison'], min: 5, max: 15, w: 1.8, txt: () => tip, go: 'maison', fx: () => { const Lh = h.last[id] = h.last[id] || []; if (!Lh.includes(k)) { Lh.push(k); Lh.sort(); } } }); }); } catch (e) {}
   try { const [an, at] = pvApN(); if (an < at) L.push({ k: 'soin', ic: '🧴', n: 'Soin', ctx: ['maison'], min: 5, max: 10, w: 1.4, txt: () => `${at - an} geste${at - an > 1 ? 's' : ''} de soin restant${at - an > 1 ? 's' : ''} aujourd'hui (barbe, peau, dents…). Ouvre Corps → Soin et suis les étapes du moment.`, go: 'apparence' }); } catch (e) {}
   return L;
@@ -8970,7 +9004,7 @@ function openSettings() {
       <div class="cell"><label for="sNe">Fin de la nuit</label><input type="time" id="sNe" value="${st.nightEnd}"></div>
     </div>
     <p class="hint">21 h – 6 h par défaut. Adapte à ton contrat si besoin.</p>
-    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.59 · fonctionne hors ligne</p>`));
+    <p class="hint" style="margin-top:30px;text-align:center">Sayko de poche · v5.61 · fonctionne hors ligne</p>`));
   if (!$('#settingsSheet').open) $('#settingsSheet').showModal();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { const el = $('#persistInfo'); if (el && p) el.textContent = 'Stockage protégé contre le nettoyage automatique.'; }).catch(() => {});
 }
